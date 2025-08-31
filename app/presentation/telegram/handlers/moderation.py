@@ -263,20 +263,22 @@ async def welcome_change(message: types.Message, chat_repo: ChatRepository) -> N
 @moderation_router.message(Command("autodelete_joinleave", prefix="!/"))
 async def toggle_autodelete_joinleave(message: types.Message, chat_repo: ChatRepository) -> None:
     """Toggle auto-deletion of join/leave messages."""
-    chat = await chat_repo.get_chat(message.chat.id)
+    chat = await chat_repo.get_by_id(message.chat.id)
 
     if not chat:
-        # Create chat entry if it doesn't exist
-        from app.domain.models import Chat
+        # Create chat entity if it doesn't exist
+        from app.domain.entities import ChatEntity
 
-        chat = Chat(id=message.chat.id, title=message.chat.title)
-        chat_repo.db.add(chat)
-        await chat_repo.db.commit()
-        await chat_repo.db.refresh(chat)
+        chat = ChatEntity(
+            id=message.chat.id,
+            title=message.chat.title or f"Chat {message.chat.id}",
+            auto_delete_join_leave=False,  # default value
+        )
+        chat = await chat_repo.save(chat)
 
-    # Toggle the setting
-    chat.auto_delete_join_leave = not chat.auto_delete_join_leave
-    await chat_repo.db.commit()
+    # Toggle the setting using entity method
+    chat.toggle_auto_delete_join_leave()
+    await chat_repo.save(chat)
 
     status = "включено" if chat.auto_delete_join_leave else "выключено"
     await message.answer(f"<b>Автоудаление сообщений о входе/выходе {status}!</b>")

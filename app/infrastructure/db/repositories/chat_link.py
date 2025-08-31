@@ -4,8 +4,8 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.entities import ChatLinkEntity
-from app.domain.models import ChatLink
 from app.domain.repositories import IChatLinkRepository
+from app.infrastructure.db.models import ChatLink
 
 
 class ChatLinkRepository(IChatLinkRepository):

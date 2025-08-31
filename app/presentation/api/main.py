@@ -1,28 +1,60 @@
 """FastAPI application for webapp backend."""
 
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+from app.core.bot_factory import create_bot
 from app.core.config import settings
+from app.core.container import setup_container
+from app.infrastructure.db.session import create_session_maker
 from app.presentation.api.routers import agent, chats
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+    """FastAPI lifespan events."""
+    # Startup
+    # Create database session maker
+    session_maker = create_session_maker()
+
+    # Create bot instance for container (though we don't need it for API)
+    bot = create_bot()
+
+    # Setup dependency injection
+    setup_container(session_maker, bot)
+
+    yield
+
+    # Shutdown
+    await bot.session.close()
+
 
 app = FastAPI(
     title="Moderator Bot API",
     version="1.0.0",
     # Disable automatic redirect for trailing slashes to avoid HTTPS->HTTP redirects
     redirect_slashes=False,
+    lifespan=lifespan,
 )
 
 # Configure CORS for webapp
+allowed_origins = ["http://localhost:3000"]
+if hasattr(settings, "webapp") and settings.webapp.url:
+    allowed_origins.append(settings.webapp.url)
+
+# Allow ngrok domains (they usually follow pattern *.ngrok.app or *.ngrok-free.app)
+allowed_origins.extend(["https://*.ngrok.app", "https://*.ngrok-free.app"])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.webapp.url] if hasattr(settings, "webapp") else ["http://localhost:3000"],
+    allow_origins=["*"],  # For development, allow all origins with ngrok
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -42,7 +74,7 @@ async def force_https_redirect(request: Request, call_next: Callable[[Request], 
 
 # Include routers
 app.include_router(chats.router, prefix="/api/v1/chats", tags=["chats"])
-app.include_router(agent.router, prefix="/api/v1", tags=["agent"])
+app.include_router(agent.router, prefix="/api/v1/agent", tags=["agent"])
 
 
 @app.get("/api/health")

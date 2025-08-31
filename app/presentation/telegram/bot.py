@@ -1,9 +1,9 @@
 import asyncio
 
 from aiogram import Bot, Dispatcher
-from aiogram.client.default import DefaultBotProperties
 from aiogram.utils.callback_answer import CallbackAnswerMiddleware
 
+from app.core.bot_factory import create_bot
 from app.core.config import settings
 from app.core.container import setup_container
 from app.core.logging import get_logger, setup_logging
@@ -49,7 +49,7 @@ async def on_shutdown(bot: Bot) -> None:
 
 async def get_bot_and_dp() -> tuple[Bot, Dispatcher]:
     """Create bot and dispatcher instances."""
-    bot = Bot(token=settings.telegram.token, default=DefaultBotProperties(parse_mode="HTML"))
+    bot = create_bot()
     dp = Dispatcher()
     return bot, dp
 

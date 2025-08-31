@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { agentApi } from '../services/agentApi'
 import type {
   AgentSession,
@@ -35,24 +35,7 @@ export const AgentChat: React.FC<AgentChatProps> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
-
-  useEffect(() => {
-    if (session) {
-      loadMessages()
-    }
-  }, [session])
-
-  useEffect(() => {
-    if (!session) {
-      setShowModelSelector(true)
-      loadAvailableModels()
-    }
-  }, [])
-
-  const loadAvailableModels = async () => {
+  const loadAvailableModels = useCallback(async () => {
     try {
       const [openaiModels, openrouterModels] = await Promise.all([
         agentApi.getAvailableModels('openai'),
@@ -69,9 +52,9 @@ export const AgentChat: React.FC<AgentChatProps> = ({
       setError('Ошибка при загрузке моделей')
       console.error(err)
     }
-  }
+  }, [])
 
-  const loadMessages = async () => {
+  const loadMessages = useCallback(async () => {
     if (!session) return
 
     try {
@@ -81,7 +64,24 @@ export const AgentChat: React.FC<AgentChatProps> = ({
       setError('Ошибка при загрузке сообщений')
       console.error(err)
     }
-  }
+  }, [session])
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
+
+  useEffect(() => {
+    if (session) {
+      loadMessages()
+    }
+  }, [session, loadMessages])
+
+  useEffect(() => {
+    if (!session) {
+      setShowModelSelector(true)
+      loadAvailableModels()
+    }
+  }, [session, loadAvailableModels])
 
   const createSession = async () => {
     if (!selectedModel) {
@@ -91,13 +91,14 @@ export const AgentChat: React.FC<AgentChatProps> = ({
 
     try {
       const createRequest: CreateSessionRequest = {
-        model_config: {
+        agent_config: {
           provider: selectedModel.provider,
-          model_id: selectedModel.id,
-          model_name: selectedModel.name,
-          temperature: 0.7
+          model_id: selectedModel.model_id,
+          model_name: selectedModel.model_name,
+          temperature: selectedModel.temperature,
+          max_tokens: selectedModel.max_tokens
         },
-        title: `Чат с ${selectedModel.name}`
+        title: `Чат с ${selectedModel.model_name}`
       }
 
       const newSession = await agentApi.createSession(createRequest)
@@ -177,15 +178,15 @@ export const AgentChat: React.FC<AgentChatProps> = ({
           <div className="model-selector">
             <label>Модель:</label>
             <select
-              value={selectedModel?.id || ''}
+              value={selectedModel?.model_id || ''}
               onChange={(e) => {
-                const model = availableModels[selectedProvider].find(m => m.id === e.target.value)
+                const model = availableModels[selectedProvider].find(m => m.model_id === e.target.value)
                 setSelectedModel(model || null)
               }}
             >
               {availableModels[selectedProvider].map(model => (
-                <option key={model.id} value={model.id}>
-                  {model.name} {model.context_length ? `(${model.context_length} tokens)` : ''}
+                <option key={model.model_id} value={model.model_id}>
+                  {model.model_name} {model.max_tokens ? `(${model.max_tokens} tokens)` : ''}
                 </option>
               ))}
             </select>
@@ -212,7 +213,7 @@ export const AgentChat: React.FC<AgentChatProps> = ({
         {session && (
           <div className="session-info">
             <span className="model-info">
-              {session.model_config.model_name} ({session.model_config.provider})
+              {session.agent_config.model_name} ({session.agent_config.provider})
             </span>
             <span className="message-count">{messages.length} сообщений</span>
           </div>

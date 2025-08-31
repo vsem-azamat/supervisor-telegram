@@ -1,8 +1,11 @@
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.application.services.agent_service import AgentService
 from app.core.container import get_container
 from app.domain.agent import AgentModelConfig, ModelProvider
+from app.presentation.api.auth import get_current_admin_user
 from app.presentation.api.schemas.agent import (
     AgentResponseSchema,
     ChatMessageRequest,
@@ -22,7 +25,9 @@ def get_agent_service() -> AgentService:
 
 @router.post("/sessions", response_model=SessionResponse)
 async def create_session(
-    request: CreateSessionRequest, agent_service: AgentService = Depends(get_agent_service)
+    request: CreateSessionRequest,
+    agent_service: AgentService = Depends(get_agent_service),
+    current_user: dict[str, Any] = Depends(get_current_admin_user),
 ) -> SessionResponse:
     """Create a new agent session."""
     try:
@@ -35,8 +40,8 @@ async def create_session(
             max_tokens=request.agent_config.max_tokens,
         )
 
-        # For now, use a dummy user_id
-        user_id = 1
+        # Use authenticated user ID
+        user_id = current_user["id"]
 
         session = await agent_service.create_session(user_id=user_id, model_config=model_config, title=request.title)
 
@@ -55,16 +60,19 @@ async def create_session(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/sessions", response_model=list[SessionResponse])
-async def list_sessions(agent_service: AgentService = Depends(get_agent_service)) -> list[SessionResponse]:
+@router.get("/sessions")
+async def list_sessions(
+    agent_service: AgentService = Depends(get_agent_service),
+    current_user: dict[str, Any] = Depends(get_current_admin_user),
+) -> dict[str, list[SessionResponse]]:
     """List all sessions for the current user."""
     try:
-        # For now, use a dummy user_id
-        user_id = 1
+        # Use authenticated user ID
+        user_id = current_user["id"]
 
         sessions = await agent_service.get_user_sessions(user_id, limit=20)
 
-        return [
+        session_responses = [
             SessionResponse(
                 id=session.id,
                 title=session.title,
@@ -78,12 +86,18 @@ async def list_sessions(agent_service: AgentService = Depends(get_agent_service)
             for session in sessions
         ]
 
+        return {"sessions": session_responses}
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.get("/sessions/{session_id}", response_model=SessionResponse)
-async def get_session(session_id: str, agent_service: AgentService = Depends(get_agent_service)) -> SessionResponse:
+async def get_session(
+    session_id: str,
+    agent_service: AgentService = Depends(get_agent_service),
+    _current_user: dict[str, Any] = Depends(get_current_admin_user),
+) -> SessionResponse:
     """Get a specific session."""
     try:
         session = await agent_service.get_session(session_id)
@@ -107,9 +121,43 @@ async def get_session(session_id: str, agent_service: AgentService = Depends(get
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+@router.get("/sessions/{session_id}/messages")
+async def get_session_messages(
+    session_id: str,
+    agent_service: AgentService = Depends(get_agent_service),
+    _current_user: dict[str, Any] = Depends(get_current_admin_user),
+) -> list[dict[str, Any]]:
+    """Get messages for a specific session."""
+    try:
+        session = await agent_service.get_session(session_id)
+        if not session:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        # Return messages in expected format
+        return [
+            {
+                "id": str(i),
+                "session_id": session_id,
+                "role": "user" if i % 2 == 0 else "assistant",
+                "content": msg.content if hasattr(msg, "content") else str(msg),
+                "timestamp": session.created_at,  # Placeholder for now
+                "tokens_used": 0,  # Placeholder for now
+            }
+            for i, msg in enumerate(session.messages)
+        ]
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
 @router.post("/sessions/{session_id}/chat", response_model=AgentResponseSchema)
 async def chat_with_agent(
-    session_id: str, request: ChatMessageRequest, agent_service: AgentService = Depends(get_agent_service)
+    session_id: str,
+    request: ChatMessageRequest,
+    agent_service: AgentService = Depends(get_agent_service),
+    _current_user: dict[str, Any] = Depends(get_current_admin_user),
 ) -> AgentResponseSchema:
     """Send a message to the agent and get a response."""
     try:
@@ -129,7 +177,11 @@ async def chat_with_agent(
 
 
 @router.delete("/sessions/{session_id}")
-async def delete_session(session_id: str, agent_service: AgentService = Depends(get_agent_service)) -> dict[str, str]:
+async def delete_session(
+    session_id: str,
+    agent_service: AgentService = Depends(get_agent_service),
+    _current_user: dict[str, Any] = Depends(get_current_admin_user),
+) -> dict[str, str]:
     """Delete a session."""
     try:
         success = await agent_service.delete_session(session_id)
@@ -145,8 +197,10 @@ async def delete_session(session_id: str, agent_service: AgentService = Depends(
 
 
 @router.get("/models", response_model=list[ModelConfigSchema])
-async def list_available_models() -> list[ModelConfigSchema]:
-    """List available AI models."""
+async def list_available_models(
+    _current_user: dict[str, Any] = Depends(get_current_admin_user),
+) -> list[ModelConfigSchema]:
+    """List all available AI models."""
     # Return some common models for now
     return [
         ModelConfigSchema(
@@ -167,3 +221,53 @@ async def list_available_models() -> list[ModelConfigSchema]:
             max_tokens=4000,
         ),
     ]
+
+
+@router.get("/models/{provider}", response_model=list[ModelConfigSchema])
+async def list_models_by_provider(
+    provider: ModelProvider, _current_user: dict[str, Any] = Depends(get_current_admin_user)
+) -> list[ModelConfigSchema]:
+    """List available AI models for a specific provider."""
+    all_models = [
+        ModelConfigSchema(
+            provider=ModelProvider.OPENAI,
+            model_id="gpt-4o-mini",
+            model_name="GPT-4o Mini",
+            temperature=0.7,
+            max_tokens=2000,
+        ),
+        ModelConfigSchema(
+            provider=ModelProvider.OPENAI, model_id="gpt-4o", model_name="GPT-4o", temperature=0.7, max_tokens=4000
+        ),
+        ModelConfigSchema(
+            provider=ModelProvider.OPENAI,
+            model_id="gpt-4-turbo",
+            model_name="GPT-4 Turbo",
+            temperature=0.7,
+            max_tokens=4000,
+        ),
+        ModelConfigSchema(
+            provider=ModelProvider.OPENROUTER,
+            model_id="anthropic/claude-3-5-sonnet",
+            model_name="Claude 3.5 Sonnet",
+            temperature=0.7,
+            max_tokens=4000,
+        ),
+        ModelConfigSchema(
+            provider=ModelProvider.OPENROUTER,
+            model_id="google/gemini-pro",
+            model_name="Gemini Pro",
+            temperature=0.7,
+            max_tokens=4000,
+        ),
+        ModelConfigSchema(
+            provider=ModelProvider.OPENROUTER,
+            model_id="meta-llama/llama-3.1-70b-instruct",
+            model_name="Llama 3.1 70B",
+            temperature=0.7,
+            max_tokens=4000,
+        ),
+    ]
+
+    # Filter models by provider
+    return [model for model in all_models if model.provider == provider]

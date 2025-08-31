@@ -22,7 +22,11 @@ export const AgentManager: React.FC = () => {
       const response = await agentApi.getUserSessions(20)
       setSessions(response.sessions)
     } catch (err) {
-      setError('Ошибка при загрузке сессий')
+      if (err && typeof err === 'object' && 'response' in err && err.response && typeof err.response === 'object' && 'status' in err.response && err.response.status >= 500) {
+        setError('Ошибка сервера при загрузке сессий')
+      } else {
+        setError('Ошибка при загрузке сессий')
+      }
       console.error(err)
     } finally {
       setIsLoading(false)
@@ -53,8 +57,18 @@ export const AgentManager: React.FC = () => {
         setView('list')
       }
     } catch (err) {
-      setError('Ошибка при удалении сессии')
-      console.error(err)
+      // If session not found (404), just remove it from the UI
+      if (err && typeof err === 'object' && 'response' in err && err.response && typeof err.response === 'object' && 'status' in err.response && err.response.status === 404) {
+        setSessions(prev => prev.filter(s => s.id !== sessionId))
+        if (currentSession?.id === sessionId) {
+          setCurrentSession(null)
+          setView('list')
+        }
+        setError('Сессия уже удалена')
+      } else {
+        setError('Ошибка при удалении сессии')
+        console.error(err)
+      }
     }
   }
 
@@ -170,10 +184,10 @@ export const AgentManager: React.FC = () => {
 
                 <div className="session-details">
                   <span className="model-info">
-                    {session.model_config.model_name || session.model_config.model_id}
+                    {session.agent_config.model_name || session.agent_config.model_id}
                   </span>
                   <span className="provider-badge">
-                    {session.model_config.provider}
+                    {session.agent_config.provider}
                   </span>
                   <span className="message-count">
                     {session.message_count} сообщений

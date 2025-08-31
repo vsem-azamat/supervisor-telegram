@@ -85,6 +85,10 @@ class ChatEntity:
         """Disable auto-deletion of join/leave messages."""
         self.auto_delete_join_leave = False
 
+    def toggle_auto_delete_join_leave(self) -> None:
+        """Toggle auto-deletion of join/leave messages."""
+        self.auto_delete_join_leave = not self.auto_delete_join_leave
+
 
 @dataclass
 class AdminEntity:

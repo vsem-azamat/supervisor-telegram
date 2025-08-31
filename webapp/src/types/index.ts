@@ -86,17 +86,20 @@ export interface ModelConfig {
 }
 
 export interface AgentModel {
-  id: string
-  name: string
+  model_id: string
+  model_name: string
   description?: string
   context_length?: number
   provider: ModelProvider
+  temperature: number
+  max_tokens?: number
 }
 
 export interface AgentSession {
   id: string
   title?: string
-  model_config: ModelConfig
+  agent_config: ModelConfig
+  system_prompt?: string
   created_at: string
   updated_at: string
   is_active: boolean
@@ -124,6 +127,6 @@ export interface ChatResponse {
 }
 
 export interface CreateSessionRequest {
-  model_config: ModelConfig
+  agent_config: ModelConfig
   title?: string
 }

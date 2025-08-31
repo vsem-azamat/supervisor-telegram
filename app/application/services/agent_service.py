@@ -1,4 +1,3 @@
-import os
 import time
 from typing import Any
 
@@ -6,6 +5,7 @@ from pydantic import BaseModel
 from pydantic_ai import Agent, RunContext
 
 from app.application.services.agent_tools import AgentTools, ChatInfo
+from app.application.services.api_key_manager import with_api_key
 from app.core.config import settings
 from app.core.logging import BotLogger
 from app.domain.agent import AgentModelConfig, AgentResponse, AgentSession, AgentToolResult, ModelProvider
@@ -37,10 +37,8 @@ class AgentService:
         self.tools = AgentTools(chat_repository, user_repository, logger)
         self._agents: dict[str, Agent[AgentContext]] = {}
 
-    def _create_agent(self, model_config: AgentModelConfig) -> Agent[AgentContext]:
-        """Создать PydanticAI агента с указанной конфигурацией модели."""
-
-        # Получаем API ключи из настроек
+    def _get_api_credentials(self, model_config: AgentModelConfig) -> tuple[str, str | None]:
+        """Get API key and base URL for model configuration."""
         api_key = None
         base_url = model_config.base_url
 
@@ -52,7 +50,6 @@ class AgentService:
             api_key = settings.ai_agent.openai_api_key
             if not base_url and settings.ai_agent.openai_base_url:
                 base_url = settings.ai_agent.openai_base_url
-            model = model_config.model_id
         elif model_config.provider == ModelProvider.OPENROUTER:
             if not settings.ai_agent.has_openrouter_key():
                 raise ValueError(
@@ -61,18 +58,23 @@ class AgentService:
             api_key = settings.ai_agent.openrouter_api_key
             if not base_url:
                 base_url = settings.ai_agent.openrouter_base_url
-            # OpenRouter использует OpenAI-совместимый API
+        else:
+            raise ValueError(f"Неподдерживаемый провайдер: {model_config.provider}")
+
+        return api_key, base_url
+
+    def _create_agent(self, model_config: AgentModelConfig) -> Agent[AgentContext]:
+        """Create PydanticAI agent with specified model configuration."""
+
+        if model_config.provider == ModelProvider.OPENAI:
+            model = model_config.model_id
+        elif model_config.provider == ModelProvider.OPENROUTER:
             model = f"openai:{model_config.model_id}"
         else:
             raise ValueError(f"Неподдерживаемый провайдер: {model_config.provider}")
 
-        # Устанавливаем переменные окружения для pydantic-ai
-        if model_config.provider == ModelProvider.OPENAI or model_config.provider == ModelProvider.OPENROUTER:
-            os.environ["OPENAI_API_KEY"] = api_key
-            if base_url:
-                os.environ["OPENAI_BASE_URL"] = base_url
+        # Don't set environment variables here - use context manager during runtime
 
-        # Системный промпт для управления чатами
         system_prompt = """
 Ты - AI помощник для управления Telegram чатами и каналами модераторского бота.
 Твоя цель - помочь администраторам эффективно управлять сообществами.
@@ -98,20 +100,19 @@ class AgentService:
             },
         )
 
-        # Регистрируем tools
         @agent.tool
         async def get_all_chats(ctx: RunContext[AgentContext]) -> list[ChatInfo]:
-            """Получить список всех управляемых чатов с основной информацией."""
+            """Get list of all managed chats with basic information."""
             return await ctx.deps.tools.get_all_chats()
 
         @agent.tool
         async def get_chat_details(ctx: RunContext[AgentContext], chat_id: int) -> ChatInfo | None:
-            """Получить детальную информацию о конкретном чате по его ID."""
+            """Get detailed information about specific chat by ID."""
             return await ctx.deps.tools.get_chat_details(chat_id)
 
         @agent.tool
         async def update_chat_description(ctx: RunContext[AgentContext], chat_id: int, description: str) -> bool:
-            """Обновить описание чата. Возвращает True если успешно."""
+            """Update chat description. Returns True if successful."""
             return await ctx.deps.tools.update_chat_description(chat_id, description)
 
         @agent.tool
@@ -123,19 +124,19 @@ class AgentService:
             welcome_enabled: bool | None = None,
             auto_delete_time: int | None = None,
         ) -> bool:
-            """Обновить настройки чата (описание, приветствие, автоудаление). Возвращает True если успешно."""
+            """Update chat settings (description, welcome, auto-delete). Returns True if successful."""
             return await ctx.deps.tools.update_chat_settings(
                 chat_id, title, welcome_text, welcome_enabled, auto_delete_time
             )
 
         @agent.tool
         async def get_chat_statistics(ctx: RunContext[AgentContext]) -> dict[str, Any]:
-            """Получить общую статистику по всем чатам."""
+            """Get general statistics for all chats."""
             return await ctx.deps.tools.get_chat_statistics()
 
         @agent.tool
         async def search_chats(ctx: RunContext[AgentContext], query: str) -> list[ChatInfo]:
-            """Найти чаты по названию или описанию."""
+            """Find chats by title or description."""
             return await ctx.deps.tools.search_chats(query)
 
         return agent
@@ -143,7 +144,7 @@ class AgentService:
     async def create_session(
         self, user_id: int, model_config: AgentModelConfig, title: str | None = None, system_prompt: str | None = None
     ) -> AgentSession:
-        """Создать новую сессию с AI агентом."""
+        """Create new session with AI agent."""
         session = AgentSession(
             user_id=UserId(user_id), agent_config=model_config, system_prompt=system_prompt, title=title
         )
@@ -154,58 +155,58 @@ class AgentService:
         return saved_session
 
     async def get_session(self, session_id: str) -> AgentSession | None:
-        """Получить сессию по ID."""
+        """Get session by ID."""
         return await self.agent_repository.get_session(session_id)
 
     async def get_user_sessions(self, user_id: int, limit: int = 20) -> list[AgentSession]:
-        """Получить сессии пользователя."""
+        """Get user sessions."""
         return await self.agent_repository.get_user_sessions(user_id, limit)
 
     async def chat(self, session_id: str, message: str) -> AgentResponse:
-        """Отправить сообщение агенту и получить ответ."""
+        """Send message to agent and get response."""
         start_time = time.time()
 
         try:
-            # Получаем сессию
             session = await self.agent_repository.get_session(session_id)
             if not session:
                 raise ValueError(f"Сессия {session_id} не найдена")
 
-            # Создаем или получаем агента для данной конфигурации
             agent_key = f"{session.agent_config.provider}_{session.agent_config.model_id}"
             if agent_key not in self._agents:
                 self._agents[agent_key] = self._create_agent(session.agent_config)
 
             agent = self._agents[agent_key]
-
-            # Добавляем сообщение пользователя в сессию
             session.add_message("user", message)
 
-            # Подготавливаем контекст
+            # Get API credentials for this model config
+            api_key, base_url = self._get_api_credentials(session.agent_config)
+
+            # Use context manager to safely set API credentials
             context = AgentContext(user_id=session.user_id.value, session_id=session_id, tools=self.tools)
+            with with_api_key(api_key, base_url):
+                result = await agent.run(user_prompt=message, deps=context)
+            response_text = result.output
 
-            # Выполняем запрос к агенту (упрощенно, без истории сообщений)
-            result = await agent.run(user_prompt=message, deps=context)
-
-            # Добавляем ответ агента в сессию
-            session.add_message("assistant", str(result))
-
-            # Обновляем сессию в репозитории
+            session.add_message("assistant", response_text)
             await self.agent_repository.update_session(session)
 
-            # Подготавливаем tool results (упрощенно)
             tool_results: list[AgentToolResult] = []
-
             execution_time = time.time() - start_time
+
+            tokens_used = None
+            if hasattr(result, "usage"):
+                usage = getattr(result, "usage", None)
+                if hasattr(usage, "get") and not callable(usage):
+                    tokens_used = usage.get("total_tokens", None)
+                elif hasattr(usage, "total_tokens"):
+                    tokens_used = getattr(usage, "total_tokens", None)
 
             response = AgentResponse(
                 session_id=session_id,
-                message=str(result),
+                message=response_text,
                 tool_results=tool_results,
                 model_used=f"{session.agent_config.provider}:{session.agent_config.model_id}",
-                tokens_used=getattr(result, "usage", {}).get("total_tokens", None)
-                if hasattr(result, "usage")
-                else None,
+                tokens_used=tokens_used,
                 execution_time=execution_time,
             )
 
@@ -226,16 +227,14 @@ class AgentService:
             )
 
     async def delete_session(self, session_id: str) -> bool:
-        """Удалить сессию."""
+        """Delete session."""
         success = await self.agent_repository.delete_session(session_id)
         if success:
             self.logger.logger.info(f"Удалена сессия {session_id}")
         return success
 
     async def get_available_openrouter_models(self) -> list[dict[str, Any]]:
-        """Получить список доступных моделей OpenRouter."""
-        # TODO: Реализовать запрос к OpenRouter API для получения актуального списка моделей
-        # Пока возвращаем статичный список популярных моделей
+        """Get list of available OpenRouter models."""
         return [
             {
                 "id": "anthropic/claude-3.5-sonnet",

@@ -2,17 +2,16 @@
 
 from typing import Any
 
-from aiogram import Bot
-from aiogram.client.default import DefaultBotProperties
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services.telegram_stats import TelegramStatsService
-from app.core.config import settings
+from app.core.bot_factory import get_bot
 from app.infrastructure.db.repositories.admin import AdminRepository
 from app.infrastructure.db.repositories.chat import ChatRepository
 from app.infrastructure.db.repositories.message import MessageRepository
 from app.infrastructure.db.session import get_db_session
+from app.presentation.api.auth import get_current_admin_user
 from app.presentation.api.schemas.chat import BulkUpdateRequest, ChatResponse, ChatStatsResponse, ChatUpdateRequest
 
 router = APIRouter()
@@ -33,31 +32,6 @@ async def get_admin_repository(db: AsyncSession = Depends(get_db_session)) -> Ad
     return AdminRepository(db)
 
 
-async def get_current_admin_user(_: AdminRepository = Depends(get_admin_repository)) -> dict[str, Any]:
-    """
-    Get current admin user. For now returns a mock admin user.
-    In production, this should validate JWT token from Telegram WebApp.
-    """
-    # TODO: Implement proper Telegram WebApp authentication
-    # For now, return the first super admin as mock user
-    if settings.admin.super_admins:
-        admin_id = settings.admin.super_admins[0]
-        return {"id": admin_id, "is_super_admin": True}
-    raise HTTPException(status_code=401, detail="No authenticated admin user")
-
-
-# Bot instance for API (singleton)
-_bot_instance: Bot | None = None
-
-
-def get_bot() -> Bot:
-    """Get or create bot instance for API."""
-    global _bot_instance
-    if _bot_instance is None:
-        _bot_instance = Bot(token=settings.telegram.token, default=DefaultBotProperties(parse_mode="HTML"))
-    return _bot_instance
-
-
 def get_telegram_stats_service() -> TelegramStatsService:
     """Get Telegram stats service dependency."""
     bot = get_bot()
@@ -65,7 +39,10 @@ def get_telegram_stats_service() -> TelegramStatsService:
 
 
 @router.get("", response_model=list[ChatResponse])
-async def get_all_chats(chat_repo: ChatRepository = Depends(get_chat_repository)) -> list[ChatResponse]:
+async def get_all_chats(
+    chat_repo: ChatRepository = Depends(get_chat_repository),
+    _current_user: dict[str, Any] = Depends(get_current_admin_user),
+) -> list[ChatResponse]:
     """Get all chats with their configurations."""
     try:
         chats = await chat_repo.get_all()
@@ -159,7 +136,9 @@ async def get_chat_stats(
 
 @router.post("/bulk-update", response_model=list[ChatResponse])
 async def bulk_update_chats(
-    request: BulkUpdateRequest, chat_repo: ChatRepository = Depends(get_chat_repository)
+    request: BulkUpdateRequest,
+    chat_repo: ChatRepository = Depends(get_chat_repository),
+    _current_user: dict[str, Any] = Depends(get_current_admin_user),
 ) -> list[ChatResponse]:
     """Perform bulk operations on multiple chats."""
     try:

@@ -16,7 +16,7 @@ services:
       sh -c "
       ./scripts/wait_for_postgres.sh &&
       uv run alembic upgrade head &&
-      uv run watchfiles 'uv run -m app.presentation.telegram' app/ --ignore-paths '*.pyc,__pycache__,.git'
+      uv run watchfiles 'uv run -m app.presentation.telegram' app/ --ignore-paths '*.pyc,__pycache__,.git,app/presentation/api'
       "
     profiles:
       - local-db
@@ -46,7 +46,7 @@ services:
         uv run alembic upgrade head;
       fi &&
       echo '🚀 Starting bot...' &&
-      uv run watchfiles 'uv run -m app.presentation.telegram' app/ --ignore-paths '*.pyc,__pycache__,.git'
+      uv run watchfiles 'uv run -m app.presentation.telegram' app/ --ignore-paths '*.pyc,__pycache__,.git,app/presentation/api'
       "
     profiles:
       - prod-db
