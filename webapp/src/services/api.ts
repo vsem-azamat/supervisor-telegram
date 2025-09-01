@@ -34,7 +34,7 @@ export interface ApiBulkUpdateRequest {
 }
 
 class ApiService {
-  private client: typeof axios
+  private client: ReturnType<typeof axios.create>
 
   constructor() {
     this.client = axios.create({
@@ -197,4 +197,5 @@ class ApiService {
 }
 
 export const apiService = new ApiService()
+export const chatAPI = apiService
 export default apiService

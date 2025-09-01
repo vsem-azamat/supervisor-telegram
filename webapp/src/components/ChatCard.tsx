@@ -1,18 +1,18 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import type { Chat } from '../types/chat';
+import type { Chat } from '../types';
 import { chatAPI } from '../services/api';
 
 interface ChatCardProps {
   chat: Chat;
   isSelected: boolean;
+  onSelect?: (selected: boolean) => void;
   onClick?: () => void;
 }
 
 const ChatCard: React.FC<ChatCardProps> = ({
   chat,
   isSelected,
-  // onSelect,
   onClick
 }) => {
   const [showStats, setShowStats] = useState(false);
@@ -29,7 +29,7 @@ const ChatCard: React.FC<ChatCardProps> = ({
   };
 
   const getChatTypeIcon = () => {
-    return chat.is_forum ? '🗂️' : '💬';
+    return chat.is_forum ?? false ? '🗂️' : '💬';
   };
 
   const getStatusIcon = (enabled: boolean) => {
@@ -74,10 +74,10 @@ const ChatCard: React.FC<ChatCardProps> = ({
           <div className="feature">
             <span className="feature-label">Приветствие:</span>
             <span className="feature-status">
-              {getStatusIcon(chat.is_welcome_enabled)}
-              {chat.is_welcome_enabled && chat.welcome_message && (
+              {getStatusIcon(chat.is_welcome_enabled ?? false)}
+              {(chat.is_welcome_enabled ?? false) && chat.welcome_message && (
                 <span className="feature-detail">
-                  (удаление через {chat.welcome_delete_time}с)
+                  (удаление через {chat.welcome_delete_time ?? 0}с)
                 </span>
               )}
             </span>
@@ -86,7 +86,7 @@ const ChatCard: React.FC<ChatCardProps> = ({
           <div className="feature">
             <span className="feature-label">Капча:</span>
             <span className="feature-status">
-              {getStatusIcon(chat.is_captcha_enabled)}
+              {getStatusIcon(chat.is_captcha_enabled ?? false)}
             </span>
           </div>
         </div>
@@ -139,7 +139,7 @@ const ChatCard: React.FC<ChatCardProps> = ({
           </div>
           <div className="timestamp">
             <span className="timestamp-label">Изменен:</span>
-            <span className="timestamp-value">{formatDate(chat.modified_at)}</span>
+            <span className="timestamp-value">{formatDate(chat.modified_at ?? chat.updated_at)}</span>
           </div>
         </div>
       </div>

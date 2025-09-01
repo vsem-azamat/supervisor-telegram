@@ -4,7 +4,7 @@ import ChatSelectionPanel from './ChatSelectionPanel'
 import ActionConfigPanel from './ActionConfigPanel'
 import BulkActionExecutor from './BulkActionExecutor'
 import { apiService } from '../services/api'
-import type { BulkActionConfig } from '../types'
+import type { BulkActionConfig, BulkExecutionResult } from '../types'
 
 // No props needed for this component
 
@@ -12,7 +12,7 @@ const BulkChatManager: React.FC = () => {
   const [selectedChats, setSelectedChats] = useState<number[]>([])
   const [actionConfig, setActionConfig] = useState<BulkActionConfig | null>(null)
   const [isExecuting, setIsExecuting] = useState(false)
-  const [executionResults, setExecutionResults] = useState<{ error?: string } | null>(null)
+  const [executionResults, setExecutionResults] = useState<BulkExecutionResult | null>(null)
 
   // Fetch chats data
   const { data: chats = [], isLoading, error } = useQuery({
@@ -26,7 +26,7 @@ const BulkChatManager: React.FC = () => {
     setSelectedChats(chatIds)
   }
 
-  const handleActionConfig = (config: BulkActionConfig) => {
+  const handleActionConfig = (config: BulkActionConfig | null) => {
     setActionConfig(config)
   }
 
@@ -41,7 +41,14 @@ const BulkChatManager: React.FC = () => {
       setExecutionResults(results)
     } catch (error) {
       console.error('Bulk action failed:', error)
-      setExecutionResults({ error: 'Операция не выполнена' })
+      setExecutionResults({
+        success: false,
+        totalChats: selectedChats.length,
+        successCount: 0,
+        failureCount: selectedChats.length,
+        results: [],
+        error: 'Операция не выполнена'
+      })
     } finally {
       setIsExecuting(false)
     }

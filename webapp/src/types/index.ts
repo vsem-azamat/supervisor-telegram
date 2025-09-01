@@ -9,6 +9,12 @@ export interface Chat {
   is_active: boolean
   created_at: string
   updated_at: string
+  // Additional fields from chat.ts
+  is_forum?: boolean
+  welcome_delete_time?: number
+  is_welcome_enabled?: boolean
+  is_captcha_enabled?: boolean
+  modified_at?: string
 }
 
 export interface BulkActionType {

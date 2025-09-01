@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { chatAPI } from '../services/api';
-import type { Chat } from '../types/chat';
+import type { Chat } from '../types';
 import ChatCard from './ChatCard';
 // import ChatBulkActions from './ChatBulkActions'; // Temporarily disabled
 

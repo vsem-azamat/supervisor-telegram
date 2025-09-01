@@ -162,7 +162,7 @@ const ActionConfigPanel: React.FC<ActionConfigPanelProps> = ({
         return (
           <input
             type="text"
-            value={value}
+            value={value as string}
             onChange={(e) => handleValueChange(field.key, e.target.value)}
             placeholder={field.placeholder}
             className="field-input"
@@ -172,7 +172,7 @@ const ActionConfigPanel: React.FC<ActionConfigPanelProps> = ({
       case 'textarea':
         return (
           <textarea
-            value={value}
+            value={value as string}
             onChange={(e) => handleValueChange(field.key, e.target.value)}
             placeholder={field.placeholder}
             className="field-textarea"
@@ -184,7 +184,7 @@ const ActionConfigPanel: React.FC<ActionConfigPanelProps> = ({
         return (
           <input
             type="number"
-            value={value}
+            value={value as number | ''}
             onChange={(e) => handleValueChange(field.key, parseInt(e.target.value))}
             placeholder={field.placeholder}
             min={field.validation?.min}
@@ -198,7 +198,7 @@ const ActionConfigPanel: React.FC<ActionConfigPanelProps> = ({
           <label className="field-checkbox">
             <input
               type="checkbox"
-              checked={value || false}
+              checked={Boolean(value)}
               onChange={(e) => handleValueChange(field.key, e.target.checked)}
             />
             <span className="checkmark"></span>
@@ -208,7 +208,7 @@ const ActionConfigPanel: React.FC<ActionConfigPanelProps> = ({
       case 'select':
         return (
           <select
-            value={value}
+            value={value as string}
             onChange={(e) => handleValueChange(field.key, e.target.value)}
             className="field-select"
           >

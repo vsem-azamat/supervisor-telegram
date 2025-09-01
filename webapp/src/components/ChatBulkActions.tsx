@@ -16,8 +16,15 @@ const ChatBulkActions: React.FC<ChatBulkActionsProps> = ({
   const [updateData, setUpdateData] = useState<ChatUpdateData>({});
 
   const bulkUpdateMutation = useMutation({
-    mutationFn: (data: ChatUpdateData) =>
-      chatAPI.bulkUpdateChats(selectedChatIds, data),
+    mutationFn: (data: ChatUpdateData) => {
+      const config = {
+        actionType: 'bulk_update',
+        values: data as Record<string, unknown>,
+        applyTo: 'selected' as const,
+        confirmationRequired: false
+      }
+      return chatAPI.bulkUpdateChats(selectedChatIds, config)
+    },
     onSuccess: () => {
       onActionComplete();
       setUpdateData({});

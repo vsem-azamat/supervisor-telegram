@@ -22,7 +22,7 @@ export const AgentManager: React.FC = () => {
       const response = await agentApi.getUserSessions(20)
       setSessions(response.sessions)
     } catch (err) {
-      if (err && typeof err === 'object' && 'response' in err && err.response && typeof err.response === 'object' && 'status' in err.response && err.response.status >= 500) {
+      if (err && typeof err === 'object' && 'response' in err && err.response && typeof err.response === 'object' && 'status' in err.response && typeof (err.response as { status?: unknown }).status === 'number' && (err.response as { status: number }).status >= 500) {
         setError('Ошибка сервера при загрузке сессий')
       } else {
         setError('Ошибка при загрузке сессий')
