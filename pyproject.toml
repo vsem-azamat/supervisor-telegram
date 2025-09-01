@@ -252,6 +252,7 @@ dev = [
     "watchfiles>=0.21",
     "psutil",
     "types-pytz>=2025.2.0.20250809",
+    "httpx>=0.28.1",
 ]
 
 [tool.pytest.ini_options]

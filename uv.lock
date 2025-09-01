@@ -1045,6 +1045,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "aiosqlite" },
+    { name = "httpx" },
     { name = "mypy" },
     { name = "pre-commit" },
     { name = "psutil" },
@@ -1077,6 +1078,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "aiosqlite", specifier = ">=0.20" },
+    { name = "httpx", specifier = ">=0.28.1" },
     { name = "mypy", specifier = ">=1.8" },
     { name = "pre-commit", specifier = ">=3.6" },
     { name = "psutil" },

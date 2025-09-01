@@ -1,8 +1,9 @@
 """Tests for event handlers - demonstrating user join/leave simulation."""
 
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
+from app.domain.repositories import IChatRepository
 from app.presentation.telegram.handlers.events import user_joined, user_left
 
 from tests.telegram_helpers import (
@@ -40,10 +41,12 @@ class TestEventHandlers:
             new_chat_member=new_member,
         )
 
-        # Mock logger to verify it was called
+        # Mock logger and chat repository
+        mock_chat_repo = AsyncMock(spec=IChatRepository)
+        mock_chat_repo.get_by_id.return_value = None  # No chat found, should not trigger auto-delete log
         with patch("app.presentation.telegram.handlers.events.logger") as mock_logger:
             # Act
-            await user_joined(chat_member_update)
+            await user_joined(chat_member_update, mock_chat_repo)
 
             # Assert
             mock_logger.info.assert_called_once_with("User joined")
@@ -68,10 +71,12 @@ class TestEventHandlers:
             new_chat_member=new_member,
         )
 
-        # Mock logger to verify it was called
+        # Mock logger and chat repository
+        mock_chat_repo = AsyncMock(spec=IChatRepository)
+        mock_chat_repo.get_by_id.return_value = None  # No chat found, should not trigger auto-delete log
         with patch("app.presentation.telegram.handlers.events.logger") as mock_logger:
             # Act
-            await user_left(chat_member_update)
+            await user_left(chat_member_update, mock_chat_repo)
 
             # Assert
             mock_logger.info.assert_called_once_with("User left")
@@ -104,10 +109,12 @@ class TestEventHandlers:
             )
             join_events.append(event)
 
-        # Mock logger to verify it was called for each user
+        # Mock logger and chat repository
+        mock_chat_repo = AsyncMock(spec=IChatRepository)
+        mock_chat_repo.get_by_id.return_value = None  # No chat found, should not trigger auto-delete log
         with patch("app.presentation.telegram.handlers.events.logger") as mock_logger:
             # Act - Process all joins concurrently
-            await asyncio.gather(*[user_joined(event) for event in join_events])
+            await asyncio.gather(*[user_joined(event, mock_chat_repo) for event in join_events])
 
             # Assert - Logger should be called once for each user
             assert mock_logger.info.call_count == 3
@@ -187,10 +194,12 @@ class TestEventSimulatorUsage:
             new_chat_member=new_member,
         )
 
-        # Mock logger to verify join handler would be called
+        # Mock logger and chat repository
+        mock_chat_repo = AsyncMock(spec=IChatRepository)
+        mock_chat_repo.get_by_id.return_value = None  # No chat found, should not trigger auto-delete log
         with patch("app.presentation.telegram.handlers.events.logger") as mock_logger:
             # Act - Simulate what the actual event handler would do
-            await user_joined(join_event)
+            await user_joined(join_event, mock_chat_repo)
 
             # Assert
             mock_logger.info.assert_called_once_with("User joined")
