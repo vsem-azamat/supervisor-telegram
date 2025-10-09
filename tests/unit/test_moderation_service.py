@@ -9,8 +9,9 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.methods import BanChatMember, DeleteMessage, RestrictChatMember
 from aiogram.types import ChatPermissions
 from app.application.services.moderation_service import ModerationService
+from app.application.services.spam import SpamService
 from app.domain.exceptions import TelegramApiException
-from app.domain.repositories import IChatRepository, IMessageRepository
+from app.domain.repositories import IChatRepository, IMessageRepository, IUserRepository
 from app.domain.value_objects import MuteDuration
 
 from tests.factories import ChatFactory, MessageFactory
@@ -35,11 +36,34 @@ class TestModerationService:
         return AsyncMock(spec=IMessageRepository)
 
     @pytest.fixture
+    def mock_user_repository(self) -> AsyncMock:
+        """Create a mock user repository."""
+        return AsyncMock(spec=IUserRepository)
+
+    @pytest.fixture
+    def mock_spam_service(self) -> MagicMock:
+        """Create a mock spam service."""
+        mock_service = MagicMock(spec=SpamService)
+        mock_service.detect = AsyncMock(return_value=False)
+        return mock_service
+
+    @pytest.fixture
     def moderation_service(
-        self, mock_bot: AsyncMock, mock_chat_repository: AsyncMock, mock_message_repository: AsyncMock
+        self,
+        mock_bot: AsyncMock,
+        mock_chat_repository: AsyncMock,
+        mock_message_repository: AsyncMock,
+        mock_user_repository: AsyncMock,
+        mock_spam_service: AsyncMock,
     ) -> ModerationService:
         """Create ModerationService with mocked dependencies."""
-        return ModerationService(mock_bot, mock_chat_repository, mock_message_repository)
+        return ModerationService(
+            mock_bot,
+            mock_chat_repository,
+            mock_message_repository,
+            mock_user_repository,
+            mock_spam_service,
+        )
 
     @pytest.mark.asyncio
     async def test_mute_user_success(self, moderation_service: ModerationService, mock_bot: AsyncMock):
@@ -349,6 +373,76 @@ class TestModerationService:
         # Assert
         assert mock_bot.delete_message.call_count == 2  # Should stop at failure
 
+    @pytest.mark.asyncio
+    async def test_build_blacklist_preview(
+        self,
+        moderation_service: ModerationService,
+        mock_message_repository: AsyncMock,
+        mock_spam_service: MagicMock,
+    ):
+        """Preview should aggregate counts and spam detection."""
+        mock_message_repository.count_user_chats.return_value = 3
+        mock_message_repository.count_user_messages.return_value = 12
+        mock_spam_service.detect.return_value = True
+
+        preview = await moderation_service.build_blacklist_preview(user_id=1, chat_id=2, message_text="test")
+
+        assert preview.chats_count == 3
+        assert preview.messages_count == 12
+        assert preview.spam_detected is True
+        mock_message_repository.count_user_chats.assert_awaited_once_with(1)
+        mock_message_repository.count_user_messages.assert_awaited_once_with(1)
+        mock_spam_service.detect.assert_awaited_once_with(chat_id=2, user_id=1, text="test")
+
+    @pytest.mark.asyncio
+    async def test_blacklist_user_marks_and_bans(
+        self,
+        moderation_service: ModerationService,
+        mock_bot: AsyncMock,
+        mock_chat_repository: AsyncMock,
+        mock_message_repository: AsyncMock,
+        mock_user_repository: AsyncMock,
+    ):
+        """Blacklisting should flag user, ban across chats, and remove history when requested."""
+        user_id = 123
+        chats = ChatFactory.create_batch(2)
+        mock_chat_repository.get_all.return_value = chats
+        mock_message_repository.get_user_messages.return_value = [
+            MessageFactory.create(user_id=user_id, chat_id=chat.id, message_id=10) for chat in chats
+        ]
+
+        await moderation_service.blacklist_user(
+            user_id=user_id,
+            source_chat_id=chats[0].id,
+            source_message_id=42,
+            revoke_messages=True,
+            mark_spam=True,
+        )
+
+        mock_user_repository.add_to_blacklist.assert_awaited_once_with(user_id)
+        mock_message_repository.label_spam.assert_awaited_once_with(chat_id=chats[0].id, message_id=42)
+        assert mock_bot.ban_chat_member.await_count == len(chats)
+        assert mock_message_repository.get_user_messages.await_count == 1
+        assert mock_bot.delete_message.await_count >= len(chats)  # source message + revoked history
+
+    @pytest.mark.asyncio
+    async def test_remove_from_blacklist_unbans_all(
+        self,
+        moderation_service: ModerationService,
+        mock_bot: AsyncMock,
+        mock_chat_repository: AsyncMock,
+        mock_user_repository: AsyncMock,
+    ):
+        """Removing from blacklist should unban user everywhere."""
+        user_id = 321
+        chats = ChatFactory.create_batch(2)
+        mock_chat_repository.get_all.return_value = chats
+
+        await moderation_service.remove_from_blacklist(user_id)
+
+        mock_user_repository.remove_from_blacklist.assert_awaited_once_with(user_id)
+        assert mock_bot.unban_chat_member.await_count == len(chats)
+
 
 @pytest.mark.unit
 class TestModerationServiceEdgeCases:
@@ -370,11 +464,34 @@ class TestModerationServiceEdgeCases:
         return AsyncMock(spec=IMessageRepository)
 
     @pytest.fixture
+    def mock_user_repository(self) -> AsyncMock:
+        """Create a mock user repository."""
+        return AsyncMock(spec=IUserRepository)
+
+    @pytest.fixture
+    def mock_spam_service(self) -> MagicMock:
+        """Create a mock spam service."""
+        mock_service = MagicMock(spec=SpamService)
+        mock_service.detect = AsyncMock(return_value=False)
+        return mock_service
+
+    @pytest.fixture
     def moderation_service(
-        self, mock_bot: AsyncMock, mock_chat_repository: AsyncMock, mock_message_repository: AsyncMock
+        self,
+        mock_bot: AsyncMock,
+        mock_chat_repository: AsyncMock,
+        mock_message_repository: AsyncMock,
+        mock_user_repository: AsyncMock,
+        mock_spam_service: MagicMock,
     ) -> ModerationService:
         """Create ModerationService with mocked dependencies."""
-        return ModerationService(mock_bot, mock_chat_repository, mock_message_repository)
+        return ModerationService(
+            mock_bot,
+            mock_chat_repository,
+            mock_message_repository,
+            mock_user_repository,
+            mock_spam_service,
+        )
 
     @pytest.mark.asyncio
     async def test_global_ban_no_chats(

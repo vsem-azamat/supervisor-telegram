@@ -50,6 +50,8 @@ class TestDependencyInjection:
             "chat_link_repo",
             "message_repo",
             "user_service",  # This was the missing dependency
+            "spam_service",
+            "moderation_service",
         }
 
         # Verify middleware has the correct dependencies logic
@@ -110,6 +112,8 @@ class TestDependencyInjection:
             "chat_link_repo",
             "message_repo",
             "user_service",
+            "spam_service",
+            "moderation_service",
         }
 
         # Note: We could define expected types but don't need them for this test

@@ -41,6 +41,16 @@ class IUserRepository(ABC):
         """Check if user exists."""
         pass
 
+    @abstractmethod
+    async def add_to_blacklist(self, user_id: int) -> None:
+        """Mark user as blocked/blacklisted."""
+        pass
+
+    @abstractmethod
+    async def remove_from_blacklist(self, user_id: int) -> None:
+        """Remove user from blacklist."""
+        pass
+
 
 class IChatRepository(ABC):
     """Chat repository interface."""
@@ -133,6 +143,21 @@ class IMessageRepository(ABC):
     @abstractmethod
     async def is_similar_spam_message(self, message: str) -> bool:
         """Check if similar spam message exists."""
+        pass
+
+    @abstractmethod
+    async def count_user_chats(self, user_id: int) -> int:
+        """Count distinct chats user has messages in."""
+        pass
+
+    @abstractmethod
+    async def count_user_messages(self, user_id: int) -> int:
+        """Count total messages sent by user."""
+        pass
+
+    @abstractmethod
+    async def label_spam(self, chat_id: int, message_id: int) -> None:
+        """Mark specific message as spam."""
         pass
 
 

@@ -133,8 +133,8 @@ class MessageRepository(IMessageRepository):
     async def is_first_message(self, chat_id: int, user_id: int) -> bool:
         query = select(func.count()).where(Message.user_id == user_id, Message.chat_id == chat_id)
         result = await self.db.execute(query)
-        count = result.scalar()
-        return count is not None and count > 0
+        count = result.scalar() or 0
+        return count == 0
 
     async def is_similar_spam_message(self, message: str) -> bool:
         query = select(func.count()).where(Message.message == message, Message.spam)

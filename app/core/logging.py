@@ -143,3 +143,7 @@ class BotLogger:
             context["table"] = table
 
         self.logger.error("Database error", **context)
+
+    def warning(self, message: str, **kwargs: Any) -> None:
+        """Log general warning with context."""
+        self.logger.warning(message, **kwargs)

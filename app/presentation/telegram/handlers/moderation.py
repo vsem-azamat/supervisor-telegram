@@ -2,15 +2,12 @@ from aiogram import Bot, Router, types
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.services import moderation as moderation_services
-from app.application.services import spam as spam_service
+from app.application.services.moderation_service import ModerationService
 from app.application.services.user_service import UserService
-from app.infrastructure.db.repositories import (
-    ChatRepository,
-    MessageRepository,
-)
+from app.domain.entities import ChatEntity
+from app.domain.repositories import IChatRepository
+from app.domain.value_objects import MuteDuration as DomainMuteDuration
 from app.presentation.telegram.logger import logger
 from app.presentation.telegram.utils import BlacklistConfirm, BlacklistPagination, UnblockUser, other
 from app.presentation.telegram.utils.blacklist import (
@@ -33,8 +30,20 @@ def is_user_check_error() -> str:
     return "🚫 Это не пользователь или что-то пошло не так."
 
 
+def _to_domain_mute_duration(parsed_duration: other.MuteDuration) -> DomainMuteDuration:
+    """Convert presentation mute duration helper to domain value object."""
+    unit_multipliers = {
+        "m": 1,
+        "h": 60,
+        "d": 60 * 24,
+        "w": 60 * 24 * 7,
+    }
+    multiplier = unit_multipliers.get(parsed_duration.unit, 1)
+    return DomainMuteDuration(minutes=parsed_duration.time * multiplier)
+
+
 @moderation_router.message(Command("mute", prefix="!/"))
-async def mute_user(message: types.Message, bot: Bot) -> None:
+async def mute_user(message: types.Message, moderation_service: ModerationService) -> None:
     # Ensure command is used as a reply
     if not message.reply_to_message:
         await message.answer(reply_required_error("замутить"))
@@ -66,21 +75,20 @@ async def mute_user(message: types.Message, bot: Bot) -> None:
         await other.sleep_and_delete(answer, 10)
         return
 
-    # Set permissions to mute the user
-    read_only_permissions = types.ChatPermissions(
-        can_send_messages=False,
-        can_send_media_messages=False,
-        can_send_polls=False,
-        can_send_other_messages=False,
-    )
+    admin = message.from_user
+    if not admin:
+        await message.answer("Не удалось определить инициатора команды.")
+        return
 
     try:
-        await bot.restrict_chat_member(
-            message.chat.id,
-            message.reply_to_message.from_user.id,
-            permissions=read_only_permissions,
-            until_date=mute_duration.until_date,
+        domain_duration = _to_domain_mute_duration(mute_duration)
+        await moderation_service.mute_user(
+            admin_id=admin.id,
+            user_id=message.reply_to_message.from_user.id,
+            chat_id=message.chat.id,
+            duration=domain_duration,
         )
+
         mention = await other.get_user_mention(message.reply_to_message.from_user)
         text_mute = (
             f"{mention} в муте на {mute_duration.time} {mute_duration.unit}!\n\n"
@@ -95,7 +103,7 @@ async def mute_user(message: types.Message, bot: Bot) -> None:
 
 
 @moderation_router.message(Command("unmute", prefix="!/"))
-async def unmute_user(message: types.Message) -> None:
+async def unmute_user(message: types.Message, moderation_service: ModerationService) -> None:
     if not message.reply_to_message:
         await message.answer(reply_required_error("размутить"))
         await message.delete()
@@ -105,17 +113,16 @@ async def unmute_user(message: types.Message) -> None:
         await message.answer(is_user_check_error())
         return
 
-    # Reset permissions to default chat permissions
-    default_permissions = message.chat.permissions
-    if not default_permissions:
-        await message.answer("Похоже, что я нахожусь не в чате или у меня нет прав администратора.")
+    admin = message.from_user
+    if not admin:
+        await message.answer("Не удалось определить инициатора команды.")
         return
 
     try:
-        await message.chat.restrict(
+        await moderation_service.unmute_user(
+            admin_id=admin.id,
             user_id=message.reply_to_message.from_user.id,
-            permissions=default_permissions,
-            until_date=0,
+            chat_id=message.chat.id,
         )
         mention = await other.get_user_mention(message.reply_to_message.from_user)
         await message.answer(f"Пользователь {mention} размучен!")
@@ -124,7 +131,7 @@ async def unmute_user(message: types.Message) -> None:
 
 
 @moderation_router.message(Command("ban", prefix="!/"))
-async def ban_user(message: types.Message, bot: Bot) -> None:
+async def ban_user(message: types.Message, moderation_service: ModerationService) -> None:
     if not message.reply_to_message:
         await message.answer(reply_required_error("забанить"))
         return
@@ -133,8 +140,17 @@ async def ban_user(message: types.Message, bot: Bot) -> None:
         await message.answer(is_user_check_error())
         return
 
+    admin = message.from_user
+    if not admin:
+        await message.answer("Не удалось определить инициатора команды.")
+        return
+
     try:
-        await bot.ban_chat_member(message.chat.id, message.reply_to_message.from_user.id)
+        await moderation_service.ban_user(
+            admin_id=admin.id,
+            user_id=message.reply_to_message.from_user.id,
+            chat_id=message.chat.id,
+        )
         mention = await other.get_user_mention(message.reply_to_message.from_user)
         await message.answer(f"Пользователь {mention} забанен")
     except Exception as err:
@@ -145,7 +161,7 @@ async def ban_user(message: types.Message, bot: Bot) -> None:
 
 
 @moderation_router.message(Command("unban", prefix="!/"))
-async def unban_user(message: types.Message, bot: Bot) -> None:
+async def unban_user(message: types.Message, moderation_service: ModerationService) -> None:
     if not message.reply_to_message:
         await message.answer(reply_required_error("разбанить"))
         return
@@ -154,8 +170,17 @@ async def unban_user(message: types.Message, bot: Bot) -> None:
         await message.answer(is_user_check_error())
         return
 
+    admin = message.from_user
+    if not admin:
+        await message.answer("Не удалось определить инициатора команды.")
+        return
+
     try:
-        await bot.unban_chat_member(message.chat.id, message.reply_to_message.from_user.id)
+        await moderation_service.unban_user(
+            admin_id=admin.id,
+            user_id=message.reply_to_message.from_user.id,
+            chat_id=message.chat.id,
+        )
         mention = await other.get_user_mention(message.reply_to_message.from_user)
         await message.answer(f"Пользователь {mention} разбанен")
     except Exception as err:
@@ -166,7 +191,7 @@ async def unban_user(message: types.Message, bot: Bot) -> None:
 
 
 @moderation_router.message(Command("black", prefix="!/"))
-async def full_ban(message: types.Message, message_repo: MessageRepository, db: AsyncSession) -> None:
+async def full_ban(message: types.Message, moderation_service: ModerationService) -> None:
     if not message.reply_to_message:
         await message.answer(reply_required_error("добавить в черный список"))
         return
@@ -181,16 +206,19 @@ async def full_ban(message: types.Message, message_repo: MessageRepository, db: 
         await message.answer(is_user_check_error())
         return
     id_user = target.from_user.id
-    chats_count = await message_repo.count_user_chats(id_user)
-    messages_count = await message_repo.count_user_messages(id_user)
-    spam_flag = await spam_service.detect_spam(db, target)
+
+    preview = await moderation_service.build_blacklist_preview(
+        user_id=id_user,
+        chat_id=target.chat.id,
+        message_text=target.text or target.caption,
+    )
 
     info_text = (
         "<b>Вы уверены?</b>\n\n"
         "<b>Информация:</b>\n"
-        f"- {chats_count} чатов\n"
-        f"- {messages_count} сообщений\n"
-        f"- {'спам обнаружен' if spam_flag else 'спам не обнаружен'}"
+        f"- {preview.chats_count} чатов\n"
+        f"- {preview.messages_count} сообщений\n"
+        f"- {'спам обнаружен' if preview.spam_detected else 'спам не обнаружен'}"
     )
     builder = InlineKeyboardBuilder()
     builder.button(
@@ -208,7 +236,7 @@ async def full_ban(message: types.Message, message_repo: MessageRepository, db: 
 
 
 @moderation_router.message(Command("spam", prefix="!/"))
-async def label_spam(message: types.Message, message_repo: MessageRepository, db: AsyncSession) -> None:
+async def label_spam(message: types.Message, moderation_service: ModerationService) -> None:
     if not message.reply_to_message:
         answer = await message.answer(reply_required_error("пометить как спам"))
         await message.delete()
@@ -220,16 +248,19 @@ async def label_spam(message: types.Message, message_repo: MessageRepository, db
         await message.answer(is_user_check_error())
         return
     spammer_user_id = target.from_user.id
-    chats_count = await message_repo.count_user_chats(spammer_user_id)
-    messages_count = await message_repo.count_user_messages(spammer_user_id)
-    spam_flag = await spam_service.detect_spam(db, target)
+
+    preview = await moderation_service.build_blacklist_preview(
+        user_id=spammer_user_id,
+        chat_id=target.chat.id,
+        message_text=target.text or target.caption,
+    )
 
     info_text = (
         "<b>Вы уверены?</b>\n\n"
         "<b>Информация:</b>\n"
-        f"- {chats_count} чатов\n"
-        f"- {messages_count} сообщений\n"
-        f"- {'спам обнаружен' if spam_flag else 'спам не обнаружен'}"
+        f"- {preview.chats_count} чатов\n"
+        f"- {preview.messages_count} сообщений\n"
+        f"- {'спам обнаружен' if preview.spam_detected else 'спам не обнаружен'}"
     )
     builder = InlineKeyboardBuilder()
     builder.button(
@@ -249,26 +280,36 @@ async def label_spam(message: types.Message, message_repo: MessageRepository, db
 
 
 @moderation_router.message(Command("welcome", prefix="!/"))
-async def welcome_change(message: types.Message, chat_repo: ChatRepository) -> None:
+async def welcome_change(message: types.Message, chat_repo: IChatRepository) -> None:
     if not message.text:
         await message.answer("Сообщение не может быть пустым.")
         return
     welcome_message = message.text.partition(" ")[2]
-    await chat_repo.update_welcome_message(message.chat.id, welcome_message)
+
+    chat = await chat_repo.get_by_id(message.chat.id)
+    if not chat:
+        chat = ChatEntity(
+            id=message.chat.id,
+            title=message.chat.title or f"Chat {message.chat.id}",
+            welcome_message=welcome_message,
+        )
+        chat.enable_welcome(welcome_message)
+    else:
+        chat.enable_welcome(welcome_message)
+
+    await chat_repo.save(chat)
     await message.answer("<b>Приветственное сообщение изменено!</b>")
     await message.answer(welcome_message)
     await message.delete()
 
 
 @moderation_router.message(Command("autodelete_joinleave", prefix="!/"))
-async def toggle_autodelete_joinleave(message: types.Message, chat_repo: ChatRepository) -> None:
+async def toggle_autodelete_joinleave(message: types.Message, chat_repo: IChatRepository) -> None:
     """Toggle auto-deletion of join/leave messages."""
     chat = await chat_repo.get_by_id(message.chat.id)
 
     if not chat:
         # Create chat entity if it doesn't exist
-        from app.domain.entities import ChatEntity
-
         chat = ChatEntity(
             id=message.chat.id,
             title=message.chat.title or f"Chat {message.chat.id}",
@@ -290,8 +331,7 @@ async def process_blacklist_confirm(
     callback: types.CallbackQuery,
     callback_data: BlacklistConfirm,
     bot: Bot,
-    db: AsyncSession,
-    message_repo: MessageRepository,
+    moderation_service: ModerationService,
 ) -> None:
     user_id = callback_data.user_id
     chat_id = callback_data.chat_id
@@ -299,22 +339,25 @@ async def process_blacklist_confirm(
     revoke = bool(callback_data.revoke)
     mark_spam = bool(callback_data.mark_spam)
 
-    if mark_spam:
-        await message_repo.label_spam(chat_id=chat_id, message_id=message_id)
-
-    try:
-        await bot.delete_message(chat_id=chat_id, message_id=message_id)
-    except Exception as err:
-        logger.warning(f"Failed to delete message {message_id}: {err}")
-
     try:
         if not callback.message or not isinstance(callback.message, types.Message):
             await callback.answer("Не удалось получить сообщение.")
             return
-        await bot.ban_chat_member(callback.message.chat.id, user_id)
-        member = await bot.get_chat_member(callback.message.chat.id, user_id)
-        mention = await other.get_user_mention(member.user)
-        await moderation_services.add_to_blacklist(db, bot, user_id, revoke_messages=revoke)
+
+        await moderation_service.blacklist_user(
+            user_id=user_id,
+            source_chat_id=chat_id,
+            source_message_id=message_id,
+            revoke_messages=revoke,
+            mark_spam=mark_spam,
+        )
+
+        try:
+            member = await bot.get_chat_member(callback.message.chat.id, user_id)
+            mention = await other.get_user_mention(member.user)
+        except Exception:
+            mention = str(user_id)
+
         await callback.message.edit_text(f"{mention} добавлен в черный список.")
     except Exception as err:
         if callback.message and isinstance(callback.message, types.Message):
@@ -416,10 +459,10 @@ async def unblock_user_callback(
     callback: types.CallbackQuery,
     callback_data: UnblockUser,
     bot: Bot,
-    db: AsyncSession,
+    moderation_service: ModerationService,
 ) -> None:
     user_id = callback_data.user_id
-    await moderation_services.remove_from_blacklist(db, bot, user_id)
+    await moderation_service.remove_from_blacklist(user_id)
     try:
         if not callback.message or not isinstance(callback.message, types.Message):
             await callback.answer("Не удалось получить сообщение.")

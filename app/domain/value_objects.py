@@ -121,3 +121,12 @@ class UserProfile:
         if self.username:
             return f"@{self.username}"
         return self.display_name
+
+
+@dataclass(frozen=True)
+class BlacklistPreview:
+    """Aggregated information for blacklist confirmation."""
+
+    chats_count: int
+    messages_count: int
+    spam_detected: bool = False

@@ -21,6 +21,9 @@ the repository works.
   this `AGENTS.md` with short notes explaining the change. This helps you get up
   to speed quickly the next time you work on the project.
 - Keep the README synchronized with any setup or usage changes.
+- Moderation commands now flow through `ModerationService`/`SpamService` injected by
+  `DependenciesMiddleware`; avoid calling infrastructure repositories directly
+  from handlers.
 
 ## Architecture overview
 

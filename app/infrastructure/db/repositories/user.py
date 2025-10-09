@@ -88,21 +88,21 @@ class UserRepository(IUserRepository):
         result = await self.db.execute(select(User).filter(User.id == id_tg))
         return result.scalars().first()
 
-    async def add_to_blacklist(self, id_tg: int) -> None:
-        user = await self.get_user(id_tg)
+    async def add_to_blacklist(self, user_id: int) -> None:
+        user = await self.get_user(user_id)
         if user:
-            await self.db.execute(update(User).where(User.id == id_tg).values(blocked=True))
+            await self.db.execute(update(User).where(User.id == user_id).values(blocked=True))
         else:
-            await self.db.execute(insert(User).values(id=id_tg, blocked=True))
+            await self.db.execute(insert(User).values(id=user_id, blocked=True))
         await self.db.commit()
 
-    async def remove_from_blacklist(self, id_tg: int) -> None:
-        user = await self.get_user(id_tg)
+    async def remove_from_blacklist(self, user_id: int) -> None:
+        user = await self.get_user(user_id)
         if user:
-            await self.db.execute(update(User).where(User.id == id_tg).values(blocked=False))
+            await self.db.execute(update(User).where(User.id == user_id).values(blocked=False))
             await self.db.commit()
         else:
-            raise UserNotFoundException(id_tg)
+            raise UserNotFoundException(user_id)
 
 
 def get_user_repository(db: AsyncSession) -> "UserRepository":

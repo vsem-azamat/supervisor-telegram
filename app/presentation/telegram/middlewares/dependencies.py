@@ -5,6 +5,8 @@ from aiogram import BaseMiddleware, Bot
 from aiogram.types import TelegramObject
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from app.application.services.moderation_service import ModerationService
+from app.application.services.spam import SpamService
 from app.application.services.user_service import UserService
 from app.infrastructure.db.repositories import (
     get_admin_repository,
@@ -30,11 +32,29 @@ class DependenciesMiddleware(BaseMiddleware):
         data["bot"] = self.bot
         async with self.session_pool() as session:
             data["db"] = session
-            data["admin_repo"] = get_admin_repository(session)
-            data["user_repo"] = get_user_repository(session)
-            data["chat_repo"] = get_chat_repository(session)
-            data["chat_link_repo"] = get_chat_link_repository(session)
-            data["message_repo"] = get_message_repository(session)
-            # Add UserService with proper dependency injection
-            data["user_service"] = UserService(get_user_repository(session))
+            admin_repo = get_admin_repository(session)
+            user_repo = get_user_repository(session)
+            chat_repo = get_chat_repository(session)
+            chat_link_repo = get_chat_link_repository(session)
+            message_repo = get_message_repository(session)
+
+            data["admin_repo"] = admin_repo
+            data["user_repo"] = user_repo
+            data["chat_repo"] = chat_repo
+            data["chat_link_repo"] = chat_link_repo
+            data["message_repo"] = message_repo
+
+            # Application services
+            spam_service = SpamService(message_repo)
+            moderation_service = ModerationService(
+                bot=self.bot,
+                chat_repository=chat_repo,
+                message_repository=message_repo,
+                user_repository=user_repo,
+                spam_service=spam_service,
+            )
+
+            data["spam_service"] = spam_service
+            data["moderation_service"] = moderation_service
+            data["user_service"] = UserService(user_repo)
             return await handler(event, data)
