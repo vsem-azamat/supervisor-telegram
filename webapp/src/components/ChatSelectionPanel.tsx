@@ -1,4 +1,8 @@
 import { useState, useMemo } from 'react'
+import {
+  Paper, Stack, Group, Text, TextInput, Button, Checkbox,
+  Select, Badge, ScrollArea, Collapse, Title
+} from '@mantine/core'
 import type { Chat, ChatFilters } from '../types'
 
 interface ChatSelectionPanelProps {
@@ -91,156 +95,165 @@ const ChatSelectionPanel: React.FC<ChatSelectionPanelProps> = ({
   }
 
   return (
-    <div className="chat-selection-panel">
-      <div className="panel-header">
-        <h3>📋 Выбор чатов</h3>
-        <div className="header-actions">
-          <button
-            className="filter-toggle"
+    <Paper shadow="xs" withBorder>
+      <Stack gap={0}>
+        {/* Header */}
+        <Group justify="space-between" p="md" style={{ borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
+          <Title order={4}>📋 Выбор чатов</Title>
+          <Button
+            variant="light"
+            size="xs"
             onClick={() => setShowFilters(!showFilters)}
           >
             🔍 Фильтры
-          </button>
-        </div>
-      </div>
+          </Button>
+        </Group>
 
-      {showFilters && (
-        <div className="filters-section">
-          <div className="filter-row">
-            <input
-              type="text"
+        {/* Filters */}
+        <Collapse in={showFilters}>
+          <Stack gap="md" p="md" style={{ borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
+            <TextInput
               placeholder="Поиск по названию или описанию..."
               value={filters.search}
               onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-              className="search-input"
             />
-          </div>
 
-          <div className="filter-row">
-            <div className="filter-group">
-              <label>Тип чата:</label>
-              <div className="checkbox-group">
-                {['group', 'supergroup', 'channel'].map(type => (
-                  <label key={type} className="checkbox-label">
-                    <input
-                      type="checkbox"
-                      checked={filters.type.includes(type)}
-                      onChange={(e) => {
-                        const newTypes = e.target.checked
-                          ? [...filters.type, type]
-                          : filters.type.filter(t => t !== type)
-                        setFilters(prev => ({ ...prev, type: newTypes }))
-                      }}
-                    />
-                    {formatChatType(type)}
-                  </label>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="filter-row">
-            <div className="filter-group">
-              <label>Статус:</label>
-              <select
-                value={filters.isActive === undefined ? '' : filters.isActive ? 'true' : 'false'}
-                onChange={(e) => {
-                  const value = e.target.value === '' ? undefined : e.target.value === 'true'
-                  setFilters(prev => ({ ...prev, isActive: value }))
+            <Group grow>
+              <Select
+                label="Статус"
+                placeholder="Все"
+                value={filters.isActive === undefined ? null : filters.isActive ? 'true' : 'false'}
+                onChange={(value) => {
+                  const val = value === null ? undefined : value === 'true'
+                  setFilters(prev => ({ ...prev, isActive: val }))
                 }}
-                className="status-select"
-              >
-                <option value="">Все</option>
-                <option value="true">Активные</option>
-                <option value="false">Неактивные</option>
-              </select>
+                data={[
+                  { value: 'true', label: 'Активные' },
+                  { value: 'false', label: 'Неактивные' }
+                ]}
+                clearable
+              />
+            </Group>
+
+            <div>
+              <Text size="sm" fw={500} mb="xs">Тип чата:</Text>
+              <Group>
+                {['group', 'supergroup', 'channel'].map(type => (
+                  <Checkbox
+                    key={type}
+                    label={formatChatType(type)}
+                    checked={filters.type.includes(type)}
+                    onChange={(e) => {
+                      const newTypes = e.currentTarget.checked
+                        ? [...filters.type, type]
+                        : filters.type.filter(t => t !== type)
+                      setFilters(prev => ({ ...prev, type: newTypes }))
+                    }}
+                  />
+                ))}
+              </Group>
             </div>
-          </div>
-        </div>
-      )}
+          </Stack>
+        </Collapse>
 
-      <div className="selection-controls">
-        <div className="selection-info">
-          <span>
-            Показано: <strong>{filteredChats.length}</strong> из {chats.length}
-          </span>
-          <span>
-            Выбрано: <strong>{selectedChats.length}</strong>
-          </span>
-        </div>
+        {/* Selection Controls */}
+        <Group justify="space-between" p="md" style={{ borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
+          <Group gap="md">
+            <Text size="sm" c="dimmed">
+              Показано: <strong>{filteredChats.length}</strong> из {chats.length}
+            </Text>
+            <Text size="sm" c="dimmed">
+              Выбрано: <strong>{selectedChats.length}</strong>
+            </Text>
+          </Group>
 
-        <div className="selection-actions">
-          <button onClick={handleSelectAll} className="action-btn select-all">
-            Выбрать все
-          </button>
-          <button onClick={handleSelectNone} className="action-btn select-none">
-            Снять все
-          </button>
-          <button onClick={handleInvertSelection} className="action-btn invert">
-            Инвертировать
-          </button>
-        </div>
-      </div>
+          <Group gap="xs">
+            <Button onClick={handleSelectAll} variant="light" size="xs">
+              Выбрать все
+            </Button>
+            <Button onClick={handleSelectNone} variant="light" size="xs" color="gray">
+              Снять все
+            </Button>
+            <Button onClick={handleInvertSelection} variant="light" size="xs" color="gray">
+              Инвертировать
+            </Button>
+          </Group>
+        </Group>
 
-      <div className="chat-list">
-        {filteredChats.length === 0 ? (
-          <div className="empty-state">
-            <p>🔍 Чаты не найдены</p>
-            <p className="hint">Попробуйте изменить условия поиска</p>
-          </div>
-        ) : (
-          filteredChats.map(chat => (
-            <div
-              key={chat.id}
-              className={`chat-item ${selectedChats.includes(chat.id) ? 'selected' : ''}`}
-              onClick={() => handleChatToggle(chat.id)}
-            >
-              <div className="chat-checkbox">
-                <input
-                  type="checkbox"
-                  checked={selectedChats.includes(chat.id)}
-                  onChange={() => {}} // Handled by parent div click
-                />
-              </div>
+        {/* Chat List */}
+        <ScrollArea h={500}>
+          {filteredChats.length === 0 ? (
+            <Stack align="center" justify="center" p="xl" gap="xs">
+              <Text size="xl">🔍</Text>
+              <Text fw={500}>Чаты не найдены</Text>
+              <Text size="sm" c="dimmed">Попробуйте изменить условия поиска</Text>
+            </Stack>
+          ) : (
+            <Stack gap={0}>
+              {filteredChats.map(chat => (
+                <Paper
+                  key={chat.id}
+                  p="md"
+                  style={{
+                    cursor: 'pointer',
+                    borderBottom: '1px solid var(--mantine-color-gray-2)',
+                    backgroundColor: selectedChats.includes(chat.id)
+                      ? 'var(--mantine-color-blue-0)'
+                      : undefined
+                  }}
+                  onClick={() => handleChatToggle(chat.id)}
+                >
+                  <Group align="flex-start" wrap="nowrap">
+                    <Checkbox
+                      checked={selectedChats.includes(chat.id)}
+                      onChange={() => {}} // Handled by parent click
+                      style={{ marginTop: 2 }}
+                    />
 
-              <div className="chat-info">
-                <div className="chat-header">
-                  <h4 className="chat-title">{chat.title}</h4>
-                  <div className="chat-badges">
-                    <span className="chat-type">{formatChatType(chat.type)}</span>
-                    <span className={`chat-status ${chat.is_active ? 'active' : 'inactive'}`}>
-                      {chat.is_active ? '🟢' : '🔴'}
-                    </span>
-                  </div>
-                </div>
+                    <Stack gap="xs" style={{ flex: 1 }}>
+                      <Group justify="space-between">
+                        <Text fw={600}>{chat.title}</Text>
+                        <Group gap="xs">
+                          <Badge size="sm" variant="light">
+                            {formatChatType(chat.type)}
+                          </Badge>
+                          <Text size="xl">
+                            {chat.is_active ? '🟢' : '🔴'}
+                          </Text>
+                        </Group>
+                      </Group>
 
-                <div className="chat-meta">
-                  <span className="member-count">
-                    👥 {formatMemberCount(chat.member_count)}
-                  </span>
-                  <span className="chat-id">ID: {chat.id}</span>
-                </div>
+                      <Group gap="md">
+                        <Text size="sm" c="dimmed">
+                          👥 {formatMemberCount(chat.member_count)}
+                        </Text>
+                        <Text size="sm" c="dimmed">
+                          ID: {chat.id}
+                        </Text>
+                      </Group>
 
-                {chat.description && (
-                  <p className="chat-description">{chat.description}</p>
-                )}
+                      {chat.description && (
+                        <Text size="sm" c="dimmed" lineClamp={2}>
+                          {chat.description}
+                        </Text>
+                      )}
 
-                {chat.welcome_message && (
-                  <div className="welcome-preview">
-                    <span className="welcome-label">👋 Приветствие:</span>
-                    <span className="welcome-text">
-                      {chat.welcome_message.length > 50
-                        ? `${chat.welcome_message.slice(0, 50)}...`
-                        : chat.welcome_message}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
+                      {chat.welcome_message && (
+                        <Paper p="xs" bg="blue.0" withBorder>
+                          <Text size="xs" c="dimmed" lineClamp={1}>
+                            <strong>👋 Приветствие:</strong> {chat.welcome_message}
+                          </Text>
+                        </Paper>
+                      )}
+                    </Stack>
+                  </Group>
+                </Paper>
+              ))}
+            </Stack>
+          )}
+        </ScrollArea>
+      </Stack>
+    </Paper>
   )
 }
 

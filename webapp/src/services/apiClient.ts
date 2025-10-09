@@ -36,7 +36,7 @@ apiClient.interceptors.request.use(
       // Fallback: Try SDK's retrieveLaunchParams
       if (!initDataRaw) {
         const launchParams = retrieveLaunchParams()
-        initDataRaw = launchParams?.initDataRaw
+        initDataRaw = launchParams?.initDataRaw as string | undefined
       }
 
       if (initDataRaw) {

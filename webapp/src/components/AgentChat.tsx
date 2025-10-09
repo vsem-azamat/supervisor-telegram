@@ -1,4 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import {
+  Paper, Stack, Group, Text, Button, Textarea, Select, Box,
+  ScrollArea, Loader, Alert, Title, Badge
+} from '@mantine/core'
 import { agentApi } from '../services/agentApi'
 import type {
   AgentSession,
@@ -154,312 +158,168 @@ export const AgentChat: React.FC<AgentChatProps> = ({
 
   if (showModelSelector) {
     return (
-      <div className="agent-chat-setup">
-        <div className="setup-container">
-          <h2>🤖 Создать сессию с AI агентом</h2>
+      <Paper shadow="xs" p="xl" withBorder>
+        <Stack gap="md">
+          <Title order={2} ta="center">🤖 Создать сессию с AI агентом</Title>
 
-          <div className="provider-selector">
-            <label>Провайдер:</label>
-            <select
-              value={selectedProvider}
-              onChange={(e) => {
-                const provider = e.target.value as ModelProvider
-                setSelectedProvider(provider)
-                if (availableModels[provider].length > 0) {
-                  setSelectedModel(availableModels[provider][0])
-                }
-              }}
-            >
-              <option value="openai">OpenAI</option>
-              <option value="openrouter">OpenRouter</option>
-            </select>
-          </div>
+          <Select
+            label="Провайдер"
+            value={selectedProvider}
+            onChange={(value) => {
+              const provider = value as ModelProvider
+              setSelectedProvider(provider)
+              if (availableModels[provider].length > 0) {
+                setSelectedModel(availableModels[provider][0])
+              }
+            }}
+            data={[
+              { value: 'openai', label: 'OpenAI' },
+              { value: 'openrouter', label: 'OpenRouter' }
+            ]}
+          />
 
-          <div className="model-selector">
-            <label>Модель:</label>
-            <select
-              value={selectedModel?.model_id || ''}
-              onChange={(e) => {
-                const model = availableModels[selectedProvider].find(m => m.model_id === e.target.value)
-                setSelectedModel(model || null)
-              }}
-            >
-              {availableModels[selectedProvider].map(model => (
-                <option key={model.model_id} value={model.model_id}>
-                  {model.model_name} {model.max_tokens ? `(${model.max_tokens} tokens)` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
+          <Select
+            label="Модель"
+            value={selectedModel?.model_id || ''}
+            onChange={(value) => {
+              const model = availableModels[selectedProvider].find(m => m.model_id === value)
+              setSelectedModel(model || null)
+            }}
+            data={availableModels[selectedProvider].map(model => ({
+              value: model.model_id,
+              label: `${model.model_name}${model.max_tokens ? ` (${model.max_tokens} tokens)` : ''}`
+            }))}
+          />
 
           {selectedModel && (
-            <div className="model-description">
-              <p>{selectedModel.description}</p>
-            </div>
+            <Paper p="md" withBorder bg="gray.0">
+              <Text size="sm" c="dimmed">{selectedModel.description}</Text>
+            </Paper>
           )}
 
-          <button onClick={createSession} disabled={!selectedModel}>
+          <Button
+            onClick={createSession}
+            disabled={!selectedModel}
+            size="lg"
+            leftSection={<span>✨</span>}
+          >
             Создать сессию
-          </button>
-        </div>
-      </div>
+          </Button>
+        </Stack>
+      </Paper>
     )
   }
 
   return (
-    <div className="agent-chat">
-      <div className="chat-header">
-        <h3>🤖 {session?.title || 'AI Агент'}</h3>
-        {session && (
-          <div className="session-info">
-            <span className="model-info">
-              {session.agent_config.model_name} ({session.agent_config.provider})
-            </span>
-            <span className="message-count">{messages.length} сообщений</span>
-          </div>
-        )}
-      </div>
+    <Paper shadow="xs" withBorder style={{ display: 'flex', flexDirection: 'column', height: '600px' }}>
+      {/* Chat Header */}
+      <Box p="md" style={{ borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
+        <Group justify="space-between">
+          <Text fw={600} size="lg">🤖 {session?.title || 'AI Агент'}</Text>
+          {session && (
+            <Group gap="md">
+              <Text size="sm" c="dimmed">
+                {session.agent_config.model_name}
+              </Text>
+              <Badge size="sm" variant="light">
+                {session.agent_config.provider}
+              </Badge>
+              <Text size="sm" c="dimmed">
+                {messages.length} сообщений
+              </Text>
+            </Group>
+          )}
+        </Group>
+      </Box>
 
-      <div className="messages-container">
-        {messages.map((message) => (
-          <div key={message.id} className={`message ${message.role}`}>
-            <div className="message-header">
-              <span className="role">
-                {message.role === 'user' ? '👤' : '🤖'}
-              </span>
-              <span className="timestamp">
-                {new Date(message.timestamp).toLocaleTimeString()}
-              </span>
-            </div>
-            <div className="message-content">
-              {message.content}
-            </div>
-          </div>
-        ))}
-        {isLoading && (
-          <div className="message assistant">
-            <div className="message-header">
-              <span className="role">🤖</span>
-              <span className="loading">Печатает...</span>
-            </div>
-            <div className="message-content">
-              <div className="loading-dots">
-                <span></span><span></span><span></span>
-              </div>
-            </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
+      {/* Messages Container */}
+      <ScrollArea style={{ flex: 1 }} p="md">
+        <Stack gap="md">
+          {messages.map((message) => (
+            <Paper
+              key={message.id}
+              p="md"
+              withBorder={message.role === 'assistant'}
+              style={{
+                backgroundColor: message.role === 'user'
+                  ? 'var(--mantine-color-blue-6)'
+                  : 'var(--mantine-color-gray-0)',
+                color: message.role === 'user'
+                  ? 'white'
+                  : 'var(--mantine-color-dark-9)',
+                marginLeft: message.role === 'user' ? '2rem' : '0',
+                marginRight: message.role === 'assistant' ? '2rem' : '0',
+                borderRadius: '12px'
+              }}
+            >
+              <Group justify="space-between" mb="xs">
+                <Text size="sm" fw={600}>
+                  {message.role === 'user' ? '👤 Вы' : '🤖 Агент'}
+                </Text>
+                <Text size="xs" opacity={0.7}>
+                  {new Date(message.timestamp).toLocaleTimeString()}
+                </Text>
+              </Group>
+              <Text style={{ whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>
+                {message.content}
+              </Text>
+            </Paper>
+          ))}
 
+          {isLoading && (
+            <Paper p="md" withBorder style={{ marginRight: '2rem', borderRadius: '12px' }}>
+              <Group mb="xs">
+                <Text size="sm" fw={600}>🤖 Агент</Text>
+                <Text size="xs" c="dimmed">Печатает...</Text>
+              </Group>
+              <Group gap="xs">
+                <Loader size="xs" />
+                <Text size="sm" c="dimmed">Думаю...</Text>
+              </Group>
+            </Paper>
+          )}
+
+          <div ref={messagesEndRef} />
+        </Stack>
+      </ScrollArea>
+
+      {/* Error Alert */}
       {error && (
-        <div className="error-message">
-          ⚠️ {error}
-        </div>
+        <Box p="md">
+          <Alert
+            color="red"
+            title="⚠️ Ошибка"
+            withCloseButton
+            onClose={() => setError(null)}
+          >
+            {error}
+          </Alert>
+        </Box>
       )}
 
-      <div className="message-input">
-        <textarea
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          onKeyDown={handleKeyPress}
-          placeholder="Напишите сообщение агенту..."
-          rows={3}
-          disabled={isLoading}
-        />
-        <button
-          onClick={sendMessage}
-          disabled={!newMessage.trim() || isLoading}
-        >
-          {isLoading ? '⏳' : '📤'}
-        </button>
-      </div>
-    </div>
+      {/* Message Input */}
+      <Box p="md" style={{ borderTop: '1px solid var(--mantine-color-gray-3)' }}>
+        <Group gap="md" align="flex-end">
+          <Textarea
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyDown={handleKeyPress}
+            placeholder="Напишите сообщение агенту..."
+            rows={3}
+            disabled={isLoading}
+            style={{ flex: 1 }}
+          />
+          <Button
+            onClick={sendMessage}
+            disabled={!newMessage.trim() || isLoading}
+            loading={isLoading}
+            size="lg"
+            h={80}
+          >
+            {isLoading ? '⏳' : '📤'}
+          </Button>
+        </Group>
+      </Box>
+    </Paper>
   )
-}
-
-// Добавим базовые стили
-const styles = `
-.agent-chat, .agent-chat-setup {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  max-height: 600px;
-}
-
-.setup-container {
-  padding: 2rem;
-  text-align: center;
-  background: var(--tg-theme-secondary-bg-color, #f8f9fa);
-  border-radius: 12px;
-  margin: 1rem;
-}
-
-.provider-selector, .model-selector {
-  margin: 1rem 0;
-  text-align: left;
-}
-
-.provider-selector label, .model-selector label {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-}
-
-.provider-selector select, .model-selector select {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid var(--tg-theme-hint-color, #ccc);
-  border-radius: 8px;
-  background: var(--tg-theme-bg-color, white);
-  color: var(--tg-theme-text-color, black);
-}
-
-.model-description {
-  margin: 1rem 0;
-  padding: 1rem;
-  background: var(--tg-theme-bg-color, white);
-  border-radius: 8px;
-  font-size: 0.9rem;
-  color: var(--tg-theme-hint-color, #666);
-}
-
-.chat-header {
-  padding: 1rem;
-  border-bottom: 1px solid var(--tg-theme-section-separator-color, #e0e0e0);
-  background: var(--tg-theme-secondary-bg-color, #f8f9fa);
-}
-
-.session-info {
-  display: flex;
-  gap: 1rem;
-  margin-top: 0.5rem;
-  font-size: 0.8rem;
-  color: var(--tg-theme-hint-color, #666);
-}
-
-.messages-container {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1rem;
-  background: var(--tg-theme-bg-color, white);
-}
-
-.message {
-  margin-bottom: 1rem;
-  padding: 1rem;
-  border-radius: 12px;
-}
-
-.message.user {
-  background: var(--tg-theme-button-color, #0088cc);
-  color: var(--tg-theme-button-text-color, white);
-  margin-left: 2rem;
-}
-
-.message.assistant {
-  background: var(--tg-theme-secondary-bg-color, #f8f9fa);
-  color: var(--tg-theme-text-color, black);
-  margin-right: 2rem;
-}
-
-.message-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-  font-size: 0.8rem;
-}
-
-.message-content {
-  line-height: 1.4;
-  white-space: pre-wrap;
-}
-
-.loading-dots {
-  display: flex;
-  gap: 0.3rem;
-}
-
-.loading-dots span {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--tg-theme-hint-color, #999);
-  animation: pulse 1.5s infinite;
-}
-
-.loading-dots span:nth-child(2) { animation-delay: 0.5s; }
-.loading-dots span:nth-child(3) { animation-delay: 1s; }
-
-@keyframes pulse {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 1; }
-}
-
-.message-input {
-  display: flex;
-  gap: 0.5rem;
-  padding: 1rem;
-  border-top: 1px solid var(--tg-theme-section-separator-color, #e0e0e0);
-  background: var(--tg-theme-secondary-bg-color, #f8f9fa);
-}
-
-.message-input textarea {
-  flex: 1;
-  padding: 0.75rem;
-  border: 1px solid var(--tg-theme-hint-color, #ccc);
-  border-radius: 8px;
-  background: var(--tg-theme-bg-color, white);
-  color: var(--tg-theme-text-color, black);
-  resize: none;
-}
-
-.message-input button {
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 8px;
-  background: var(--tg-theme-button-color, #0088cc);
-  color: var(--tg-theme-button-text-color, white);
-  cursor: pointer;
-  font-size: 1.2rem;
-}
-
-.message-input button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.error-message {
-  padding: 1rem;
-  background: #fee;
-  color: #c33;
-  border-radius: 8px;
-  margin: 1rem;
-  text-align: center;
-}
-
-.setup-container button {
-  padding: 1rem 2rem;
-  border: none;
-  border-radius: 8px;
-  background: var(--tg-theme-button-color, #0088cc);
-  color: var(--tg-theme-button-text-color, white);
-  cursor: pointer;
-  font-size: 1rem;
-  font-weight: 600;
-  margin-top: 1rem;
-}
-
-.setup-container button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-`
-
-// Инжектим стили
-if (typeof document !== 'undefined') {
-  const styleElement = document.createElement('style')
-  styleElement.textContent = styles
-  document.head.appendChild(styleElement)
 }

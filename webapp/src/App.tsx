@@ -1,27 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useLaunchParams, useRawInitData } from '@telegram-apps/sdk-react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { AppShell, Tabs, Container, Badge, Group, Title, Code, ActionIcon, useMantineColorScheme } from '@mantine/core'
 import BulkChatManager from './components/BulkChatManager'
 import { AgentManager } from './components/AgentManager'
-import './App.css'
-
-const queryClient = new QueryClient()
-
-// Type declaration for Telegram WebApp
-declare global {
-  interface Window {
-    Telegram: {
-      WebApp: {
-        themeParams: {
-          bg_color?: string
-          text_color?: string
-          button_color?: string
-          button_text_color?: string
-        }
-      }
-    }
-  }
-}
 
 interface UserInfo {
   id: number
@@ -36,16 +17,11 @@ function App() {
   const launchParams = useLaunchParams()
   const rawInitData = useRawInitData()
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null)
-  const [themeParams, setThemeParams] = useState<{
-    bgColor?: string
-    textColor?: string
-    buttonColor?: string
-    buttonTextColor?: string
-  } | null>(null)
   const [activeTab, setActiveTab] = useState<'bulk' | 'agent' | 'analytics' | 'settings' | 'debug'>('bulk')
+  const { colorScheme, toggleColorScheme } = useMantineColorScheme()
 
   useEffect(() => {
-    // Parse raw init data
+    // Parse raw init data to get user info
     if (rawInitData) {
       try {
         const parsed = new URLSearchParams(rawInitData)
@@ -60,138 +36,103 @@ function App() {
     }
   }, [rawInitData])
 
-  useEffect(() => {
-    // Get theme from Telegram WebApp
-    if (window.Telegram?.WebApp) {
-      const webapp = window.Telegram.WebApp
-      setThemeParams({
-        bgColor: webapp.themeParams?.bg_color || '#ffffff',
-        textColor: webapp.themeParams?.text_color || '#000000',
-        buttonColor: webapp.themeParams?.button_color || '#0088cc',
-        buttonTextColor: webapp.themeParams?.button_text_color || '#ffffff'
-      })
-    }
-  }, [])
-
-  useEffect(() => {
-    // Apply Telegram theme
-    if (themeParams) {
-      document.documentElement.style.setProperty('--tg-bg-color', themeParams.bgColor || '#ffffff')
-      document.documentElement.style.setProperty('--tg-text-color', themeParams.textColor || '#000000')
-      document.documentElement.style.setProperty('--tg-button-color', themeParams.buttonColor || '#0088cc')
-      document.documentElement.style.setProperty('--tg-button-text-color', themeParams.buttonTextColor || '#ffffff')
-    }
-  }, [themeParams])
-
   return (
-    <QueryClientProvider client={queryClient}>
-      <div className="app" style={{
-        backgroundColor: themeParams?.bgColor || '#ffffff',
-        color: themeParams?.textColor || '#000000',
-        minHeight: '100vh',
-        padding: '1rem'
-      }}>
-        <div className="container">
-          <header className="app-header">
-            <h1>🛡️ Moderator Bot</h1>
-            {userInfo && (
-              <div className="user-badge">
-                👋 {userInfo.first_name}
+    <AppShell header={{ height: 60 }} padding="md">
+      <AppShell.Header>
+        <Container size="xl" h="100%">
+          <Group h="100%" justify="space-between">
+            <Title order={2}>🛡️ Moderator Bot</Title>
+            <Group gap="md">
+              <ActionIcon
+                variant="light"
+                size="lg"
+                onClick={() => toggleColorScheme()}
+                title={colorScheme === 'dark' ? 'Переключить на светлую тему' : 'Переключить на темную тему'}
+              >
+                {colorScheme === 'dark' ? '☀️' : '🌙'}
+              </ActionIcon>
+              {userInfo && (
+                <Badge size="lg" variant="light">
+                  👋 {userInfo.first_name}
+                </Badge>
+              )}
+            </Group>
+          </Group>
+        </Container>
+      </AppShell.Header>
+
+      <AppShell.Main>
+        <Container size="xl">
+          <Tabs value={activeTab} onChange={(value) => setActiveTab(value as typeof activeTab)}>
+            <Tabs.List>
+              <Tabs.Tab value="bulk">🎯 Массовые операции</Tabs.Tab>
+              <Tabs.Tab value="agent">🤖 AI Агент</Tabs.Tab>
+              <Tabs.Tab value="analytics">📊 Аналитика</Tabs.Tab>
+              <Tabs.Tab value="settings">⚙️ Настройки</Tabs.Tab>
+              <Tabs.Tab value="debug">🔧 Debug</Tabs.Tab>
+            </Tabs.List>
+
+            <Tabs.Panel value="bulk" pt="md">
+              <BulkChatManager />
+            </Tabs.Panel>
+
+            <Tabs.Panel value="agent" pt="md">
+              <AgentManager />
+            </Tabs.Panel>
+
+            <Tabs.Panel value="analytics" pt="md">
+              <div style={{ textAlign: 'center', padding: '3rem 2rem' }}>
+                <Title order={2}>📊 Аналитика</Title>
+                <p>🚧 В разработке</p>
+                <ul style={{ textAlign: 'left', maxWidth: 400, margin: '0 auto', listStyle: 'none' }}>
+                  <li>📈 Статистика чатов</li>
+                  <li>👥 Активность пользователей</li>
+                  <li>⚡ Модерационные действия</li>
+                  <li>📋 Отчеты и экспорт</li>
+                </ul>
               </div>
-            )}
-          </header>
+            </Tabs.Panel>
 
-          <nav className="navigation">
-            <button
-              className={`nav-btn ${activeTab === 'bulk' ? 'active' : ''}`}
-              onClick={() => setActiveTab('bulk')}
-            >
-              🎯 Массовые операции
-            </button>
-            <button
-              className={`nav-btn ${activeTab === 'agent' ? 'active' : ''}`}
-              onClick={() => setActiveTab('agent')}
-            >
-              🤖 AI Агент
-            </button>
-            <button
-              className={`nav-btn ${activeTab === 'analytics' ? 'active' : ''}`}
-              onClick={() => setActiveTab('analytics')}
-            >
-              📊 Аналитика
-            </button>
-            <button
-              className={`nav-btn ${activeTab === 'settings' ? 'active' : ''}`}
-              onClick={() => setActiveTab('settings')}
-            >
-              ⚙️ Настройки
-            </button>
-            <button
-              className={`nav-btn ${activeTab === 'debug' ? 'active' : ''}`}
-              onClick={() => setActiveTab('debug')}
-            >
-              🔧 Debug
-            </button>
-          </nav>
-
-          <main className="tab-content">
-            {activeTab === 'bulk' && <BulkChatManager />}
-
-            {activeTab === 'agent' && <AgentManager />}
-
-            {activeTab === 'analytics' && (
-              <div className="placeholder-tab">
-                <h2>📊 Аналитика</h2>
-                <div className="placeholder-content">
-                  <p>🚧 В разработке</p>
-                  <ul>
-                    <li>📈 Статистика чатов</li>
-                    <li>👥 Активность пользователей</li>
-                    <li>⚡ Модерационные действия</li>
-                    <li>📋 Отчеты и экспорт</li>
-                  </ul>
-                </div>
+            <Tabs.Panel value="settings" pt="md">
+              <div style={{ textAlign: 'center', padding: '3rem 2rem' }}>
+                <Title order={2}>⚙️ Глобальные настройки</Title>
+                <p>🚧 В разработке</p>
+                <ul style={{ textAlign: 'left', maxWidth: 400, margin: '0 auto', listStyle: 'none' }}>
+                  <li>🤖 Настройки бота</li>
+                  <li>🔔 Уведомления</li>
+                  <li>🔒 Безопасность</li>
+                  <li>🌐 Локализация</li>
+                </ul>
               </div>
-            )}
+            </Tabs.Panel>
 
-            {activeTab === 'settings' && (
-              <div className="placeholder-tab">
-                <h2>⚙️ Глобальные настройки</h2>
-                <div className="placeholder-content">
-                  <p>🚧 В разработке</p>
-                  <ul>
-                    <li>🤖 Настройки бота</li>
-                    <li>🔔 Уведомления</li>
-                    <li>🔒 Безопасность</li>
-                    <li>🌐 Локализация</li>
-                  </ul>
-                </div>
+            <Tabs.Panel value="debug" pt="md">
+              <div style={{ padding: '2rem' }}>
+                <Title order={2} mb="md">🔧 Отладка</Title>
+                <details style={{ marginBottom: '1rem' }}>
+                  <summary style={{ cursor: 'pointer', padding: '0.5rem', background: '#f5f5f5', borderRadius: '4px' }}>
+                    Launch Params
+                  </summary>
+                  <Code block mt="sm">{JSON.stringify(launchParams, null, 2)}</Code>
+                </details>
+                <details style={{ marginBottom: '1rem' }}>
+                  <summary style={{ cursor: 'pointer', padding: '0.5rem', background: '#f5f5f5', borderRadius: '4px' }}>
+                    User Info
+                  </summary>
+                  <Code block mt="sm">{JSON.stringify(userInfo, null, 2)}</Code>
+                </details>
+                <details>
+                  <summary style={{ cursor: 'pointer', padding: '0.5rem', background: '#f5f5f5', borderRadius: '4px' }}>
+                    Raw Init Data
+                  </summary>
+                  <Code block mt="sm">{rawInitData || 'No init data available'}</Code>
+                </details>
               </div>
-            )}
-
-            {activeTab === 'debug' && (
-              <div className="debug-tab">
-                <h2>🔧 Отладка</h2>
-                <div className="debug-info">
-                  <details>
-                    <summary>Launch Params</summary>
-                    <pre>{JSON.stringify(launchParams, null, 2)}</pre>
-                  </details>
-                  <details>
-                    <summary>User Info</summary>
-                    <pre>{JSON.stringify(userInfo, null, 2)}</pre>
-                  </details>
-                  <details>
-                    <summary>Theme Params</summary>
-                    <pre>{JSON.stringify(themeParams, null, 2)}</pre>
-                  </details>
-                </div>
-              </div>
-            )}
-          </main>
-        </div>
-      </div>
-    </QueryClientProvider>
+            </Tabs.Panel>
+          </Tabs>
+        </Container>
+      </AppShell.Main>
+    </AppShell>
   )
 }
 

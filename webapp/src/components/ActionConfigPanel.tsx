@@ -1,4 +1,8 @@
 import { useState, useEffect } from 'react'
+import {
+  Paper, Stack, Group, Title, Badge, Button, Textarea,
+  TextInput, NumberInput, Checkbox, Select, Radio, Text, SimpleGrid
+} from '@mantine/core'
 import type { BulkActionType, BulkActionConfig, ActionField } from '../types'
 
 interface ActionConfigPanelProps {
@@ -49,28 +53,6 @@ const BULK_ACTIONS: BulkActionType[] = [
     ]
   },
   {
-    id: 'broadcast_message',
-    name: 'Отправить сообщение',
-    icon: '📢',
-    description: 'Массовая рассылка сообщений в чаты',
-    category: 'communication',
-    fields: [
-      {
-        key: 'message',
-        label: 'Текст сообщения',
-        type: 'textarea',
-        required: true,
-        placeholder: 'Важное объявление для всех участников...',
-        validation: { maxLength: 2000 }
-      },
-      {
-        key: 'pin_message',
-        label: 'Закрепить сообщение',
-        type: 'boolean'
-      }
-    ]
-  },
-  {
     id: 'chat_settings',
     name: 'Настройки чата',
     icon: '⚙️',
@@ -91,33 +73,6 @@ const BULK_ACTIONS: BulkActionType[] = [
           { value: 'medium', label: 'Средний' },
           { value: 'high', label: 'Высокий' }
         ]
-      }
-    ]
-  },
-  {
-    id: 'user_management',
-    name: 'Управление пользователями',
-    icon: '👥',
-    description: 'Массовые операции с пользователями',
-    category: 'moderation',
-    fields: [
-      {
-        key: 'action_type',
-        label: 'Тип действия',
-        type: 'select',
-        required: true,
-        options: [
-          { value: 'kick_inactive', label: 'Исключить неактивных' },
-          { value: 'mute_all', label: 'Заглушить всех' },
-          { value: 'promote_admins', label: 'Назначить админов' }
-        ]
-      },
-      {
-        key: 'duration',
-        label: 'Длительность (мин)',
-        type: 'number',
-        placeholder: '60',
-        validation: { min: 1, max: 10080 }
       }
     ]
   }
@@ -160,65 +115,52 @@ const ActionConfigPanel: React.FC<ActionConfigPanelProps> = ({
     switch (field.type) {
       case 'text':
         return (
-          <input
-            type="text"
+          <TextInput
             value={value as string}
             onChange={(e) => handleValueChange(field.key, e.target.value)}
             placeholder={field.placeholder}
-            className="field-input"
           />
         )
 
       case 'textarea':
         return (
-          <textarea
+          <Textarea
             value={value as string}
             onChange={(e) => handleValueChange(field.key, e.target.value)}
             placeholder={field.placeholder}
-            className="field-textarea"
             rows={4}
+            maxLength={field.validation?.maxLength}
           />
         )
 
       case 'number':
         return (
-          <input
-            type="number"
+          <NumberInput
             value={value as number | ''}
-            onChange={(e) => handleValueChange(field.key, parseInt(e.target.value))}
+            onChange={(val) => handleValueChange(field.key, val)}
             placeholder={field.placeholder}
             min={field.validation?.min}
             max={field.validation?.max}
-            className="field-input"
           />
         )
 
       case 'boolean':
         return (
-          <label className="field-checkbox">
-            <input
-              type="checkbox"
-              checked={Boolean(value)}
-              onChange={(e) => handleValueChange(field.key, e.target.checked)}
-            />
-            <span className="checkmark"></span>
-          </label>
+          <Checkbox
+            checked={Boolean(value)}
+            onChange={(e) => handleValueChange(field.key, e.currentTarget.checked)}
+            label={field.label}
+          />
         )
 
       case 'select':
         return (
-          <select
+          <Select
             value={value as string}
-            onChange={(e) => handleValueChange(field.key, e.target.value)}
-            className="field-select"
-          >
-            <option value="">Выберите вариант</option>
-            {field.options?.map(option => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+            onChange={(val) => handleValueChange(field.key, val)}
+            placeholder="Выберите вариант"
+            data={field.options?.map(opt => ({ value: opt.value, label: opt.label })) || []}
+          />
         )
 
       default:
@@ -240,85 +182,90 @@ const ActionConfigPanel: React.FC<ActionConfigPanelProps> = ({
   }
 
   return (
-    <div className="action-config-panel">
-      <div className="panel-header">
-        <h3>🛠️ Настройка действий</h3>
-        <div className="selection-counter">
-          {selectedCount > 0 ? (
-            <span className="counter-badge">{selectedCount} выбрано</span>
-          ) : (
-            <span className="counter-empty">Выберите чаты</span>
-          )}
-        </div>
-      </div>
+    <Paper shadow="xs" withBorder>
+      <Group justify="space-between" p="md" style={{ borderBottom: '1px solid var(--mantine-color-gray-3)' }}>
+        <Title order={4}>🛠️ Настройка действий</Title>
+        {selectedCount > 0 ? (
+          <Badge size="lg" color="blue">{selectedCount} выбрано</Badge>
+        ) : (
+          <Badge size="lg" variant="light" color="gray">Выберите чаты</Badge>
+        )}
+      </Group>
 
       {!selectedAction ? (
-        <div className="action-selector">
-          <div className="action-grid-compact">
-            {Object.entries(groupedActions).map(([category, actions]) => (
-              <div key={category} className="action-category-compact">
-                <h4 className="category-title-compact">
-                  {categoryNames[category as keyof typeof categoryNames]}
-                </h4>
-                <div className="actions-row">
-                  {actions.map(action => (
-                    <button
-                      key={action.id}
-                      className="action-card-compact"
-                      onClick={() => handleActionSelect(action)}
-                      disabled={selectedCount === 0}
-                      title={action.description}
-                    >
-                      <div className="action-icon-compact">{action.icon}</div>
-                      <div className="action-name-compact">{action.name}</div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <Stack gap="lg" p="md">
+          {Object.entries(groupedActions).map(([category, actions]) => (
+            <div key={category}>
+              <Text size="sm" fw={600} c="blue" mb="xs">
+                {categoryNames[category as keyof typeof categoryNames]}
+              </Text>
+              <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="xs">
+                {actions.map(action => (
+                  <Button
+                    key={action.id}
+                    onClick={() => handleActionSelect(action)}
+                    disabled={selectedCount === 0}
+                    variant="light"
+                    h="auto"
+                    p="md"
+                    styles={{
+                      root: {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.5rem'
+                      }
+                    }}
+                  >
+                    <Text size="2rem">{action.icon}</Text>
+                    <Text size="sm" fw={600}>{action.name}</Text>
+                  </Button>
+                ))}
+              </SimpleGrid>
+            </div>
+          ))}
+        </Stack>
       ) : (
-        <div className="action-config-expanded">
-          <div className="config-header-expanded">
-            <button
-              className="back-button-expanded"
+        <Stack gap="md" p="md">
+          <Group>
+            <Button
+              variant="subtle"
+              size="xs"
               onClick={() => setSelectedAction(null)}
             >
               ← Назад
-            </button>
-            <div className="config-title-expanded">
-              <span className="config-icon">{selectedAction.icon}</span>
-              <h4>{selectedAction.name}</h4>
-            </div>
-          </div>
+            </Button>
+            <Group gap="xs">
+              <Text size="xl">{selectedAction.icon}</Text>
+              <Text fw={600}>{selectedAction.name}</Text>
+            </Group>
+          </Group>
 
-          <div className="config-form-expanded">
+          <Stack gap="md">
             {selectedAction.fields.map(field => (
-              <div key={field.key} className="field-group-expanded">
-                <label className="field-label-expanded">
-                  {field.label}
-                  {field.required && <span className="required">*</span>}
-                </label>
+              <div key={field.key}>
+                {field.type !== 'boolean' && (
+                  <Text size="sm" fw={500} mb={5}>
+                    {field.label}
+                    {field.required && <span style={{ color: 'red' }}> *</span>}
+                  </Text>
+                )}
                 {renderField(field)}
               </div>
             ))}
 
-            <div className="apply-options-expanded">
-              <label className="apply-option-expanded">
-                <input
-                  type="radio"
-                  value="selected"
-                  checked={applyTo === 'selected'}
-                  onChange={(e) => setApplyTo(e.target.value as 'selected')}
-                />
-                <span>Применить к выбранным <strong>({selectedCount})</strong> чатам</span>
-              </label>
-            </div>
-          </div>
-        </div>
+            <Radio.Group
+              value={applyTo}
+              onChange={(val) => setApplyTo(val as 'selected')}
+            >
+              <Radio
+                value="selected"
+                label={`Применить к выбранным (${selectedCount}) чатам`}
+              />
+            </Radio.Group>
+          </Stack>
+        </Stack>
       )}
-    </div>
+    </Paper>
   )
 }
 
