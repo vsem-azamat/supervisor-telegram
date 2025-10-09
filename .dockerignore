@@ -11,9 +11,25 @@ __pycache__
 *.so
 .pytest_cache
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
 .mypy_cache
 .ruff_cache
+.hypothesis/
+.tox/
+.nox/
+pip-wheel-metadata/
+.python-version
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Caches
+.cache/
 
 # Virtual environments
 .venv
@@ -37,8 +53,12 @@ docs/
 AGENTS.md
 
 # Development
+.env
+.env.*
 .env.local
 .env.development
+!.env.example
+!.env.prod-db.example
 tests/
 
 # Docker
@@ -49,3 +69,9 @@ Dockerfile*
 # Frontend
 webapp/
 node_modules/
+
+# Logs and temp
+logs/
+*.log
+tmp/
+.tmp/

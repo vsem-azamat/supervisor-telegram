@@ -24,7 +24,7 @@ logger = get_logger("bot")
 async def on_startup(bot: Bot) -> None:
     """Bot startup handler."""
     try:
-        await bot.delete_webhook()
+        await bot.delete_webhook(drop_pending_updates=True)
         logger.info("Webhook deleted")
 
         await insert_chat_link()
@@ -81,7 +81,7 @@ async def main() -> None:
         dp.shutdown.register(on_shutdown)
 
         logger.info("Bot configured, starting polling")
-        await dp.start_polling(bot, skip_updates=True)
+        await dp.start_polling(bot)
 
     except Exception as e:
         logger.error("Bot error", error=str(e), exc_info=True)

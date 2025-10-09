@@ -1,3 +1,5 @@
+# Production Docker Compose configuration
+# Use with docker-compose.override.yml for development
 services:
   bot:
     build:
@@ -6,16 +8,19 @@ services:
     env_file:
       - .env
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
       - PYTHONUNBUFFERED=1
     restart: unless-stopped
     command: >
       sh -c "
       ./scripts/wait_for_postgres.sh &&
-      uv run alembic upgrade head &&
-      uv run -m app.presentation.telegram
+      alembic upgrade head &&
+      python -m app.presentation.telegram
       "
+    networks:
+      - app-network
 
   api:
     build:
@@ -29,27 +34,34 @@ services:
     command: >
       sh -c "
       ./scripts/wait_for_postgres.sh &&
-      uv run uvicorn app.presentation.api.main:app --host 0.0.0.0 --port 8000
+      uvicorn app.presentation.api.main:app --host 0.0.0.0 --port 8000
       "
     depends_on:
-      - db
-
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "${NGINX_PORT:-80}:80"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-    depends_on:
-      - webapp
-      - api
-    restart: unless-stopped
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
 
   webapp:
     build:
       context: ./webapp
       target: production
     restart: unless-stopped
+    networks:
+      - app-network
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "${NGINX_PORT:-80}:80"
+    volumes:
+      - ./nginx.prod.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - webapp
+      - api
+    restart: unless-stopped
+    networks:
+      - app-network
 
   db:
     image: postgres:17.6
@@ -63,7 +75,17 @@ services:
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     volumes:
       - moderator-bot-db:/var/lib/postgresql/data
-
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   moderator-bot-db:
+
+networks:
+  app-network:
+    driver: bridge

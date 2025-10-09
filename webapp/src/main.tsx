@@ -5,7 +5,7 @@ import { retrieveLaunchParams } from '@telegram-apps/sdk-react'
 import './index.css'
 import App from './App.tsx'
 
-// Initialize launch params
+// Initialize Telegram WebApp launch params
 retrieveLaunchParams()
 
 const queryClient = new QueryClient()

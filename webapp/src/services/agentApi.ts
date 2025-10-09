@@ -1,4 +1,4 @@
-import axios from 'axios'
+import apiClient from './apiClient'
 import type {
   AgentModel,
   AgentSession,
@@ -9,24 +9,22 @@ import type {
   ModelProvider
 } from '../types'
 
-const API_BASE = import.meta.env.VITE_API_URL || '/api/v1'
-
 export const agentApi = {
   // Получить доступные модели для провайдера
   async getAvailableModels(provider: ModelProvider): Promise<AgentModel[]> {
-    const response = await axios.get(`${API_BASE}/agent/models/${provider}`)
+    const response = await apiClient.get(`/agent/models/${provider}`)
     return response.data
   },
 
   // Создать новую сессию
   async createSession(request: CreateSessionRequest): Promise<AgentSession> {
-    const response = await axios.post(`${API_BASE}/agent/sessions`, request)
+    const response = await apiClient.post(`/agent/sessions`, request)
     return response.data
   },
 
   // Получить список сессий пользователя
   async getUserSessions(limit: number = 20): Promise<{ sessions: AgentSession[]; total: number }> {
-    const response = await axios.get(`${API_BASE}/agent/sessions`, {
+    const response = await apiClient.get(`/agent/sessions`, {
       params: { limit }
     })
     return response.data
@@ -34,25 +32,25 @@ export const agentApi = {
 
   // Получить информацию о сессии
   async getSession(sessionId: string): Promise<AgentSession> {
-    const response = await axios.get(`${API_BASE}/agent/sessions/${sessionId}`)
+    const response = await apiClient.get(`/agent/sessions/${sessionId}`)
     return response.data
   },
 
   // Получить сообщения сессии
   async getSessionMessages(sessionId: string): Promise<AgentMessage[]> {
-    const response = await axios.get(`${API_BASE}/agent/sessions/${sessionId}/messages`)
+    const response = await apiClient.get(`/agent/sessions/${sessionId}/messages`)
     return response.data
   },
 
   // Отправить сообщение агенту
   async sendMessage(sessionId: string, message: ChatRequest): Promise<ChatResponse> {
-    const response = await axios.post(`${API_BASE}/agent/sessions/${sessionId}/chat`, message)
+    const response = await apiClient.post(`/agent/sessions/${sessionId}/chat`, message)
     return response.data
   },
 
   // Удалить сессию
   async deleteSession(sessionId: string): Promise<{ message: string }> {
-    const response = await axios.delete(`${API_BASE}/agent/sessions/${sessionId}`)
+    const response = await apiClient.delete(`/agent/sessions/${sessionId}`)
     return response.data
   }
 }

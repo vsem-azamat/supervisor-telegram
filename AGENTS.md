@@ -36,3 +36,12 @@ the repository works.
 
 These notes should help future Codex sessions quickly understand the project
 layout and any non-obvious logic.
+
+## Docker Compose setup
+
+- Base file: `docker-compose.yaml` (production-oriented defaults).
+- Dev overrides: `docker-compose.override.yml` (auto-loaded by `docker compose`).
+- Common commands:
+  - Start dev stack: `docker compose up --build`.
+  - Use production DB from dev: `docker compose --env-file .env.prod-db up` (optionally set `SKIP_MIGRATIONS=true`).
+  - Run only core services: `docker compose up bot api nginx`.

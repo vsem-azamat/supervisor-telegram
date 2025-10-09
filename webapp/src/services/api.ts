@@ -1,4 +1,5 @@
 import axios from 'axios'
+import apiClient from './apiClient'
 import type { Chat, BulkActionConfig, BulkExecutionResult } from '../types'
 
 // API response types matching backend schemas
@@ -34,16 +35,11 @@ export interface ApiBulkUpdateRequest {
 }
 
 class ApiService {
-  private client: ReturnType<typeof axios.create>
+  private client: typeof apiClient
 
   constructor() {
-    this.client = axios.create({
-      baseURL: '/api/v1',
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
+    // Use shared apiClient with Telegram authentication
+    this.client = apiClient
   }
 
   // Convert API response to frontend Chat type

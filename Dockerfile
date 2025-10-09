@@ -16,8 +16,13 @@ WORKDIR /app
 # Copy dependency files for better caching
 COPY pyproject.toml uv.lock README.md ./
 
-# Install dependencies to virtual environment
+# Install production dependencies to virtual environment (includes alembic, uvicorn)
 RUN uv sync --frozen --no-dev
+
+# Copy source code needed for project installation
+COPY app/ ./app/
+COPY alembic/ ./alembic/
+COPY alembic.ini ./
 
 # Development stage
 FROM ghcr.io/astral-sh/uv:0.8.11-alpine AS development
@@ -46,8 +51,11 @@ COPY alembic/ ./alembic/
 COPY alembic.ini ./
 COPY scripts/ ./scripts/
 
-# Make sure we use venv
-ENV PATH="/app/.venv/bin:$PATH"
+# Make uv available system-wide (symlink to /usr/local/bin) if missing
+RUN [ -x /usr/local/bin/uv ] || ln -s /uv /usr/local/bin/uv
+
+# Make sure we use venv AND uv is available
+ENV PATH="/app/.venv/bin:/usr/local/bin:$PATH"
 
 # Make scripts executable
 RUN chmod +x scripts/*.sh
@@ -55,7 +63,7 @@ RUN chmod +x scripts/*.sh
 # Development doesn't need to change user - keep as root for easier volume mounting
 
 # Production stage
-FROM python:3.12-alpine AS production
+FROM ghcr.io/astral-sh/uv:0.8.11-alpine AS production
 
 # Install runtime dependencies only
 RUN apk add --no-cache postgresql-client
@@ -71,8 +79,11 @@ COPY alembic/ ./alembic/
 COPY alembic.ini ./
 COPY scripts/ ./scripts/
 
-# Make sure we use venv
-ENV PATH="/app/.venv/bin:$PATH"
+# Make sure we use venv AND uv is available
+ENV PATH="/app/.venv/bin:/usr/local/bin:$PATH"
+
+# Make uv available system-wide (symlink to /usr/local/bin) if missing
+RUN [ -x /usr/local/bin/uv ] || ln -s /uv /usr/local/bin/uv
 
 # Create non-root user for security and set permissions
 RUN addgroup -g 1001 -S appgroup && \
