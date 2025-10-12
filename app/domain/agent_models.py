@@ -10,6 +10,12 @@ from app.domain.agent import ModelProvider, OpenRouterModel
 # Available models for OpenRouter provider
 OPENROUTER_MODELS = [
     OpenRouterModel(
+        id="x-ai/grok-4-fast",
+        name="Grok 4 Fast",
+        description="X.AI's fast and efficient Grok model",
+        context_length=128000,
+    ),
+    OpenRouterModel(
         id="anthropic/claude-sonnet-4.5",
         name="Claude Sonnet 4.5",
         description="Latest Claude model with enhanced capabilities",
@@ -38,12 +44,6 @@ OPENROUTER_MODELS = [
         name="GPT OSS 20B",
         description="Open source 20B parameter model",
         context_length=32000,
-    ),
-    OpenRouterModel(
-        id="x-ai/grok-4-fast",
-        name="Grok 4 Fast",
-        description="X.AI's fast and efficient Grok model",
-        context_length=128000,
     ),
 ]
 
