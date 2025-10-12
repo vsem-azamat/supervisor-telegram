@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.agent import AgentSession, ModelProvider, OpenRouterModel
+from app.domain.agent_models import get_models_by_provider
 from app.domain.repositories import IAgentRepository
 
 
@@ -44,66 +45,7 @@ class InMemoryAgentRepository(IAgentRepository):
 
     async def get_available_models(self, provider: ModelProvider) -> list[OpenRouterModel]:
         """Get available models for provider."""
-        if provider == ModelProvider.OPENAI:
-            return [
-                OpenRouterModel(
-                    id="gpt-4o",
-                    name="GPT-4o",
-                    description="Новейшая модель OpenAI с мультимодальными возможностями",
-                    context_length=128000,
-                ),
-                OpenRouterModel(
-                    id="gpt-4o-mini",
-                    name="GPT-4o Mini",
-                    description="Быстрая и экономичная версия GPT-4o",
-                    context_length=128000,
-                ),
-                OpenRouterModel(
-                    id="gpt-4-turbo",
-                    name="GPT-4 Turbo",
-                    description="Улучшенная версия GPT-4 с увеличенным контекстом",
-                    context_length=128000,
-                ),
-            ]
-        # provider == ModelProvider.OPENROUTER
-        return [
-            OpenRouterModel(
-                id="anthropic/claude-sonnet-4.5",
-                name="Claude Sonnet 4.5",
-                description="Latest Claude model with enhanced capabilities",
-                context_length=200000,
-            ),
-            OpenRouterModel(
-                id="openai/gpt-5",
-                name="GPT-5",
-                description="OpenAI's latest flagship model",
-                context_length=128000,
-            ),
-            OpenRouterModel(
-                id="openai/gpt-5-mini",
-                name="GPT-5 Mini",
-                description="Fast and cost-effective GPT-5 variant",
-                context_length=128000,
-            ),
-            OpenRouterModel(
-                id="openai/gpt-5-chat",
-                name="GPT-5 Chat",
-                description="GPT-5 optimized for conversational tasks",
-                context_length=128000,
-            ),
-            OpenRouterModel(
-                id="openai/gpt-oss-20b",
-                name="GPT OSS 20B",
-                description="Open source 20B parameter model",
-                context_length=32000,
-            ),
-            OpenRouterModel(
-                id="x-ai/grok-4-fast",
-                name="Grok 4 Fast",
-                description="X.AI's fast and efficient Grok model",
-                context_length=128000,
-            ),
-        ]
+        return get_models_by_provider(provider)
 
 
 # TODO: Full PostgreSQL implementation will be added later

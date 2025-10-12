@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.application.services.agent_service import AgentService
 from app.core.container import get_container
-from app.domain.agent import AgentModelConfig, ModelProvider
+from app.domain.agent import AgentModelConfig, ModelProvider, OpenRouterModel
+from app.domain.agent_models import OPENAI_MODELS, OPENROUTER_MODELS
 from app.presentation.api.auth import get_current_admin_user
 from app.presentation.api.schemas.agent import (
     AgentResponseSchema,
@@ -21,6 +22,23 @@ def get_agent_service() -> AgentService:
     """Get agent service dependency."""
     container = get_container()
     return container.get_agent_service()
+
+
+def _convert_model_to_schema(
+    model: "OpenRouterModel", provider: ModelProvider, default_temp: float = 0.7
+) -> ModelConfigSchema:
+    """Convert OpenRouterModel to ModelConfigSchema with default settings."""
+    # Determine max_tokens based on context_length
+    max_tokens = 8000 if model.context_length and model.context_length >= 100000 else 4000
+
+    return ModelConfigSchema(
+        provider=provider,
+        model_id=model.id,
+        model_name=model.name,
+        temperature=default_temp,
+        max_tokens=max_tokens,
+        description=model.description,
+    )
 
 
 @router.post("/sessions", response_model=SessionResponse)
@@ -202,56 +220,7 @@ async def list_available_models(
 ) -> list[ModelConfigSchema]:
     """List all available AI models."""
     # Return only OpenRouter models for UI
-    return [
-        ModelConfigSchema(
-            provider=ModelProvider.OPENROUTER,
-            model_id="anthropic/claude-sonnet-4.5",
-            model_name="Claude Sonnet 4.5",
-            temperature=0.7,
-            max_tokens=8000,
-            description="Latest Claude model with enhanced capabilities",
-        ),
-        ModelConfigSchema(
-            provider=ModelProvider.OPENROUTER,
-            model_id="openai/gpt-5",
-            model_name="GPT-5",
-            temperature=0.7,
-            max_tokens=8000,
-            description="OpenAI's latest flagship model",
-        ),
-        ModelConfigSchema(
-            provider=ModelProvider.OPENROUTER,
-            model_id="openai/gpt-5-mini",
-            model_name="GPT-5 Mini",
-            temperature=0.7,
-            max_tokens=4000,
-            description="Fast and cost-effective GPT-5 variant",
-        ),
-        ModelConfigSchema(
-            provider=ModelProvider.OPENROUTER,
-            model_id="openai/gpt-5-chat",
-            model_name="GPT-5 Chat",
-            temperature=0.7,
-            max_tokens=8000,
-            description="GPT-5 optimized for conversational tasks",
-        ),
-        ModelConfigSchema(
-            provider=ModelProvider.OPENROUTER,
-            model_id="openai/gpt-oss-20b",
-            model_name="GPT OSS 20B",
-            temperature=0.7,
-            max_tokens=4000,
-            description="Open source 20B parameter model",
-        ),
-        ModelConfigSchema(
-            provider=ModelProvider.OPENROUTER,
-            model_id="x-ai/grok-4-fast",
-            model_name="Grok 4 Fast",
-            temperature=0.7,
-            max_tokens=4000,
-            description="X.AI's fast and efficient Grok model",
-        ),
-    ]
+    return [_convert_model_to_schema(model, ModelProvider.OPENROUTER) for model in OPENROUTER_MODELS]
 
 
 @router.get("/models/{provider}", response_model=list[ModelConfigSchema])
@@ -260,86 +229,7 @@ async def list_models_by_provider(
 ) -> list[ModelConfigSchema]:
     """List available AI models for a specific provider."""
     # Support for multiple providers (extensible for future)
-    # Currently only OpenRouter models are exposed in UI
-
-    openai_models = [
-        # OpenAI provider kept for potential future use
-        ModelConfigSchema(
-            provider=ModelProvider.OPENAI,
-            model_id="gpt-4o-mini",
-            model_name="GPT-4o Mini",
-            temperature=0.7,
-            max_tokens=2000,
-        ),
-        ModelConfigSchema(
-            provider=ModelProvider.OPENAI,
-            model_id="gpt-4o",
-            model_name="GPT-4o",
-            temperature=0.7,
-            max_tokens=4000,
-        ),
-    ]
-
-    openrouter_models = [
-        ModelConfigSchema(
-            provider=ModelProvider.OPENROUTER,
-            model_id="anthropic/claude-sonnet-4.5",
-            model_name="Claude Sonnet 4.5",
-            temperature=0.7,
-            max_tokens=8000,
-            description="Latest Claude model with enhanced capabilities",
-        ),
-        ModelConfigSchema(
-            provider=ModelProvider.OPENROUTER,
-            model_id="anthropic/claude-3-5-sonnet",
-            model_name="Claude 3.5 Sonnet",
-            temperature=0.7,
-            max_tokens=4000,
-            description="Excellent balance of intelligence and speed",
-        ),
-        ModelConfigSchema(
-            provider=ModelProvider.OPENROUTER,
-            model_id="openai/gpt-5",
-            model_name="GPT-5",
-            temperature=0.7,
-            max_tokens=8000,
-            description="OpenAI's latest flagship model",
-        ),
-        ModelConfigSchema(
-            provider=ModelProvider.OPENROUTER,
-            model_id="openai/gpt-5-mini",
-            model_name="GPT-5 Mini",
-            temperature=0.7,
-            max_tokens=4000,
-            description="Fast and cost-effective GPT-5 variant",
-        ),
-        ModelConfigSchema(
-            provider=ModelProvider.OPENROUTER,
-            model_id="openai/gpt-5-chat",
-            model_name="GPT-5 Chat",
-            temperature=0.7,
-            max_tokens=8000,
-            description="GPT-5 optimized for conversational tasks",
-        ),
-        ModelConfigSchema(
-            provider=ModelProvider.OPENROUTER,
-            model_id="openai/gpt-oss-20b",
-            model_name="GPT OSS 20B",
-            temperature=0.7,
-            max_tokens=4000,
-            description="Open source 20B parameter model",
-        ),
-        ModelConfigSchema(
-            provider=ModelProvider.OPENROUTER,
-            model_id="x-ai/grok-4-fast",
-            model_name="Grok 4 Fast",
-            temperature=0.7,
-            max_tokens=4000,
-            description="X.AI's fast and efficient Grok model",
-        ),
-    ]
-
-    all_models = openai_models + openrouter_models
-
-    # Filter models by provider
-    return [model for model in all_models if model.provider == provider]
+    if provider == ModelProvider.OPENAI:
+        return [_convert_model_to_schema(model, ModelProvider.OPENAI) for model in OPENAI_MODELS]
+    # provider == ModelProvider.OPENROUTER
+    return [_convert_model_to_schema(model, ModelProvider.OPENROUTER) for model in OPENROUTER_MODELS]

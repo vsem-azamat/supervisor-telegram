@@ -9,6 +9,7 @@ from app.application.services.api_key_manager import with_api_key
 from app.core.config import settings
 from app.core.logging import BotLogger
 from app.domain.agent import AgentModelConfig, AgentResponse, AgentSession, AgentToolResult, ModelProvider
+from app.domain.agent_models import OPENROUTER_MODELS
 from app.domain.repositories import IAgentRepository, IChatRepository, IUserRepository
 from app.domain.value_objects import UserId
 
@@ -258,39 +259,10 @@ If an error occurred, explain what went wrong and suggest alternatives.
         """Get list of available OpenRouter models."""
         return [
             {
-                "id": "anthropic/claude-sonnet-4.5",
-                "name": "Claude Sonnet 4.5",
-                "description": "Latest Claude model with enhanced capabilities",
-                "context_length": 200000,
-            },
-            {
-                "id": "openai/gpt-5",
-                "name": "GPT-5",
-                "description": "OpenAI's latest flagship model",
-                "context_length": 128000,
-            },
-            {
-                "id": "openai/gpt-5-mini",
-                "name": "GPT-5 Mini",
-                "description": "Fast and cost-effective GPT-5 variant",
-                "context_length": 128000,
-            },
-            {
-                "id": "openai/gpt-5-chat",
-                "name": "GPT-5 Chat",
-                "description": "GPT-5 optimized for conversational tasks",
-                "context_length": 128000,
-            },
-            {
-                "id": "openai/gpt-oss-20b",
-                "name": "GPT OSS 20B",
-                "description": "Open source 20B parameter model",
-                "context_length": 32000,
-            },
-            {
-                "id": "x-ai/grok-4-fast",
-                "name": "Grok 4 Fast",
-                "description": "X.AI's fast and efficient Grok model",
-                "context_length": 128000,
-            },
+                "id": model.id,
+                "name": model.name,
+                "description": model.description,
+                "context_length": model.context_length,
+            }
+            for model in OPENROUTER_MODELS
         ]
