@@ -45,7 +45,7 @@ class AgentService:
         if model_config.provider == ModelProvider.OPENAI:
             if not settings.ai_agent.has_openai_key():
                 raise ValueError(
-                    "OPENAI_API_KEY не настроен в переменных окружения. Получите ключ на https://platform.openai.com/api-keys"
+                    "OPENAI_API_KEY is not configured in environment variables. Get API key at https://platform.openai.com/api-keys"
                 )
             api_key = settings.ai_agent.openai_api_key
             if not base_url and settings.ai_agent.openai_base_url:
@@ -53,41 +53,43 @@ class AgentService:
         elif model_config.provider == ModelProvider.OPENROUTER:
             if not settings.ai_agent.has_openrouter_key():
                 raise ValueError(
-                    "OPENROUTER_API_KEY не настроен в переменных окружения. Получите ключ на https://openrouter.ai/keys"
+                    "OPENROUTER_API_KEY is not configured in environment variables. Get API key at https://openrouter.ai/keys"
                 )
             api_key = settings.ai_agent.openrouter_api_key
+            # OpenRouter uses OpenAI-compatible API
             if not base_url:
-                base_url = settings.ai_agent.openrouter_base_url
+                base_url = settings.ai_agent.openrouter_base_url or "https://openrouter.ai/api/v1"
         else:
-            raise ValueError(f"Неподдерживаемый провайдер: {model_config.provider}")
+            raise ValueError(f"Unsupported provider: {model_config.provider}")
 
         return api_key, base_url
 
     def _create_agent(self, model_config: AgentModelConfig) -> Agent[AgentContext]:
         """Create PydanticAI agent with specified model configuration."""
 
-        if model_config.provider == ModelProvider.OPENAI:
-            model = model_config.model_id
-        elif model_config.provider == ModelProvider.OPENROUTER:
+        # For OpenRouter, we need to use 'openai:' prefix to tell PydanticAI
+        # to use OpenAI-compatible client with custom base URL
+        if model_config.provider == ModelProvider.OPENROUTER:
             model = f"openai:{model_config.model_id}"
         else:
-            raise ValueError(f"Неподдерживаемый провайдер: {model_config.provider}")
+            # For OpenAI, use model_id directly
+            model = model_config.model_id
 
         # Don't set environment variables here - use context manager during runtime
 
         system_prompt = """
-Ты - AI помощник для управления Telegram чатами и каналами модераторского бота.
-Твоя цель - помочь администраторам эффективно управлять сообществами.
+You are an AI assistant for managing Telegram chats and channels of a moderation bot.
+Your goal is to help administrators effectively manage communities.
 
-Основные возможности:
-- Получение списка всех чатов и их детальной информации
-- Обновление описаний чатов и настроек приветствий
-- Поиск чатов по названию или описанию
-- Анализ статистики по чатам и пользователям
+Main capabilities:
+- Get list of all chats and their detailed information
+- Update chat descriptions and welcome settings
+- Search chats by title or description
+- Analyze statistics for chats and users
 
-Всегда отвечай на русском языке профессионально и конструктивно.
-При выполнении операций всегда сообщай о результате.
-Если произошла ошибка, объясни что пошло не так и предложи альтернативы.
+Always respond in Russian professionally and constructively.
+When performing operations, always report the result.
+If an error occurred, explain what went wrong and suggest alternatives.
 """
 
         agent = Agent(
@@ -150,7 +152,7 @@ class AgentService:
         )
 
         saved_session = await self.agent_repository.save_session(session)
-        self.logger.logger.info(f"Создана новая сессия {saved_session.id} для пользователя {user_id}")
+        self.logger.logger.info(f"Created new session {saved_session.id} for user {user_id}")
 
         return saved_session
 
@@ -169,23 +171,34 @@ class AgentService:
         try:
             session = await self.agent_repository.get_session(session_id)
             if not session:
-                raise ValueError(f"Сессия {session_id} не найдена")
+                raise ValueError(f"Session {session_id} not found")
 
-            agent_key = f"{session.agent_config.provider}_{session.agent_config.model_id}"
-            if agent_key not in self._agents:
-                self._agents[agent_key] = self._create_agent(session.agent_config)
-
-            agent = self._agents[agent_key]
-            session.add_message("user", message)
-
-            # Get API credentials for this model config
+            # Get API credentials for this model config FIRST
             api_key, base_url = self._get_api_credentials(session.agent_config)
 
-            # Use context manager to safely set API credentials
-            context = AgentContext(user_id=session.user_id.value, session_id=session_id, tools=self.tools)
+            self.logger.logger.info(
+                f"Running agent with provider={session.agent_config.provider}, "
+                f"model={session.agent_config.model_id}, base_url={base_url}"
+            )
+
+            # Set API credentials BEFORE creating agent
+            # This ensures PydanticAI reads correct environment when creating OpenAI client
             with with_api_key(api_key, base_url):
+                # Create or get cached agent INSIDE context with correct env vars
+                agent_key = f"{session.agent_config.provider}_{session.agent_config.model_id}"
+                if agent_key not in self._agents:
+                    self.logger.logger.debug(f"Creating new agent for {agent_key}")
+                    self._agents[agent_key] = self._create_agent(session.agent_config)
+
+                agent = self._agents[agent_key]
+                session.add_message("user", message)
+
+                # Run agent with correct environment
+                context = AgentContext(user_id=session.user_id.value, session_id=session_id, tools=self.tools)
+                self.logger.logger.debug("API key set, running agent...")
                 result = await agent.run(user_prompt=message, deps=context)
             response_text = result.output
+            self.logger.logger.info(f"Agent response received: {len(response_text)} characters")
 
             session.add_message("assistant", response_text)
             await self.agent_repository.update_session(session)
@@ -211,17 +224,25 @@ class AgentService:
             )
 
             self.logger.logger.info(
-                f"Обработан запрос для сессии {session_id}, время выполнения: {execution_time:.2f}с"
+                f"Processed request for session {session_id}, execution time: {execution_time:.2f}s"
             )
             return response
 
         except Exception as e:
             execution_time = time.time() - start_time
-            self.logger.logger.error(f"Ошибка при обработке запроса для сессии {session_id}: {e}")
+            self.logger.logger.error(
+                f"Error processing request for session {session_id}: {e}",
+                exc_info=True,  # Include full traceback
+            )
+
+            # Get more detailed error message
+            error_details = str(e)
+            if hasattr(e, "__cause__") and e.__cause__:
+                error_details += f" (Cause: {e.__cause__})"
 
             return AgentResponse(
                 session_id=session_id,
-                message=f"Произошла ошибка при обработке запроса: {str(e)}",
+                message=f"An error occurred while processing the request: {error_details}",
                 model_used="error",
                 execution_time=execution_time,
             )
@@ -230,40 +251,46 @@ class AgentService:
         """Delete session."""
         success = await self.agent_repository.delete_session(session_id)
         if success:
-            self.logger.logger.info(f"Удалена сессия {session_id}")
+            self.logger.logger.info(f"Deleted session {session_id}")
         return success
 
     async def get_available_openrouter_models(self) -> list[dict[str, Any]]:
         """Get list of available OpenRouter models."""
         return [
             {
-                "id": "anthropic/claude-3.5-sonnet",
-                "name": "Claude 3.5 Sonnet",
-                "description": "Лучший баланс интеллекта и скорости от Anthropic",
+                "id": "anthropic/claude-sonnet-4.5",
+                "name": "Claude Sonnet 4.5",
+                "description": "Latest Claude model with enhanced capabilities",
                 "context_length": 200000,
             },
             {
-                "id": "openai/gpt-4o",
-                "name": "GPT-4o",
-                "description": "Новейшая модель OpenAI с мультимодальными возможностями",
+                "id": "openai/gpt-5",
+                "name": "GPT-5",
+                "description": "OpenAI's latest flagship model",
                 "context_length": 128000,
             },
             {
-                "id": "google/gemini-pro-1.5",
-                "name": "Gemini Pro 1.5",
-                "description": "Продвинутая модель Google с большим контекстом",
-                "context_length": 1000000,
+                "id": "openai/gpt-5-mini",
+                "name": "GPT-5 Mini",
+                "description": "Fast and cost-effective GPT-5 variant",
+                "context_length": 128000,
             },
             {
-                "id": "meta-llama/llama-3.1-70b-instruct",
-                "name": "Llama 3.1 70B",
-                "description": "Открытая модель Meta с высокой производительностью",
-                "context_length": 131072,
+                "id": "openai/gpt-5-chat",
+                "name": "GPT-5 Chat",
+                "description": "GPT-5 optimized for conversational tasks",
+                "context_length": 128000,
             },
             {
-                "id": "mistralai/mixtral-8x7b-instruct",
-                "name": "Mixtral 8x7B",
-                "description": "Эффективная модель смеси экспертов от Mistral AI",
-                "context_length": 32768,
+                "id": "openai/gpt-oss-20b",
+                "name": "GPT OSS 20B",
+                "description": "Open source 20B parameter model",
+                "context_length": 32000,
+            },
+            {
+                "id": "x-ai/grok-4-fast",
+                "name": "Grok 4 Fast",
+                "description": "X.AI's fast and efficient Grok model",
+                "context_length": 128000,
             },
         ]

@@ -5,7 +5,7 @@ from app.domain.repositories import IAgentRepository
 
 
 class InMemoryAgentRepository(IAgentRepository):
-    """In-memory реализация репозитория агента для развертывания без БД."""
+    """In-memory implementation of agent repository for deployment without database."""
 
     def __init__(self) -> None:
         self._sessions: dict[str, AgentSession] = {}
@@ -24,7 +24,7 @@ class InMemoryAgentRepository(IAgentRepository):
         user_sessions = [
             session for session in self._sessions.values() if session.user_id.value == user_id and session.is_active
         ]
-        # Сортируем по времени обновления (новые сначала)
+        # Sort by update time (newest first)
         user_sessions.sort(key=lambda x: x.updated_at, reverse=True)
         return user_sessions[:limit]
 
@@ -68,39 +68,51 @@ class InMemoryAgentRepository(IAgentRepository):
         # provider == ModelProvider.OPENROUTER
         return [
             OpenRouterModel(
-                id="anthropic/claude-3.5-sonnet",
-                name="Claude 3.5 Sonnet",
-                description="Лучший баланс интеллекта и скорости от Anthropic",
+                id="anthropic/claude-sonnet-4.5",
+                name="Claude Sonnet 4.5",
+                description="Latest Claude model with enhanced capabilities",
                 context_length=200000,
             ),
             OpenRouterModel(
-                id="google/gemini-pro-1.5",
-                name="Gemini Pro 1.5",
-                description="Продвинутая модель Google с большим контекстом",
-                context_length=1000000,
+                id="openai/gpt-5",
+                name="GPT-5",
+                description="OpenAI's latest flagship model",
+                context_length=128000,
             ),
             OpenRouterModel(
-                id="meta-llama/llama-3.1-70b-instruct",
-                name="Llama 3.1 70B",
-                description="Открытая модель Meta с высокой производительностью",
-                context_length=131072,
+                id="openai/gpt-5-mini",
+                name="GPT-5 Mini",
+                description="Fast and cost-effective GPT-5 variant",
+                context_length=128000,
             ),
             OpenRouterModel(
-                id="mistralai/mixtral-8x7b-instruct",
-                name="Mixtral 8x7B",
-                description="Эффективная модель смеси экспертов от Mistral AI",
-                context_length=32768,
+                id="openai/gpt-5-chat",
+                name="GPT-5 Chat",
+                description="GPT-5 optimized for conversational tasks",
+                context_length=128000,
+            ),
+            OpenRouterModel(
+                id="openai/gpt-oss-20b",
+                name="GPT OSS 20B",
+                description="Open source 20B parameter model",
+                context_length=32000,
+            ),
+            OpenRouterModel(
+                id="x-ai/grok-4-fast",
+                name="Grok 4 Fast",
+                description="X.AI's fast and efficient Grok model",
+                context_length=128000,
             ),
         ]
 
 
-# TODO: Полная реализация с PostgreSQL будет добавлена позже
+# TODO: Full PostgreSQL implementation will be added later
 class SQLAgentRepository(IAgentRepository):
-    """SQL-based реализация репозитория агента (планируется)."""
+    """SQL-based implementation of agent repository (planned)."""
 
     def __init__(self, session: AsyncSession):
         self.session = session
-        # Пока используем in-memory как fallback
+        # Use in-memory as fallback for now
         self._fallback = InMemoryAgentRepository()
 
     async def save_session(self, session: AgentSession) -> AgentSession:

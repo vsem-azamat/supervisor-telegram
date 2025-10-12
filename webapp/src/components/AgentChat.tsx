@@ -8,7 +8,6 @@ import type {
   AgentSession,
   AgentMessage,
   AgentModel,
-  ModelProvider,
   CreateSessionRequest
 } from '../types'
 
@@ -31,7 +30,6 @@ export const AgentChat: React.FC<AgentChatProps> = ({
     openai: AgentModel[]
     openrouter: AgentModel[]
   }>({ openai: [], openrouter: [] })
-  const [selectedProvider, setSelectedProvider] = useState<ModelProvider>('openai')
   const [selectedModel, setSelectedModel] = useState<AgentModel | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -49,7 +47,10 @@ export const AgentChat: React.FC<AgentChatProps> = ({
         openai: openaiModels,
         openrouter: openrouterModels
       })
-      if (openaiModels.length > 0) {
+      // Default to first OpenRouter model (Claude 3.5 Sonnet is usually first)
+      if (openrouterModels.length > 0) {
+        setSelectedModel(openrouterModels[0])
+      } else if (openaiModels.length > 0) {
         setSelectedModel(openaiModels[0])
       }
     } catch (err) {
@@ -163,29 +164,13 @@ export const AgentChat: React.FC<AgentChatProps> = ({
           <Title order={2} ta="center">🤖 Создать сессию с AI агентом</Title>
 
           <Select
-            label="Провайдер"
-            value={selectedProvider}
-            onChange={(value) => {
-              const provider = value as ModelProvider
-              setSelectedProvider(provider)
-              if (availableModels[provider].length > 0) {
-                setSelectedModel(availableModels[provider][0])
-              }
-            }}
-            data={[
-              { value: 'openai', label: 'OpenAI' },
-              { value: 'openrouter', label: 'OpenRouter' }
-            ]}
-          />
-
-          <Select
             label="Модель"
             value={selectedModel?.model_id || ''}
             onChange={(value) => {
-              const model = availableModels[selectedProvider].find(m => m.model_id === value)
+              const model = availableModels.openrouter.find(m => m.model_id === value)
               setSelectedModel(model || null)
             }}
-            data={availableModels[selectedProvider].map(model => ({
+            data={availableModels.openrouter.map(model => ({
               value: model.model_id,
               label: `${model.model_name}${model.max_tokens ? ` (${model.max_tokens} tokens)` : ''}`
             }))}

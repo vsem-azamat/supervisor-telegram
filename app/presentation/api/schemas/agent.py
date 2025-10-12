@@ -11,6 +11,7 @@ class ModelConfigSchema(BaseModel):
     model_name: str | None = None
     temperature: float = 0.7
     max_tokens: int | None = None
+    description: str | None = None
 
     @classmethod
     def from_domain(cls, model_config: AgentModelConfig) -> "ModelConfigSchema":
