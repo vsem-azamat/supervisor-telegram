@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.application.services.moderation_service import ModerationService
 from app.application.services.spam import SpamService
 from app.application.services.user_service import UserService
+from app.core.container import container
 from app.infrastructure.db.repositories import (
     get_admin_repository,
     get_chat_link_repository,
@@ -53,8 +54,10 @@ class DependenciesMiddleware(BaseMiddleware):
                 user_repository=user_repo,
                 spam_service=spam_service,
             )
+            agent_service = container.get_agent_service()
 
             data["spam_service"] = spam_service
             data["moderation_service"] = moderation_service
             data["user_service"] = UserService(user_repo)
+            data["agent_service"] = agent_service
             return await handler(event, data)
