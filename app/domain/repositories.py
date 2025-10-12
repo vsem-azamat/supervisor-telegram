@@ -160,6 +160,21 @@ class IMessageRepository(ABC):
         """Mark specific message as spam."""
         pass
 
+    @abstractmethod
+    async def get_message_count_24h(self, chat_id: int) -> int:
+        """Get message count in last 24 hours."""
+        pass
+
+    @abstractmethod
+    async def get_active_users_24h(self, chat_id: int) -> int:
+        """Get active user count in last 24 hours."""
+        pass
+
+    @abstractmethod
+    async def get_last_activity(self, chat_id: int) -> Any:
+        """Get last activity timestamp."""
+        pass
+
 
 class IChatLinkRepository(ABC):
     """Chat link repository interface."""

@@ -34,7 +34,7 @@ class Container:
         if not self._service_registry:
             if not self._session_maker:
                 raise ValueError("Session maker not set")
-            self._service_registry = ServiceRegistry(self._session_maker)
+            self._service_registry = ServiceRegistry(self._session_maker, self._bot)
         return self._service_registry
 
     def _get_repository_factory(self) -> RepositoryFactory:

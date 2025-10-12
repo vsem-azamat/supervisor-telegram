@@ -2,6 +2,7 @@
 
 from typing import Any, TypeVar
 
+from aiogram import Bot
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.application.services.agent_service import AgentService
@@ -14,8 +15,9 @@ T = TypeVar("T")
 class ServiceRegistry:
     """Registry for managing application services."""
 
-    def __init__(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
+    def __init__(self, session_maker: async_sessionmaker[AsyncSession], bot: Bot | None = None) -> None:
         self.session_maker = session_maker
+        self.bot = bot
         self._services: dict[type[Any], Any] = {}
         self._singletons: dict[type[Any], Any] = {}
         self.repository_factory = RepositoryFactory()
@@ -43,11 +45,15 @@ class ServiceRegistry:
 
     def create_agent_service(self) -> AgentService:
         """Create agent service with dependencies."""
+        if not self.bot:
+            raise ValueError("Bot instance not set in ServiceRegistry")
+
         session = self.session_maker()
 
         agent_repo = self.repository_factory.get_agent_repository()
         chat_repo = self.repository_factory.create_chat_repository(session)
         user_repo = self.repository_factory.create_user_repository(session)
+        message_repo = self.repository_factory.create_message_repository(session)
         logger = BotLogger("AgentService")
 
-        return AgentService(agent_repo, chat_repo, user_repo, logger)
+        return AgentService(agent_repo, chat_repo, user_repo, message_repo, self.bot, logger)

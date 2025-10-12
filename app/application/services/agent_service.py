@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
+from aiogram import Bot
 from pydantic import BaseModel
 from pydantic_ai import Agent, RunContext
 
@@ -13,7 +14,7 @@ from app.core.logging import BotLogger
 from app.domain.agent import AgentMetrics, AgentModelConfig, AgentResponse, AgentSession, AgentToolResult, ModelProvider
 from app.domain.agent_models import OPENROUTER_MODELS
 from app.domain.prompts import DEFAULT_SYSTEM_PROMPT
-from app.domain.repositories import IAgentRepository, IChatRepository, IUserRepository
+from app.domain.repositories import IAgentRepository, IChatRepository, IMessageRepository, IUserRepository
 from app.domain.value_objects import UserId
 
 
@@ -31,14 +32,18 @@ class AgentService:
         agent_repository: IAgentRepository,
         chat_repository: IChatRepository,
         user_repository: IUserRepository,
+        message_repository: IMessageRepository,
+        bot: Bot,
         logger: BotLogger,
     ) -> None:
         self.agent_repository = agent_repository
         self.chat_repository = chat_repository
         self.user_repository = user_repository
+        self.message_repository = message_repository
+        self.bot = bot
         self.logger = logger
 
-        self.tools = AgentTools(chat_repository, user_repository, logger)
+        self.tools = AgentTools(chat_repository, user_repository, message_repository, bot, logger)
         self._agents: dict[str, Agent[AgentContext]] = {}
         self.metrics = AgentMetrics()
 
@@ -118,22 +123,26 @@ class AgentService:
             welcome_text: str | None = None,
             welcome_enabled: bool | None = None,
             auto_delete_time: int | None = None,
+            captcha_enabled: bool | None = None,
+            auto_delete_join_leave: bool | None = None,
         ) -> dict[str, Any]:
             """
-            Update chat settings such as welcome message, auto-delete timer, etc.
+            Update chat settings: welcome, captcha, auto-delete.
 
             Parameters:
-            - chat_id: Telegram chat ID (required)
-            - title: New chat title (optional)
-            - welcome_text: Welcome message for new members (optional)
-            - welcome_enabled: Enable/disable welcome messages (optional)
-            - auto_delete_time: Seconds before auto-deleting welcome message, 0 to disable (optional)
+            - chat_id: Chat ID (required)
+            - title: New chat title
+            - welcome_text: Welcome message for new members
+            - welcome_enabled: Enable/disable welcome
+            - auto_delete_time: Seconds before auto-delete, 0=disable
+            - captcha_enabled: Enable/disable captcha
+            - auto_delete_join_leave: Auto-delete join/leave notifications
 
-            Returns dict with success status, updated_fields list, and error message if failed.
-            Always check the 'success' field in the result before reporting to user.
+            Returns: {success, updated_fields, error}
+            Check 'success' before reporting to user.
             """
             return await ctx.deps.tools.update_chat_settings(
-                chat_id, title, welcome_text, welcome_enabled, auto_delete_time
+                chat_id, title, welcome_text, welcome_enabled, auto_delete_time, captcha_enabled, auto_delete_join_leave
             )
 
         @agent.tool
@@ -156,6 +165,63 @@ class AgentService:
             Returns list of matching ChatInfo objects, empty list if no matches found.
             """
             return await ctx.deps.tools.search_chats(query)
+
+        @agent.tool
+        async def get_recent_activity(
+            ctx: RunContext[AgentContext], chat_id: int | None = None, hours: int = 24
+        ) -> dict[str, Any]:
+            """
+            Get recent chat activity: messages, active users, spam.
+
+            Parameters:
+            - chat_id: Specific chat or None for all chats
+            - hours: Time window (default 24)
+
+            Returns: {success, message_count, active_users, spam_messages, last_activity, error}
+            """
+            return await ctx.deps.tools.get_recent_activity(chat_id, hours)
+
+        @agent.tool
+        async def get_user_info(
+            ctx: RunContext[AgentContext], user_id: int, chat_id: int | None = None
+        ) -> dict[str, Any]:
+            """
+            Get detailed user info: profile, messages, block status.
+
+            Parameters:
+            - user_id: Telegram user ID (required)
+            - chat_id: Optional chat context
+
+            Returns: {success, username, display_name, is_blocked, total_messages, total_chats, spam_messages, error}
+            """
+            return await ctx.deps.tools.get_user_info(user_id, chat_id)
+
+        @agent.tool
+        async def get_blocked_users(ctx: RunContext[AgentContext], limit: int = 50) -> dict[str, Any]:
+            """
+            Get list of blocked users with details.
+
+            Parameters:
+            - limit: Max users to return (default 50)
+
+            Returns: {success, total_count, users: [{user_id, username, display_name, blocked_at}], error}
+            """
+            return await ctx.deps.tools.get_blocked_users(limit)
+
+        @agent.tool
+        async def get_telegram_chat_info(ctx: RunContext[AgentContext], chat_id: int) -> dict[str, Any]:
+            """
+            Get live chat info from Telegram: description, member count, permissions.
+
+            Use this to get actual chat description from Telegram API.
+            Essential for checking if chat descriptions are up-to-date.
+
+            Parameters:
+            - chat_id: Chat ID (required, must be negative)
+
+            Returns: {success, title, type, description, member_count, username, permissions, error}
+            """
+            return await ctx.deps.tools.get_telegram_chat_info(chat_id)
 
         return agent
 
