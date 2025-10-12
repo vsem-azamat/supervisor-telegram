@@ -16,12 +16,6 @@ OPENROUTER_MODELS = [
         context_length=200000,
     ),
     OpenRouterModel(
-        id="anthropic/claude-3-5-sonnet",
-        name="Claude 3.5 Sonnet",
-        description="Excellent balance of intelligence and speed",
-        context_length=200000,
-    ),
-    OpenRouterModel(
         id="openai/gpt-5",
         name="GPT-5",
         description="OpenAI's latest flagship model",
@@ -58,19 +52,19 @@ OPENAI_MODELS = [
     OpenRouterModel(
         id="gpt-4o",
         name="GPT-4o",
-        description="Новейшая модель OpenAI с мультимодальными возможностями",
+        description="Latest OpenAI model with multimodal capabilities",
         context_length=128000,
     ),
     OpenRouterModel(
         id="gpt-4o-mini",
         name="GPT-4o Mini",
-        description="Быстрая и экономичная версия GPT-4o",
+        description="Fast and cost-effective version of GPT-4o",
         context_length=128000,
     ),
     OpenRouterModel(
         id="gpt-4-turbo",
         name="GPT-4 Turbo",
-        description="Улучшенная версия GPT-4 с увеличенным контекстом",
+        description="Enhanced version of GPT-4 with extended context",
         context_length=128000,
     ),
 ]
