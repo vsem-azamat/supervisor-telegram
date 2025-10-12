@@ -1,0 +1,78 @@
+/* Markdown content styling */
+.markdown-content {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--mantine-color-dark-9);
+}
+
+.markdown-content * {
+  max-width: 100%;
+}
+
+/* Code blocks - dark theme for better contrast */
+.markdown-content pre {
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.markdown-content code {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.875rem;
+}
+
+/* Inline code with light background for readability */
+.markdown-content :not(pre) > code {
+  background-color: rgba(0, 0, 0, 0.08);
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* Tables */
+.markdown-content table {
+  border-spacing: 0;
+  font-size: 0.875rem;
+}
+
+/* Lists */
+.markdown-content ul,
+.markdown-content ol {
+  padding-left: 1.75rem;
+}
+
+/* Task lists (GitHub flavored markdown) */
+.markdown-content input[type="checkbox"] {
+  margin-right: 0.5rem;
+}
+
+/* Blockquotes */
+.markdown-content blockquote {
+  opacity: 0.9;
+}
+
+/* Links */
+.markdown-content a:hover {
+  opacity: 0.8;
+}
+
+/* Horizontal rules */
+.markdown-content hr {
+  opacity: 0.3;
+}
+
+/* Code block syntax highlighting adjustments */
+.markdown-content .hljs {
+  background-color: #0d1117;
+  color: #c9d1d9;
+  border-radius: 6px;
+  padding: 1rem;
+}
+
+/* Ensure proper spacing for first/last elements */
+.markdown-content > *:first-child {
+  margin-top: 0;
+}
+
+.markdown-content > *:last-child {
+  margin-bottom: 0;
+}

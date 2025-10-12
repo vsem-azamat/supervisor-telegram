@@ -4,6 +4,7 @@ import {
   ScrollArea, Loader, Alert, Title, Badge
 } from '@mantine/core'
 import { agentApi } from '../services/agentApi'
+import { MarkdownContent } from './MarkdownContent'
 import type {
   AgentSession,
   AgentMessage,
@@ -245,9 +246,13 @@ export const AgentChat: React.FC<AgentChatProps> = ({
                   {new Date(message.timestamp).toLocaleTimeString()}
                 </Text>
               </Group>
-              <Text style={{ whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>
-                {message.content}
-              </Text>
+              {message.role === 'assistant' ? (
+                <MarkdownContent content={message.content} />
+              ) : (
+                <Text style={{ whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>
+                  {message.content}
+                </Text>
+              )}
             </Paper>
           ))}
 
