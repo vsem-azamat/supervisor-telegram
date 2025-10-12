@@ -26,6 +26,8 @@ The project now includes a **React TypeScript web application** that provides an
 - **React 19.1.1** - Latest React with concurrent features
 - **TypeScript 5.9.2** - Type-safe JavaScript development
 - **Vite 7.1.2** - Ultra-fast build tool and development server
+- **Mantine UI 7.15.2** - Modern React component library with hooks
+- **@assistant-ui/react 0.10.43** - AI chat interface components
 - **@telegram-apps/sdk-react 3.3.6** - Official Telegram WebApp integration
 - **@telegram-apps/sdk 3.11.4** - Core Telegram WebApp SDK
 - **@tanstack/react-query 5.85.3** - Powerful data fetching and caching
@@ -42,7 +44,10 @@ The project now includes a **React TypeScript web application** that provides an
 Dependencies are managed with `uv`. Set up the development environment:
 
 ```bash
-# Create virtual environment and install dependencies
+# Quick setup with make (recommended)
+make setup-dev
+
+# Or manually:
 uv venv .venv
 uv sync --dev
 source .venv/bin/activate  # Linux/Mac
@@ -51,62 +56,63 @@ source .venv/bin/activate  # Linux/Mac
 # Setup environment
 cp .env.example .env
 # Edit .env with your configuration
+
+# Install pre-commit hooks
+uv run pre-commit install
 ```
 
 ## Running the Application
 
+The project uses **docker-compose** with automatic override files:
+- **`docker-compose.yaml`** - Base production configuration
+- **`docker-compose.override.yml`** - Development overrides (auto-loaded by docker-compose)
+
 ### Development Mode
 
-#### Local Database (Default)
-Run with Docker Compose (includes PostgreSQL, FastAPI, React webapp, nginx proxy, hot reload, and Adminer):
+Run full development stack (includes PostgreSQL, FastAPI, React webapp, nginx proxy, hot reload, and Adminer):
 ```bash
 # Using make (recommended)
 make docker-dev
 
-# Or directly
-docker-compose -f docker-compose.dev.yaml --profile local-db up --build
+# Or directly with docker-compose
+docker-compose up --build
+
+# View logs for specific service
+make docker-logs-bot      # Bot logs only
+make docker-logs-api      # API logs only
+make docker-logs-webapp   # Webapp logs only
 ```
-
-#### Production Database Connection
-For debugging and data analysis on production database:
-```bash
-# Interactive script with safety checks (recommended)
-./scripts/prod-db-connect.sh
-
-# Or using make with confirmation
-make docker-dev-prod-db
-
-# Or directly (advanced users)
-docker-compose -f docker-compose.dev.yaml --profile prod-db up --build
-```
-
-**⚠️ IMPORTANT**: Production database connection requires:
-1. Create `.env.prod-db` from `.env.prod-db.example`
-2. Fill with production database credentials
-3. Use with extreme caution - this connects to live data!
 
 Services available:
 - **Bot service** - Telegram bot with hot reload
 - **API service** - FastAPI server on port 8000 with hot reload
-- **WebApp service** - React development server (internal port 80)
+- **WebApp service** - React development server with Vite HMR (internal port 80)
 - **nginx** - Reverse proxy on port 80 (use with ngrok for external access)
-- **PostgreSQL** - Database server (local mode only)
-- **Adminer** - Database administration UI on port 8080
+- **PostgreSQL** - Database server on port 5432
+- **Adminer** - Database administration UI on port 8080 (http://localhost:8080)
 
 ### Production Mode
 ```bash
-docker-compose up --build
+# Production deployment (no dev overrides)
+make docker-prod
+
+# Or directly
+docker-compose -f docker-compose.yaml up --build
 ```
 
 ### Local Development (without Docker)
 ```bash
-# Make sure PostgreSQL is running and configured
-uv run -m app.presentation.telegram
+# Run bot locally (ensure PostgreSQL is running)
+make run-bot
+# Or: uv run -m app.presentation.telegram
 
-# Run API server separately
-uv run uvicorn app.presentation.api.main:app --host 0.0.0.0 --port 8000 --reload
-# Or use make command
+# Run API server locally
 make run-api
+# Or: uv run uvicorn app.presentation.api.main:app --host 0.0.0.0 --port 8000 --reload
+
+# Run webapp (in separate terminal)
+cd webapp
+npm run dev
 ```
 
 ### ngrok Setup for Telegram WebApp
@@ -115,13 +121,17 @@ For Telegram WebApp development, use ngrok to expose your local nginx:
 
 ```bash
 # Start development environment
-make docker-dev-prod-db  # or make docker-dev for local DB
+make docker-dev
 
 # In another terminal, expose nginx with ngrok
 ngrok http 80
 
 # Copy the HTTPS URL (e.g., https://abc123.ngrok-free.app)
 # Update .env with: WEBAPP_URL=https://abc123.ngrok-free.app
+
+# Quick ngrok utilities
+make ngrok-url          # Get current ngrok URL
+make ngrok-update-env   # Update WEBAPP_URL automatically
 ```
 
 **Architecture:**
@@ -131,29 +141,90 @@ ngrok http 80
 
 ## Code Quality & Testing
 
-### Run All Quality Checks
+### Makefile Commands (Recommended)
+
+The project includes a comprehensive Makefile with all common development tasks:
+
 ```bash
-# Linting and formatting
-ruff check app tests
-ruff format app tests
+# Development Setup
+make help              # Show all available commands
+make setup-dev         # Complete dev setup (deps + pre-commit + tests)
+make install           # Install dependencies only
 
-# Type checking
-mypy app tests
+# Code Quality
+make lint              # Run ruff linting
+make lint-fix          # Fix linting issues automatically
+make format            # Format code with ruff
+make format-check      # Check code formatting without changes
+make type-check        # Run mypy type checking
+make quality           # Run all quality checks (lint + format + types)
 
-# Run tests
-uv run -m pytest
+# Testing
+make test              # Run all tests
+make test-unit         # Run unit tests only
+make test-integration  # Run integration tests only
+make test-fast         # Run fast tests (exclude slow)
+make test-cov          # Run tests with coverage report
+make test-watch        # Watch mode (re-run on file changes)
 
-# Run tests with coverage
-uv run -m pytest --cov=app --cov-report=html
+# Database
+make db-migrate        # Create new migration (prompts for message)
+make db-upgrade        # Apply migrations
+make db-downgrade      # Rollback last migration
+make db-current        # Show current migration version
+make db-history        # Show migration history
+
+# Docker Operations
+make docker-dev        # Start dev environment
+make docker-prod       # Start production environment
+make docker-down       # Stop all containers
+make docker-clean      # Stop containers and remove volumes
+make docker-logs       # View all service logs
+make docker-logs-bot   # View bot logs only
+make docker-logs-api   # View API logs only
+make docker-restart    # Restart all services
+
+# Quick Workflows
+make quick-check       # Fast pre-commit checks (lint + format + fast tests)
+make full-check        # Complete quality check (quality + test-cov)
+make ci-test           # Full CI test suite
 ```
 
-### Pre-commit Setup
-```bash
-# Install pre-commit hooks
-uv run pre-commit install
+### Manual Commands
 
-# Run hooks manually
+If you prefer to run commands directly:
+
+```bash
+# Linting and formatting
+uv run ruff check app tests
+uv run ruff format app tests
+
+# Type checking
+uv run mypy app tests
+
+# Run tests
+uv run pytest                                    # All tests
+uv run pytest tests/unit -v                     # Unit tests only
+uv run pytest -m "not slow" -v                  # Fast tests only
+uv run pytest --cov=app --cov-report=html       # With coverage
+uv run pytest -v -s --tb=long                   # Debug mode
+uv run pytest --pdb                             # PDB on failures
+
+# Pre-commit hooks
+uv run pre-commit install
 uv run pre-commit run --all-files
+```
+
+### Frontend Quality Checks
+
+```bash
+# In webapp/ directory
+npm run lint           # ESLint for TypeScript/React
+npm run build          # Type-check and build (runs tsc)
+
+# Or from root with pre-commit
+uv run pre-commit run eslint --all-files
+uv run pre-commit run typescript-check --all-files
 ```
 
 ## Database Management
@@ -161,14 +232,18 @@ uv run pre-commit run --all-files
 Uses Alembic for migrations with PostgreSQL in production and SQLite for testing.
 
 ```bash
-# Create migration
+# Using make (recommended - interactive prompts)
+make db-migrate        # Prompts for migration message
+make db-upgrade        # Apply all pending migrations
+make db-downgrade      # Rollback last migration
+make db-current        # Show current version
+make db-history        # Show migration history
+
+# Or directly with alembic
 alembic revision --autogenerate -m "description"
-
-# Apply migrations
 alembic upgrade head
-
-# Downgrade
 alembic downgrade -1
+alembic current
 ```
 
 ## Architecture (Domain-Driven Design)
@@ -182,6 +257,8 @@ The project follows clean DDD architecture with clear separation of concerns:
 - **`app/application/`** - Application services and use cases
 - **`app/infrastructure/`** - External concerns (database, external APIs)
 - **`app/presentation/`** - User interface layer (Telegram handlers, middlewares, FastAPI REST API)
+
+**IMPORTANT**: Handlers should **never** call infrastructure repositories directly. Always use application services injected via `DependenciesMiddleware`. This ensures proper separation of concerns and testability.
 
 ### Domain Layer (`app/domain/`)
 
@@ -507,7 +584,9 @@ The frontend is designed to provide administrators with:
 
 ### Technology Stack
 - **React 19.1.1** with TypeScript 5.9.2 - Latest React features with full type safety
-- **Vite 7.1.2** - Ultra-fast build tool and development server
+- **Vite 7.1.2** - Ultra-fast build tool and development server with HMR
+- **Mantine UI 7.15.2** - Modern component library replacing custom components
+- **@assistant-ui/react 0.10.43** - AI chat interface components for agent functionality
 - **@telegram-apps/sdk-react 3.3.6** - Official Telegram WebApp integration
 - **@telegram-apps/sdk 3.11.4** - Core Telegram WebApp SDK
 - **@tanstack/react-query 5.85.3** - Powerful data fetching and caching
@@ -572,15 +651,104 @@ The development setup includes:
 - **Hot reload** - Automatic restart on code changes for both bot and webapp
 - **Volume mounts** - Live code editing
 
+## Common Development Workflows
+
+### Adding a New Feature
+
+1. **Create feature branch**: `git checkout -b feature/my-feature`
+2. **Write tests first** (TDD approach):
+   ```bash
+   # Create test file
+   touch tests/unit/test_my_feature.py
+
+   # Run tests in watch mode while developing
+   make test-watch
+   ```
+3. **Implement feature** following DDD layers:
+   - Domain entities/value objects → `app/domain/`
+   - Repository interfaces → `app/domain/repositories.py`
+   - Repository implementation → `app/infrastructure/db/repositories/`
+   - Application service → `app/application/services/`
+   - Handler/endpoint → `app/presentation/`
+4. **Run quality checks**:
+   ```bash
+   make quick-check     # Fast checks
+   make full-check      # Complete validation
+   ```
+5. **Create migration if needed**:
+   ```bash
+   make db-migrate      # Interactive prompt
+   ```
+6. **Commit changes**: Pre-commit hooks run automatically
+
+### Debugging Issues
+
+```bash
+# View live logs
+make docker-logs          # All services
+make docker-logs-bot      # Bot only
+make docker-logs-api      # API only
+
+# Debug tests
+make debug-test           # Verbose output
+make debug-test-pdb       # Drop into PDB on failures
+
+# Check database state
+# Access Adminer at http://localhost:8080
+# System: PostgreSQL, Server: db, Database: moderator_bot
+
+# Check current migration
+make db-current
+make db-history
+```
+
+### Working with Frontend
+
+```bash
+# Start full stack with hot reload
+make docker-dev
+
+# Frontend changes are reflected instantly via Vite HMR
+# No need to rebuild containers for frontend changes
+
+# Run frontend checks
+cd webapp
+npm run lint              # ESLint
+npm run build             # Type check + build
+
+# Or from root
+uv run pre-commit run eslint --all-files
+uv run pre-commit run typescript-check --all-files
+```
+
+### Testing Telegram WebApp
+
+```bash
+# 1. Start dev environment
+make docker-dev
+
+# 2. In another terminal, start ngrok
+ngrok http 80
+
+# 3. Update .env with ngrok URL (or use helper)
+make ngrok-url            # Get current URL
+make ngrok-update-env     # Update .env automatically
+
+# 4. Test in Telegram
+# Send /webapp command to the bot
+# WebApp opens with your local development environment
+```
+
 ## Migration Guide
 
 When migrating from older versions:
 
 1. **Update dependencies**: `uv sync --dev`
 2. **Update environment**: Copy new variables from `.env.example`
-3. **Run migrations**: `alembic upgrade head`
+3. **Run migrations**: `alembic upgrade head` or `make db-upgrade`
 4. **Update imports**: Domain entities are now in `app/domain/entities.py`
 5. **Update tests**: Use new fixtures from `conftest.py`
+6. **Install pre-commit**: `uv run pre-commit install`
 
 ## WebApp Security
 
@@ -723,3 +891,6 @@ The codebase now follows enterprise-grade practices:
 - **Domain-Driven Design** with proper entity boundaries
 
 **Status: ✅ READY FOR PRODUCTION DEPLOYMENT**
+- run python scripts using uv. If you need to connect to the db or some another kind related to the db, run scripts inside the docker container
+- Frontend is already being run in dev mode in the docker container. No need to build it manually.
+- Do no change model list without asking me!
