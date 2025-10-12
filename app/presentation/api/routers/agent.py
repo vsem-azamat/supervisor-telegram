@@ -233,3 +233,42 @@ async def list_models_by_provider(
         return [_convert_model_to_schema(model, ModelProvider.OPENAI) for model in OPENAI_MODELS]
     # provider == ModelProvider.OPENROUTER
     return [_convert_model_to_schema(model, ModelProvider.OPENROUTER) for model in OPENROUTER_MODELS]
+
+
+@router.get("/metrics")
+async def get_agent_metrics(
+    agent_service: AgentService = Depends(get_agent_service),
+    _current_user: dict[str, Any] = Depends(get_current_admin_user),
+) -> dict[str, Any]:
+    """
+    Get agent service metrics and statistics.
+
+    Returns comprehensive metrics including:
+    - Request counts (total, successful, failed)
+    - Success and error rates
+    - Token usage statistics
+    - Average execution time
+    - Most used tools
+    - Error breakdown by type
+    - Session statistics
+    """
+    try:
+        metrics = await agent_service.get_metrics()
+        return {"metrics": metrics, "status": "ok"}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/metrics/reset")
+async def reset_agent_metrics(
+    agent_service: AgentService = Depends(get_agent_service),
+    _current_user: dict[str, Any] = Depends(get_current_admin_user),
+) -> dict[str, str]:
+    """Reset agent service metrics. Useful for testing or periodic resets."""
+    try:
+        agent_service.reset_metrics()
+        return {"message": "Metrics reset successfully", "status": "ok"}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e

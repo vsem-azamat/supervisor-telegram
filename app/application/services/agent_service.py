@@ -1,4 +1,6 @@
 import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from typing import Any
 
 from pydantic import BaseModel
@@ -8,8 +10,9 @@ from app.application.services.agent_tools import AgentTools, ChatInfo
 from app.application.services.api_key_manager import with_api_key
 from app.core.config import settings
 from app.core.logging import BotLogger
-from app.domain.agent import AgentModelConfig, AgentResponse, AgentSession, AgentToolResult, ModelProvider
+from app.domain.agent import AgentMetrics, AgentModelConfig, AgentResponse, AgentSession, AgentToolResult, ModelProvider
 from app.domain.agent_models import OPENROUTER_MODELS
+from app.domain.prompts import DEFAULT_SYSTEM_PROMPT
 from app.domain.repositories import IAgentRepository, IChatRepository, IUserRepository
 from app.domain.value_objects import UserId
 
@@ -37,6 +40,7 @@ class AgentService:
 
         self.tools = AgentTools(chat_repository, user_repository, logger)
         self._agents: dict[str, Agent[AgentContext]] = {}
+        self.metrics = AgentMetrics()
 
     def _get_api_credentials(self, model_config: AgentModelConfig) -> tuple[str, str | None]:
         """Get API key and base URL for model configuration."""
@@ -78,20 +82,8 @@ class AgentService:
 
         # Don't set environment variables here - use context manager during runtime
 
-        system_prompt = """
-You are an AI assistant for managing Telegram chats and channels of a moderation bot.
-Your goal is to help administrators effectively manage communities.
-
-Main capabilities:
-- Get list of all chats and their detailed information
-- Update chat descriptions and welcome settings
-- Search chats by title or description
-- Analyze statistics for chats and users
-
-Always respond in Russian professionally and constructively.
-When performing operations, always report the result.
-If an error occurred, explain what went wrong and suggest alternatives.
-"""
+        # Get system prompt from centralized registry
+        system_prompt = DEFAULT_SYSTEM_PROMPT.content
 
         agent = Agent(
             model,
@@ -99,7 +91,7 @@ If an error occurred, explain what went wrong and suggest alternatives.
             system_prompt=system_prompt,
             model_settings={
                 "temperature": model_config.temperature,
-                "max_tokens": model_config.max_tokens or 2000,
+                "max_tokens": model_config.max_tokens or DEFAULT_SYSTEM_PROMPT.max_tokens,
             },
         )
 
@@ -110,13 +102,13 @@ If an error occurred, explain what went wrong and suggest alternatives.
 
         @agent.tool
         async def get_chat_details(ctx: RunContext[AgentContext], chat_id: int) -> ChatInfo | None:
-            """Get detailed information about specific chat by ID."""
-            return await ctx.deps.tools.get_chat_details(chat_id)
+            """
+            Get detailed information about a specific chat by ID.
 
-        @agent.tool
-        async def update_chat_description(ctx: RunContext[AgentContext], chat_id: int, description: str) -> bool:
-            """Update chat description. Returns True if successful."""
-            return await ctx.deps.tools.update_chat_description(chat_id, description)
+            Use this to review current chat configuration before making changes.
+            Returns ChatInfo with all settings or None if chat not found.
+            """
+            return await ctx.deps.tools.get_chat_details(chat_id)
 
         @agent.tool
         async def update_chat_settings(
@@ -126,20 +118,43 @@ If an error occurred, explain what went wrong and suggest alternatives.
             welcome_text: str | None = None,
             welcome_enabled: bool | None = None,
             auto_delete_time: int | None = None,
-        ) -> bool:
-            """Update chat settings (description, welcome, auto-delete). Returns True if successful."""
+        ) -> dict[str, Any]:
+            """
+            Update chat settings such as welcome message, auto-delete timer, etc.
+
+            Parameters:
+            - chat_id: Telegram chat ID (required)
+            - title: New chat title (optional)
+            - welcome_text: Welcome message for new members (optional)
+            - welcome_enabled: Enable/disable welcome messages (optional)
+            - auto_delete_time: Seconds before auto-deleting welcome message, 0 to disable (optional)
+
+            Returns dict with success status, updated_fields list, and error message if failed.
+            Always check the 'success' field in the result before reporting to user.
+            """
             return await ctx.deps.tools.update_chat_settings(
                 chat_id, title, welcome_text, welcome_enabled, auto_delete_time
             )
 
         @agent.tool
         async def get_chat_statistics(ctx: RunContext[AgentContext]) -> dict[str, Any]:
-            """Get general statistics for all chats."""
+            """
+            Get general statistics across all managed chats.
+
+            Returns counts for total chats, forum vs regular chats, chats with welcome messages,
+            chats with captcha enabled, and total blocked users.
+            Check 'success' field in result to verify operation completed successfully.
+            """
             return await ctx.deps.tools.get_chat_statistics()
 
         @agent.tool
         async def search_chats(ctx: RunContext[AgentContext], query: str) -> list[ChatInfo]:
-            """Find chats by title or description."""
+            """
+            Search chats by title or description (case-insensitive).
+
+            Useful for quickly finding specific chats when managing many communities.
+            Returns list of matching ChatInfo objects, empty list if no matches found.
+            """
             return await ctx.deps.tools.search_chats(query)
 
         return agent
@@ -153,6 +168,7 @@ If an error occurred, explain what went wrong and suggest alternatives.
         )
 
         saved_session = await self.agent_repository.save_session(session)
+        self.metrics.sessions_created += 1
         self.logger.logger.info(f"Created new session {saved_session.id} for user {user_id}")
 
         return saved_session
@@ -165,13 +181,42 @@ If an error occurred, explain what went wrong and suggest alternatives.
         """Get user sessions."""
         return await self.agent_repository.get_user_sessions(user_id, limit)
 
+    @asynccontextmanager
+    async def session_context(self, session_id: str) -> AsyncIterator[AgentSession]:
+        """
+        Context manager for agent sessions with automatic save.
+
+        Usage:
+            async with agent_service.session_context(session_id) as session:
+                session.add_message("user", "Hello")
+                # Session is automatically saved on exit
+
+        Raises:
+            ValueError: If session not found
+        """
+        session = await self.agent_repository.get_session(session_id)
+        if not session:
+            raise ValueError(f"Session {session_id} not found")
+
+        try:
+            yield session
+        finally:
+            # Always save session, even if exception occurred
+            await self.agent_repository.update_session(session)
+            self.logger.logger.debug(f"Auto-saved session {session_id}")
+
     async def chat(self, session_id: str, message: str) -> AgentResponse:
         """Send message to agent and get response."""
         start_time = time.time()
+        success = False
+        tokens_used = None
+        tools_used: list[str] = []
+        error_type: str | None = None
 
         try:
             session = await self.agent_repository.get_session(session_id)
             if not session:
+                error_type = "SessionNotFound"
                 raise ValueError(f"Session {session_id} not found")
 
             # Get API credentials for this model config FIRST
@@ -204,10 +249,29 @@ If an error occurred, explain what went wrong and suggest alternatives.
             session.add_message("assistant", response_text)
             await self.agent_repository.update_session(session)
 
+            # Extract tool call information from PydanticAI result
             tool_results: list[AgentToolResult] = []
+            if hasattr(result, "all_messages"):
+                for msg in result.all_messages():
+                    if hasattr(msg, "parts"):
+                        for part in msg.parts:
+                            if hasattr(part, "tool_name") and part.tool_name:
+                                # Track each tool call
+                                tool_name = str(part.tool_name)  # Ensure it's a string
+                                tool_result = AgentToolResult(
+                                    tool_name=tool_name,
+                                    success=not hasattr(part, "error"),
+                                    result=getattr(part, "content", None),
+                                    error=str(getattr(part, "error", None)) if hasattr(part, "error") else None,
+                                )
+                                tool_results.append(tool_result)
+                                tools_used.append(tool_name)
+
+            if tool_results:
+                self.logger.logger.info(f"Agent used {len(tool_results)} tools: {[t.tool_name for t in tool_results]}")
+
             execution_time = time.time() - start_time
 
-            tokens_used = None
             if hasattr(result, "usage"):
                 usage = getattr(result, "usage", None)
                 if hasattr(usage, "get") and not callable(usage):
@@ -215,6 +279,7 @@ If an error occurred, explain what went wrong and suggest alternatives.
                 elif hasattr(usage, "total_tokens"):
                     tokens_used = getattr(usage, "total_tokens", None)
 
+            success = True
             response = AgentResponse(
                 session_id=session_id,
                 message=response_text,
@@ -224,17 +289,29 @@ If an error occurred, explain what went wrong and suggest alternatives.
                 execution_time=execution_time,
             )
 
+            # Record metrics
+            self.metrics.record_request(
+                success=success, execution_time=execution_time, tokens_used=tokens_used, tools_used=tools_used
+            )
+
             self.logger.logger.info(
-                f"Processed request for session {session_id}, execution time: {execution_time:.2f}s"
+                f"Processed request for session {session_id}, execution time: {execution_time:.2f}s, "
+                f"tokens: {tokens_used or 'N/A'}"
             )
             return response
 
         except Exception as e:
             execution_time = time.time() - start_time
+            if not error_type:
+                error_type = type(e).__name__
+
             self.logger.logger.error(
                 f"Error processing request for session {session_id}: {e}",
                 exc_info=True,  # Include full traceback
             )
+
+            # Record metrics for failed request
+            self.metrics.record_request(success=False, execution_time=execution_time, error_type=error_type)
 
             # Get more detailed error message
             error_details = str(e)
@@ -252,8 +329,27 @@ If an error occurred, explain what went wrong and suggest alternatives.
         """Delete session."""
         success = await self.agent_repository.delete_session(session_id)
         if success:
+            self.metrics.sessions_deleted += 1
             self.logger.logger.info(f"Deleted session {session_id}")
         return success
+
+    async def get_metrics(self) -> dict[str, Any]:
+        """Get current service metrics."""
+        # Update active sessions count
+        try:
+            # This is a simplified approach - in production, you'd query the repository
+            self.metrics.active_sessions = len(
+                [s for s in await self.agent_repository.get_user_sessions(0, limit=1000) if s.is_active]
+            )
+        except Exception as e:
+            self.logger.logger.warning(f"Could not update active sessions count: {e}")
+
+        return self.metrics.get_summary()
+
+    def reset_metrics(self) -> None:
+        """Reset metrics to zero. Useful for testing or periodic resets."""
+        self.metrics = AgentMetrics()
+        self.logger.logger.info("Agent service metrics reset")
 
     async def get_available_openrouter_models(self) -> list[dict[str, Any]]:
         """Get list of available OpenRouter models."""
