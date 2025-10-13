@@ -47,34 +47,116 @@ python -m app.presentation.telegram
 
 
 ## Setup and Run
-1) Set up the environment variables:
+
+### Development
+
+1) **Set up environment variables:**
 ```bash
 cp .env.example .env
 ```
-2) Create a virtual environment and install dependencies with **uv**:
+
+2) **Create virtual environment and install dependencies:**
 ```bash
 uv venv .venv
 uv sync --dev
 source .venv/bin/activate
 ```
-3) Fill in the `.env` file with your bot token.
 
-### Development
-3) Run the bot in development mode (the compose file waits up to 60 seconds for the database to be ready):
+3) **Fill in the `.env` file** with your bot token and other required values.
+
+4) **Run in development mode** (includes hot-reload, ngrok for HTTPS, adminer for DB):
 ```bash
-docker-compose -f docker-compose.dev.yaml up --build
+docker compose up --build
+```
+
+This automatically loads `docker-compose.override.yml` which includes:
+- 🔄 Hot-reload for bot and API
+- 🌐 ngrok for HTTPS tunneling (required for Telegram WebApp)
+- 🗄️ Adminer database UI at `http://localhost:8080`
+- 📡 ngrok Web UI at `http://localhost:4040`
+
+Get your public ngrok URL:
+```bash
+./scripts/get-ngrok-url.sh
 ```
 
 ### Production
-3) Run the bot in production mode (the compose file waits up to 60 seconds for the database to be ready):
+
+1) **Set up production environment:**
 ```bash
-docker-compose up --build
+cp .env.prod.example .env
+```
+
+2) **Configure required variables in `.env`:**
+   - `BOT_TOKEN` - Your Telegram bot token
+   - `ADMIN_SUPER_ADMINS` - Comma-separated admin user IDs
+   - `DB_PASSWORD` - Strong database password
+   - `WEBAPP_URL` - Your HTTPS domain (e.g., `https://bot.yourdomain.com`)
+   - `WEBAPP_API_SECRET` - Secure API secret key
+
+3) **Set up HTTPS reverse proxy:**
+
+The bot **requires HTTPS** for Telegram WebApp. Configure your nginx/reverse proxy to:
+- Forward `https://yourdomain.com/*` → `http://your-server:80` (webapp + api)
+- Use SSL certificates (Let's Encrypt, Cloudflare, etc.)
+
+Example nginx config:
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name bot.yourdomain.com;
+
+    ssl_certificate /path/to/fullchain.pem;
+    ssl_certificate_key /path/to/privkey.pem;
+
+    location / {
+        proxy_pass http://localhost:80;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Or use **Nginx Proxy Manager**, **Caddy**, **Traefik**, or **Cloudflare Tunnel**.
+
+4) **Deploy the stack:**
+```bash
+docker compose -f docker-compose.yaml up --build -d
+```
+
+This runs production mode without dev overrides:
+- ✅ Optimized production builds
+- ✅ No hot-reload or dev tools
+- ✅ Runs as non-root user
+- ✅ Persistent database volume
+
+5) **Verify deployment:**
+```bash
+# Check services are running
+docker compose ps
+
+# Check logs
+docker compose logs -f bot
+docker compose logs -f api
+
+# Health check
+curl https://yourdomain.com/health
 ```
 
 ### Tests
-Run the tests with uv:
+
+Run tests locally:
 ```bash
 uv run -m pytest
+```
+
+Or use Make commands:
+```bash
+make test           # All tests
+make test-fast      # Skip slow tests
+make test-cov       # With coverage report
 ```
 
 

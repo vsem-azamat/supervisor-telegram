@@ -44,7 +44,18 @@ layout and any non-obvious logic.
 
 - Base file: `docker-compose.yaml` (production-oriented defaults).
 - Dev overrides: `docker-compose.override.yml` (auto-loaded by `docker compose`).
+- Production env example: `.env.prod.example` (copy to `.env` for production).
 - Common commands:
-  - Start dev stack: `docker compose up --build`.
+  - Start dev stack: `docker compose up --build` (includes ngrok, hot-reload, adminer).
+  - Start prod stack: `docker compose -f docker-compose.yaml up --build -d`.
   - Use production DB from dev: `docker compose --env-file .env.prod-db up` (optionally set `SKIP_MIGRATIONS=true`).
   - Run only core services: `docker compose up bot api nginx`.
+
+## Production deployment
+
+- Bot uses **polling mode** (not webhooks) - no special webhook endpoint needed.
+- Requires **HTTPS** for Telegram WebApp - configure external reverse proxy (Nginx Proxy Manager, Caddy, Traefik, Cloudflare Tunnel).
+- Set `WEBAPP_URL` to your HTTPS domain in `.env` (e.g., `https://bot.yourdomain.com`).
+- External proxy should forward all traffic to `http://server-ip:80` (internal nginx handles routing).
+- No SSL certificates needed inside containers - handled by external proxy.
+- Use `.env.prod.example` as template - has all required vars documented and optional vars commented out.
