@@ -157,14 +157,38 @@ class AgentService:
             return await ctx.deps.tools.get_chat_statistics()
 
         @agent.tool
-        async def search_chats(ctx: RunContext[AgentContext], query: str) -> list[ChatInfo]:
+        async def search_chats(
+            ctx: RunContext[AgentContext],
+            query: str = "",
+            search_field: str = "both",
+            config_filters: dict[str, bool | int | None] | None = None,
+        ) -> list[ChatInfo]:
             """
-            Search chats by title or description (case-insensitive).
+            Search and filter chats by various criteria (case-insensitive).
 
-            Useful for quickly finding specific chats when managing many communities.
-            Returns list of matching ChatInfo objects, empty list if no matches found.
+            Parameters:
+            - query: Search term (case-insensitive). Empty string returns all chats if config_filters used.
+            - search_field: Where to search - "title", "description", "both", or "config"
+              * "title" - search only in chat titles
+              * "description" - search only in chat descriptions
+              * "both" - search in both titles and descriptions (default)
+              * "config" - only use config_filters, ignore query
+            - config_filters: Dict of chat config properties to filter by:
+              * is_private: bool - filter by private/public chats
+              * is_forum: bool - filter by forum/regular chats
+              * welcome_enabled: bool - filter by welcome message status
+              * captcha_enabled: bool - filter by captcha status
+              * auto_delete_join_leave: bool - filter by auto-delete join/leave notifications
+              * auto_delete_time: int | None - filter by specific auto-delete time value
+
+            Returns list of matching ChatInfo objects.
+
+            Examples:
+            - search_chats(query="crypto", search_field="title") - search "crypto" in titles only
+            - search_chats(config_filters={"auto_delete_join_leave": True}) - all chats with auto-delete enabled
+            - search_chats(query="education", config_filters={"is_forum": True}) - forums with "education"
             """
-            return await ctx.deps.tools.search_chats(query)
+            return await ctx.deps.tools.search_chats(query, search_field, config_filters)
 
         @agent.tool
         async def get_recent_activity(

@@ -215,34 +215,119 @@ class AgentTools:
             self.logger.logger.error(f"Error retrieving statistics: {e}", exc_info=True)
             return {"success": False, "error": str(e)}
 
-    async def search_chats(self, query: str) -> list[ChatInfo]:
+    async def search_chats(
+        self,
+        query: str = "",
+        search_field: str = "both",
+        config_filters: dict[str, bool | int | None] | None = None,
+    ) -> list[ChatInfo]:
         """
-        Search chats by title or description.
+        Search and filter chats by various criteria.
 
-        Performs case-insensitive search across chat titles and descriptions.
-        Useful for quickly finding specific chats when managing many communities.
+        Performs case-insensitive search across chat titles and descriptions,
+        with optional filtering by chat configuration settings.
 
         Parameters:
-        - query: Search term (case-insensitive)
+        - query: Search term (case-insensitive). Empty string returns all chats if config_filters used.
+        - search_field: Where to search - "title", "description", "both", or "config"
+          * "title" - search only in chat titles
+          * "description" - search only in chat descriptions
+          * "both" - search in both titles and descriptions (default)
+          * "config" - only use config_filters, ignore query
+        - config_filters: Dict of chat config properties to filter by:
+          * is_private: bool - filter by private/public chats
+          * is_forum: bool - filter by forum/regular chats
+          * welcome_enabled: bool - filter by welcome message status
+          * captcha_enabled: bool - filter by captcha status
+          * auto_delete_join_leave: bool - filter by auto-delete join/leave notifications
+          * auto_delete_time: int | None - filter by specific auto-delete time value
 
         Returns list of matching ChatInfo objects.
+
+        Examples:
+        - search_chats(query="crypto", search_field="title") - search "crypto" in titles only
+        - search_chats(config_filters={"auto_delete_join_leave": True}) - all chats with auto-delete enabled
+        - search_chats(query="education", config_filters={"is_forum": True}) - forums with "education" in title/description
         """
         try:
-            if not query or not query.strip():
-                self.logger.logger.warning("Empty search query provided")
-                return []
-
             all_chats = await self.get_all_chats()
-            query_lower = query.strip().lower()
+            filtered_chats = all_chats
 
-            filtered_chats = []
-            for chat in all_chats:
-                if query_lower in (chat.title or "").lower() or (
-                    chat.description and query_lower in chat.description.lower()
-                ):
-                    filtered_chats.append(chat)
+            # Apply text search if query is provided and search_field is not "config"
+            if query and query.strip() and search_field != "config":
+                query_lower = query.strip().lower()
+                text_filtered = []
 
-            self.logger.logger.info(f"Found {len(filtered_chats)} chats matching query '{query}'")
+                for chat in filtered_chats:
+                    match = False
+
+                    if search_field in ("title", "both") and query_lower in (chat.title or "").lower():
+                        match = True
+
+                    if (
+                        search_field in ("description", "both")
+                        and not match
+                        and chat.description
+                        and query_lower in chat.description.lower()
+                    ):
+                        match = True
+
+                    if match:
+                        text_filtered.append(chat)
+
+                filtered_chats = text_filtered
+
+            # Apply config filters if provided
+            if config_filters:
+                config_filtered = []
+
+                for chat in filtered_chats:
+                    match = True
+
+                    # Check each filter criterion
+                    for key, value in config_filters.items():
+                        if key == "is_private":
+                            if chat.is_private != value:
+                                match = False
+                                break
+                        elif key == "is_forum":
+                            if chat.is_forum != value:
+                                match = False
+                                break
+                        elif key == "welcome_enabled":
+                            if chat.welcome_enabled != value:
+                                match = False
+                                break
+                        elif key == "captcha_enabled":
+                            if chat.captcha_enabled != value:
+                                match = False
+                                break
+                        elif key == "auto_delete_join_leave":
+                            if chat.auto_delete_join_leave != value:
+                                match = False
+                                break
+                        elif key == "auto_delete_time" and chat.auto_delete_time != value:
+                            match = False
+                            break
+
+                    if match:
+                        config_filtered.append(chat)
+
+                filtered_chats = config_filtered
+
+            # Log results
+            if query and config_filters:
+                self.logger.logger.info(
+                    f"Found {len(filtered_chats)} chats matching query '{query}' "
+                    f"(field: {search_field}) with filters {config_filters}"
+                )
+            elif query:
+                self.logger.logger.info(f"Found {len(filtered_chats)} chats matching query '{query}' in {search_field}")
+            elif config_filters:
+                self.logger.logger.info(f"Found {len(filtered_chats)} chats matching filters {config_filters}")
+            else:
+                self.logger.logger.info(f"Returning all {len(filtered_chats)} chats (no filters applied)")
+
             return filtered_chats
 
         except Exception as e:
