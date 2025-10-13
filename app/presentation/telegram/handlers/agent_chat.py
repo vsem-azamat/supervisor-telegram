@@ -8,6 +8,7 @@ Provides two modes for super admins in private chat:
 
 from aiogram import Bot, F, Router, types
 from aiogram.filters import Command
+from aiogram.types import BufferedInputFile
 
 from app.application.services.agent_service import AgentService
 from app.domain.agent import AgentModelConfig, AgentSession, ModelProvider
@@ -20,6 +21,10 @@ router = Router()
 # Maps user_id -> session_id
 _agent_mode_users: dict[int, str] = {}
 
+# Telegram message limits
+MAX_MESSAGE_LENGTH = 4096
+SAFE_MESSAGE_LENGTH = 4000  # Leave some room for emoji and formatting
+
 
 def get_default_model_config() -> AgentModelConfig:
     """Get default model configuration (first model from OPENROUTER_MODELS)."""
@@ -30,6 +35,81 @@ def get_default_model_config() -> AgentModelConfig:
         temperature=0.7,
         max_tokens=None,  # Use model default
     )
+
+
+def split_message(text: str, max_length: int = SAFE_MESSAGE_LENGTH) -> list[str]:
+    """
+    Split long message into chunks that fit Telegram limits.
+
+    Tries to split on paragraph boundaries (\n\n), then line boundaries (\n),
+    then word boundaries to preserve formatting.
+    """
+    if len(text) <= max_length:
+        return [text]
+
+    chunks: list[str] = []
+    remaining = text
+
+    while remaining:
+        if len(remaining) <= max_length:
+            chunks.append(remaining)
+            break
+
+        # Try to find a good split point
+        split_point = max_length
+
+        # Try paragraph boundary first
+        last_para = remaining[:max_length].rfind("\n\n")
+        if last_para > max_length // 2:  # At least half the chunk
+            split_point = last_para + 2
+
+        # Try line boundary
+        elif (last_line := remaining[:max_length].rfind("\n")) > max_length // 2:
+            split_point = last_line + 1
+
+        # Try word boundary
+        elif (last_space := remaining[:max_length].rfind(" ")) > max_length // 2:
+            split_point = last_space + 1
+
+        # Add chunk and continue
+        chunks.append(remaining[:split_point].rstrip())
+        remaining = remaining[split_point:].lstrip()
+
+    return chunks
+
+
+async def send_long_message(message: types.Message, text: str, prefix: str = "🤖") -> None:
+    """
+    Send a potentially long message, splitting or sending as file if needed.
+
+    If message is short - send normally.
+    If message is long but fits in multiple messages - split and send.
+    If message is very long (>10 parts) - send as file.
+    """
+    full_text = f"{prefix} {text}" if prefix else text
+
+    # Very long message - send as file
+    if len(text) > SAFE_MESSAGE_LENGTH * 10:
+        await message.answer("📄 Ответ слишком длинный, отправляю файлом:")
+        file = BufferedInputFile(text.encode("utf-8"), filename="agent_response.txt")
+        await message.answer_document(file, caption=f"{prefix} Ответ агента")
+        return
+
+    # Split and send multiple messages
+    chunks = split_message(full_text)
+
+    if len(chunks) == 1:
+        # Single message - send normally
+        await message.answer(full_text, parse_mode="HTML")
+    else:
+        # Multiple parts - send with part numbers
+        for i, chunk in enumerate(chunks, 1):
+            part_prefix = f"[{i}/{len(chunks)}] " if i > 1 else ""
+            try:
+                await message.answer(f"{part_prefix}{chunk}", parse_mode="HTML")
+            except Exception:
+                # If HTML parsing fails, send as plain text
+                await message.answer(f"{part_prefix}{chunk}", parse_mode=None)
 
 
 @router.message(Command("agent"), ChatTypeFilter("private"), SuperAdminFilter())
@@ -188,8 +268,8 @@ async def agent_chat_handler(message: types.Message, agent_service: AgentService
         # Send message to agent
         response = await agent_service.chat(session_id, message.text)
 
-        # Send response
-        await message.answer(f"🤖 {response.message}")
+        # Send response using smart long message handler
+        await send_long_message(message, response.message, prefix="🤖")
 
     except ValueError as e:
         # Session not found - clear agent mode
