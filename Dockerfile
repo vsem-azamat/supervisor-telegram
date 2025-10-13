@@ -67,8 +67,10 @@ RUN chmod +x scripts/*.sh
 # Production stage
 FROM ghcr.io/astral-sh/uv:0.8.11-alpine AS production
 
-# Install runtime dependencies only
-RUN apk add --no-cache postgresql-client
+# Install runtime dependencies only (python required for virtualenv shebangs)
+RUN apk add --no-cache \
+    postgresql-client \
+    python3
 
 WORKDIR /app
 
