@@ -1,6 +1,8 @@
+import json
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 
 from app.application.services.agent_service import AgentService
 from app.core.container import get_container
@@ -192,6 +194,65 @@ async def chat_with_agent(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+@router.post("/sessions/{session_id}/chat/stream")
+async def chat_with_agent_stream(
+    session_id: str,
+    request: ChatMessageRequest,
+    agent_service: AgentService = Depends(get_agent_service),
+    _current_user: dict[str, Any] = Depends(get_current_admin_user),
+) -> StreamingResponse:
+    """
+    Stream agent responses as Server-Sent Events (SSE).
+
+    The response is streamed in real-time as the LLM generates it.
+    Each event contains accumulated text that grows with each chunk.
+
+    Example SSE format:
+        data: {"chunk": "Hello"}
+        data: {"chunk": "Hello world"}
+        data: {"chunk": "Hello world! How"}
+        data: [DONE]
+
+    Usage with JavaScript EventSource:
+        const eventSource = new EventSource('/api/v1/agent/sessions/123/chat/stream');
+        eventSource.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            if (data.chunk) {
+                console.log(data.chunk);  // Accumulated text
+            }
+        };
+    """
+
+    async def event_generator() -> Any:
+        try:
+            async for text_chunk in agent_service.chat_stream(session_id, request.message):
+                # Send accumulated text as SSE
+                event_data = json.dumps({"chunk": text_chunk}, ensure_ascii=False)
+                yield f"data: {event_data}\n\n"
+
+            # Send completion signal
+            yield "data: [DONE]\n\n"
+
+        except ValueError as e:
+            # Session not found or validation error
+            error_data = json.dumps({"error": str(e), "type": "ValueError"}, ensure_ascii=False)
+            yield f"data: {error_data}\n\n"
+        except Exception as e:
+            # Other errors
+            error_data = json.dumps({"error": str(e), "type": type(e).__name__}, ensure_ascii=False)
+            yield f"data: {error_data}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # Disable nginx buffering
+        },
+    )
 
 
 @router.delete("/sessions/{session_id}")

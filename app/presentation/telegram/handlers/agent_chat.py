@@ -6,6 +6,10 @@ Provides two modes for super admins in private chat:
 2. Agent mode - AI agent responds to all messages
 """
 
+import logging
+import time
+from contextlib import suppress
+
 from aiogram import Bot, F, Router, types
 from aiogram.filters import Command
 from aiogram.types import BufferedInputFile
@@ -14,6 +18,8 @@ from app.application.services.agent_service import AgentService
 from app.domain.agent import AgentModelConfig, AgentSession, ModelProvider
 from app.domain.agent_models import OPENROUTER_MODELS
 from app.presentation.telegram.utils.filters import ChatTypeFilter, SuperAdminFilter
+
+logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -244,8 +250,9 @@ async def new_session_command(message: types.Message, agent_service: AgentServic
 )
 async def agent_chat_handler(message: types.Message, agent_service: AgentService, bot: Bot) -> None:
     """
-    Handle non-command text messages in agent mode.
+    Handle non-command text messages in agent mode with streaming.
 
+    Streams agent responses in real-time, updating the message as text arrives.
     Only processes regular text messages (not commands) from super admins in private chat.
     Commands are handled by their respective handlers with higher priority.
     """
@@ -265,11 +272,45 @@ async def agent_chat_handler(message: types.Message, agent_service: AgentService
         # Send typing indicator
         await bot.send_chat_action(chat_id=message.chat.id, action="typing")
 
-        # Send message to agent
-        response = await agent_service.chat(session_id, message.text)
+        # Send initial message that will be updated with streaming response
+        response_msg = await message.answer("🤖 <i>Думаю...</i>", parse_mode="HTML")
 
-        # Send response using smart long message handler
-        await send_long_message(message, response.message, prefix="🤖")
+        accumulated_text = ""
+        last_update_time = time.time()
+        update_interval = 0.5  # Update message every 0.5 seconds (Telegram rate limit)
+        min_chars_for_update = 20  # Or when we have at least 20 new characters
+
+        # Stream response from agent
+        async for chunk in agent_service.chat_stream(session_id, message.text):
+            accumulated_text = chunk
+            current_time = time.time()
+
+            # Update message if enough time has passed or we have significant new text
+            should_update = (current_time - last_update_time >= update_interval) or (
+                len(accumulated_text) - len(accumulated_text) >= min_chars_for_update
+            )
+
+            if should_update:
+                try:
+                    # Try to update with accumulated text
+                    formatted_text = f"🤖 {accumulated_text}"
+
+                    # If text is too long for single message, don't update - wait for final
+                    if len(formatted_text) <= SAFE_MESSAGE_LENGTH:
+                        await response_msg.edit_text(formatted_text, parse_mode="HTML")
+                        last_update_time = current_time
+                except Exception as e:
+                    # If edit fails (e.g., message is identical or too similar), continue streaming
+                    logger.debug(f"Failed to update message during streaming: {e}")
+
+        # Final update with complete response
+        # Use smart long message handler for final response
+        with suppress(Exception):
+            # Delete the "thinking" message (ignore errors if already deleted)
+            await response_msg.delete()
+
+        # Send final response (handles long messages)
+        await send_long_message(message, accumulated_text, prefix="🤖")
 
     except ValueError as e:
         # Session not found - clear agent mode

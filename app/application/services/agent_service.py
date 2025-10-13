@@ -391,6 +391,132 @@ class AgentService:
                 execution_time=execution_time,
             )
 
+    async def chat_stream(self, session_id: str, message: str) -> AsyncIterator[str]:
+        """
+        Stream message to agent and yield response chunks in real-time.
+
+        Yields accumulated text as it arrives from the LLM.
+        Updates session after stream completes.
+        Records metrics for the streaming request.
+
+        Args:
+            session_id: ID of the agent session
+            message: User message to send to agent
+
+        Yields:
+            str: Accumulated response text (grows with each chunk)
+
+        Raises:
+            ValueError: If session not found
+            Exception: For other errors during streaming
+        """
+        start_time = time.time()
+        success = False
+        tokens_used = None
+        tools_used: list[str] = []
+        error_type: str | None = None
+        response_text = ""
+
+        try:
+            session = await self.agent_repository.get_session(session_id)
+            if not session:
+                error_type = "SessionNotFound"
+                raise ValueError(f"Session {session_id} not found")
+
+            # Get API credentials for this model config
+            api_key, base_url = self._get_api_credentials(session.agent_config)
+
+            self.logger.logger.info(
+                f"Starting streaming run with provider={session.agent_config.provider}, "
+                f"model={session.agent_config.model_id}, base_url={base_url}"
+            )
+
+            # Set API credentials and create/get agent
+            with with_api_key(api_key, base_url):
+                agent_key = f"{session.agent_config.provider}_{session.agent_config.model_id}"
+                if agent_key not in self._agents:
+                    self.logger.logger.debug(f"Creating new agent for {agent_key}")
+                    self._agents[agent_key] = self._create_agent(session.agent_config)
+
+                agent = self._agents[agent_key]
+                session.add_message("user", message)
+
+                # Run agent with streaming
+                context = AgentContext(user_id=session.user_id.value, session_id=session_id, tools=self.tools)
+                self.logger.logger.debug("Starting streaming run...")
+
+                async with agent.run_stream(user_prompt=message, deps=context) as result:
+                    # Stream text chunks
+                    async for text_chunk in result.stream_text():
+                        response_text = text_chunk  # Accumulated text
+                        yield response_text
+
+                    # After streaming completes, extract metadata
+                    self.logger.logger.info(f"Stream completed: {len(response_text)} characters")
+
+                    # Add assistant response to session
+                    session.add_message("assistant", response_text)
+                    await self.agent_repository.update_session(session)
+
+                    # Extract tool call information
+                    tool_results: list[AgentToolResult] = []
+                    if hasattr(result, "all_messages"):
+                        for msg in result.all_messages():
+                            if hasattr(msg, "parts"):
+                                for part in msg.parts:
+                                    if hasattr(part, "tool_name") and part.tool_name:
+                                        tool_name = str(part.tool_name)
+                                        tool_result = AgentToolResult(
+                                            tool_name=tool_name,
+                                            success=not hasattr(part, "error"),
+                                            result=getattr(part, "content", None),
+                                            error=str(getattr(part, "error", None)) if hasattr(part, "error") else None,
+                                        )
+                                        tool_results.append(tool_result)
+                                        tools_used.append(tool_name)
+
+                    if tool_results:
+                        self.logger.logger.info(
+                            f"Agent used {len(tool_results)} tools: {[t.tool_name for t in tool_results]}"
+                        )
+
+                    # Extract token usage
+                    if hasattr(result, "usage"):
+                        usage = getattr(result, "usage", None)
+                        if hasattr(usage, "get") and not callable(usage):
+                            tokens_used = usage.get("total_tokens", None)
+                        elif hasattr(usage, "total_tokens"):
+                            tokens_used = getattr(usage, "total_tokens", None)
+
+            execution_time = time.time() - start_time
+            success = True
+
+            # Record metrics
+            self.metrics.record_request(
+                success=success, execution_time=execution_time, tokens_used=tokens_used, tools_used=tools_used
+            )
+
+            self.logger.logger.info(
+                f"Streaming completed for session {session_id}, execution time: {execution_time:.2f}s, "
+                f"tokens: {tokens_used or 'N/A'}"
+            )
+
+        except Exception as e:
+            execution_time = time.time() - start_time
+            if not error_type:
+                error_type = type(e).__name__
+
+            self.logger.logger.error(
+                f"Error during streaming for session {session_id}: {e}",
+                exc_info=True,
+            )
+
+            # Record metrics for failed request
+            self.metrics.record_request(success=False, execution_time=execution_time, error_type=error_type)
+
+            # Re-raise exception so caller can handle it
+            raise
+
     async def delete_session(self, session_id: str) -> bool:
         """Delete session."""
         success = await self.agent_repository.delete_session(session_id)
