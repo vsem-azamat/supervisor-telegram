@@ -16,8 +16,8 @@ services:
     command: >
       sh -c "
       ./scripts/wait_for_postgres.sh &&
-      alembic upgrade head &&
-      python -m app.presentation.telegram
+      uv run alembic upgrade head &&
+      uv run python -m app.presentation.telegram
       "
     networks:
       - app-network
@@ -34,7 +34,7 @@ services:
     command: >
       sh -c "
       ./scripts/wait_for_postgres.sh &&
-      uvicorn app.presentation.api.main:app --host 0.0.0.0 --port 8000
+      uv run uvicorn app.presentation.api.main:app --host 0.0.0.0 --port 8000
       "
     depends_on:
       db:
