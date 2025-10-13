@@ -16,13 +16,14 @@ WORKDIR /app
 # Copy dependency files for better caching
 COPY pyproject.toml uv.lock README.md ./
 
-# Install production dependencies to virtual environment (includes alembic, uvicorn)
-RUN uv sync --frozen --no-dev
-
 # Copy source code needed for project installation
 COPY app/ ./app/
 COPY alembic/ ./alembic/
 COPY alembic.ini ./
+
+# Install production dependencies to virtual environment (includes alembic, uvicorn)
+# Must copy source code BEFORE sync to properly install the project
+RUN uv sync --frozen --no-dev
 
 # Development stage
 FROM ghcr.io/astral-sh/uv:0.8.11-alpine AS development
@@ -42,14 +43,15 @@ WORKDIR /app
 # Copy dependency files for better caching
 COPY pyproject.toml uv.lock README.md ./
 
-# Install ALL dependencies including dev for development
-RUN uv sync --frozen
-
-# Copy application source code
+# Copy application source code BEFORE sync
 COPY app/ ./app/
 COPY alembic/ ./alembic/
 COPY alembic.ini ./
 COPY scripts/ ./scripts/
+
+# Install ALL dependencies including dev for development
+# Must copy source code BEFORE sync to properly install the project
+RUN uv sync --frozen
 
 # Make uv available system-wide (symlink to /usr/local/bin) if missing
 RUN [ -x /usr/local/bin/uv ] || ln -s /uv /usr/local/bin/uv
@@ -65,8 +67,10 @@ RUN chmod +x scripts/*.sh
 # Production stage
 FROM ghcr.io/astral-sh/uv:0.8.11-alpine AS production
 
-# Install runtime dependencies only
-RUN apk add --no-cache postgresql-client
+# Install runtime dependencies only (python required for virtualenv shebangs)
+RUN apk add --no-cache \
+    postgresql-client \
+    python3
 
 WORKDIR /app
 
