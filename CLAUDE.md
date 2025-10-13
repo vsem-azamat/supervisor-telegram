@@ -500,7 +500,7 @@ OPENROUTER_BASE_URL=https://openrouter.ai/api/v1 # OpenRouter API endpoint
 # Docker Configuration (for development)
 WEBAPP_PORT=3000          # React dev server port
 API_PORT=8000             # FastAPI server port
-NGINX_PORT=80             # nginx reverse proxy port (use with ngrok)
+NGINX_PORT=8080           # nginx reverse proxy external port (use with ngrok / local proxy)
 ADMINER_PORT=8080         # Database admin interface port
 ```
 
