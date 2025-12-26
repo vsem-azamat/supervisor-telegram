@@ -46,13 +46,13 @@ app = FastAPI(
 allowed_origins = ["http://localhost:3000"]
 if hasattr(settings, "webapp") and settings.webapp.url:
     allowed_origins.append(settings.webapp.url)
-
-# Allow ngrok domains (they usually follow pattern *.ngrok.app or *.ngrok-free.app)
-allowed_origins.extend(["https://*.ngrok.app", "https://*.ngrok-free.app"])
+# Allow dynamic ngrok domains through regex because we also need credentials support
+ngrok_origin_regex = r"https://.*\\.ngrok\\.app|https://.*\\.ngrok-free\\.app"
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For development, allow all origins with ngrok
+    allow_origins=allowed_origins,
+    allow_origin_regex=ngrok_origin_regex,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],

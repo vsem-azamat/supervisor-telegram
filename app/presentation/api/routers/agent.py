@@ -10,11 +10,16 @@ from app.domain.agent import AgentModelConfig, ModelProvider, OpenRouterModel
 from app.domain.agent_models import OPENAI_MODELS, OPENROUTER_MODELS
 from app.presentation.api.auth import get_current_admin_user
 from app.presentation.api.schemas.agent import (
+    AgentMetricsSchema,
     AgentResponseSchema,
     ChatMessageRequest,
     CreateSessionRequest,
+    MessageResponse,
+    MetricsResponse,
     ModelConfigSchema,
+    SessionListResponse,
     SessionResponse,
+    StatusMessageResponse,
 )
 
 router = APIRouter()
@@ -80,11 +85,12 @@ async def create_session(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/sessions")
+# Use explicit schema for list response to avoid plain dicts
+@router.get("/sessions", response_model=SessionListResponse)
 async def list_sessions(
     agent_service: AgentService = Depends(get_agent_service),
     current_user: dict[str, Any] = Depends(get_current_admin_user),
-) -> dict[str, list[SessionResponse]]:
+) -> SessionListResponse:
     """List all sessions for the current user."""
     try:
         # Use authenticated user ID
@@ -92,7 +98,7 @@ async def list_sessions(
 
         sessions = await agent_service.get_user_sessions(user_id, limit=20)
 
-        session_responses = [
+        session_responses: list[SessionResponse] = [
             SessionResponse(
                 id=session.id,
                 title=session.title,
@@ -106,7 +112,7 @@ async def list_sessions(
             for session in sessions
         ]
 
-        return {"sessions": session_responses}
+        return SessionListResponse(sessions=session_responses, total=len(session_responses))
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -141,30 +147,33 @@ async def get_session(
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.get("/sessions/{session_id}/messages")
+@router.get("/sessions/{session_id}/messages", response_model=list[MessageResponse])
 async def get_session_messages(
     session_id: str,
     agent_service: AgentService = Depends(get_agent_service),
     _current_user: dict[str, Any] = Depends(get_current_admin_user),
-) -> list[dict[str, Any]]:
+) -> list[MessageResponse]:
     """Get messages for a specific session."""
     try:
         session = await agent_service.get_session(session_id)
         if not session:
             raise HTTPException(status_code=404, detail="Session not found")
 
-        # Return messages in expected format
-        return [
-            {
-                "id": str(i),
-                "session_id": session_id,
-                "role": "user" if i % 2 == 0 else "assistant",
-                "content": msg.content if hasattr(msg, "content") else str(msg),
-                "timestamp": session.created_at,  # Placeholder for now
-                "tokens_used": 0,  # Placeholder for now
-            }
-            for i, msg in enumerate(session.messages)
-        ]
+        # Return messages in expected format using stored metadata
+        messages: list[MessageResponse] = []
+        for msg in session.messages:
+            messages.append(
+                MessageResponse(
+                    id=getattr(msg, "id", None) or str(len(messages)),
+                    session_id=session_id,
+                    role=getattr(msg, "role", "user"),
+                    content=getattr(msg, "content", str(msg)),
+                    timestamp=getattr(msg, "timestamp", session.created_at),
+                    tokens_used=getattr(msg, "metadata", {}).get("tokens_used") if hasattr(msg, "metadata") else None,
+                )
+            )
+
+        return messages
 
     except HTTPException:
         raise
@@ -255,19 +264,19 @@ async def chat_with_agent_stream(
     )
 
 
-@router.delete("/sessions/{session_id}")
+@router.delete("/sessions/{session_id}", response_model=StatusMessageResponse)
 async def delete_session(
     session_id: str,
     agent_service: AgentService = Depends(get_agent_service),
     _current_user: dict[str, Any] = Depends(get_current_admin_user),
-) -> dict[str, str]:
+) -> StatusMessageResponse:
     """Delete a session."""
     try:
         success = await agent_service.delete_session(session_id)
         if not success:
             raise HTTPException(status_code=404, detail="Session not found")
 
-        return {"message": "Session deleted successfully"}
+        return StatusMessageResponse(message="Session deleted successfully")
 
     except HTTPException:
         raise
@@ -296,11 +305,11 @@ async def list_models_by_provider(
     return [_convert_model_to_schema(model, ModelProvider.OPENROUTER) for model in OPENROUTER_MODELS]
 
 
-@router.get("/metrics")
+@router.get("/metrics", response_model=MetricsResponse)
 async def get_agent_metrics(
     agent_service: AgentService = Depends(get_agent_service),
     _current_user: dict[str, Any] = Depends(get_current_admin_user),
-) -> dict[str, Any]:
+) -> MetricsResponse:
     """
     Get agent service metrics and statistics.
 
@@ -315,21 +324,22 @@ async def get_agent_metrics(
     """
     try:
         metrics = await agent_service.get_metrics()
-        return {"metrics": metrics, "status": "ok"}
+        metrics_schema = AgentMetricsSchema(**metrics)
+        return MetricsResponse(metrics=metrics_schema)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@router.post("/metrics/reset")
+@router.post("/metrics/reset", response_model=StatusMessageResponse)
 async def reset_agent_metrics(
     agent_service: AgentService = Depends(get_agent_service),
     _current_user: dict[str, Any] = Depends(get_current_admin_user),
-) -> dict[str, str]:
+) -> StatusMessageResponse:
     """Reset agent service metrics. Useful for testing or periodic resets."""
     try:
         agent_service.reset_metrics()
-        return {"message": "Metrics reset successfully", "status": "ok"}
+        return StatusMessageResponse(message="Metrics reset successfully", status="ok")
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e

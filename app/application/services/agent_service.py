@@ -259,6 +259,8 @@ class AgentService:
 
         saved_session = await self.agent_repository.save_session(session)
         self.metrics.sessions_created += 1
+        if saved_session.is_active:
+            self.metrics.active_sessions += 1
         self.logger.logger.info(f"Created new session {saved_session.id} for user {user_id}")
 
         return saved_session
@@ -546,20 +548,13 @@ class AgentService:
         success = await self.agent_repository.delete_session(session_id)
         if success:
             self.metrics.sessions_deleted += 1
+            if self.metrics.active_sessions > 0:
+                self.metrics.active_sessions -= 1
             self.logger.logger.info(f"Deleted session {session_id}")
         return success
 
     async def get_metrics(self) -> dict[str, Any]:
         """Get current service metrics."""
-        # Update active sessions count
-        try:
-            # This is a simplified approach - in production, you'd query the repository
-            self.metrics.active_sessions = len(
-                [s for s in await self.agent_repository.get_user_sessions(0, limit=1000) if s.is_active]
-            )
-        except Exception as e:
-            self.logger.logger.warning(f"Could not update active sessions count: {e}")
-
         return self.metrics.get_summary()
 
     def reset_metrics(self) -> None:

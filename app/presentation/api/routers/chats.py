@@ -52,7 +52,11 @@ async def get_all_chats(
 
 
 @router.get("/{chat_id}", response_model=ChatResponse)
-async def get_chat(chat_id: int, chat_repo: ChatRepository = Depends(get_chat_repository)) -> ChatResponse:
+async def get_chat(
+    chat_id: int,
+    chat_repo: ChatRepository = Depends(get_chat_repository),
+    _current_user: dict[str, Any] = Depends(get_current_admin_user),
+) -> ChatResponse:
     """Get specific chat by ID."""
     try:
         chat = await chat_repo.get_by_id(chat_id)
@@ -67,7 +71,10 @@ async def get_chat(chat_id: int, chat_repo: ChatRepository = Depends(get_chat_re
 
 @router.put("/{chat_id}", response_model=ChatResponse)
 async def update_chat(
-    chat_id: int, update_data: ChatUpdateRequest, chat_repo: ChatRepository = Depends(get_chat_repository)
+    chat_id: int,
+    update_data: ChatUpdateRequest,
+    chat_repo: ChatRepository = Depends(get_chat_repository),
+    _current_user: dict[str, Any] = Depends(get_current_admin_user),
 ) -> ChatResponse:
     """Update chat configuration."""
     try:
@@ -107,6 +114,7 @@ async def get_chat_stats(
     chat_repo: ChatRepository = Depends(get_chat_repository),
     message_repo: MessageRepository = Depends(get_message_repository),
     telegram_stats: TelegramStatsService = Depends(get_telegram_stats_service),
+    _current_user: dict[str, Any] = Depends(get_current_admin_user),
 ) -> ChatStatsResponse:
     """Get chat statistics and analytics."""
     try:

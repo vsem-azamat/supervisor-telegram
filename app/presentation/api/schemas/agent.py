@@ -47,9 +47,11 @@ class SessionResponse(BaseModel):
 
 class MessageResponse(BaseModel):
     id: str
+    session_id: str
     role: str
     content: str
     timestamp: datetime
+    tokens_used: int | None = None
 
 
 class AgentResponseSchema(BaseModel):
@@ -81,3 +83,30 @@ class AvailableModelResponse(BaseModel):
 class SessionListResponse(BaseModel):
     sessions: list[SessionResponse]
     total: int
+
+
+class AgentMetricsSchema(BaseModel):
+    total_requests: int
+    successful_requests: int
+    failed_requests: int
+    success_rate: float
+    error_rate: float
+    total_tokens_used: int
+    avg_tokens_per_request: float
+    total_execution_time: float
+    avg_execution_time: float
+    most_used_tools: list[tuple[str, int]]
+    error_breakdown: dict[str, int]
+    sessions_created: int
+    sessions_deleted: int
+    active_sessions: int
+
+
+class MetricsResponse(BaseModel):
+    metrics: AgentMetricsSchema
+    status: str = "ok"
+
+
+class StatusMessageResponse(BaseModel):
+    message: str
+    status: str | None = None

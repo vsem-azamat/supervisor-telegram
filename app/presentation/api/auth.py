@@ -3,6 +3,7 @@
 import hashlib
 import hmac
 import json
+import time
 from typing import Any
 from urllib.parse import parse_qsl, unquote
 
@@ -92,6 +93,13 @@ def validate_telegram_webapp_data(init_data: str, bot_token: str) -> WebAppInitD
             except json.JSONDecodeError:
                 chat_data = None
 
+        parsed_auth_date = int(parsed_data["auth_date"])
+
+        # Reject stale init data to prevent replay attacks (24h TTL)
+        now_ts = int(time.time())
+        if parsed_auth_date < now_ts - 24 * 60 * 60:
+            raise HTTPException(status_code=401, detail="Init data expired")
+
         return WebAppInitData(
             query_id=parsed_data.get("query_id"),
             user=user_data,
@@ -101,7 +109,7 @@ def validate_telegram_webapp_data(init_data: str, bot_token: str) -> WebAppInitD
             chat_instance=parsed_data.get("chat_instance"),
             start_param=parsed_data.get("start_param"),
             can_send_after=int(parsed_data["can_send_after"]) if parsed_data.get("can_send_after") else None,
-            auth_date=int(parsed_data["auth_date"]),
+            auth_date=parsed_auth_date,
             hash=received_hash,
         )
 

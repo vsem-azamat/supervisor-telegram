@@ -46,6 +46,8 @@ class TelegramStatsService:
     def __init__(self, bot: Bot, cache_ttl: int = 300):
         self.bot = bot
         self.cache = TelegramStatsCache(cache_ttl)
+        # Short-lived cache for detailed chat info
+        self._detail_cache = TelegramStatsCache(ttl_seconds=60)
 
     async def get_chat_member_count(self, chat_id: int) -> int:
         """Get number of members in chat with caching."""
@@ -124,7 +126,7 @@ class TelegramStatsService:
         cache_key = f"chat_info_{chat_id}"
 
         # Try cache first
-        cached_info = self.cache.get(cache_key)
+        cached_info = self._detail_cache.get(cache_key)
         if cached_info is not None:
             return dict(cached_info) if isinstance(cached_info, dict) else None
 
@@ -142,8 +144,7 @@ class TelegramStatsService:
             }
 
             # Cache with shorter TTL for detailed info
-            short_ttl_cache = TelegramStatsCache(ttl_seconds=60)  # 1 minute for detailed info
-            short_ttl_cache.set(cache_key, info)
+            self._detail_cache.set(cache_key, info)
 
             logger.info("Retrieved chat info from Telegram API", chat_id=chat_id)
             return info
