@@ -1,21 +1,5 @@
 from aiogram import types
 from aiogram.filters import BaseFilter
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.core.config import settings
-from app.infrastructure.db.repositories import get_admin_repository
-
-
-class SuperAdminFilter(BaseFilter):
-    async def __call__(self, msg: types.Message) -> bool:
-        return msg.from_user.id in settings.admin.super_admins
-
-
-class AdminFilter(BaseFilter):
-    async def __call__(self, msg: types.Message, db: AsyncSession) -> bool:
-        admin_repo = get_admin_repository(db)
-        admins_id = [admin.id for admin in await admin_repo.get_db_admins()]
-        return msg.from_user.id in admins_id
 
 
 class ChatTypeFilter(BaseFilter):

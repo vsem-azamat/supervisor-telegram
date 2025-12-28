@@ -1,7 +1,4 @@
-# Development overrides for docker-compose.yaml
-# This file is automatically used by docker-compose
-# Use docker-compose -f docker-compose.yaml up to skip development overrides
-
+# Development overrides
 services:
   bot:
     build:
@@ -13,15 +10,7 @@ services:
       - PYTHONUNBUFFERED=1
       - PATH=/app/.venv/bin:/usr/local/bin:/usr/bin:/bin
       - UV_LINK_MODE=copy
-    command: >
-      sh -c "
-      if [ \"$SKIP_MIGRATIONS\" = \"true\" ]; then
-        echo '⚠️  Skipping migrations (SKIP_MIGRATIONS=true)';
-      else
-        uv run alembic upgrade head;
-      fi &&
-      uv run watchfiles 'uv run -m app.presentation.telegram' app/ --ignore-paths '*.pyc,__pycache__,.git,app/presentation/api'
-      "
+    command: uv run watchfiles 'uv run -m app.presentation.telegram' app/ --ignore-paths '*.pyc,__pycache__,.git,app/presentation/api'
 
   api:
     build:
@@ -33,11 +22,7 @@ services:
       - PYTHONUNBUFFERED=1
       - PATH=/app/.venv/bin:/usr/local/bin:/usr/bin:/bin
       - UV_LINK_MODE=copy
-    command: >
-      sh -c "
-      ./scripts/wait_for_postgres.sh &&
-      uv run uvicorn app.presentation.api.main:app --host 0.0.0.0 --port 8000 --reload
-      "
+    command: uv run uvicorn app.presentation.api.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "${API_PORT:-8000}:8000"
 
@@ -54,23 +39,6 @@ services:
     volumes:
       - ./nginx.dev.conf:/etc/nginx/nginx.conf:ro
 
-  db:
-    ports:
-      - "${DB_PORT:-5432}:5432"
-
-  # Development-only services
-  adminer:
-    image: adminer:5.3.0
-    restart: always
-    env_file:
-      - .env
-    ports:
-      - "${ADMINER_PORT:-8080}:8080"
-    depends_on:
-      - db
-    networks:
-      - app-network
-
   ngrok:
     image: ngrok/ngrok:latest
     restart: unless-stopped
@@ -81,7 +49,7 @@ services:
     environment:
       - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN:-}
     ports:
-      - "4040:4040"  # ngrok web UI
+      - "4040:4040"
     depends_on:
       - nginx
     networks:
