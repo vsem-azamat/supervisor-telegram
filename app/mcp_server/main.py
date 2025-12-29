@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.bot_factory import create_bot
 from app.core.container import get_container, setup_container
-from app.domain.repositories import IChatRepository, IUserRepository
+from app.domain.repositories import IChatRepository, IMessageRepository, IUserRepository
 from app.infrastructure.db.session import create_session_maker
 
 # Setup logging
@@ -46,6 +46,11 @@ def get_chat_repo(session: AsyncSession) -> IChatRepository:
 def get_user_repo(session: AsyncSession) -> IUserRepository:
     """Resolve user repository from DI container."""
     return container.get_user_repository(session)
+
+
+def get_message_repo(session: AsyncSession) -> IMessageRepository:
+    """Resolve message repository from DI container."""
+    return container.get_message_repository(session)
 
 
 # --- MCP Tools ---
@@ -96,9 +101,11 @@ async def get_chat_details(chat_id: int) -> dict[str, Any] | None:
 @mcp.tool()
 async def update_chat_settings(
     chat_id: int,
-    title: str | None = None,
     welcome_message: str | None = None,
     welcome_enabled: bool | None = None,
+    welcome_delete_time: int | None = None,
+    captcha_enabled: bool | None = None,
+    auto_delete_join_leave: bool | None = None,
 ) -> dict[str, Any]:
     """
     Update chat settings: welcome message and title.
@@ -109,12 +116,25 @@ async def update_chat_settings(
         if not chat:
             return {"success": False, "error": "Chat not found"}
 
-        if title is not None:
-            chat.title = title
         if welcome_message is not None:
             chat.welcome_message = welcome_message
         if welcome_enabled is not None:
             chat.is_welcome_enabled = welcome_enabled
+        if welcome_delete_time is not None:
+            try:
+                chat.set_welcome_delete_time(welcome_delete_time)
+            except ValueError as e:
+                return {"success": False, "error": str(e)}
+        if captcha_enabled is not None:
+            if captcha_enabled:
+                chat.enable_captcha()
+            else:
+                chat.disable_captcha()
+        if auto_delete_join_leave is not None:
+            if auto_delete_join_leave:
+                chat.enable_auto_delete_join_leave()
+            else:
+                chat.disable_auto_delete_join_leave()
 
         await chat_repo.save(chat)
         await session.commit()
@@ -136,6 +156,33 @@ async def get_chat_statistics() -> dict[str, Any]:
 
 
 @mcp.tool()
+async def get_chat_activity_report(chat_id: int) -> dict[str, Any]:
+    """
+    Get activity report for a specific chat (last 24 hours).
+    Includes message count, active users, and last activity timestamp.
+    """
+    async with get_db_session() as session:
+        message_repo = get_message_repo(session)
+
+        # Check if chat exists first (optional but good practice, though repos handle it gracefully usually)
+        # Using chat repo for existence check
+        chat_repo = get_chat_repo(session)
+        if not await chat_repo.exists(chat_id):
+            return {"error": "Chat not found"}
+
+        message_count = await message_repo.get_message_count_24h(chat_id)
+        active_users = await message_repo.get_active_users_24h(chat_id)
+        last_activity = await message_repo.get_last_activity(chat_id)
+
+        return {
+            "chat_id": chat_id,
+            "messages_24h": message_count,
+            "active_users_24h": active_users,
+            "last_activity": last_activity.isoformat() if last_activity else None,
+        }
+
+
+@mcp.tool()
 async def get_user_info(user_id: int) -> dict[str, Any] | None:
     """
     Get user information by ID.
@@ -152,6 +199,10 @@ async def get_user_info(user_id: int) -> dict[str, Any] | None:
             "last_name": user.last_name,
             "is_blocked": user.is_blocked,
             "created_at": user.created_at.isoformat() if user.created_at else None,
+            "stats": {
+                "total_messages": await get_message_repo(session).count_user_messages(user_id),
+                "chats_participated": await get_message_repo(session).count_user_chats(user_id),
+            },
         }
 
 

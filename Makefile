@@ -53,3 +53,12 @@ db-upgrade: ## Apply migrations
 clean: ## Clean cache files
 	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
 	rm -rf .coverage htmlcov/ .pytest_cache/ .mypy_cache .ruff_cache
+
+# MCP Server
+mcp-dev: ## Run MCP Server in Dev mode (Cloudflare Tunnel)
+	docker network create app-network 2>/dev/null || true
+	docker compose -f docker-compose.mcp.dev.yml up --build
+
+mcp-prod: ## Run MCP Server in Prod mode (Exposed for Nginx Proxy Manager)
+	docker network create app-network 2>/dev/null || true
+	docker compose -f docker-compose.mcp.prod.yml up -d --build
