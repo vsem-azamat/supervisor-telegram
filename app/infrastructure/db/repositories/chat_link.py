@@ -1,5 +1,3 @@
-from collections.abc import Sequence
-
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -57,9 +55,9 @@ class ChatLinkRepository(IChatLinkRepository):
         )
 
     # Legacy method for backward compatibility
-    async def get_chat_links(self) -> Sequence[ChatLink]:
-        result = await self.db.execute(select(ChatLink).order_by(ChatLink.priority.desc()))
-        return result.scalars().all()
+    async def get_chat_links(self) -> list[ChatLinkEntity]:
+        """Get all chat links as entities."""
+        return await self.get_all()
 
 
 def get_chat_link_repository(db: AsyncSession) -> IChatLinkRepository:

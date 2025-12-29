@@ -1,4 +1,4 @@
-# Development overrides
+# Unified development configuration with Cloudflare Tunnel + HMR
 services:
   bot:
     build:
@@ -6,11 +6,12 @@ services:
     volumes:
       - .:/app
       - /app/.venv
+      - tunnel-url:/tunnel:ro
     environment:
       - PYTHONUNBUFFERED=1
       - PATH=/app/.venv/bin:/usr/local/bin:/usr/bin:/bin
       - UV_LINK_MODE=copy
-    command: uv run watchfiles 'uv run -m app.presentation.telegram' app/ --ignore-paths '*.pyc,__pycache__,.git,app/presentation/api'
+    command: uv run watchfiles 'uv run -m app.presentation.telegram' app/ --ignore-paths '*.pyc,__pycache__,.git,app/presentation/api,app/mcp_server'
 
   api:
     build:
@@ -26,6 +27,20 @@ services:
     ports:
       - "${API_PORT:-8000}:8000"
 
+  mcp-server:
+    build:
+      target: development
+    volumes:
+      - .:/app
+      - /app/.venv
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PATH=/app/.venv/bin:/usr/local/bin:/usr/bin:/bin
+      - UV_LINK_MODE=copy
+    command: uv run watchfiles 'uv run fastmcp run app/mcp_server/main.py:mcp --transport sse --host 0.0.0.0 --port 8000' app/mcp_server/
+    ports:
+      - "8002:8000"
+
   webapp:
     build:
       target: development
@@ -39,18 +54,40 @@ services:
     volumes:
       - ./nginx.dev.conf:/etc/nginx/nginx.conf:ro
 
-  ngrok:
-    image: ngrok/ngrok:latest
+  # Cloudflare Tunnel for public HTTPS access (replaces ngrok)
+  # No rate limits, supports WebSockets for HMR
+  cloudflared:
+    image: cloudflare/cloudflared:latest
     restart: unless-stopped
-    command:
-      - "http"
-      - "nginx:80"
-      - "--log=stdout"
-    environment:
-      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN:-}
-    ports:
-      - "4040:4040"
+    entrypoint: ["cloudflared", "tunnel", "--no-autoupdate", "--url", "http://nginx:80"]
+    volumes:
+      - tunnel-url:/tunnel
     depends_on:
       - nginx
     networks:
       - app-network
+
+  # Sidecar to extract cloudflared URL and write to shared volume
+  tunnel-url-extractor:
+    image: docker:cli
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - tunnel-url:/tunnel
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          URL=$$(docker logs moderator-bot-cloudflared-1 2>&1 | grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' | tail -1)
+          if [ -n "$$URL" ]; then
+            echo "$$URL" > /tunnel/url.txt
+            echo "Tunnel URL: $$URL"
+          fi
+          sleep 5
+        done
+    depends_on:
+      - cloudflared
+    networks:
+      - app-network
+
+volumes:
+  tunnel-url:

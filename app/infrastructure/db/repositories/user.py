@@ -83,13 +83,12 @@ class UserRepository(IUserRepository):
             modified_at=user_model.modified_at,
         )
 
-    # Legacy methods for backward compatibility
-    async def get_user(self, id_tg: int) -> User | None:
-        result = await self.db.execute(select(User).filter(User.id == id_tg))
-        return result.scalars().first()
+    async def get_user(self, user_id: int) -> UserEntity | None:
+        """Helper to get user entity by ID."""
+        return await self.get_by_id(user_id)
 
     async def add_to_blacklist(self, user_id: int) -> None:
-        user = await self.get_user(user_id)
+        user = await self.get_by_id(user_id)
         if user:
             await self.db.execute(update(User).where(User.id == user_id).values(blocked=True))
         else:
@@ -97,7 +96,7 @@ class UserRepository(IUserRepository):
         await self.db.commit()
 
     async def remove_from_blacklist(self, user_id: int) -> None:
-        user = await self.get_user(user_id)
+        user = await self.get_by_id(user_id)
         if user:
             await self.db.execute(update(User).where(User.id == user_id).values(blocked=False))
             await self.db.commit()

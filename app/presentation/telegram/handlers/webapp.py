@@ -3,7 +3,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, W
 
 from app.core.config import settings
 from app.core.logging import BotLogger
-from app.infrastructure.ngrok_helper import get_current_ngrok_url
+from app.infrastructure.tunnel_helper import get_current_tunnel_url
 
 logger = BotLogger("webapp")
 router = Router()
@@ -22,16 +22,16 @@ async def webapp_command(message: Message) -> None:
         await message.answer("Доступ запрещен. Только для администраторов.")
         return
 
-    # In development mode, try to get current ngrok URL dynamically
-    # This solves the problem of ngrok URLs changing on each restart
+    # In development mode, try to get current tunnel URL dynamically
+    # This solves the problem of tunnel URLs changing on each restart
     webapp_url = settings.webapp.url
     if settings.environment == "development":
-        ngrok_url = await get_current_ngrok_url()
-        if ngrok_url:
-            webapp_url = ngrok_url
-            logger.logger.info("Using dynamic ngrok URL for webapp", url=ngrok_url)
+        tunnel_url = await get_current_tunnel_url()
+        if tunnel_url:
+            webapp_url = tunnel_url
+            logger.logger.info("Using dynamic tunnel URL for webapp", url=tunnel_url)
         else:
-            logger.logger.warning("Could not fetch ngrok URL, using configured URL", url=webapp_url)
+            logger.logger.warning("Could not fetch tunnel URL, using configured URL", url=webapp_url)
 
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[[InlineKeyboardButton(text="🎛️ Открыть админ панель", web_app=WebAppInfo(url=webapp_url))]]

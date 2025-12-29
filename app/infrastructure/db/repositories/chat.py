@@ -78,14 +78,13 @@ class ChatRepository(IChatRepository):
         )
 
     # Legacy methods for backward compatibility
-    async def get_chat(self, id_tg_chat: int) -> Chat | None:
-        """Get chat model by ID."""
-        return await self._get_chat_model(id_tg_chat)
+    async def get_chat(self, id_tg_chat: int) -> ChatEntity | None:
+        """Get chat entity by ID."""
+        return await self.get_by_id(id_tg_chat)
 
-    async def get_chats(self) -> list[Chat]:
-        """Get all chats as models."""
-        result = await self.db.execute(select(Chat))
-        return list(result.scalars().all())
+    async def get_chats(self) -> list[ChatEntity]:
+        """Get all chats as entities."""
+        return await self.get_all()
 
     async def merge_chat(
         self,

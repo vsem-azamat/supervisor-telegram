@@ -60,10 +60,11 @@ class AdminRepository(IAdminRepository):
         )
 
     # Legacy methods for backward compatibility
-    async def get_db_admins(self) -> list[Admin]:
-        """Get all admin models."""
+    async def get_db_admins(self) -> list[AdminEntity]:
+        """Get all admins as entities."""
         result = await self.db.execute(select(Admin))
-        return list(result.scalars().all())
+        admin_models = result.scalars().all()
+        return [self._model_to_entity(admin_model) for admin_model in admin_models]
 
     async def insert_admin(self, id_tg: int) -> None:
         """Insert new admin (legacy method)."""

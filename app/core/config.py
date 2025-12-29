@@ -141,6 +141,20 @@ class AIAgentSettings(BaseSettings):
     )
 
 
+class McpSettings(BaseSettings):
+    """MCP Server configuration."""
+
+    url: str = Field(default="http://mcp-server:8000/sse", description="MCP server SSE URL")
+
+    model_config = SettingsConfigDict(
+        env_prefix="MCP_",
+        case_sensitive=False,
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
 class AppSettings(BaseSettings):
     """Main application settings."""
 
@@ -154,6 +168,7 @@ class AppSettings(BaseSettings):
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
     webapp: WebAppSettings = Field(default_factory=WebAppSettings)
     ai_agent: AIAgentSettings = Field(default_factory=AIAgentSettings)
+    mcp: McpSettings = Field(default_factory=McpSettings)
 
     model_config = SettingsConfigDict(
         env_file=".env",

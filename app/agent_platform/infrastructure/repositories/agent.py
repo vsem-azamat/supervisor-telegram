@@ -1,8 +1,7 @@
+from app.agent_platform.domain.agent import AgentSession, ModelProvider, OpenRouterModel
+from app.agent_platform.domain.agent_models import get_models_by_provider
+from app.agent_platform.domain.repositories import IAgentRepository
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.domain.agent import AgentSession, ModelProvider, OpenRouterModel
-from app.domain.agent_models import get_models_by_provider
-from app.domain.repositories import IAgentRepository
 
 
 class InMemoryAgentRepository(IAgentRepository):

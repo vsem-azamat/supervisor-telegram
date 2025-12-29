@@ -5,12 +5,13 @@ from typing import TypeVar
 from aiogram import Bot
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.application.services.agent_service import AgentService
+from app.application.services.moderation_service import ModerationService
+from app.application.services.spam import SpamService
+from app.application.services.user_service import UserService
 from app.core.repository_factory import RepositoryFactory
 from app.core.service_registry import ServiceRegistry
 from app.domain.repositories import (
     IAdminRepository,
-    IAgentRepository,
     IChatLinkRepository,
     IChatRepository,
     IMessageRepository,
@@ -93,15 +94,20 @@ class Container:
         factory = self._get_repository_factory()
         return factory.create_chat_link_repository(session)
 
-    def get_agent_repository(self) -> IAgentRepository:
-        """Get agent repository."""
-        factory = self._get_repository_factory()
-        return factory.get_agent_repository()
-
-    def get_agent_service(self) -> AgentService:
-        """Get agent service."""
+    def get_moderation_service(self, session: AsyncSession) -> ModerationService:
+        """Get moderation service."""
         service_registry = self._get_service_registry()
-        return service_registry.create_agent_service()
+        return service_registry.create_moderation_service(session)
+
+    def get_user_service(self, session: AsyncSession) -> UserService:
+        """Get user service."""
+        service_registry = self._get_service_registry()
+        return service_registry.create_user_service(session)
+
+    def get_spam_service(self, session: AsyncSession) -> SpamService:
+        """Get spam service."""
+        service_registry = self._get_service_registry()
+        return service_registry.create_spam_service(session)
 
 
 # Global container instance
@@ -121,17 +127,14 @@ def setup_container(session_maker: async_sessionmaker[AsyncSession], bot: Bot) -
     # Service registry will handle service registration internally
     service_registry = container._get_service_registry()
 
-    # Register repository factories
-    service_registry.register_transient(IUserRepository, lambda: container.get_user_repository(container.get_session()))
-    service_registry.register_transient(IChatRepository, lambda: container.get_chat_repository(container.get_session()))
-    service_registry.register_transient(
-        IAdminRepository, lambda: container.get_admin_repository(container.get_session())
-    )
-    service_registry.register_transient(
-        IMessageRepository, lambda: container.get_message_repository(container.get_session())
-    )
-    service_registry.register_transient(
-        IChatLinkRepository, lambda: container.get_chat_link_repository(container.get_session())
-    )
-    service_registry.register_singleton(IAgentRepository, container.get_agent_repository())
-    service_registry.register_transient(AgentService, lambda: container.get_agent_service())
+    # Register transient services that require a session
+    # These are resolved by passing the session explicitly
+    service_registry.register_transient(IUserRepository, lambda s: container.get_user_repository(s))
+    service_registry.register_transient(IChatRepository, lambda s: container.get_chat_repository(s))
+    service_registry.register_transient(IAdminRepository, lambda s: container.get_admin_repository(s))
+    service_registry.register_transient(IMessageRepository, lambda s: container.get_message_repository(s))
+    service_registry.register_transient(IChatLinkRepository, lambda s: container.get_chat_link_repository(s))
+
+    service_registry.register_transient(ModerationService, lambda s: container.get_moderation_service(s))
+    service_registry.register_transient(UserService, lambda s: container.get_user_service(s))
+    service_registry.register_transient(SpamService, lambda s: container.get_spam_service(s))

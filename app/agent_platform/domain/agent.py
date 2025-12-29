@@ -3,13 +3,11 @@ from enum import Enum
 from typing import Any
 from uuid import uuid4
 
-from pydantic import BaseModel, Field
-
 from app.domain.value_objects import UserId
+from pydantic import BaseModel, Field
 
 
 class ModelProvider(str, Enum):
-    OPENAI = "openai"
     OPENROUTER = "openrouter"
 
 

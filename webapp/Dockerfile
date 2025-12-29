@@ -47,8 +47,11 @@ FROM nginx:alpine AS production
 # Copy built assets from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy nginx configuration if exists
-# COPY nginx.conf /etc/nginx/nginx.conf
+# Copy nginx configuration
+COPY nginx.conf /etc/nginx/nginx.conf
+
+# Fix permissions so nginx user can read files
+RUN chmod -R 755 /usr/share/nginx/html
 
 EXPOSE 80
 

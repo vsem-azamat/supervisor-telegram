@@ -5,8 +5,9 @@ from typing import Any, TypeVar
 from aiogram import Bot
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.application.services.agent_service import AgentService
-from app.core.logging import BotLogger
+from app.application.services.moderation_service import ModerationService
+from app.application.services.spam import SpamService
+from app.application.services.user_service import UserService
 from app.core.repository_factory import RepositoryFactory
 
 T = TypeVar("T")
@@ -43,17 +44,30 @@ class ServiceRegistry:
 
         raise ValueError(f"Service {interface} not registered")
 
-    def create_agent_service(self) -> AgentService:
-        """Create agent service with dependencies."""
+    def create_moderation_service(self, session: AsyncSession) -> ModerationService:
+        """Create moderation service with dependencies."""
         if not self.bot:
             raise ValueError("Bot instance not set in ServiceRegistry")
 
-        session = self.session_maker()
-
-        agent_repo = self.repository_factory.get_agent_repository()
         chat_repo = self.repository_factory.create_chat_repository(session)
         user_repo = self.repository_factory.create_user_repository(session)
         message_repo = self.repository_factory.create_message_repository(session)
-        logger = BotLogger("AgentService")
+        spam_service = self.create_spam_service(session)
 
-        return AgentService(agent_repo, chat_repo, user_repo, message_repo, self.bot, logger)
+        return ModerationService(
+            bot=self.bot,
+            chat_repository=chat_repo,
+            message_repository=message_repo,
+            user_repository=user_repo,
+            spam_service=spam_service,
+        )
+
+    def create_user_service(self, session: AsyncSession) -> UserService:
+        """Create user service with dependencies."""
+        user_repo = self.repository_factory.create_user_repository(session)
+        return UserService(user_repo)
+
+    def create_spam_service(self, session: AsyncSession) -> SpamService:
+        """Create spam service with dependencies."""
+        message_repo = self.repository_factory.create_message_repository(session)
+        return SpamService(message_repo)

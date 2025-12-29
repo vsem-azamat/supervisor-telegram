@@ -14,11 +14,11 @@ Main capabilities:
 - Search chats by title or description
 - Analyze statistics for chats and users
 
-Always respond in Russian professionally and constructively.
+Always respond professionally and constructively.
 When performing operations, always report the result.
 If an error occurred, explain what went wrong and suggest alternatives.
 """.strip(),
-    language="ru",
+    language="en",
     temperature=0.7,
     max_tokens=2000,
 )
@@ -38,10 +38,10 @@ Main capabilities:
 - Identify trends in chat behavior
 - Provide actionable recommendations
 
-Always respond in Russian with clear, data-driven insights.
+Always respond with clear, data-driven insights.
 Use numbers and percentages to support your analysis.
 """.strip(),
-    language="ru",
+    language="en",
     temperature=0.3,  # Lower temperature for more factual responses
     max_tokens=4000,
 )

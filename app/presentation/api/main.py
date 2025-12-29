@@ -12,7 +12,7 @@ from app.core.bot_factory import create_bot
 from app.core.config import settings
 from app.core.container import setup_container
 from app.infrastructure.db.session import create_session_maker
-from app.presentation.api.routers import agent, chats
+from app.presentation.api.routers import chats
 
 
 @asynccontextmanager
@@ -35,7 +35,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 app = FastAPI(
-    title="Moderator Bot API",
+    title="Moderator Dashboard API",
     version="1.0.0",
     # Disable automatic redirect for trailing slashes to avoid HTTPS->HTTP redirects
     redirect_slashes=False,
@@ -46,13 +46,13 @@ app = FastAPI(
 allowed_origins = ["http://localhost:3000"]
 if hasattr(settings, "webapp") and settings.webapp.url:
     allowed_origins.append(settings.webapp.url)
-# Allow dynamic ngrok domains through regex because we also need credentials support
-ngrok_origin_regex = r"https://.*\\.ngrok\\.app|https://.*\\.ngrok-free\\.app"
+# Allow dynamic tunnel domains (ngrok and cloudflare)
+tunnel_origin_regex = r"https://.*\.ngrok\.app|https://.*\.ngrok-free\.app|https://.*\.trycloudflare\.com"
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
-    allow_origin_regex=ngrok_origin_regex,
+    allow_origin_regex=tunnel_origin_regex,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
@@ -74,7 +74,6 @@ async def force_https_redirect(request: Request, call_next: Callable[[Request], 
 
 # Include routers
 app.include_router(chats.router, prefix="/api/v1/chats", tags=["chats"])
-app.include_router(agent.router, prefix="/api/v1/agent", tags=["agent"])
 
 
 @app.get("/api/health")

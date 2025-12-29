@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { retrieveLaunchParams } from '@telegram-apps/sdk'
+import { retrieveLaunchParams } from '@tma.js/sdk'
 
 // Telegram WebApp type declaration
 declare global {

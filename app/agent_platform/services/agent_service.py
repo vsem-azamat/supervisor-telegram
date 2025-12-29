@@ -3,19 +3,28 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
-from aiogram import Bot
-from pydantic import BaseModel
-from pydantic_ai import Agent, RunContext
-
-from app.application.services.agent_tools import AgentTools, ChatInfo
-from app.application.services.api_key_manager import with_api_key
+from app.agent_platform.domain.agent import (
+    AgentMetrics,
+    AgentModelConfig,
+    AgentResponse,
+    AgentSession,
+    AgentToolResult,
+    ModelProvider,
+)
+from app.agent_platform.domain.agent_models import OPENROUTER_MODELS
+from app.agent_platform.domain.repositories import IAgentRepository
 from app.core.config import settings
 from app.core.logging import BotLogger
-from app.domain.agent import AgentMetrics, AgentModelConfig, AgentResponse, AgentSession, AgentToolResult, ModelProvider
-from app.domain.agent_models import OPENROUTER_MODELS
 from app.domain.prompts import DEFAULT_SYSTEM_PROMPT
-from app.domain.repositories import IAgentRepository, IChatRepository, IMessageRepository, IUserRepository
+from app.domain.repositories import IChatRepository, IMessageRepository, IUserRepository
 from app.domain.value_objects import UserId
+from mcp import ClientSession
+from mcp.client.sse import sse_client
+from openai import AsyncOpenAI
+from pydantic import BaseModel
+from pydantic_ai import Agent, RunContext
+from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.providers.openai import OpenAIProvider
 
 
 class AgentContext(BaseModel):
@@ -23,7 +32,8 @@ class AgentContext(BaseModel):
 
     user_id: int
     session_id: str
-    tools: AgentTools
+    mcp_session: ClientSession | None = None
+    logger: Any = None
 
 
 class AgentService:
@@ -33,64 +43,60 @@ class AgentService:
         chat_repository: IChatRepository,
         user_repository: IUserRepository,
         message_repository: IMessageRepository,
-        bot: Bot,
         logger: BotLogger,
     ) -> None:
         self.agent_repository = agent_repository
         self.chat_repository = chat_repository
         self.user_repository = user_repository
         self.message_repository = message_repository
-        self.bot = bot
         self.logger = logger
 
-        self.tools = AgentTools(chat_repository, user_repository, message_repository, bot, logger)
         self._agents: dict[str, Agent[AgentContext]] = {}
         self.metrics = AgentMetrics()
 
     def _get_api_credentials(self, model_config: AgentModelConfig) -> tuple[str, str | None]:
         """Get API key and base URL for model configuration."""
-        api_key = None
-        base_url = model_config.base_url
+        if model_config.provider != ModelProvider.OPENROUTER:
+            raise ValueError(f"Only OpenRouter provider is supported. Got: {model_config.provider}")
 
-        if model_config.provider == ModelProvider.OPENAI:
-            if not settings.ai_agent.has_openai_key():
-                raise ValueError(
-                    "OPENAI_API_KEY is not configured in environment variables. Get API key at https://platform.openai.com/api-keys"
-                )
-            api_key = settings.ai_agent.openai_api_key
-            if not base_url and settings.ai_agent.openai_base_url:
-                base_url = settings.ai_agent.openai_base_url
-        elif model_config.provider == ModelProvider.OPENROUTER:
-            if not settings.ai_agent.has_openrouter_key():
-                raise ValueError(
-                    "OPENROUTER_API_KEY is not configured in environment variables. Get API key at https://openrouter.ai/keys"
-                )
-            api_key = settings.ai_agent.openrouter_api_key
-            # OpenRouter uses OpenAI-compatible API
-            if not base_url:
-                base_url = settings.ai_agent.openrouter_base_url or "https://openrouter.ai/api/v1"
-        else:
-            raise ValueError(f"Unsupported provider: {model_config.provider}")
+        if not settings.ai_agent.has_openrouter_key():
+            raise ValueError(
+                "OPENROUTER_API_KEY is not configured in environment variables. Get API key at https://openrouter.ai/keys"
+            )
+
+        api_key = settings.ai_agent.openrouter_api_key
+        base_url = model_config.base_url or settings.ai_agent.openrouter_base_url or "https://openrouter.ai/api/v1"
 
         return api_key, base_url
 
     def _create_agent(self, model_config: AgentModelConfig) -> Agent[AgentContext]:
         """Create PydanticAI agent with specified model configuration."""
+        api_key, base_url = self._get_api_credentials(model_config)
 
-        # For OpenRouter, we need to use 'openai:' prefix to tell PydanticAI
-        # to use OpenAI-compatible client with custom base URL
-        if model_config.provider == ModelProvider.OPENROUTER:
-            model = f"openai:{model_config.model_id}"
-        else:
-            # For OpenAI, use model_id directly
-            model = model_config.model_id
+        self.logger.logger.debug(
+            f"Creating OpenAIModel with model={model_config.model_id}, base_url={base_url}, api_key={api_key[:8]}..."
+        )
 
-        # Don't set environment variables here - use context manager during runtime
+        # Create explicit AsyncOpenAI client for OpenRouter
+        client = AsyncOpenAI(
+            api_key=api_key,
+            base_url=base_url,
+            default_headers={
+                "HTTP-Referer": "https://github.com/vsem-azamat/moderator-bot",
+                "X-Title": "Moderator Bot Agent",
+            },
+        )
 
-        # Get system prompt from centralized registry
+        provider = OpenAIProvider(openai_client=client)
+
+        model = OpenAIModel(
+            model_config.model_id,
+            provider=provider,
+        )
+
         system_prompt = DEFAULT_SYSTEM_PROMPT.content
 
-        agent = Agent(
+        return Agent(
             model,
             deps_type=AgentContext,
             system_prompt=system_prompt,
@@ -100,154 +106,62 @@ class AgentService:
             },
         )
 
-        @agent.tool
-        async def get_all_chats(ctx: RunContext[AgentContext]) -> list[ChatInfo]:
-            """Get list of all managed chats with basic information."""
-            return await ctx.deps.tools.get_all_chats()
+    async def _bind_mcp_tools(self, agent: Agent[AgentContext], mcp_session: ClientSession) -> None:
+        """Fetch tools from MCP server and bind them to the agent."""
+        self.logger.logger.debug("Fetching tools from MCP server...")
+        tools_list = await mcp_session.list_tools()
 
-        @agent.tool
-        async def get_chat_details(ctx: RunContext[AgentContext], chat_id: int) -> ChatInfo | None:
-            """
-            Get detailed information about a specific chat by ID.
+        for tool in tools_list.tools:
+            self.logger.logger.debug(f"Registering MCP tool: {tool.name}")
 
-            Use this to review current chat configuration before making changes.
-            Returns ChatInfo with all settings or None if chat not found.
-            """
-            return await ctx.deps.tools.get_chat_details(chat_id)
+            # Use a factory to avoid closure issues with loop variables
+            def make_tool(t_name: str, t_desc: str) -> Any:
+                async def mcp_tool_wrapper(ctx: RunContext[AgentContext], **kwargs: Any) -> str:
+                    if not ctx.deps.mcp_session:
+                        raise RuntimeError("MCP session not available in context")
 
-        @agent.tool
-        async def update_chat_settings(
-            ctx: RunContext[AgentContext],
-            chat_id: int,
-            title: str | None = None,
-            welcome_text: str | None = None,
-            welcome_enabled: bool | None = None,
-            auto_delete_time: int | None = None,
-            captcha_enabled: bool | None = None,
-            auto_delete_join_leave: bool | None = None,
-        ) -> dict[str, Any]:
-            """
-            Update chat settings: welcome, captcha, auto-delete.
+                    if ctx.deps.logger:
+                        ctx.deps.logger.info(f"Calling MCP tool: {t_name}")
 
-            Parameters:
-            - chat_id: Chat ID (required)
-            - title: New chat title
-            - welcome_text: Welcome message for new members
-            - welcome_enabled: Enable/disable welcome
-            - auto_delete_time: Seconds before auto-delete, 0=disable
-            - captcha_enabled: Enable/disable captcha
-            - auto_delete_join_leave: Auto-delete join/leave notifications
+                    result = await ctx.deps.mcp_session.call_tool(t_name, arguments=kwargs)
 
-            Returns: {success, updated_fields, error}
-            Check 'success' before reporting to user.
-            """
-            return await ctx.deps.tools.update_chat_settings(
-                chat_id, title, welcome_text, welcome_enabled, auto_delete_time, captcha_enabled, auto_delete_join_leave
+                    if result.isError:
+                        error_msg = next((p.text for p in result.content if hasattr(p, "text")), "Unknown error")
+                        if ctx.deps.logger:
+                            ctx.deps.logger.warning(f"MCP tool {t_name} failed: {error_msg}")
+                        return f"Error: {error_msg}"
+
+                    # Extract text from content
+                    text_content = [p.text for p in result.content if hasattr(p, "text")]
+
+                    if not text_content:
+                        # Return a fallback message so the LLM knows the tool ran but returned nothing
+                        return "Tool executed successfully. No text output returned."
+
+                    return "\n".join(text_content)
+
+                mcp_tool_wrapper.__name__ = t_name
+                mcp_tool_wrapper.__doc__ = t_desc or f"MCP tool: {t_name}"
+                return mcp_tool_wrapper
+
+            agent.tool(make_tool(tool.name, tool.description or f"MCP tool: {tool.name}"))
+
+    @asynccontextmanager
+    async def _mcp_context(self, agent: Agent[AgentContext], session: AgentSession) -> AsyncIterator[AgentContext]:
+        """Context manager for MCP session and tool binding."""
+        async with (
+            sse_client(settings.mcp.url) as (read, write),
+            ClientSession(read, write) as mcp_session,
+        ):
+            await mcp_session.initialize()
+            await self._bind_mcp_tools(agent, mcp_session)
+
+            yield AgentContext(
+                user_id=session.user_id.value,
+                session_id=session.id,
+                mcp_session=mcp_session,
+                logger=self.logger.logger,
             )
-
-        @agent.tool
-        async def get_chat_statistics(ctx: RunContext[AgentContext]) -> dict[str, Any]:
-            """
-            Get general statistics across all managed chats.
-
-            Returns counts for total chats, forum vs regular chats, chats with welcome messages,
-            chats with captcha enabled, and total blocked users.
-            Check 'success' field in result to verify operation completed successfully.
-            """
-            return await ctx.deps.tools.get_chat_statistics()
-
-        @agent.tool
-        async def search_chats(
-            ctx: RunContext[AgentContext],
-            query: str = "",
-            search_field: str = "both",
-            config_filters: dict[str, bool | int | None] | None = None,
-        ) -> list[ChatInfo]:
-            """
-            Search and filter chats by various criteria (case-insensitive).
-
-            Parameters:
-            - query: Search term (case-insensitive). Empty string returns all chats if config_filters used.
-            - search_field: Where to search - "title", "description", "both", or "config"
-              * "title" - search only in chat titles
-              * "description" - search only in chat descriptions
-              * "both" - search in both titles and descriptions (default)
-              * "config" - only use config_filters, ignore query
-            - config_filters: Dict of chat config properties to filter by:
-              * is_private: bool - filter by private/public chats
-              * is_forum: bool - filter by forum/regular chats
-              * welcome_enabled: bool - filter by welcome message status
-              * captcha_enabled: bool - filter by captcha status
-              * auto_delete_join_leave: bool - filter by auto-delete join/leave notifications
-              * auto_delete_time: int | None - filter by specific auto-delete time value
-
-            Returns list of matching ChatInfo objects.
-
-            Examples:
-            - search_chats(query="crypto", search_field="title") - search "crypto" in titles only
-            - search_chats(config_filters={"auto_delete_join_leave": True}) - all chats with auto-delete enabled
-            - search_chats(query="education", config_filters={"is_forum": True}) - forums with "education"
-            """
-            return await ctx.deps.tools.search_chats(query, search_field, config_filters)
-
-        @agent.tool
-        async def get_recent_activity(
-            ctx: RunContext[AgentContext], chat_id: int | None = None, hours: int = 24
-        ) -> dict[str, Any]:
-            """
-            Get recent chat activity: messages, active users, spam.
-
-            Parameters:
-            - chat_id: Specific chat or None for all chats
-            - hours: Time window (default 24)
-
-            Returns: {success, message_count, active_users, spam_messages, last_activity, error}
-            """
-            return await ctx.deps.tools.get_recent_activity(chat_id, hours)
-
-        @agent.tool
-        async def get_user_info(
-            ctx: RunContext[AgentContext], user_id: int, chat_id: int | None = None
-        ) -> dict[str, Any]:
-            """
-            Get detailed user info: profile, messages, block status.
-
-            Parameters:
-            - user_id: Telegram user ID (required)
-            - chat_id: Optional chat context
-
-            Returns: {success, username, display_name, is_blocked, total_messages, total_chats, spam_messages, error}
-            """
-            return await ctx.deps.tools.get_user_info(user_id, chat_id)
-
-        @agent.tool
-        async def get_blocked_users(ctx: RunContext[AgentContext], limit: int = 50) -> dict[str, Any]:
-            """
-            Get list of blocked users with details.
-
-            Parameters:
-            - limit: Max users to return (default 50)
-
-            Returns: {success, total_count, users: [{user_id, username, display_name, blocked_at}], error}
-            """
-            return await ctx.deps.tools.get_blocked_users(limit)
-
-        @agent.tool
-        async def get_telegram_chat_info(ctx: RunContext[AgentContext], chat_id: int) -> dict[str, Any]:
-            """
-            Get live chat info from Telegram: description, member count, permissions.
-
-            Use this to get actual chat description from Telegram API.
-            Essential for checking if chat descriptions are up-to-date.
-
-            Parameters:
-            - chat_id: Chat ID (required, must be negative)
-
-            Returns: {success, title, type, description, member_count, username, permissions, error}
-            """
-            return await ctx.deps.tools.get_telegram_chat_info(chat_id)
-
-        return agent
 
     async def create_session(
         self, user_id: int, model_config: AgentModelConfig, title: str | None = None, system_prompt: str | None = None
@@ -319,21 +233,12 @@ class AgentService:
                 f"model={session.agent_config.model_id}, base_url={base_url}"
             )
 
-            # Set API credentials BEFORE creating agent
-            # This ensures PydanticAI reads correct environment when creating OpenAI client
-            with with_api_key(api_key, base_url):
-                # Create or get cached agent INSIDE context with correct env vars
-                agent_key = f"{session.agent_config.provider}_{session.agent_config.model_id}"
-                if agent_key not in self._agents:
-                    self.logger.logger.debug(f"Creating new agent for {agent_key}")
-                    self._agents[agent_key] = self._create_agent(session.agent_config)
+            # Create agent (caching disabled for MCP)
+            agent = self._create_agent(session.agent_config)
+            session.add_message("user", message)
 
-                agent = self._agents[agent_key]
-                session.add_message("user", message)
-
-                # Run agent with correct environment
-                context = AgentContext(user_id=session.user_id.value, session_id=session_id, tools=self.tools)
-                self.logger.logger.debug("API key set, running agent...")
+            async with self._mcp_context(agent, session) as context:
+                self.logger.logger.debug("Running agent...")
                 result = await agent.run(user_prompt=message, deps=context)
             response_text = result.output
             self.logger.logger.info(f"Agent response received: {len(response_text)} characters")
@@ -364,12 +269,9 @@ class AgentService:
 
             execution_time = time.time() - start_time
 
-            if hasattr(result, "usage"):
-                usage = getattr(result, "usage", None)
-                if hasattr(usage, "get") and not callable(usage):
-                    tokens_used = usage.get("total_tokens", None)
-                elif hasattr(usage, "total_tokens"):
-                    tokens_used = getattr(usage, "total_tokens", None)
+            if hasattr(result, "usage") and result.usage is not None:
+                usage = result.usage
+                tokens_used = getattr(usage, "total_tokens", None)
 
             success = True
             response = AgentResponse(
@@ -457,25 +359,42 @@ class AgentService:
                 f"model={session.agent_config.model_id}, base_url={base_url}"
             )
 
-            # Set API credentials and create/get agent
-            with with_api_key(api_key, base_url):
-                agent_key = f"{session.agent_config.provider}_{session.agent_config.model_id}"
-                if agent_key not in self._agents:
-                    self.logger.logger.debug(f"Creating new agent for {agent_key}")
-                    self._agents[agent_key] = self._create_agent(session.agent_config)
+            # Create agent (caching disabled for MCP)
+            agent = self._create_agent(session.agent_config)
+            session.add_message("user", message)
 
-                agent = self._agents[agent_key]
-                session.add_message("user", message)
-
-                # Run agent with streaming
-                context = AgentContext(user_id=session.user_id.value, session_id=session_id, tools=self.tools)
+            async with self._mcp_context(agent, session) as context:
                 self.logger.logger.debug("Starting streaming run...")
-
                 async with agent.run_stream(user_prompt=message, deps=context) as result:
                     # Stream text chunks
-                    async for text_chunk in result.stream_text():
-                        response_text = text_chunk  # Accumulated text
-                        yield response_text
+                    full_response = ""
+
+                    # Hybrid approach: use delta=True for responsiveness
+                    # This allows users to see tokens as they are generated
+                    async for text_chunk in result.stream_text(delta=True):
+                        full_response += text_chunk
+                        yield full_response
+
+                    # If stream yielded nothing (e.g. tools were called first),
+                    # we must explicitly get the final output inside context
+                    if not full_response:
+                        self.logger.logger.debug("Stream yielded no text, fetching final output...")
+                        try:
+                            final_output = await result.get_output()
+                            if final_output:
+                                final_text = str(final_output)
+                                full_response = final_text
+                                yield full_response
+                        except Exception as e:
+                            self.logger.logger.warning(f"Failed to get final output: {e}")
+
+                    # Fallback message if absolutely nothing was generated
+                    if not full_response:
+                        fallback = "I have processed your request."
+                        full_response = fallback
+                        yield fallback
+
+                    response_text = full_response
 
                     # After streaming completes, extract metadata
                     self.logger.logger.info(f"Stream completed: {len(response_text)} characters")
@@ -505,14 +424,18 @@ class AgentService:
                         self.logger.logger.info(
                             f"Agent used {len(tool_results)} tools: {[t.tool_name for t in tool_results]}"
                         )
+                        for t in tool_results:
+                            if t.error:
+                                self.logger.logger.warning(f"Tool {t.tool_name} error: {t.error}")
+                            else:
+                                self.logger.logger.info(
+                                    f"Tool {t.tool_name} success on result: {str(t.result)[:100]}..."
+                                )
 
                     # Extract token usage
-                    if hasattr(result, "usage"):
-                        usage = getattr(result, "usage", None)
-                        if hasattr(usage, "get") and not callable(usage):
-                            tokens_used = usage.get("total_tokens", None)
-                        elif hasattr(usage, "total_tokens"):
-                            tokens_used = getattr(usage, "total_tokens", None)
+                    if hasattr(result, "usage") and result.usage is not None:
+                        usage = result.usage
+                        tokens_used = getattr(usage, "total_tokens", None)
 
             execution_time = time.time() - start_time
             success = True

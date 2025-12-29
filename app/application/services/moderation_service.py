@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 
 class ModerationService:
-    """Moderation domain service."""
+    """Moderation application service."""
 
     def __init__(
         self,
