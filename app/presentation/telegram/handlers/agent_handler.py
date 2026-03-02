@@ -174,6 +174,13 @@ async def handle_escalation_action(
         await callback.answer("Эскалация уже обработана или не найдена")
         return
 
+    # Log admin override if agent's suggestion was different
+    if escalation.decision_id and chosen_action != escalation.suggested_action:
+        from app.agent.memory import AgentMemory
+
+        memory = AgentMemory(db)
+        await memory.set_admin_override(escalation.decision_id, chosen_action)
+
     # Execute admin's chosen action
     action_type = ActionType(chosen_action) if chosen_action in ActionType.__members__.values() else ActionType.IGNORE
 

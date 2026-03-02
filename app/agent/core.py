@@ -39,11 +39,29 @@ def _create_pydantic_agent() -> Agent[AgentDeps, ModerationResult]:
         output_type=ModerationResult,
     )
 
+    # --- Dynamic system prompt: inject admin correction patterns ---
+
+    @agent.system_prompt
+    async def add_correction_context(ctx: RunContext[AgentDeps]) -> str:
+        """Inject recent admin corrections so the agent learns from feedback."""
+        memory = AgentMemory(ctx.deps.db)
+        corrections = await memory.get_recent_corrections(limit=5)
+        if not corrections:
+            return ""
+        lines = ["## Recent admin corrections (learn from these):"]
+        for c in corrections:
+            lines.append(
+                f"- Agent chose '{c.action}' but admin overrode to '{c.admin_override}'. "
+                f"Reason: {c.reason}"
+            )
+        lines.append("\nAdjust your decisions based on these patterns.")
+        return "\n".join(lines)
+
     # --- Tools (information-gathering, not actions) ---
 
     @agent.tool
     async def get_user_moderation_history(ctx: RunContext[AgentDeps]) -> str:
-        """Check if this user has been reported or moderated before. Returns previous decisions."""
+        """Check if this user has been reported or moderated before. Returns previous decisions including admin overrides."""
         memory = AgentMemory(ctx.deps.db)
         history = await memory.get_user_history(ctx.deps.event.target_user_id, limit=5)
         if not history:
@@ -51,7 +69,8 @@ def _create_pydantic_agent() -> Agent[AgentDeps, ModerationResult]:
         lines = []
         for d in history:
             date_str = d.created_at.strftime("%Y-%m-%d") if d.created_at else "unknown"
-            lines.append(f"- {d.action}: {d.reason} ({date_str})")
+            override = f" [ADMIN OVERRIDE → {d.admin_override}]" if d.admin_override else ""
+            lines.append(f"- {d.action}: {d.reason} ({date_str}){override}")
         return "\n".join(lines)
 
     @agent.tool
@@ -64,7 +83,46 @@ def _create_pydantic_agent() -> Agent[AgentDeps, ModerationResult]:
         lines = []
         for d in history:
             date_str = d.created_at.strftime("%Y-%m-%d") if d.created_at else "unknown"
-            lines.append(f"- user {d.target_user_id}: {d.action} — {d.reason} ({date_str})")
+            override = f" [OVERRIDE → {d.admin_override}]" if d.admin_override else ""
+            lines.append(f"- user {d.target_user_id}: {d.action} — {d.reason} ({date_str}){override}")
+        return "\n".join(lines)
+
+    @agent.tool
+    async def get_user_risk_profile(ctx: RunContext[AgentDeps]) -> str:
+        """Get aggregate risk profile for the reported user: total reports, distinct reporters, cross-chat activity, action history."""
+        memory = AgentMemory(ctx.deps.db)
+        profile = await memory.get_user_risk_profile(ctx.deps.event.target_user_id)
+
+        if profile.total_reports == 0:
+            return "No prior reports for this user — first-time report."
+
+        lines = [
+            f"Total reports: {profile.total_reports}",
+            f"Distinct reporters: {profile.distinct_reporters}",
+            f"Reported in {profile.distinct_chats} different chat(s)",
+            f"Admin overrides: {profile.overridden_count}",
+        ]
+        if profile.actions_taken:
+            breakdown = ", ".join(f"{k}: {v}" for k, v in profile.actions_taken.items())
+            lines.append(f"Action breakdown: {breakdown}")
+        if profile.last_action:
+            lines.append(f"Last action: {profile.last_action}")
+        return "\n".join(lines)
+
+    @agent.tool
+    async def get_admin_corrections(ctx: RunContext[AgentDeps]) -> str:
+        """Get recent cases where admin overrode the agent's decision — use to calibrate your judgement."""
+        memory = AgentMemory(ctx.deps.db)
+        corrections = await memory.get_recent_corrections(limit=5)
+        if not corrections:
+            return "No admin corrections recorded yet."
+        lines = []
+        for c in corrections:
+            date_str = c.created_at.strftime("%Y-%m-%d") if c.created_at else "unknown"
+            lines.append(
+                f"- Agent: {c.action} → Admin: {c.admin_override} | "
+                f"Reason: {c.reason} ({date_str})"
+            )
         return "\n".join(lines)
 
     return agent
@@ -98,16 +156,16 @@ class AgentCore:
                 suggested_action="ignore",
             )
 
-        # Execute the decided action
-        await self._execute(decision, event, bot, db)
-
-        # Log to memory
+        # Log to memory BEFORE execution so decision_id is available for escalation
         memory = AgentMemory(db)
-        await memory.log_decision(
+        db_decision = await memory.log_decision(
             event=event,
             action=decision.action,
             reason=decision.reason,
         )
+
+        # Execute the decided action (passes decision_id for escalation linkage)
+        await self._execute(decision, event, bot, db, decision_id=db_decision.id)
 
         logger.info(
             "Agent decision",
@@ -115,6 +173,7 @@ class AgentCore:
             action=decision.action,
             chat_id=event.chat_id,
             target=event.target_user_id,
+            decision_id=db_decision.id,
         )
 
         return decision
@@ -161,6 +220,7 @@ class AgentCore:
         event: AgentEvent,
         bot: Bot,
         db: AsyncSession,
+        decision_id: int | None = None,
     ) -> None:
         """Execute the moderation action."""
         action = ActionType(decision.action)
@@ -176,7 +236,7 @@ class AgentCore:
             case ActionType.BLACKLIST:
                 await self._do_blacklist(event, bot, db, decision.revoke_messages)
             case ActionType.ESCALATE:
-                await self._do_escalate(event, bot, db, decision)
+                await self._do_escalate(event, bot, db, decision, decision_id)
             case ActionType.IGNORE:
                 pass
 
@@ -232,7 +292,12 @@ class AgentCore:
             logger.error("Blacklist failed", error=str(e), user=event.target_user_id)
 
     async def _do_escalate(
-        self, event: AgentEvent, bot: Bot, db: AsyncSession, decision: ModerationResult
+        self,
+        event: AgentEvent,
+        bot: Bot,
+        db: AsyncSession,
+        decision: ModerationResult,
+        decision_id: int | None = None,
     ) -> None:
         escalation_svc = EscalationService(bot, db)
         suggested = decision.suggested_action or "ignore"
@@ -241,6 +306,7 @@ class AgentCore:
                 event=event,
                 reason=decision.reason,
                 suggested_action=suggested,
+                decision_id=decision_id,
             )
         except Exception as e:
             logger.error("Escalation failed", error=str(e))

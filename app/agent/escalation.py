@@ -164,7 +164,7 @@ class EscalationService:
         return await self.bot.send_message(admin_chat_id, text, reply_markup=builder.as_markup())
 
     async def _timeout_handler(self, escalation_id: int, timeout_seconds: int) -> None:
-        """Handle escalation timeout — execute default action."""
+        """Handle escalation timeout — execute default action and log as decision."""
         try:
             await asyncio.sleep(timeout_seconds)
         except asyncio.CancelledError:
@@ -182,10 +182,18 @@ class EscalationService:
         if not escalation:
             return
 
+        default_action = settings.agent.default_timeout_action
         escalation.status = "timeout"
-        escalation.resolved_action = settings.agent.default_timeout_action
+        escalation.resolved_action = default_action
         escalation.resolved_at = datetime.datetime.now(tz=datetime.UTC)
         await self.db.commit()
+
+        # Log timeout outcome as an admin override on the original decision
+        if escalation.decision_id:
+            from app.agent.memory import AgentMemory
+
+            memory = AgentMemory(self.db)
+            await memory.set_admin_override(escalation.decision_id, f"timeout:{default_action}")
 
         _timeout_tasks.pop(escalation_id, None)
 
@@ -195,7 +203,7 @@ class EscalationService:
                 await self.bot.send_message(
                     escalation.admin_chat_id,
                     f"⏰ Эскалация #{escalation_id} истекла. "
-                    f"Действие: <b>{settings.agent.default_timeout_action}</b>",
+                    f"Действие: <b>{default_action}</b>",
                     reply_to_message_id=escalation.admin_message_id,
                 )
             except Exception as e:
