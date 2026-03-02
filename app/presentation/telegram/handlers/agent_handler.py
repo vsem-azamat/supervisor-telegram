@@ -54,11 +54,11 @@ async def _collect_context(
 ) -> list[dict[str, str]]:
     """Collect recent messages from the target user for LLM context."""
     try:
-        messages = await message_repo.get_user_messages(target_user_id, limit=10)
+        messages = await message_repo.get_user_messages(target_user_id, chat_id=chat_id)
         return [
-            {"text": msg.message or "[no text]", "chat_id": str(msg.chat_id)}
+            {"text": msg.content or "[no text]", "chat_id": str(msg.chat_id)}
             for msg in messages
-            if msg.chat_id == chat_id and msg.message
+            if msg.content
         ][:5]
     except Exception:
         return []

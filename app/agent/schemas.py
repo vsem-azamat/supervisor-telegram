@@ -4,9 +4,13 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, Field
+
+if TYPE_CHECKING:
+    from aiogram import Bot
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class EventType(StrEnum):
@@ -56,9 +60,6 @@ class ModerationResult(BaseModel):
 @dataclass
 class AgentDeps:
     """Dependencies injected into PydanticAI agent at runtime."""
-
-    from aiogram import Bot
-    from sqlalchemy.ext.asyncio import AsyncSession
 
     bot: Bot
     db: AsyncSession

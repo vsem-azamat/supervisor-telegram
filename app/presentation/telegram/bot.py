@@ -71,8 +71,11 @@ async def main() -> None:
     agent_core = None
     if settings.agent.enabled and settings.agent.openrouter_api_key:
         from app.agent.core import AgentCore
+        from app.agent.escalation import EscalationService
 
         agent_core = AgentCore()
+        EscalationService.set_session_maker(session_maker)
+        await EscalationService.recover_stale_escalations(session_maker)
         logger.info("Agent enabled", model=settings.agent.model)
     else:
         logger.info("Agent disabled (set AGENT_ENABLED=true and AGENT_OPENROUTER_API_KEY)")

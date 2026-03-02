@@ -8,7 +8,9 @@ from app.infrastructure.db.repositories import (
     MessageRepository,
     UserRepository,
 )
-from app.presentation.telegram.logger import logger
+from app.core.logging import get_logger
+
+logger = get_logger("moderation")
 
 
 async def add_to_blacklist(

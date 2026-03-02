@@ -7,7 +7,7 @@ from aiogram import Bot
 from aiogram.types import Message as TgMessage
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.agent.schemas import AgentEvent
 from app.core.config import settings
@@ -22,6 +22,14 @@ _timeout_tasks: dict[int, asyncio.Task[None]] = {}
 
 class EscalationService:
     """Manages escalations to super admin."""
+
+    # Session maker for background tasks (set once at startup)
+    _session_maker: async_sessionmaker[AsyncSession] | None = None
+
+    @classmethod
+    def set_session_maker(cls, session_maker: async_sessionmaker[AsyncSession]) -> None:
+        """Set the session maker for background tasks (called at bot startup)."""
+        cls._session_maker = session_maker
 
     def __init__(self, bot: Bot, db: AsyncSession) -> None:
         self.bot = bot
@@ -52,6 +60,10 @@ class EscalationService:
         await self.db.refresh(escalation)
 
         # Send to first super admin
+        if not settings.admin.super_admins:
+            logger.error("No super admins configured, cannot send escalation")
+            return escalation
+
         admin_chat_id = settings.admin.super_admins[0]
         message = await self._send_escalation_message(escalation, event, admin_chat_id)
 
@@ -60,7 +72,9 @@ class EscalationService:
         await self.db.commit()
 
         # Start timeout task
-        task = asyncio.create_task(self._timeout_handler(escalation.id, timeout_minutes * 60))
+        task = asyncio.create_task(
+            self._timeout_handler(escalation.id, timeout_minutes * 60)
+        )
         _timeout_tasks[escalation.id] = task
 
         logger.info(
@@ -116,6 +130,26 @@ class EscalationService:
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
+    @classmethod
+    async def recover_stale_escalations(cls, session_maker: async_sessionmaker[AsyncSession]) -> None:
+        """On startup, mark stale pending escalations as timed out."""
+        async with session_maker() as db:
+            now = datetime.datetime.now(tz=datetime.UTC)
+            stmt = select(AgentEscalation).where(
+                AgentEscalation.status == "pending",
+                AgentEscalation.timeout_at < now,
+            )
+            result = await db.execute(stmt)
+            stale = result.scalars().all()
+
+            for esc in stale:
+                esc.status = "timeout"
+                esc.resolved_action = settings.agent.default_timeout_action
+                esc.resolved_at = now
+            if stale:
+                await db.commit()
+                logger.info("Recovered stale escalations", count=len(stale))
+
     async def _send_escalation_message(
         self,
         escalation: AgentEscalation,
@@ -164,7 +198,7 @@ class EscalationService:
         return await self.bot.send_message(admin_chat_id, text, reply_markup=builder.as_markup())
 
     async def _timeout_handler(self, escalation_id: int, timeout_seconds: int) -> None:
-        """Handle escalation timeout — execute default action and log as decision."""
+        """Handle escalation timeout — uses its own DB session to avoid stale session issues."""
         try:
             await asyncio.sleep(timeout_seconds)
         except asyncio.CancelledError:
@@ -172,28 +206,33 @@ class EscalationService:
 
         logger.info("Escalation timed out", escalation_id=escalation_id)
 
-        stmt = select(AgentEscalation).where(
-            AgentEscalation.id == escalation_id,
-            AgentEscalation.status == "pending",
-        )
-        result = await self.db.execute(stmt)
-        escalation = result.scalar_one_or_none()
-
-        if not escalation:
+        if not self._session_maker:
+            logger.error("No session maker configured for timeout handler")
             return
 
-        default_action = settings.agent.default_timeout_action
-        escalation.status = "timeout"
-        escalation.resolved_action = default_action
-        escalation.resolved_at = datetime.datetime.now(tz=datetime.UTC)
-        await self.db.commit()
+        async with self._session_maker() as db:
+            stmt = select(AgentEscalation).where(
+                AgentEscalation.id == escalation_id,
+                AgentEscalation.status == "pending",
+            )
+            result = await db.execute(stmt)
+            escalation = result.scalar_one_or_none()
 
-        # Log timeout outcome as an admin override on the original decision
-        if escalation.decision_id:
-            from app.agent.memory import AgentMemory
+            if not escalation:
+                return
 
-            memory = AgentMemory(self.db)
-            await memory.set_admin_override(escalation.decision_id, f"timeout:{default_action}")
+            default_action = settings.agent.default_timeout_action
+            escalation.status = "timeout"
+            escalation.resolved_action = default_action
+            escalation.resolved_at = datetime.datetime.now(tz=datetime.UTC)
+            await db.commit()
+
+            # Log timeout outcome as an admin override on the original decision
+            if escalation.decision_id:
+                from app.agent.memory import AgentMemory
+
+                memory = AgentMemory(db)
+                await memory.set_admin_override(escalation.decision_id, f"timeout:{default_action}")
 
         _timeout_tasks.pop(escalation_id, None)
 

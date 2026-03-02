@@ -243,7 +243,12 @@ class AgentCore:
     async def _do_mute(self, event: AgentEvent, bot: Bot, duration_minutes: int) -> None:
         permissions = types.ChatPermissions(
             can_send_messages=False,
-            can_send_media_messages=False,
+            can_send_audios=False,
+            can_send_documents=False,
+            can_send_photos=False,
+            can_send_videos=False,
+            can_send_video_notes=False,
+            can_send_voice_notes=False,
             can_send_polls=False,
             can_send_other_messages=False,
         )

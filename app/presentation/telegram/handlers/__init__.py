@@ -16,6 +16,7 @@ admin.admin_router.message.middleware(chat_type_middlewares.ChatTypeMiddleware([
 admin.admin_router.message.middleware(admin_middlewares.SuperAdminMiddleware())
 groups.groups_router.message.middleware(chat_type_middlewares.ChatTypeMiddleware(["group", "supergroup"]))
 service.router.message.middleware(admin_middlewares.AdminMiddleware())
+agent_handler.agent_router.message.middleware(chat_type_middlewares.ChatTypeMiddleware(["group", "supergroup"]))
 
 # Agent router first — /report and /spam go through LLM agent
 router.include_router(agent_handler.agent_router)
