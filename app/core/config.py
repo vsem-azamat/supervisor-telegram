@@ -116,6 +116,25 @@ class WebAppSettings(BaseSettings):
     )
 
 
+class AgentSettings(BaseSettings):
+    """AI agent configuration."""
+
+    openrouter_api_key: str = Field(default="", description="OpenRouter API key")
+    model: str = Field(default="google/gemini-2.0-flash-001", description="LLM model to use via OpenRouter")
+    temperature: float = Field(default=0.3, description="LLM temperature")
+    escalation_timeout_minutes: int = Field(default=30, description="Minutes before escalation times out")
+    default_timeout_action: str = Field(default="ignore", description="Default action on escalation timeout")
+    enabled: bool = Field(default=False, description="Whether the agent is enabled")
+
+    model_config = SettingsConfigDict(
+        env_prefix="AGENT_",
+        case_sensitive=False,
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
 class AppSettings(BaseSettings):
     """Main application settings."""
 
@@ -128,6 +147,7 @@ class AppSettings(BaseSettings):
     admin: AdminSettings = Field(default_factory=AdminSettings)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
     webapp: WebAppSettings = Field(default_factory=WebAppSettings)
+    agent: AgentSettings = Field(default_factory=AgentSettings)
 
     model_config = SettingsConfigDict(
         env_file=".env",

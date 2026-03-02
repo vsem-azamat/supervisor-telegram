@@ -25,6 +25,8 @@ dependencies = [
     "python-dotenv",
     "structlog>=23.2",
     "pytz>=2024.1",
+    "pydantic-ai[openai]>=0.2",
+    "httpx>=0.27",
 ]
 
 [build-system]
@@ -235,6 +237,16 @@ warn_return_any = false
 module = "app.infrastructure.db.repositories.*"
 # Allow dict without type args for now (gradual improvement)
 disallow_any_generics = false
+
+# Agent module — PydanticAI and dynamic patterns
+[[tool.mypy.overrides]]
+module = "app.agent.*"
+disable_error_code = ["union-attr", "arg-type"]
+disallow_any_generics = false
+
+[[tool.mypy.overrides]]
+module = ["pydantic_ai.*", "openai.*"]
+ignore_missing_imports = true
 
 [dependency-groups]
 dev = [

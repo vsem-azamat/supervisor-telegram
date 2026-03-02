@@ -7,7 +7,7 @@ from app.presentation.telegram.middlewares import (
     chat_type as chat_type_middlewares,
 )
 
-from . import admin, groups, moderation, service, start, webapp
+from . import admin, agent_handler, groups, moderation, service, start, webapp
 
 router = Router()
 
@@ -17,6 +17,8 @@ admin.admin_router.message.middleware(admin_middlewares.SuperAdminMiddleware())
 groups.groups_router.message.middleware(chat_type_middlewares.ChatTypeMiddleware(["group", "supergroup"]))
 service.router.message.middleware(admin_middlewares.AdminMiddleware())
 
+# Agent router first — /report and /spam go through LLM agent
+router.include_router(agent_handler.agent_router)
 router.include_router(moderation.moderation_router)
 router.include_router(start.router)
 router.include_router(admin.admin_router)

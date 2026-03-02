@@ -239,3 +239,86 @@ class Message(Base):
     def is_spam(self) -> bool:
         """Check if message is marked as spam"""
         return self.spam
+
+
+class AgentDecision(Base):
+    __tablename__ = "agent_decisions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    event_type: Mapped[str] = mapped_column(String(32))
+    chat_id: Mapped[int] = mapped_column(BigInteger)
+    message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    target_user_id: Mapped[int] = mapped_column(BigInteger)
+    reporter_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    message_text: Mapped[str | None] = mapped_column(String, nullable=True)
+    action: Mapped[str] = mapped_column(String(32))
+    reason: Mapped[str] = mapped_column(String)
+    confidence: Mapped[float | None] = mapped_column(default=None)
+    admin_override: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.now)
+
+    def __init__(
+        self,
+        event_type: str,
+        chat_id: int,
+        target_user_id: int,
+        action: str,
+        reason: str,
+        message_id: int | None = None,
+        reporter_id: int | None = None,
+        message_text: str | None = None,
+        confidence: float | None = None,
+        admin_override: str | None = None,
+    ) -> None:
+        self.event_type = event_type
+        self.chat_id = chat_id
+        self.target_user_id = target_user_id
+        self.action = action
+        self.reason = reason
+        self.message_id = message_id
+        self.reporter_id = reporter_id
+        self.message_text = message_text
+        self.confidence = confidence
+        self.admin_override = admin_override
+
+
+class AgentEscalation(Base):
+    __tablename__ = "agent_escalations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    decision_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    chat_id: Mapped[int] = mapped_column(BigInteger)
+    target_user_id: Mapped[int] = mapped_column(BigInteger)
+    message_text: Mapped[str | None] = mapped_column(String, nullable=True)
+    suggested_action: Mapped[str] = mapped_column(String(32))
+    reason: Mapped[str] = mapped_column(String)
+    admin_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    admin_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    status: Mapped[str] = mapped_column(String(16), default="pending")
+    resolved_action: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    resolved_by: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    resolved_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    timeout_at: Mapped[datetime.datetime] = mapped_column(DateTime)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.now)
+
+    def __init__(
+        self,
+        chat_id: int,
+        target_user_id: int,
+        suggested_action: str,
+        reason: str,
+        timeout_at: datetime.datetime,
+        decision_id: int | None = None,
+        message_text: str | None = None,
+        admin_message_id: int | None = None,
+        admin_chat_id: int | None = None,
+    ) -> None:
+        self.chat_id = chat_id
+        self.target_user_id = target_user_id
+        self.suggested_action = suggested_action
+        self.reason = reason
+        self.timeout_at = timeout_at
+        self.decision_id = decision_id
+        self.message_text = message_text
+        self.admin_message_id = admin_message_id
+        self.admin_chat_id = admin_chat_id

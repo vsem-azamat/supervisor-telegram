@@ -67,8 +67,18 @@ async def main() -> None:
     # Setup dependency injection
     setup_container(session_maker, bot)
 
+    # Create agent (singleton, shared across requests) — lazy import to avoid circular deps
+    agent_core = None
+    if settings.agent.enabled and settings.agent.openrouter_api_key:
+        from app.agent.core import AgentCore
+
+        agent_core = AgentCore()
+        logger.info("Agent enabled", model=settings.agent.model)
+    else:
+        logger.info("Agent disabled (set AGENT_ENABLED=true and AGENT_OPENROUTER_API_KEY)")
+
     # Setup middlewares
-    dp.update.middleware(DependenciesMiddleware(session_pool=session_maker, bot=bot))
+    dp.update.middleware(DependenciesMiddleware(session_pool=session_maker, bot=bot, agent_core=agent_core))
     dp.update.middleware(ManagedChatsMiddleware())
     dp.update.middleware(HistoryMiddleware())
     dp.message.middleware(BlacklistMiddleware())

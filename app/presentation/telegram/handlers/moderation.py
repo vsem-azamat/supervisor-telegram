@@ -207,7 +207,7 @@ async def full_ban(message: types.Message, message_repo: MessageRepository, db: 
     await message.delete()
 
 
-@moderation_router.message(Command("spam", prefix="!/"))
+@moderation_router.message(Command("spam", prefix="!"))
 async def label_spam(message: types.Message, message_repo: MessageRepository, db: AsyncSession) -> None:
     if not message.reply_to_message:
         answer = await message.answer(reply_required_error("пометить как спам"))
