@@ -40,24 +40,27 @@ def pg_container():
 @pytest.fixture(scope="session")
 def pg_url(pg_container) -> str:
     """Get async connection URL from the running container."""
-    # testcontainers gives psycopg2 URL; convert to asyncpg
     url = pg_container.get_connection_url()
     return url.replace("psycopg2", "asyncpg")
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture()
 async def pg_engine(pg_url: str):
-    """Create async engine connected to testcontainers PostgreSQL."""
+    """Create async engine per-test to avoid event loop issues."""
     engine = create_async_engine(pg_url, echo=False)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield engine
+    # Clean up all tables
+    async with engine.begin() as conn:
+        for table in reversed(Base.metadata.sorted_tables):
+            await conn.execute(table.delete())
     await engine.dispose()
 
 
 @pytest_asyncio.fixture()
 async def pg_session(pg_engine: AsyncEngine):
-    """Per-test session with automatic rollback for isolation."""
+    """Per-test async session."""
     factory = async_sessionmaker(
         bind=pg_engine,
         class_=AsyncSession,
@@ -65,12 +68,7 @@ async def pg_session(pg_engine: AsyncEngine):
         expire_on_commit=False,
     )
     async with factory() as session:
-        tx = await session.begin_nested()
-        try:
-            yield session
-        finally:
-            if tx.is_active:
-                await tx.rollback()
+        yield session
 
 
 @pytest_asyncio.fixture()
