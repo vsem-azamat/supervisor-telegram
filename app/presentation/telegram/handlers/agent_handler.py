@@ -69,11 +69,11 @@ async def handle_report(
     message: types.Message,
     bot: Bot,
     db: AsyncSession,
-    agent_core: AgentCore,
     message_repo: MessageRepository,
+    agent_core: AgentCore | None = None,
 ) -> None:
     """Handle /report and /spam — trigger agent analysis."""
-    if not settings.agent.enabled:
+    if not settings.agent.enabled or agent_core is None:
         answer = await message.answer("🤖 Агент отключён.")
         await message.delete()
         await sleep_and_delete(answer, 10)
@@ -137,10 +137,10 @@ async def handle_escalation_action(
     callback: types.CallbackQuery,
     bot: Bot,
     db: AsyncSession,
-    agent_core: AgentCore,
+    agent_core: AgentCore | None = None,
 ) -> None:
     """Handle admin's response to an escalation."""
-    if not callback.data or not callback.from_user:
+    if not callback.data or not callback.from_user or agent_core is None:
         await callback.answer("Ошибка")
         return
 
