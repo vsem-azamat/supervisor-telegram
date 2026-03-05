@@ -76,6 +76,10 @@ ignore = [
     "SIM117",  # nested with statements (common in test assertions)
     "E402",    # module level import not at top (pytest fixtures)
     "N815",    # mixed case variable name (test data)
+    "N802",    # camelCase method names (matching Telegram API methods in fakes)
+    "N806",    # uppercase variable names in functions (test constants)
+    "S106",    # hardcoded passwords (test tokens)
+    "S110",    # try-except-pass (docker availability check)
     "PLR2004", # magic value used in comparison
 ]
 
@@ -261,6 +265,7 @@ dev = [
     "watchfiles>=0.21",
     "psutil",
     "types-pytz>=2025.2.0.20250809",
+    "testcontainers[postgres]>=4.14.1",
 ]
 
 [tool.pytest.ini_options]

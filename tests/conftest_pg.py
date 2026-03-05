@@ -1,0 +1,84 @@
+"""PostgreSQL test fixtures using testcontainers.
+
+Provides a real PostgreSQL database for integration/e2e tests.
+Requires Docker access (user must be in 'docker' group).
+
+Usage in tests:
+    @pytest.mark.integration
+    async def test_something(pg_session: AsyncSession):
+        ...
+"""
+
+import pytest
+import pytest_asyncio
+from app.infrastructure.db.base import Base
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+
+# Skip entire module if docker is unavailable
+_docker_available = False
+try:
+    import docker
+
+    client = docker.from_env()
+    client.ping()
+    _docker_available = True
+except Exception:
+    pass
+
+pytestmark = pytest.mark.skipif(not _docker_available, reason="Docker not available")
+
+
+@pytest.fixture(scope="session")
+def pg_container():
+    """Start a PostgreSQL container for the test session."""
+    from testcontainers.postgres import PostgresContainer
+
+    with PostgresContainer("postgres:17", driver="asyncpg") as pg:
+        yield pg
+
+
+@pytest.fixture(scope="session")
+def pg_url(pg_container) -> str:
+    """Get async connection URL from the running container."""
+    # testcontainers gives psycopg2 URL; convert to asyncpg
+    url = pg_container.get_connection_url()
+    return url.replace("psycopg2", "asyncpg")
+
+
+@pytest_asyncio.fixture(scope="session")
+async def pg_engine(pg_url: str):
+    """Create async engine connected to testcontainers PostgreSQL."""
+    engine = create_async_engine(pg_url, echo=False)
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield engine
+    await engine.dispose()
+
+
+@pytest_asyncio.fixture()
+async def pg_session(pg_engine: AsyncEngine):
+    """Per-test session with automatic rollback for isolation."""
+    factory = async_sessionmaker(
+        bind=pg_engine,
+        class_=AsyncSession,
+        autoflush=False,
+        expire_on_commit=False,
+    )
+    async with factory() as session:
+        tx = await session.begin_nested()
+        try:
+            yield session
+        finally:
+            if tx.is_active:
+                await tx.rollback()
+
+
+@pytest_asyncio.fixture()
+async def pg_session_maker(pg_engine: AsyncEngine):
+    """Session maker factory — used where code needs to create its own sessions."""
+    return async_sessionmaker(
+        bind=pg_engine,
+        class_=AsyncSession,
+        autoflush=False,
+        expire_on_commit=False,
+    )
