@@ -5,15 +5,11 @@ database (not SQLite), catching dialect-specific issues.
 """
 
 import pytest
-import pytest_asyncio
 from app.domain.entities import AdminEntity, ChatEntity, UserEntity
 from app.infrastructure.db.repositories.admin import AdminRepository
 from app.infrastructure.db.repositories.chat import ChatRepository
 from app.infrastructure.db.repositories.user import UserRepository
 from sqlalchemy.ext.asyncio import AsyncSession
-
-# Import pg fixtures
-from tests.conftest_pg import pg_container, pg_url, pg_engine, pg_session, pg_session_maker  # noqa: F401
 
 
 @pytest.mark.integration

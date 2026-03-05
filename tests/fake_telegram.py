@@ -92,114 +92,124 @@ class FakeTelegramServer:
         # Generic success for unknown methods
         return web.json_response({"ok": True, "result": True})
 
-    def _handle_getMe(self, params: dict) -> web.Response:
-        return web.json_response({
-            "ok": True,
-            "result": {
-                "id": 5145935834,
-                "is_bot": True,
-                "first_name": "Test Bot",
-                "username": "test_bot",
-                "can_join_groups": True,
-                "can_read_all_group_messages": True,
-                "supports_inline_queries": False,
-            },
-        })
+    def _handle_getMe(self, params: dict[str, Any]) -> web.Response:
+        return web.json_response(
+            {
+                "ok": True,
+                "result": {
+                    "id": 5145935834,
+                    "is_bot": True,
+                    "first_name": "Test Bot",
+                    "username": "test_bot",
+                    "can_join_groups": True,
+                    "can_read_all_group_messages": True,
+                    "supports_inline_queries": False,
+                },
+            }
+        )
 
-    def _handle_deleteWebhook(self, params: dict) -> web.Response:
+    def _handle_deleteWebhook(self, params: dict[str, Any]) -> web.Response:
         return web.json_response({"ok": True, "result": True})
 
-    def _handle_sendMessage(self, params: dict) -> web.Response:
+    def _handle_sendMessage(self, params: dict[str, Any]) -> web.Response:
         self._message_id_counter += 1
-        return web.json_response({
-            "ok": True,
-            "result": {
-                "message_id": self._message_id_counter,
-                "from": {"id": 5145935834, "is_bot": True, "first_name": "Test Bot"},
-                "chat": {
-                    "id": int(params.get("chat_id", 0)),
-                    "type": "supergroup",
-                    "title": "Test Chat",
+        return web.json_response(
+            {
+                "ok": True,
+                "result": {
+                    "message_id": self._message_id_counter,
+                    "from": {"id": 5145935834, "is_bot": True, "first_name": "Test Bot"},
+                    "chat": {
+                        "id": int(params.get("chat_id", 0)),
+                        "type": "supergroup",
+                        "title": "Test Chat",
+                    },
+                    "date": 1700000000,
+                    "text": params.get("text", ""),
                 },
-                "date": 1700000000,
-                "text": params.get("text", ""),
-            },
-        })
+            }
+        )
 
-    def _handle_editMessageText(self, params: dict) -> web.Response:
-        return web.json_response({
-            "ok": True,
-            "result": {
-                "message_id": int(params.get("message_id", 1)),
-                "from": {"id": 5145935834, "is_bot": True, "first_name": "Test Bot"},
-                "chat": {
-                    "id": int(params.get("chat_id", 0)),
-                    "type": "supergroup",
-                    "title": "Test Chat",
+    def _handle_editMessageText(self, params: dict[str, Any]) -> web.Response:
+        return web.json_response(
+            {
+                "ok": True,
+                "result": {
+                    "message_id": int(params.get("message_id", 1)),
+                    "from": {"id": 5145935834, "is_bot": True, "first_name": "Test Bot"},
+                    "chat": {
+                        "id": int(params.get("chat_id", 0)),
+                        "type": "supergroup",
+                        "title": "Test Chat",
+                    },
+                    "date": 1700000000,
+                    "text": params.get("text", ""),
                 },
-                "date": 1700000000,
-                "text": params.get("text", ""),
-            },
-        })
+            }
+        )
 
-    def _handle_deleteMessage(self, params: dict) -> web.Response:
+    def _handle_deleteMessage(self, params: dict[str, Any]) -> web.Response:
         return web.json_response({"ok": True, "result": True})
 
-    def _handle_restrictChatMember(self, params: dict) -> web.Response:
+    def _handle_restrictChatMember(self, params: dict[str, Any]) -> web.Response:
         return web.json_response({"ok": True, "result": True})
 
-    def _handle_banChatMember(self, params: dict) -> web.Response:
+    def _handle_banChatMember(self, params: dict[str, Any]) -> web.Response:
         return web.json_response({"ok": True, "result": True})
 
-    def _handle_unbanChatMember(self, params: dict) -> web.Response:
+    def _handle_unbanChatMember(self, params: dict[str, Any]) -> web.Response:
         return web.json_response({"ok": True, "result": True})
 
-    def _handle_answerCallbackQuery(self, params: dict) -> web.Response:
+    def _handle_answerCallbackQuery(self, params: dict[str, Any]) -> web.Response:
         return web.json_response({"ok": True, "result": True})
 
-    def _handle_getChatAdministrators(self, params: dict) -> web.Response:
+    def _handle_getChatAdministrators(self, params: dict[str, Any]) -> web.Response:
         chat_id = int(params.get("chat_id", 0))
         admin_ids = self._chat_admins.get(chat_id, [123456789])
         admins = []
         for uid in admin_ids:
-            admins.append({
-                "user": {
-                    "id": uid,
-                    "is_bot": False,
-                    "first_name": f"Admin{uid}",
-                },
-                "status": "administrator",
-                "can_be_edited": False,
-                "can_manage_chat": True,
-                "can_change_info": True,
-                "can_delete_messages": True,
-                "can_invite_users": True,
-                "can_restrict_members": True,
-                "can_pin_messages": True,
-                "can_promote_members": False,
-                "can_manage_video_chats": True,
-                "can_post_stories": True,
-                "can_edit_stories": True,
-                "can_delete_stories": True,
-                "can_manage_topics": True,
-                "is_anonymous": False,
-            })
+            admins.append(
+                {
+                    "user": {
+                        "id": uid,
+                        "is_bot": False,
+                        "first_name": f"Admin{uid}",
+                    },
+                    "status": "administrator",
+                    "can_be_edited": False,
+                    "can_manage_chat": True,
+                    "can_change_info": True,
+                    "can_delete_messages": True,
+                    "can_invite_users": True,
+                    "can_restrict_members": True,
+                    "can_pin_messages": True,
+                    "can_promote_members": False,
+                    "can_manage_video_chats": True,
+                    "can_post_stories": True,
+                    "can_edit_stories": True,
+                    "can_delete_stories": True,
+                    "can_manage_topics": True,
+                    "is_anonymous": False,
+                }
+            )
         return web.json_response({"ok": True, "result": admins})
 
-    def _handle_getChatMember(self, params: dict) -> web.Response:
-        return web.json_response({
-            "ok": True,
-            "result": {
-                "user": {
-                    "id": int(params.get("user_id", 0)),
-                    "is_bot": False,
-                    "first_name": "User",
+    def _handle_getChatMember(self, params: dict[str, Any]) -> web.Response:
+        return web.json_response(
+            {
+                "ok": True,
+                "result": {
+                    "user": {
+                        "id": int(params.get("user_id", 0)),
+                        "is_bot": False,
+                        "first_name": "User",
+                    },
+                    "status": "member",
                 },
-                "status": "member",
-            },
-        })
+            }
+        )
 
-    def _handle_leaveChat(self, params: dict) -> web.Response:
+    def _handle_leaveChat(self, params: dict[str, Any]) -> web.Response:
         return web.json_response({"ok": True, "result": True})
 
     async def __aenter__(self) -> FakeTelegramServer:

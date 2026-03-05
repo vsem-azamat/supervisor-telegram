@@ -9,7 +9,6 @@ from aiogram import Bot, types
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.escalation import EscalationService
 from app.agent.memory import AgentMemory
@@ -20,6 +19,7 @@ from app.core.logging import get_logger
 
 if TYPE_CHECKING:
     from pydantic_ai.agent import AgentRunResult
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = get_logger("agent.core")
 
@@ -50,10 +50,7 @@ def _create_pydantic_agent() -> Agent[AgentDeps, ModerationResult]:
             return ""
         lines = ["## Recent admin corrections (learn from these):"]
         for c in corrections:
-            lines.append(
-                f"- Agent chose '{c.action}' but admin overrode to '{c.admin_override}'. "
-                f"Reason: {c.reason}"
-            )
+            lines.append(f"- Agent chose '{c.action}' but admin overrode to '{c.admin_override}'. Reason: {c.reason}")
         lines.append("\nAdjust your decisions based on these patterns.")
         return "\n".join(lines)
 
@@ -119,10 +116,7 @@ def _create_pydantic_agent() -> Agent[AgentDeps, ModerationResult]:
         lines = []
         for c in corrections:
             date_str = c.created_at.strftime("%Y-%m-%d") if c.created_at else "unknown"
-            lines.append(
-                f"- Agent: {c.action} → Admin: {c.admin_override} | "
-                f"Reason: {c.reason} ({date_str})"
-            )
+            lines.append(f"- Agent: {c.action} → Admin: {c.admin_override} | Reason: {c.reason} ({date_str})")
         return "\n".join(lines)
 
     return agent
@@ -208,7 +202,7 @@ class AgentCore:
     ) -> None:
         """Execute a moderation action (used by escalation callbacks too)."""
         result = ModerationResult(
-            action=action,  # type: ignore[arg-type]
+            action=action,
             reason="Admin decision",
             **(params or {}),
         )
@@ -285,9 +279,7 @@ class AgentCore:
         except Exception as e:
             logger.error("Warn failed", error=str(e), user=event.target_user_id)
 
-    async def _do_blacklist(
-        self, event: AgentEvent, bot: Bot, db: AsyncSession, revoke: bool
-    ) -> None:
+    async def _do_blacklist(self, event: AgentEvent, bot: Bot, db: AsyncSession, revoke: bool) -> None:
         # Lazy import to avoid circular dependency (moderation → telegram.logger → bot → agent)
         from app.application.services import moderation as moderation_services
 

@@ -6,16 +6,17 @@ from typing import TYPE_CHECKING
 
 from aiogram import Bot, Router, types
 from aiogram.filters import Command
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.schemas import ActionType, AgentEvent, EventType
 from app.core.config import settings
 from app.core.logging import get_logger
-from app.infrastructure.db.repositories import MessageRepository
 from app.presentation.telegram.utils.other import sleep_and_delete
 
 if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+
     from app.agent.core import AgentCore
+    from app.infrastructure.db.repositories import MessageRepository
 
 logger = get_logger("handlers.agent")
 
@@ -55,11 +56,9 @@ async def _collect_context(
     """Collect recent messages from the target user for LLM context."""
     try:
         messages = await message_repo.get_user_messages(target_user_id, chat_id=chat_id)
-        return [
-            {"text": msg.content or "[no text]", "chat_id": str(msg.chat_id)}
-            for msg in messages
-            if msg.content
-        ][:5]
+        return [{"text": msg.content or "[no text]", "chat_id": str(msg.chat_id)} for msg in messages if msg.content][
+            :5
+        ]
     except Exception:
         return []
 
@@ -81,8 +80,7 @@ async def handle_report(
 
     if not message.reply_to_message:
         answer = await message.answer(
-            "Ответьте на сообщение, которое хотите отправить на проверку, "
-            "командой /report или /spam."
+            "Ответьте на сообщение, которое хотите отправить на проверку, командой /report или /spam."
         )
         await message.delete()
         await sleep_and_delete(answer, 10)

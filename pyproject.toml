@@ -115,6 +115,9 @@ module = [
     "alembic.*",
     "asyncpg.*",
     "psycopg2.*",
+    "testcontainers.*",
+    "fastapi.*",
+    "app.presentation.api.routers.*",
 ]
 ignore_missing_imports = true
 
@@ -266,6 +269,7 @@ dev = [
     "psutil",
     "types-pytz>=2025.2.0.20250809",
     "testcontainers[postgres]>=4.14.1",
+    "types-docker>=7.1.0.20260109",
 ]
 
 [tool.pytest.ini_options]

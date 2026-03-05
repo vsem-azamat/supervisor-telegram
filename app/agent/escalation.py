@@ -74,9 +74,7 @@ class EscalationService:
         await self.db.commit()
 
         # Start timeout task
-        task = asyncio.create_task(
-            self._timeout_handler(escalation.id, timeout_minutes * 60)
-        )
+        task = asyncio.create_task(self._timeout_handler(escalation.id, timeout_minutes * 60))
         _timeout_tasks[escalation.id] = task
 
         logger.info(
@@ -243,8 +241,7 @@ class EscalationService:
             try:
                 await self.bot.send_message(
                     escalation.admin_chat_id,
-                    f"⏰ Эскалация #{escalation_id} истекла. "
-                    f"Действие: <b>{default_action}</b>",
+                    f"⏰ Эскалация #{escalation_id} истекла. Действие: <b>{default_action}</b>",
                     reply_to_message_id=escalation.admin_message_id,
                 )
             except Exception as e:

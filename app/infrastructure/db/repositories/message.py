@@ -3,8 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.expression import and_
 
 from app.domain.entities import MessageEntity
-from app.infrastructure.db.models import Message
 from app.domain.repositories import IMessageRepository
+from app.infrastructure.db.models import Message
 
 
 class MessageRepository(IMessageRepository):

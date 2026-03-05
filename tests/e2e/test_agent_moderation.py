@@ -9,6 +9,7 @@ Uses:
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -25,8 +26,8 @@ from aiogram.types import (
     User,
 )
 from aiogram.utils.callback_answer import CallbackAnswerMiddleware
-from app.infrastructure.db.models import AgentEscalation
 from app.infrastructure.db.base import Base
+from app.infrastructure.db.models import AgentEscalation
 from app.presentation.telegram.middlewares import (
     DependenciesMiddleware,
     HistoryMiddleware,
@@ -38,7 +39,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from tests.fake_telegram import FakeTelegramServer
 
 
-def _build_router():
+def _build_router() -> Any:
     """Build a fresh router tree for testing (avoids 'already attached' errors)."""
     from aiogram import Router
     from app.presentation.telegram.handlers import (
@@ -95,7 +96,7 @@ TARGET_USER_ID = 222222222
 CHAT_ID = -1001234567890
 
 
-def _make_user(uid: int, first_name: str = "User", username: str | None = None) -> dict:
+def _make_user(uid: int, first_name: str = "User", username: str | None = None) -> dict[str, Any]:
     return {
         "id": uid,
         "is_bot": False,
@@ -104,7 +105,7 @@ def _make_user(uid: int, first_name: str = "User", username: str | None = None) 
     }
 
 
-def _make_chat(cid: int = CHAT_ID) -> dict:
+def _make_chat(cid: int = CHAT_ID) -> dict[str, Any]:
     return {
         "id": cid,
         "type": "supergroup",
@@ -117,9 +118,9 @@ def _make_message(
     from_user_id: int = REPORTER_ID,
     message_id: int = 42,
     chat_id: int = CHAT_ID,
-    entities: list | None = None,
-    reply_to_message: dict | None = None,
-) -> dict:
+    entities: list[dict[str, Any]] | None = None,
+    reply_to_message: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     return {
         "message_id": message_id,
         "from": _make_user(from_user_id, username=f"user_{from_user_id}"),
@@ -134,9 +135,9 @@ def _make_message(
 def _make_command_message(
     command: str,
     from_user_id: int = REPORTER_ID,
-    reply_to_message: dict | None = None,
+    reply_to_message: dict[str, Any] | None = None,
     message_id: int = 50,
-) -> dict:
+) -> dict[str, Any]:
     text = f"/{command}"
     entities = [{"type": "bot_command", "offset": 0, "length": len(text)}]
     return _make_message(
@@ -148,7 +149,7 @@ def _make_command_message(
     )
 
 
-def _make_target_message(text: str = "Buy cheap diploma!!! Contact @scammer") -> dict:
+def _make_target_message(text: str = "Buy cheap diploma!!! Contact @scammer") -> dict[str, Any]:
     """The message being reported."""
     return _make_message(
         text=text,
@@ -160,8 +161,8 @@ def _make_target_message(text: str = "Buy cheap diploma!!! Contact @scammer") ->
 def _make_callback_query(
     data: str,
     from_user_id: int = SUPER_ADMIN_ID,
-    message: dict | None = None,
-) -> dict:
+    message: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     return {
         "id": "cb_123",
         "from": _make_user(from_user_id, first_name="Admin", username="super_admin"),
@@ -228,14 +229,14 @@ async def bot(fake_tg: FakeTelegramServer):
     await b.session.close()
 
 
-def _make_mock_agent_core(decision_action: str = "escalate", reason: str = "Test reason"):
+def _make_mock_agent_core(decision_action: str = "escalate", reason: str = "Test reason") -> MagicMock:
     """Create a mock AgentCore that returns a fixed decision."""
     from app.agent.schemas import ModerationResult
 
     mock_core = MagicMock()
     mock_core.process_report = AsyncMock(
         return_value=ModerationResult(
-            action=decision_action,
+            action=decision_action,  # type: ignore[arg-type]
             reason=reason,
             suggested_action="mute" if decision_action == "escalate" else None,
         )
@@ -247,7 +248,7 @@ def _make_mock_agent_core(decision_action: str = "escalate", reason: str = "Test
 @pytest_asyncio.fixture()
 async def dispatcher(
     bot: Bot,
-    db_session_maker: async_sessionmaker,
+    db_session_maker: async_sessionmaker[AsyncSession],
     fake_tg: FakeTelegramServer,
 ):
     """Fully wired dispatcher with middlewares and handlers."""
@@ -273,9 +274,7 @@ async def dispatcher(
 class TestReportCommand:
     """Tests for /report and /spam commands."""
 
-    async def test_report_without_reply_shows_hint(
-        self, dispatcher: Dispatcher, bot: Bot, fake_tg: FakeTelegramServer
-    ):
+    async def test_report_without_reply_shows_hint(self, dispatcher: Dispatcher, bot: Bot, fake_tg: FakeTelegramServer):
         """Sending /report without replying to a message should show a hint."""
         update = Update(
             update_id=1,
@@ -297,9 +296,7 @@ class TestReportCommand:
         sent_text = send_calls[0].params.get("text", "")
         assert "Ответьте" in sent_text or "reply" in sent_text.lower()
 
-    async def test_report_triggers_agent_analysis(
-        self, dispatcher: Dispatcher, bot: Bot, fake_tg: FakeTelegramServer
-    ):
+    async def test_report_triggers_agent_analysis(self, dispatcher: Dispatcher, bot: Bot, fake_tg: FakeTelegramServer):
         """Sending /report as reply should trigger agent and show result."""
         target_msg = Message(
             message_id=30,
@@ -362,7 +359,7 @@ class TestReportCommand:
         agent_core.process_report.assert_called()
 
     async def test_report_with_agent_disabled(
-        self, bot: Bot, db_session_maker: async_sessionmaker, fake_tg: FakeTelegramServer
+        self, bot: Bot, db_session_maker: async_sessionmaker[AsyncSession], fake_tg: FakeTelegramServer
     ):
         """When agent_core is None, /report should say agent is disabled."""
         dp = Dispatcher()
@@ -406,7 +403,7 @@ class TestEscalationCallback:
         self,
         dispatcher: Dispatcher,
         bot: Bot,
-        db_session_maker: async_sessionmaker,
+        db_session_maker: async_sessionmaker[AsyncSession],
         fake_tg: FakeTelegramServer,
     ):
         """Admin clicking escalation button should resolve in DB and execute action."""
@@ -472,7 +469,7 @@ class TestEscalationCallback:
         self,
         dispatcher: Dispatcher,
         bot: Bot,
-        db_session_maker: async_sessionmaker,
+        db_session_maker: async_sessionmaker[AsyncSession],
         fake_tg: FakeTelegramServer,
     ):
         """Non-super-admin clicking button should be rejected."""
@@ -527,7 +524,7 @@ class TestEscalationCallback:
         self,
         dispatcher: Dispatcher,
         bot: Bot,
-        db_session_maker: async_sessionmaker,
+        db_session_maker: async_sessionmaker[AsyncSession],
         fake_tg: FakeTelegramServer,
     ):
         """Choosing 'ignore' should resolve but not execute any action."""
@@ -584,7 +581,7 @@ class TestEscalationCallback:
         self,
         dispatcher: Dispatcher,
         bot: Bot,
-        db_session_maker: async_sessionmaker,
+        db_session_maker: async_sessionmaker[AsyncSession],
         fake_tg: FakeTelegramServer,
     ):
         """Clicking a button on already-resolved escalation should notify user."""
@@ -635,7 +632,7 @@ class TestManagedChatsMiddleware:
     async def test_unmanaged_chat_triggers_leave(
         self,
         bot: Bot,
-        db_session_maker: async_sessionmaker,
+        db_session_maker: async_sessionmaker[AsyncSession],
         fake_tg: FakeTelegramServer,
     ):
         """Bot should leave chats where no super admin is an admin."""

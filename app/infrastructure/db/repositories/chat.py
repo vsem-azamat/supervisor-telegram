@@ -2,8 +2,8 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.entities import ChatEntity
-from app.infrastructure.db.models import Chat
 from app.domain.repositories import IChatRepository
+from app.infrastructure.db.models import Chat
 
 
 class ChatRepository(IChatRepository):
