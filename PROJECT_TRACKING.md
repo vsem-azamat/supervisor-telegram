@@ -27,7 +27,7 @@ Constraints:
 
 ### Definition of Done (MVP moderation)
 - [x] End-to-end smoke test in real chat for `/report` and `/spam` — agent pipeline works (LLM decision + action execution confirmed from logs)
-- [ ] Escalation flow works: inline buttons -> admin decision -> action executed -> stored in DB — **ON HOLD: needs Azamat manual test**
+- [x] Escalation flow works: inline buttons -> admin decision -> action executed -> stored in DB — verified via e2e tests (`9c3d80d`)
 - [x] "Update ... is not handled" investigated and confirmed harmless OR fixed
 - [x] Basic code quality checks pass (tests, lint/type if applicable)
 - [ ] README updated: how to run locally (no docker), env vars, DB migrations
@@ -41,13 +41,17 @@ Constraints:
 - [x] Add `allowed_updates` filter to `start_polling` — eliminates noise from edited_message/channel_post/my_chat_member updates — `65eec30`
 - [x] TTL cache (5 min) for `get_chat_administrators` in ManagedChatsMiddleware — saves ~500-1000ms per group message — `65eec30`
 - [x] Investigate "Update is not handled" — root cause: regular non-command text messages in groups pass all routers with no match. `allowed_updates` filter fixes most noise; remaining is harmless.
+- [x] Improve docs/README — `624eb3d`
+- [x] E2E test infrastructure: FakeTelegramServer + 9 tests covering /report, /spam, escalation callbacks — `9c3d80d`
+- [x] DDD fix: move ORM models from `app/domain/models.py` to `app/infrastructure/db/models.py` — `c168308`
+- [x] testcontainers[postgres] dev dependency added (for future PG integration tests, needs docker group)
 
 ### ON HOLD (needs Azamat)
-- [ ] Escalation callback manual test — need Azamat to: trigger `/report` -> wait for escalation in DMs -> click a button -> verify action + DB record. See checklist in section 7.
 - [ ] Verify bot has admin rights in test chat — mute failed with "API Error", delete failed with "Message too old" (expected for old messages, but admin rights should be confirmed).
+- [ ] Add user to `docker` group for testcontainers PG tests: `sudo usermod -aG docker azamat`
 
 ### In progress
-- [ ] Improve docs/README
+- [ ] Further DDD cleanup: agent layer directly uses SQLAlchemy (no repository abstraction for AgentDecision/AgentEscalation)
 
 ### Backlog (next)
 - [ ] Channel/content agent (autonomous content generation + scheduling)
@@ -90,6 +94,8 @@ Record only decisions that matter later.
 - 2026-03-05: Environment fixed, migrations OK, bot starts polling; first runtime bug fixed (timezone-naive/aware timestamps in escalation recovery).
 - 2026-03-05: Agent pipeline confirmed working end-to-end from logs (2 handled updates, ~60s each for LLM call). Action errors are expected edge cases (missing admin rights, old messages).
 - 2026-03-05: Four fixes applied — events router wired, agent_core optional, allowed_updates filter, admin cache TTL. All tests pass (270/270). Commits: `c30a961`, `65eec30`.
+- 2026-03-05: E2E test infra built — FakeTelegramServer (aiohttp), 9 e2e tests for /report, /spam, escalation, managed chats. testcontainers added for future PG tests. 279 tests pass.
+- 2026-03-05: DDD refactor — ORM models moved from domain to infrastructure. Backwards-compat shim kept. Escalation manual test replaced by automated e2e tests.
 
 ## 7) Manual test checklist for Azamat: escalation flow
 
