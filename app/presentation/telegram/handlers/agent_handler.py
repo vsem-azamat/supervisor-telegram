@@ -140,8 +140,12 @@ async def handle_escalation_action(
     agent_core: AgentCore | None = None,
 ) -> None:
     """Handle admin's response to an escalation."""
-    if not callback.data or not callback.from_user or agent_core is None:
+    if not callback.data or not callback.from_user:
         await callback.answer("Ошибка")
+        return
+
+    if agent_core is None:
+        await callback.answer("Агент отключён", show_alert=True)
         return
 
     parts = callback.data.split(":")
