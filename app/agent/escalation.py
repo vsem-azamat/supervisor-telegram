@@ -44,7 +44,9 @@ class EscalationService:
     ) -> AgentEscalation:
         """Create escalation, send to admin, start timeout."""
         timeout_minutes = settings.agent.escalation_timeout_minutes
-        timeout_at = datetime.datetime.now(tz=datetime.UTC) + datetime.timedelta(minutes=timeout_minutes)
+        # NOTE: DB columns are stored as TIMESTAMP WITHOUT TIME ZONE (naive).
+        # Use naive UTC datetimes consistently to avoid asyncpg "offset-naive and offset-aware" errors.
+        timeout_at = datetime.datetime.utcnow() + datetime.timedelta(minutes=timeout_minutes)
 
         escalation = AgentEscalation(
             chat_id=event.chat_id,
@@ -105,7 +107,7 @@ class EscalationService:
         escalation.status = "resolved"
         escalation.resolved_action = action
         escalation.resolved_by = admin_id
-        escalation.resolved_at = datetime.datetime.now(tz=datetime.UTC)
+        escalation.resolved_at = datetime.datetime.utcnow()
         await self.db.commit()
 
         # Cancel timeout task
@@ -134,7 +136,7 @@ class EscalationService:
     async def recover_stale_escalations(cls, session_maker: async_sessionmaker[AsyncSession]) -> None:
         """On startup, mark stale pending escalations as timed out."""
         async with session_maker() as db:
-            now = datetime.datetime.now(tz=datetime.UTC)
+            now = datetime.datetime.utcnow()
             stmt = select(AgentEscalation).where(
                 AgentEscalation.status == "pending",
                 AgentEscalation.timeout_at < now,
@@ -224,7 +226,7 @@ class EscalationService:
             default_action = settings.agent.default_timeout_action
             escalation.status = "timeout"
             escalation.resolved_action = default_action
-            escalation.resolved_at = datetime.datetime.now(tz=datetime.UTC)
+            escalation.resolved_at = datetime.datetime.utcnow()
             await db.commit()
 
             # Log timeout outcome as an admin override on the original decision
