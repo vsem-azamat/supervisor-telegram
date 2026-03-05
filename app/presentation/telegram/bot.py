@@ -94,7 +94,11 @@ async def main() -> None:
         dp.shutdown.register(on_shutdown)
 
         logger.info("Bot configured, starting polling")
-        await dp.start_polling(bot, skip_updates=True)
+        await dp.start_polling(
+            bot,
+            skip_updates=True,
+            allowed_updates=["message", "callback_query", "chat_member"],
+        )
 
     except Exception as e:
         logger.error("Bot error", error=str(e), exc_info=True)
