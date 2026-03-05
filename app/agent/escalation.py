@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.agent.schemas import AgentEvent
 from app.core.config import settings
 from app.core.logging import get_logger
-from app.domain.models import AgentEscalation
+from app.infrastructure.db.models import AgentEscalation
 
 logger = get_logger("agent.escalation")
 

@@ -2,7 +2,7 @@ from sqlalchemy import delete, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.entities import AdminEntity
-from app.domain.models import Admin
+from app.infrastructure.db.models import Admin
 from app.domain.repositories import IAdminRepository
 
 

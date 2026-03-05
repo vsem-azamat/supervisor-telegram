@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agent.schemas import AgentEvent
-from app.domain.models import AgentDecision
+from app.infrastructure.db.models import AgentDecision
 
 
 @dataclass

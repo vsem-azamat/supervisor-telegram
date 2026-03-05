@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.entities import UserEntity
 from app.domain.exceptions import UserNotFoundException
-from app.domain.models import User
+from app.infrastructure.db.models import User
 from app.domain.repositories import IUserRepository
 
 
