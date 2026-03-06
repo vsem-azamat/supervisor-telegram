@@ -7,13 +7,21 @@ import contextlib
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from app.agent.channel.discovery import discover_content
 from app.agent.channel.generator import generate_post, screen_items
 from app.agent.channel.publisher import publish_post
+from app.agent.channel.source_manager import (
+    get_active_sources,
+    record_fetch_error,
+    record_fetch_success,
+    seed_sources_from_env,
+)
 from app.agent.channel.sources import fetch_all_sources
 from app.core.logging import get_logger
 
 if TYPE_CHECKING:
     from aiogram import Bot
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
     from app.agent.channel.config import ChannelAgentSettings
     from app.agent.channel.generator import GeneratedPost
@@ -22,12 +30,19 @@ logger = get_logger("channel.orchestrator")
 
 
 class ChannelOrchestrator:
-    """Orchestrates the content pipeline: fetch -> screen -> generate -> publish."""
+    """Orchestrates the content pipeline: discover -> screen -> generate -> publish."""
 
-    def __init__(self, bot: Bot, config: ChannelAgentSettings, api_key: str) -> None:
+    def __init__(
+        self,
+        bot: Bot,
+        config: ChannelAgentSettings,
+        api_key: str,
+        session_maker: async_sessionmaker[AsyncSession],
+    ) -> None:
         self.bot = bot
         self.config = config
         self.api_key = api_key
+        self.session_maker = session_maker
         self._seen_ids: set[str] = set()
         self._posts_today: int = 0
         self._last_reset: datetime = datetime.now(UTC)
@@ -41,14 +56,10 @@ class ChannelOrchestrator:
         if not self.config.channel_id:
             logger.warning("channel_agent_no_channel_id")
             return
-        if not self.config.rss_source_list:
-            logger.warning("channel_agent_no_sources")
-            return
         self._task = asyncio.create_task(self._run_loop())
         logger.info(
             "channel_agent_started",
             channel_id=self.config.channel_id,
-            sources=len(self.config.rss_source_list),
             interval_min=self.config.fetch_interval_minutes,
         )
 
@@ -61,9 +72,16 @@ class ChannelOrchestrator:
         logger.info("channel_agent_stopped")
 
     async def _run_loop(self) -> None:
-        """Main loop: fetch, screen, generate, publish on schedule."""
-        # Small initial delay to let the bot fully start
+        """Main loop: discover, screen, generate, publish on schedule."""
         await asyncio.sleep(5)
+
+        # Seed DB sources from env config on first run
+        if self.config.rss_source_list:
+            await seed_sources_from_env(
+                self.session_maker,
+                str(self.config.channel_id),
+                self.config.rss_source_list,
+            )
 
         while True:
             try:
@@ -83,12 +101,39 @@ class ChannelOrchestrator:
             logger.info("daily_post_limit_reached", count=self._posts_today)
             return
 
-        # 1. Discover
-        logger.info("cycle_start", sources=len(self.config.rss_source_list))
-        items = await fetch_all_sources(self.config.rss_source_list)
+        channel_id = str(self.config.channel_id)
+
+        # 1. Gather content from all sources
+        all_items = []
+
+        # 1a. Fetch from DB-registered RSS sources
+        db_sources = await get_active_sources(self.session_maker, channel_id)
+        if db_sources:
+            rss_urls = [s.url for s in db_sources]
+            logger.info("fetching_rss_sources", count=len(rss_urls))
+            rss_items = await fetch_all_sources(rss_urls)
+            all_items.extend(rss_items)
+
+            # Track source health
+            fetched_urls = {item.source_url for item in rss_items}
+            for url in rss_urls:
+                if url in fetched_urls:
+                    await record_fetch_success(self.session_maker, url)
+                else:
+                    await record_fetch_error(self.session_maker, url, "no_items_returned")
+
+        # 1b. Discover fresh content via Perplexity Sonar
+        if self.config.discovery_enabled:
+            logger.info("discovering_content", query=self.config.discovery_query[:60])
+            discovered = await discover_content(
+                api_key=self.api_key,
+                query=self.config.discovery_query,
+                model=self.config.discovery_model,
+            )
+            all_items.extend(discovered)
 
         # Deduplicate against already seen
-        new_items = [i for i in items if i.external_id not in self._seen_ids]
+        new_items = [i for i in all_items if i.external_id not in self._seen_ids]
         for item in new_items:
             self._seen_ids.add(item.external_id)
 
@@ -98,7 +143,7 @@ class ChannelOrchestrator:
 
         logger.info("new_items_found", count=len(new_items))
 
-        # 2. Screen
+        # 2. Screen for relevance
         relevant = await screen_items(
             new_items,
             api_key=self.api_key,
@@ -112,7 +157,7 @@ class ChannelOrchestrator:
 
         logger.info("relevant_items", count=len(relevant))
 
-        # 3. Generate
+        # 3. Generate post
         post = await generate_post(
             relevant[:3],
             api_key=self.api_key,

@@ -241,6 +241,90 @@ class Message(Base):
         return self.spam
 
 
+class ChannelSource(Base):
+    __tablename__ = "channel_sources"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    channel_id: Mapped[str] = mapped_column(String, index=True)
+    url: Mapped[str] = mapped_column(String, unique=True)
+    source_type: Mapped[str] = mapped_column(String(16), default="rss")
+    title: Mapped[str | None] = mapped_column(String, nullable=True)
+    language: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    relevance_score: Mapped[float] = mapped_column(default=5.0)
+    error_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_fetched_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    last_error: Mapped[str | None] = mapped_column(String, nullable=True)
+    added_by: Mapped[str] = mapped_column(String(16), default="agent")
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.now)
+
+    def __init__(
+        self,
+        channel_id: str,
+        url: str,
+        source_type: str = "rss",
+        title: str | None = None,
+        language: str | None = None,
+        added_by: str = "agent",
+    ) -> None:
+        self.channel_id = channel_id
+        self.url = url
+        self.source_type = source_type
+        self.title = title
+        self.language = language
+        self.added_by = added_by
+
+    def record_success(self) -> None:
+        self.error_count = 0
+        self.last_error = None
+        self.last_fetched_at = datetime.datetime.now()
+
+    def record_error(self, error: str) -> None:
+        self.error_count += 1
+        self.last_error = error
+        if self.error_count >= 5:
+            self.enabled = False
+
+    def disable(self) -> None:
+        self.enabled = False
+
+    def enable(self) -> None:
+        self.enabled = True
+        self.error_count = 0
+
+
+class ChannelPost(Base):
+    __tablename__ = "channel_posts"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    channel_id: Mapped[str] = mapped_column(String, index=True)
+    external_id: Mapped[str] = mapped_column(String, index=True)
+    source_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    title: Mapped[str] = mapped_column(String)
+    post_text: Mapped[str] = mapped_column(String)
+    telegram_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    status: Mapped[str] = mapped_column(String(16), default="published")
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.now)
+
+    def __init__(
+        self,
+        channel_id: str,
+        external_id: str,
+        title: str,
+        post_text: str,
+        source_url: str | None = None,
+        telegram_message_id: int | None = None,
+        status: str = "published",
+    ) -> None:
+        self.channel_id = channel_id
+        self.external_id = external_id
+        self.title = title
+        self.post_text = post_text
+        self.source_url = source_url
+        self.telegram_message_id = telegram_message_id
+        self.status = status
+
+
 class AgentDecision(Base):
     __tablename__ = "agent_decisions"
 

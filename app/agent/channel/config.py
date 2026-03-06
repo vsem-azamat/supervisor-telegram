@@ -16,8 +16,16 @@ class ChannelAgentSettings(BaseSettings):
     language: str = Field(default="ru", description="Post language (ru, cs, en)")
     require_approval: bool = Field(default=True, description="Require admin approval before posting")
 
-    # RSS sources (comma-separated URLs)
-    rss_sources: str = Field(default="", description="Comma-separated RSS feed URLs")
+    # RSS sources (comma-separated URLs) — used for initial seeding only
+    rss_sources: str = Field(default="", description="Comma-separated RSS feed URLs for initial seeding")
+
+    # Discovery settings
+    discovery_enabled: bool = Field(default=True, description="Enable Perplexity Sonar content discovery")
+    discovery_model: str = Field(default="perplexity/sonar", description="Model for content discovery")
+    discovery_query: str = Field(
+        default="Czech Republic news for international students this week",
+        description="Search query for content discovery",
+    )
 
     # LLM settings
     screening_model: str = Field(default="google/gemini-2.0-flash-001", description="Cheap model for screening")

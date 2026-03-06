@@ -93,6 +93,7 @@ async def main() -> None:
                 bot=bot,
                 config=channel_config,
                 api_key=settings.agent.openrouter_api_key,
+                session_maker=session_maker,
             )
             channel_orchestrator.start()
             logger.info(
