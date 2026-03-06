@@ -1,4 +1,14 @@
+"""Main entry point — starts all bots with coordinated lifecycle.
+
+Architecture: each bot gets its own Dispatcher (independent middleware stacks),
+but they share the same asyncio event loop, DB session maker, and Telethon client.
+Both polling loops run concurrently via asyncio.gather().
+"""
+
+from __future__ import annotations
+
 import asyncio
+from typing import TYPE_CHECKING, Any
 
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
@@ -7,6 +17,13 @@ from aiogram.utils.callback_answer import CallbackAnswerMiddleware
 from app.core.config import settings
 from app.core.container import container, setup_container
 from app.core.logging import get_logger, setup_logging
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+    from app.agent.channel.orchestrator import ChannelOrchestrator
+    from app.agent.core import AgentCore
+    from app.infrastructure.telegram.telethon_client import TelethonClient
 from app.infrastructure.db.session import close_db, create_session_maker, insert_chat_link
 from app.presentation.telegram.handlers import router
 from app.presentation.telegram.middlewares import (
@@ -16,168 +33,215 @@ from app.presentation.telegram.middlewares import (
     ManagedChatsMiddleware,
 )
 
-# Setup logging
 setup_logging()
 logger = get_logger("bot")
 
 
+# ---------------------------------------------------------------------------
+# Lifecycle callbacks (main bot only)
+# ---------------------------------------------------------------------------
+
+
 async def on_startup(bot: Bot) -> None:
-    """Bot startup handler."""
+    """Main bot startup: webhook cleanup, chat links, Telethon."""
     try:
         await bot.delete_webhook()
-        logger.info("Webhook deleted")
-
         await insert_chat_link()
-        logger.info("Chat links initialized")
 
-        # Start Telethon client if configured
         telethon_client = container.get_telethon_client()
         if telethon_client:
             await telethon_client.start()
-            logger.info("Telethon client started")
+            logger.info("telethon_started")
 
-        logger.info("Bot startup completed")
+        logger.info("main_bot_startup_complete")
     except Exception as e:
-        logger.error("Startup error", error=str(e), exc_info=True)
+        logger.error("startup_error", error=str(e), exc_info=True)
         raise
 
 
 async def on_shutdown(bot: Bot) -> None:
-    """Bot shutdown handler."""
+    """Main bot shutdown: Telethon, LLM client, DB."""
     try:
-        # Stop Telethon client
         telethon_client = container.get_telethon_client()
         if telethon_client:
             await telethon_client.stop()
-            logger.info("Telethon client stopped")
 
-        # Close the shared LLM httpx client
         from app.agent.channel.llm_client import close_client as close_llm_client
 
         await close_llm_client()
-        logger.info("LLM client closed")
 
         await bot.delete_webhook()
         await bot.close()
         await close_db()
-        logger.info("Bot shutdown completed")
+        logger.info("main_bot_shutdown_complete")
     except Exception as e:
-        logger.error("Shutdown error", error=str(e), exc_info=True)
+        logger.error("shutdown_error", error=str(e), exc_info=True)
 
 
-async def get_bot_and_dp() -> tuple[Bot, Dispatcher]:
-    """Create bot and dispatcher instances."""
+# ---------------------------------------------------------------------------
+# Initialization helpers
+# ---------------------------------------------------------------------------
+
+
+def _setup_main_bot(
+    session_maker: async_sessionmaker[AsyncSession],
+    agent_core: AgentCore | None,
+) -> tuple[Bot, Dispatcher]:
+    """Create and configure the main moderation bot."""
     bot = Bot(token=settings.telegram.token, default=DefaultBotProperties(parse_mode="HTML"))
     dp = Dispatcher()
-    return bot, dp
 
-
-async def main() -> None:
-    """Main bot entry point."""
-    logger.info("Starting bot", environment=settings.environment)
-
-    # Create database session maker
-    session_maker = create_session_maker()
-
-    # Create bot and dispatcher
-    bot, dp = await get_bot_and_dp()
-
-    # Setup dependency injection
-    setup_container(session_maker, bot)
-
-    # Setup Telethon client if configured
-    if settings.telethon.enabled:
-        from app.infrastructure.telegram.telethon_client import TelethonClient
-
-        telethon_client = TelethonClient(settings=settings.telethon)
-        container.set_telethon_client(telethon_client)
-        logger.info("Telethon client configured", session=settings.telethon.session_name)
-
-    # Create agent (singleton, shared across requests) — lazy import to avoid circular deps
-    agent_core = None
-    if settings.agent.enabled and settings.agent.openrouter_api_key:
-        from app.agent.core import AgentCore
-        from app.agent.escalation import EscalationService
-
-        agent_core = AgentCore()
-        EscalationService.set_session_maker(session_maker)
-        await EscalationService.recover_stale_escalations(session_maker)
-        logger.info("Agent enabled", model=settings.agent.model)
-    else:
-        logger.info("Agent disabled (set AGENT_ENABLED=true and AGENT_OPENROUTER_API_KEY)")
-
-    # Create channel content agent
-    channel_orchestrator = None
-    try:
-        from app.agent.channel.config import ChannelAgentSettings
-
-        channel_config = ChannelAgentSettings()
-        if channel_config.enabled and (channel_config.channel_id or channel_config.channels):
-            from app.agent.channel.orchestrator import ChannelOrchestrator
-
-            channel_orchestrator = ChannelOrchestrator(
-                bot=bot,
-                config=channel_config,
-                api_key=settings.agent.openrouter_api_key,
-                session_maker=session_maker,
-            )
-            channel_orchestrator.start()
-            logger.info(
-                "Channel agent enabled",
-                channel_id=channel_config.channel_id,
-                sources=len(channel_config.rss_source_list),
-            )
-    except Exception:
-        logger.exception("Channel agent init failed")
-
-    # Setup middlewares
     dp.update.middleware(DependenciesMiddleware(session_pool=session_maker, bot=bot, agent_core=agent_core))
     dp.update.middleware(ManagedChatsMiddleware())
     dp.update.middleware(HistoryMiddleware())
     dp.message.middleware(BlacklistMiddleware())
     dp.callback_query.middleware(CallbackAnswerMiddleware())
 
-    # Start assistant bot as a background task.
-    # NOTE: The assistant receives `bot` (main Bot instance) for Telegram API calls
-    # (ban, mute, send_message). Both bots share the same aiohttp session, which is
-    # safe since they run in the same asyncio event loop. The assistant creates its
-    # own separate Bot instance for polling.
-    assistant_task = None
-    try:
-        from app.assistant.bot import run_assistant_bot
+    dp.include_router(router)
+    dp.startup.register(on_startup)
+    dp.shutdown.register(on_shutdown)
 
-        assistant_task = asyncio.create_task(
-            run_assistant_bot(session_maker, bot, channel_orchestrator),
-            name="assistant_bot",
-        )
-        logger.info("Assistant bot task created")
+    return bot, dp
+
+
+def _init_agent(session_maker: async_sessionmaker[AsyncSession]) -> AgentCore | None:
+    """Initialize the moderation AI agent if configured."""
+    if not (settings.agent.enabled and settings.agent.openrouter_api_key):
+        logger.info("agent_disabled")
+        return None
+
+    from app.agent.core import AgentCore
+    from app.agent.escalation import EscalationService
+
+    agent_core = AgentCore()
+    EscalationService.set_session_maker(session_maker)
+    logger.info("agent_enabled", model=settings.agent.model)
+    return agent_core
+
+
+def _init_channel_orchestrator(
+    bot: Bot,
+    session_maker: async_sessionmaker[AsyncSession],
+) -> ChannelOrchestrator | None:
+    """Initialize the channel content orchestrator if configured."""
+    try:
+        from app.agent.channel.config import ChannelAgentSettings
+
+        config = ChannelAgentSettings()
+        if config.enabled and (config.channel_id or config.channels):
+            from app.agent.channel.orchestrator import ChannelOrchestrator
+
+            orchestrator = ChannelOrchestrator(
+                bot=bot,
+                config=config,
+                api_key=settings.agent.openrouter_api_key,
+                session_maker=session_maker,
+            )
+            orchestrator.start()
+            logger.info("channel_agent_enabled", sources=len(config.rss_source_list))
+            return orchestrator
     except Exception:
-        logger.exception("Assistant bot init failed")
+        logger.exception("channel_agent_init_failed")
+    return None
 
+
+def _init_telethon() -> TelethonClient | None:
+    """Initialize Telethon client if configured."""
+    if not settings.telethon.enabled:
+        return None
+    from app.infrastructure.telegram.telethon_client import TelethonClient
+
+    client = TelethonClient(settings=settings.telethon)
+    container.set_telethon_client(client)
+    logger.info("telethon_configured", session=settings.telethon.session_name)
+    return client
+
+
+# ---------------------------------------------------------------------------
+# Multi-bot polling coordinator
+# ---------------------------------------------------------------------------
+
+
+async def _run_polling(bot: Bot, dp: Dispatcher, *, name: str, **kwargs: Any) -> None:
+    """Run a single bot's polling loop with structured logging."""
+    logger.info("polling_start", bot=name)
     try:
-        # Register handlers and lifecycle events
-        dp.include_router(router)
-        dp.startup.register(on_startup)
-        dp.shutdown.register(on_shutdown)
+        await dp.start_polling(bot, **kwargs)
+    except asyncio.CancelledError:
+        logger.info("polling_cancelled", bot=name)
+    except Exception:
+        logger.exception("polling_error", bot=name)
+    finally:
+        await bot.session.close()
+        logger.info("polling_stopped", bot=name)
 
-        logger.info("Bot configured, starting polling")
-        await dp.start_polling(
-            bot,
+
+async def main() -> None:
+    """Application entry point — coordinates all bots."""
+    logger.info("starting", environment=settings.environment)
+
+    session_maker = create_session_maker()
+
+    # Phase 1: Initialize shared services
+    agent_core = _init_agent(session_maker)
+    if agent_core:
+        from app.agent.escalation import EscalationService
+
+        await EscalationService.recover_stale_escalations(session_maker)
+
+    telethon_client = _init_telethon()
+
+    # Phase 2: Setup main bot
+    main_bot, main_dp = _setup_main_bot(session_maker, agent_core)
+    setup_container(session_maker, main_bot)
+
+    channel_orchestrator = _init_channel_orchestrator(main_bot, session_maker)
+
+    # Re-create main bot with orchestrator reference in DI middleware
+    # (DependenciesMiddleware was already added, but orchestrator wasn't ready yet)
+    # The middleware stores a reference to session_pool and bot, not orchestrator,
+    # so this is fine. Orchestrator is accessed via container/direct reference.
+
+    # Phase 3: Setup assistant bot (separate Dispatcher, no shared middleware)
+    from app.assistant.bot import setup_assistant
+
+    assistant_pair = setup_assistant(
+        session_maker=session_maker,
+        main_bot=main_bot,
+        channel_orchestrator=channel_orchestrator,
+        telethon_client=telethon_client,
+    )
+
+    # Phase 4: Run all polling loops concurrently
+    polling_tasks = [
+        _run_polling(
+            main_bot,
+            main_dp,
+            name="main",
             skip_updates=True,
             allowed_updates=["message", "callback_query", "chat_member"],
+        ),
+    ]
+
+    if assistant_pair:
+        assistant_bot, assistant_dp = assistant_pair
+        polling_tasks.append(
+            _run_polling(
+                assistant_bot,
+                assistant_dp,
+                name="assistant",
+                skip_updates=True,
+                allowed_updates=["message"],
+                handle_signals=False,  # main bot handles SIGINT/SIGTERM
+            ),
         )
 
-    except Exception as e:
-        logger.error("Bot error", error=str(e), exc_info=True)
-        raise
-
+    try:
+        await asyncio.gather(*polling_tasks)
     finally:
-        if assistant_task and not assistant_task.done():
-            assistant_task.cancel()
         if channel_orchestrator:
             await channel_orchestrator.stop()
-        await bot.session.close()
-        logger.info("Bot session closed")
+        logger.info("all_bots_stopped")
 
 
 def run_bot() -> None:
@@ -185,9 +249,9 @@ def run_bot() -> None:
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info("Bot stopped by user")
+        logger.info("stopped_by_user")
     except Exception as e:
-        logger.error("Unexpected error", error=str(e), exc_info=True)
+        logger.error("unexpected_error", error=str(e), exc_info=True)
         raise
 
 

@@ -1,7 +1,7 @@
 """Assistant bot — conversational interface for managing the Konnekt ecosystem.
 
-Runs as a separate aiogram Bot + Dispatcher, sharing the same DB session
-and channel orchestrator with the main moderation bot.
+Runs as a separate aiogram Bot + Dispatcher with its own middleware stack,
+sharing the same DB session and channel orchestrator with the main moderation bot.
 Uses PydanticAI agent with Claude Sonnet 4.6 via OpenRouter.
 """
 
@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
     from app.agent.channel.orchestrator import ChannelOrchestrator
+    from app.infrastructure.telegram.telethon_client import TelethonClient
 
 logger = get_logger("assistant.bot")
 
@@ -222,23 +223,23 @@ async def handle_message(message: Message) -> None:
 # ---------------------------------------------------------------------------
 
 
-async def run_assistant_bot(
+def setup_assistant(
     session_maker: async_sessionmaker[AsyncSession],
     main_bot: Bot,
     channel_orchestrator: ChannelOrchestrator | None = None,
-) -> None:
-    """Start the assistant bot polling loop. Runs as a background task."""
+    telethon_client: TelethonClient | None = None,
+) -> tuple[Bot, Dispatcher] | None:
+    """Create assistant Bot + Dispatcher. Returns None if disabled.
+
+    Separated from polling so the main entry point can coordinate
+    the lifecycle of all bots in one place.
+    """
     global _agent, _deps, _super_admins  # noqa: PLW0603
 
     assistant_settings = AssistantSettings()
     if not assistant_settings.enabled or not assistant_settings.token:
         logger.info("assistant_bot_disabled")
-        return
-
-    # Get Telethon client from DI container if available
-    from app.core.container import container
-
-    telethon_client = container.get_telethon_client()
+        return None
 
     _agent = create_assistant_agent()
     _deps = AssistantDeps(
@@ -249,8 +250,6 @@ async def run_assistant_bot(
     )
     _super_admins = set(settings.admin.super_admins)
 
-    logger.info("assistant_agent_initialized", admins=len(_super_admins))
-
     bot = Bot(
         token=assistant_settings.token,
         default=DefaultBotProperties(parse_mode="HTML"),
@@ -258,18 +257,5 @@ async def run_assistant_bot(
     dp = Dispatcher()
     dp.include_router(router)
 
-    logger.info("assistant_bot_starting")
-
-    try:
-        await dp.start_polling(
-            bot,
-            skip_updates=True,
-            allowed_updates=["message"],
-        )
-    except asyncio.CancelledError:
-        logger.info("assistant_bot_cancelled")
-    except Exception:
-        logger.exception("assistant_bot_error")
-    finally:
-        await bot.session.close()
-        logger.info("assistant_bot_stopped")
+    logger.info("assistant_bot_setup", admins=len(_super_admins))
+    return bot, dp
