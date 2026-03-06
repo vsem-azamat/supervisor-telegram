@@ -35,6 +35,7 @@ class Container:
         self._session_maker: async_sessionmaker[AsyncSession] | None = None
         self._bot: Bot | None = None
         self._telethon_client: TelethonClient | None = None
+        self._channel_orchestrator: Any = None
 
     def register_singleton(self, interface: type[T], implementation: T) -> None:
         """Register a singleton service."""
@@ -59,6 +60,14 @@ class Container:
     def get_telethon_client(self) -> TelethonClient | None:
         """Get Telethon client instance (None if not configured)."""
         return self._telethon_client
+
+    def set_channel_orchestrator(self, orchestrator: Any) -> None:
+        """Set channel orchestrator instance."""
+        self._channel_orchestrator = orchestrator
+
+    def get_channel_orchestrator(self) -> Any:
+        """Get channel orchestrator instance (None if not configured)."""
+        return self._channel_orchestrator
 
     def get(self, interface: type[T] | str) -> T:
         """Get service instance by type or string key."""

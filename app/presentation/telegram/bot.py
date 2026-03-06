@@ -60,8 +60,13 @@ async def on_startup(bot: Bot) -> None:
 
 
 async def on_shutdown(bot: Bot) -> None:
-    """Main bot shutdown: Telethon, LLM client, DB."""
+    """Main bot shutdown: orchestrator, Telethon, LLM client, DB (in dependency order)."""
     try:
+        # Stop channel orchestrator first (it uses DB + LLM)
+        orchestrator = container.get_channel_orchestrator()
+        if orchestrator:
+            await orchestrator.stop()
+
         telethon_client = container.get_telethon_client()
         if telethon_client:
             await telethon_client.stop()
@@ -196,6 +201,8 @@ async def main() -> None:
     setup_container(session_maker, main_bot)
 
     channel_orchestrator = _init_channel_orchestrator(main_bot, session_maker)
+    if channel_orchestrator:
+        container.set_channel_orchestrator(channel_orchestrator)
 
     # Re-create main bot with orchestrator reference in DI middleware
     # (DependenciesMiddleware was already added, but orchestrator wasn't ready yet)
@@ -239,8 +246,6 @@ async def main() -> None:
     try:
         await asyncio.gather(*polling_tasks)
     finally:
-        if channel_orchestrator:
-            await channel_orchestrator.stop()
         logger.info("all_bots_stopped")
 
 

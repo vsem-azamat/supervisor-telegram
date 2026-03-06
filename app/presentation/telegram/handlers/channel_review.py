@@ -53,6 +53,18 @@ def _get_config() -> tuple[Any, str]:
     return ChannelAgentSettings(), settings.agent.openrouter_api_key
 
 
+async def _get_post_channel_id(post_id: int, session_maker: Any) -> str | None:
+    """Read channel_id from the ChannelPost DB record."""
+    from sqlalchemy import select
+
+    from app.infrastructure.db.models import ChannelPost
+
+    async with session_maker() as session:
+        result = await session.execute(select(ChannelPost.channel_id).where(ChannelPost.id == post_id))
+        row: str | None = result.scalar_one_or_none()
+        return row
+
+
 @channel_review_router.callback_query(F.data.startswith("chpost:"))
 async def on_review_callback(callback: CallbackQuery) -> None:
     """Handle all channel post review button callbacks."""
@@ -82,12 +94,21 @@ async def on_review_callback(callback: CallbackQuery) -> None:
         if not post_id:
             await callback.answer("Invalid post ID")
             return
-        result = await handle_approve(bot, post_id, channel_config.channel_id, session_maker)
-        await callback.answer(result, show_alert=True)
+        try:
+            # Read channel_id from the DB post record (not from config)
+            channel_id = await _get_post_channel_id(post_id, session_maker)
+            if not channel_id:
+                await callback.answer("Post not found or missing channel_id", show_alert=True)
+                return
+            result = await handle_approve(bot, post_id, channel_id, session_maker)
+            await callback.answer(result, show_alert=True)
 
-        if callback.message and "Published" in result:
-            with contextlib.suppress(Exception):
-                await callback.message.edit_reply_markup(reply_markup=None)
+            if callback.message and "Published" in result:
+                with contextlib.suppress(Exception):
+                    await callback.message.edit_reply_markup(reply_markup=None)
+        except Exception:
+            logger.exception("approve_callback_error", post_id=post_id)
+            await callback.answer("Internal error", show_alert=True)
 
     elif data.startswith(CB_REJECT):
         post_id = _extract_post_id(data, CB_REJECT)
@@ -107,19 +128,23 @@ async def on_review_callback(callback: CallbackQuery) -> None:
             await callback.answer("Invalid post ID")
             return
         await callback.answer("Regenerating...")
-        from app.agent.channel.config import language_name
+        try:
+            from app.agent.channel.config import language_name
 
-        language = language_name(channel_config.language)
-        result = await handle_regen(
-            bot,
-            post_id,
-            api_key,
-            channel_config.generation_model,
-            language,
-            channel_config.review_chat_id,
-            session_maker,
-        )
-        await bot.send_message(chat_id, result)
+            language = language_name(channel_config.language)
+            result = await handle_regen(
+                bot,
+                post_id,
+                api_key,
+                channel_config.generation_model,
+                language,
+                channel_config.review_chat_id,
+                session_maker,
+            )
+            await bot.send_message(chat_id, result)
+        except Exception:
+            logger.exception("regen_callback_error", post_id=post_id)
+            await bot.send_message(chat_id, "Regeneration failed.")
 
     elif data.startswith(CB_SHORTER):
         post_id = _extract_post_id(data, CB_SHORTER)
@@ -127,16 +152,20 @@ async def on_review_callback(callback: CallbackQuery) -> None:
             await callback.answer("Invalid post ID")
             return
         await callback.answer("Making shorter...")
-        result = await handle_edit_request(
-            bot,
-            post_id,
-            "Make this post shorter and more concise. Keep the key info.",
-            api_key,
-            channel_config.generation_model,
-            channel_config.review_chat_id,
-            session_maker,
-        )
-        await bot.send_message(chat_id, result)
+        try:
+            result = await handle_edit_request(
+                bot,
+                post_id,
+                "Make this post shorter and more concise. Keep the key info.",
+                api_key,
+                channel_config.generation_model,
+                channel_config.review_chat_id,
+                session_maker,
+            )
+            await bot.send_message(chat_id, result)
+        except Exception:
+            logger.exception("shorter_callback_error", post_id=post_id)
+            await bot.send_message(chat_id, "Edit failed.")
 
     elif data.startswith(CB_LONGER):
         post_id = _extract_post_id(data, CB_LONGER)
@@ -144,16 +173,20 @@ async def on_review_callback(callback: CallbackQuery) -> None:
             await callback.answer("Invalid post ID")
             return
         await callback.answer("Expanding...")
-        result = await handle_edit_request(
-            bot,
-            post_id,
-            "Expand this post with more details and context.",
-            api_key,
-            channel_config.generation_model,
-            channel_config.review_chat_id,
-            session_maker,
-        )
-        await bot.send_message(chat_id, result)
+        try:
+            result = await handle_edit_request(
+                bot,
+                post_id,
+                "Expand this post with more details and context.",
+                api_key,
+                channel_config.generation_model,
+                channel_config.review_chat_id,
+                session_maker,
+            )
+            await bot.send_message(chat_id, result)
+        except Exception:
+            logger.exception("longer_callback_error", post_id=post_id)
+            await bot.send_message(chat_id, "Edit failed.")
 
     elif data.startswith(CB_TRANSLATE):
         post_id = _extract_post_id(data, CB_TRANSLATE)
@@ -161,17 +194,21 @@ async def on_review_callback(callback: CallbackQuery) -> None:
             await callback.answer("Invalid post ID")
             return
         await callback.answer("Translating...")
-        target = "Czech" if channel_config.language == "ru" else "Russian"
-        result = await handle_edit_request(
-            bot,
-            post_id,
-            f"Translate this post to {target}. Keep the same HTML formatting and hashtags.",
-            api_key,
-            channel_config.generation_model,
-            channel_config.review_chat_id,
-            session_maker,
-        )
-        await bot.send_message(chat_id, result)
+        try:
+            target = "Czech" if channel_config.language == "ru" else "Russian"
+            result = await handle_edit_request(
+                bot,
+                post_id,
+                f"Translate this post to {target}. Keep the same Markdown formatting. No hashtags.",
+                api_key,
+                channel_config.generation_model,
+                channel_config.review_chat_id,
+                session_maker,
+            )
+            await bot.send_message(chat_id, result)
+        except Exception:
+            logger.exception("translate_callback_error", post_id=post_id)
+            await bot.send_message(chat_id, "Translation failed.")
 
 
 @channel_review_router.message(F.reply_to_message)
