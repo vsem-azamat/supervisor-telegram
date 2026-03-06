@@ -75,10 +75,15 @@ def _get_known_channel_ids(orchestrator: ChannelOrchestrator | None) -> set[str]
     return {str(o.channel_id) for o in orchestrator.orchestrators}
 
 
-async def _validate_chat_id(ctx: RunContext[AssistantDeps], chat_id: int) -> str | None:
+async def _validate_chat_id(ctx: RunContext[AssistantDeps], chat_id: int | str) -> str | None:
     """Validate that chat_id is a managed chat. Returns error message or None."""
     managed = await _get_managed_chat_ids(ctx.deps.session_maker)
-    if chat_id not in managed:
+    # Tools may pass str; coerce to int for comparison
+    try:
+        numeric_id = int(chat_id)
+    except (ValueError, TypeError):
+        return f"Отказано: некорректный chat_id '{chat_id}'."
+    if numeric_id not in managed:
         return f"Отказано: чат {chat_id} не найден среди управляемых чатов."
     return None
 
@@ -159,6 +164,10 @@ def create_assistant_agent(model_name: str = "") -> Agent[AssistantDeps, str]:
     @agent.tool
     async def add_source(ctx: RunContext[AssistantDeps], url: str, channel_id: str, title: str = "") -> str:
         """Add a new RSS source for a channel. channel_id is required — ask the user which channel."""
+        error = await _validate_channel_id(ctx, channel_id)
+        if error:
+            return error
+
         from sqlalchemy import select
 
         from app.infrastructure.db.models import ChannelSource
@@ -496,6 +505,9 @@ def create_assistant_agent(model_name: str = "") -> Agent[AssistantDeps, str]:
     @agent.tool
     async def get_chat_info(ctx: RunContext[AssistantDeps], chat_id: str) -> str:
         """Get full info about a Telegram chat — title, type, members, description, linked chat, slow mode."""
+        error = await _validate_chat_id(ctx, chat_id)
+        if error:
+            return error
         try:
             # Basic info from Bot API
             chat = await ctx.deps.main_bot.get_chat(chat_id=chat_id)
@@ -605,6 +617,9 @@ def create_assistant_agent(model_name: str = "") -> Agent[AssistantDeps, str]:
     @agent.tool
     async def get_chat_history(ctx: RunContext[AssistantDeps], chat_id: str, limit: int = 20) -> str:
         """Read recent message history from a chat. Requires Client API (Telethon)."""
+        error = await _validate_chat_id(ctx, chat_id)
+        if error:
+            return error
         tc = ctx.deps.telethon
         if not tc or not tc.is_available:
             return "Telethon client not available."
@@ -629,6 +644,9 @@ def create_assistant_agent(model_name: str = "") -> Agent[AssistantDeps, str]:
     @agent.tool
     async def search_messages(ctx: RunContext[AssistantDeps], chat_id: str, query: str, limit: int = 20) -> str:
         """Search for messages in a chat by text. Requires Client API (Telethon)."""
+        error = await _validate_chat_id(ctx, chat_id)
+        if error:
+            return error
         tc = ctx.deps.telethon
         if not tc or not tc.is_available:
             return "Telethon client not available."
@@ -653,6 +671,9 @@ def create_assistant_agent(model_name: str = "") -> Agent[AssistantDeps, str]:
     @agent.tool
     async def get_chat_members(ctx: RunContext[AssistantDeps], chat_id: str, limit: int = 50) -> str:
         """List members of a chat/group/channel. Requires Client API (Telethon)."""
+        error = await _validate_chat_id(ctx, chat_id)
+        if error:
+            return error
         tc = ctx.deps.telethon
         if not tc or not tc.is_available:
             return "Telethon client not available."
