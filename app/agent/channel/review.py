@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, URLInputFile
 
+from app.agent.channel.generator import KONNEKT_FOOTER
 from app.agent.channel.llm_client import openrouter_chat_completion
 from app.core.logging import get_logger
 from app.infrastructure.db.models import ChannelPost
@@ -267,8 +268,23 @@ async def handle_edit_request(
                     {
                         "role": "system",
                         "content": (
-                            "You are a post editor. Edit the post according to the instruction. "
-                            "Return ONLY the edited post text in HTML format for Telegram. No explanations."
+                            "You are a post editor for the Konnekt Telegram channel "
+                            "(CIS students in Czech Republic). "
+                            "Edit the post according to the instruction. "
+                            "Return ONLY the edited post text in HTML format for Telegram. "
+                            "No explanations.\n\n"
+                            "RULES YOU MUST FOLLOW:\n"
+                            "- LENGTH: 300-500 chars for news, up to 700 for analysis. "
+                            "Hard limit 900 chars.\n"
+                            "- TONE: Friendly, slightly witty — like a smart friend sharing news. "
+                            "Not too formal, not too casual.\n"
+                            "  BAD: 'Уважаемые студенты! Администрация сообщает...'\n"
+                            "  BAD: 'ааа братцы дедлайн продлили!!!'\n"
+                            "  GOOD: 'Если вы ещё не подали заявку — есть хорошая новость.'\n"
+                            "- Always leave blank lines between headline, paragraphs, and footer.\n"
+                            "- Max 1 emoji (at headline start), max 1 exclamation mark per post.\n"
+                            "- Use HTML only (<b>, <i>, <a>), no markdown, no hashtags.\n"
+                            f"- ALWAYS end with the Konnekt footer:\n  {KONNEKT_FOOTER}"
                         ),
                     },
                     {
@@ -282,6 +298,17 @@ async def handle_edit_request(
             )
             if not new_text:
                 return "Edit failed."
+
+            # Ensure footer is present
+            if KONNEKT_FOOTER not in new_text:
+                new_text = new_text.rstrip() + "\n\n" + KONNEKT_FOOTER
+
+            # Hard-truncate if still over 900
+            if len(new_text) > 900:
+                max_body = 900 - len("\n\n") - len(KONNEKT_FOOTER)
+                body = new_text.replace(KONNEKT_FOOTER, "").rstrip()
+                body = body[:max_body].rstrip()
+                new_text = body + "\n\n" + KONNEKT_FOOTER
 
             post.update_text(new_text)
 

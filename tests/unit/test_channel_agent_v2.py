@@ -548,7 +548,8 @@ class TestReviewFlow:
         assert result == "Post updated."
         async with session_maker() as session:
             saved = (await session.execute(select(ChannelPost))).scalar_one()
-            assert saved.post_text == "<b>Edited</b>"
+            assert saved.post_text.startswith("<b>Edited</b>")
+            assert "Konnekt" in saved.post_text
             assert saved.status == "draft"
 
     async def test_handle_edit_request_strips_code_fences(
@@ -572,7 +573,8 @@ class TestReviewFlow:
         assert result == "Post updated."
         async with session_maker() as session:
             saved = (await session.execute(select(ChannelPost))).scalar_one()
-            assert saved.post_text == "<b>New</b>"
+            assert saved.post_text.startswith("<b>New</b>")
+            assert "Konnekt" in saved.post_text
 
     async def test_handle_edit_request_not_found(
         self,
@@ -894,7 +896,9 @@ class TestGeneratePostFeedbackContext:
             post = await generate_post(sample_content_items, api_key="key", model="model")
 
         assert post is not None
-        assert post.text == "<b>Post</b>"
+        # Footer is auto-appended if missing
+        assert post.text.startswith("<b>Post</b>")
+        assert "Konnekt" in post.text
         # Verify the prompt does NOT contain admin preferences
         call_args = mock_agent.run.call_args[0][0]
         assert "Admin preferences" not in call_args

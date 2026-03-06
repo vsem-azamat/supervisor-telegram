@@ -63,7 +63,7 @@ Simple, clean, distinctive. The `——` (em-dash pair) is our separator — dif
 2. **Emoji prefix** — one relevant emoji before headline
 3. **Czech terms** — keep official Czech names (Nejvyšší soud, not "Supreme Court") with Russian explanation when needed
 4. **Links** — inline, not bare URLs
-5. **Length** — 150-500 chars for news, up to 800 for detailed posts
+5. **Length** — 300-500 chars for news, up to 700 for detailed analysis. Hard limit 900 chars (Telegram photo caption)
 6. **No exclamation overload** — max 1 per post
 7. **Footer** — always present, always last
 

@@ -99,8 +99,8 @@ async def get_feedback_summary(
             strip_code_fences=False,
         )
         if summary:
-            logger.info("feedback_summarized", channel_id=channel_id, length=len(summary))
-        return summary
+            logger.info("feedback_summarized", channel_id=channel_id, length=len(str(summary)))
+        return str(summary) if summary else None
 
     except Exception:
         logger.exception("feedback_summary_error")

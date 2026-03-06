@@ -51,6 +51,12 @@ async def on_shutdown(bot: Bot) -> None:
             await telethon_client.stop()
             logger.info("Telethon client stopped")
 
+        # Close the shared LLM httpx client
+        from app.agent.channel.llm_client import close_client as close_llm_client
+
+        await close_llm_client()
+        logger.info("LLM client closed")
+
         await bot.delete_webhook()
         await bot.close()
         await close_db()
@@ -131,6 +137,23 @@ async def main() -> None:
     dp.message.middleware(BlacklistMiddleware())
     dp.callback_query.middleware(CallbackAnswerMiddleware())
 
+    # Start assistant bot as a background task.
+    # NOTE: The assistant receives `bot` (main Bot instance) for Telegram API calls
+    # (ban, mute, send_message). Both bots share the same aiohttp session, which is
+    # safe since they run in the same asyncio event loop. The assistant creates its
+    # own separate Bot instance for polling.
+    assistant_task = None
+    try:
+        from app.assistant.bot import run_assistant_bot
+
+        assistant_task = asyncio.create_task(
+            run_assistant_bot(session_maker, bot, channel_orchestrator),
+            name="assistant_bot",
+        )
+        logger.info("Assistant bot task created")
+    except Exception:
+        logger.exception("Assistant bot init failed")
+
     try:
         # Register handlers and lifecycle events
         dp.include_router(router)
@@ -149,6 +172,8 @@ async def main() -> None:
         raise
 
     finally:
+        if assistant_task and not assistant_task.done():
+            assistant_task.cancel()
         if channel_orchestrator:
             await channel_orchestrator.stop()
         await bot.session.close()

@@ -21,6 +21,9 @@ logger = get_logger("channel.generator")
 
 _XML_HTML_TAG_RE = re.compile(r"<[^>]+>")
 
+# Canonical footer — must appear at the end of every post.
+KONNEKT_FOOTER = "——\n🔗 <b>Konnekt</b> | @konnekt_channel"
+
 
 def _sanitize_content(text: str) -> str:
     """Strip XML/HTML tags from external content to prevent prompt injection."""
@@ -56,13 +59,25 @@ You are a content writer for "Konnekt" — a Telegram channel for CIS students i
 Write a post in {language} about ONE news item provided below.
 
 CRITICAL LENGTH RULE:
-- The ENTIRE post (including footer) MUST be under 900 characters total.
-- This is a hard limit — posts over 900 characters will be rejected.
-- Aim for 500-800 characters. Be concise.
+- News posts: 300-500 characters (including footer).
+- Detailed analysis posts: up to 700 characters (including footer).
+- The absolute hard limit is 900 characters — posts over 900 characters will be rejected and rewritten.
+- When in doubt, be concise. Shorter is better.
+
+EMOJI BY CATEGORY (use the most fitting one at the headline start):
+📰 General news about Czech Republic
+🎓 Education, universities, scholarships, deadlines
+💼 Jobs, internships, career opportunities
+🎉 Events, cultural activities, student life
+🏠 Housing, transport, daily life tips
+💰 Finance, student discounts, deals
+⚡ Breaking or urgent news
 
 FORMATTING RULES:
-- Start with ONE relevant emoji + bold headline: e.g. "🎓 <b>CVUT продлил дедлайн стипендии</b>"
+- Start with ONE relevant emoji (from the list above) + bold headline: e.g. "🎓 <b>CVUT продлил дедлайн стипендии</b>"
 - Body: 1-2 short paragraphs. Get to the point fast.
+- Always leave a blank line between the headline, each paragraph, and the footer. \
+The post must have clear visual breathing room.
 - If there's a source URL, include it as: <a href="URL">Подробнее</a>
 - ALWAYS end with our footer (mandatory, on every post):
   ——
@@ -76,6 +91,12 @@ STYLE:
 - Keep Czech official terms (Nejvyšší soud, ČVUT) with Russian context when needed
 - No emoji spam — only 1 emoji at start of headline
 - No exclamation mark overload — max 1 per post
+
+TONE EXAMPLES:
+BAD (too formal): "Уважаемые студенты! Администрация сообщает..."
+BAD (too casual): "ааа братцы дедлайн продлили!!!"
+GOOD: "Если вы ещё не подали заявку — есть хорошая новость."
+GOOD: "Новые правила для студентов — коротко о главном."
 
 IMPORTANT: Write about ONLY ONE news story. Do NOT combine multiple news items into one post.
 If multiple items are provided, pick the MOST interesting one and write about it only.
@@ -172,6 +193,47 @@ async def generate_post(
             await log_usage(usage)
 
         post = result.output
+
+        # --- Post-generation validation ---
+
+        # Ensure the canonical footer is present
+        if KONNEKT_FOOTER not in post.text:
+            post.text = post.text.rstrip() + "\n\n" + KONNEKT_FOOTER
+
+        # If too long, ask the LLM to shorten (one retry)
+        if len(post.text) > 900:
+            logger.warning("post_too_long", length=len(post.text), action="retry_shorten")
+            try:
+                shorten_result = await agent.run(
+                    f"This post is {len(post.text)} characters — too long. "
+                    f"Shorten it to under 700 characters while keeping the same facts, "
+                    f"tone, and footer. Return ONLY the shortened post.\n\n{post.text}"
+                )
+                shortened_usage = extract_usage_from_pydanticai_result(shorten_result, model, "generation_shorten")
+                if shortened_usage:
+                    await log_usage(shortened_usage)
+                shortened = shorten_result.output
+                # Re-ensure footer after shortening
+                if KONNEKT_FOOTER not in shortened.text:
+                    shortened.text = shortened.text.rstrip() + "\n\n" + KONNEKT_FOOTER
+                post = shortened
+            except Exception:
+                logger.exception("shorten_retry_failed")
+
+            # If still over 900 after retry, hard-truncate at last complete sentence
+            if len(post.text) > 900:
+                logger.warning("post_still_too_long", length=len(post.text), action="truncate")
+                # Strip footer, truncate body, re-append footer
+                body = post.text.replace(KONNEKT_FOOTER, "").rstrip()
+                max_body = 900 - len("\n\n") - len(KONNEKT_FOOTER)
+                if len(body) > max_body:
+                    truncated = body[:max_body]
+                    # Cut at the last sentence boundary (. ! ?)
+                    last_period = max(truncated.rfind("."), truncated.rfind("!"), truncated.rfind("?"))
+                    if last_period > max_body // 2:
+                        truncated = truncated[: last_period + 1]
+                    body = truncated
+                post.text = body.rstrip() + "\n\n" + KONNEKT_FOOTER
 
         # Resolve images: find multiple high-quality images from the source article
         from app.agent.channel.images import find_images_for_post
