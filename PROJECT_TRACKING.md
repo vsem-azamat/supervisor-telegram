@@ -30,7 +30,7 @@ Constraints:
 - [x] Escalation flow works: inline buttons -> admin decision -> action executed -> stored in DB — verified via e2e tests (`9c3d80d`)
 - [x] "Update ... is not handled" investigated and confirmed harmless OR fixed
 - [x] Basic code quality checks pass (tests, lint/type if applicable)
-- [ ] README updated: how to run locally (no docker), env vars, DB migrations
+- [x] README updated: how to run locally (no docker), env vars, DB migrations — `624eb3d`
 - [x] Changes committed & pushed in small atomic commits
 
 ## 2) Task board
@@ -44,11 +44,13 @@ Constraints:
 - [x] Improve docs/README — `624eb3d`
 - [x] E2E test infrastructure: FakeTelegramServer + 9 tests covering /report, /spam, escalation callbacks — `9c3d80d`
 - [x] DDD fix: move ORM models from `app/domain/models.py` to `app/infrastructure/db/models.py` — `c168308`
-- [x] testcontainers[postgres] dev dependency added (for future PG integration tests, needs docker group)
+- [x] testcontainers[postgres] dev dependency added — 6 PG integration tests pass, docker group configured
+- [x] Add user to `docker` group for testcontainers PG tests
+- [x] Pre-commit hooks configured (ruff, mypy, pytest on push, eslint/tsc for webapp)
+- [x] All ruff, mypy, formatting issues resolved (0 errors across all tools)
 
 ### ON HOLD (needs Azamat)
 - [ ] Verify bot has admin rights in test chat — mute failed with "API Error", delete failed with "Message too old" (expected for old messages, but admin rights should be confirmed).
-- [ ] Add user to `docker` group for testcontainers PG tests: `sudo usermod -aG docker azamat`
 
 ### In progress
 - [ ] Further DDD cleanup: agent layer directly uses SQLAlchemy (no repository abstraction for AgentDecision/AgentEscalation)
@@ -96,6 +98,7 @@ Record only decisions that matter later.
 - 2026-03-05: Four fixes applied — events router wired, agent_core optional, allowed_updates filter, admin cache TTL. All tests pass (270/270). Commits: `c30a961`, `65eec30`.
 - 2026-03-05: E2E test infra built — FakeTelegramServer (aiohttp), 9 e2e tests for /report, /spam, escalation, managed chats. testcontainers added for future PG tests. 279 tests pass.
 - 2026-03-05: DDD refactor — ORM models moved from domain to infrastructure. Backwards-compat shim kept. Escalation manual test replaced by automated e2e tests.
+- 2026-03-06: PG integration tests working (6 tests via testcontainers). Pre-commit hooks installed (ruff, mypy, pytest, eslint/tsc). All code quality checks pass (ruff 0, mypy 0, 285 tests). DDD/multi-agent/channel-agent design work in progress.
 
 ## 7) Manual test checklist for Azamat: escalation flow
 
