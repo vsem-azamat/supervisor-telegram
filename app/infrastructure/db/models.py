@@ -302,8 +302,12 @@ class ChannelPost(Base):
     source_url: Mapped[str | None] = mapped_column(String, nullable=True)
     title: Mapped[str] = mapped_column(String)
     post_text: Mapped[str] = mapped_column(String)
+    source_items: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
     telegram_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    status: Mapped[str] = mapped_column(String(16), default="published")
+    review_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    review_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    status: Mapped[str] = mapped_column(String(16), default="draft")
+    admin_feedback: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.now)
 
     def __init__(
@@ -313,16 +317,35 @@ class ChannelPost(Base):
         title: str,
         post_text: str,
         source_url: str | None = None,
+        source_items: list[dict[str, Any]] | None = None,
         telegram_message_id: int | None = None,
-        status: str = "published",
+        review_message_id: int | None = None,
+        review_chat_id: int | None = None,
+        status: str = "draft",
     ) -> None:
         self.channel_id = channel_id
         self.external_id = external_id
         self.title = title
         self.post_text = post_text
         self.source_url = source_url
+        self.source_items = source_items
         self.telegram_message_id = telegram_message_id
+        self.review_message_id = review_message_id
+        self.review_chat_id = review_chat_id
         self.status = status
+
+    def approve(self, message_id: int) -> None:
+        self.status = "approved"
+        self.telegram_message_id = message_id
+
+    def reject(self, feedback: str | None = None) -> None:
+        self.status = "rejected"
+        if feedback:
+            self.admin_feedback = feedback
+
+    def update_text(self, new_text: str) -> None:
+        self.post_text = new_text
+        self.status = "draft"
 
 
 class AgentDecision(Base):

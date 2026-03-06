@@ -5,13 +5,14 @@
 
 ## 0) Global vision (high-level)
 
-We operate multiple Telegram **chats and channels** for CIS students in Czechia (CVUT/CVUT, UK, VSE, VUT, MUNI, VSCHT, etc.).
+We operate multiple Telegram **chats and channels** for CIS students in Czechia (CVUT, UK, VSE, VUT, MUNI, VSCHT, etc.).
 Goal: an **autonomous ecosystem** that can:
 
 - Moderate chats (today's scope)
 - Autonomously run channels: find resources/topics, produce posts, schedule, adapt
 - Communicate with Azamat: ask for approvals early, escalate important questions
 - Orchestrate chats/channels metadata: descriptions, pins, rules, titles, etc.
+- Learn from admin feedback: summarize preferences, drop bad sources, improve generations
 - Potentially use Telegram Client API (Pyrogram) for advanced actions (ads outreach, richer automation)
 
 Constraints:
@@ -23,115 +24,115 @@ Constraints:
 
 - Repo: `moderator-bot`
 - Branch: `claude/telegram-chat-bot-JfIPd`
-- Objective: make AI moderation (/report, /spam, escalation, memory/overrides) reliable and "production-ready".
+- Objective: **Channel content agent with review workflow** — autonomous content pipeline with admin approval via private review channel
 
-### Definition of Done (MVP moderation)
-- [x] End-to-end smoke test in real chat for `/report` and `/spam` — agent pipeline works (LLM decision + action execution confirmed from logs)
-- [x] Escalation flow works: inline buttons -> admin decision -> action executed -> stored in DB — verified via e2e tests (`9c3d80d`)
-- [x] "Update ... is not handled" investigated and confirmed harmless OR fixed
-- [x] Basic code quality checks pass (tests, lint/type if applicable)
-- [x] README updated: how to run locally (no docker), env vars, DB migrations — `624eb3d`
-- [x] Changes committed & pushed in small atomic commits
+### Current Goal: Channel Agent v2 — Review Flow
+
+Agent autonomously discovers content, generates posts, sends to private review channel with inline buttons. Admin reviews, edits via chat conversation with agent, approves/rejects. Agent learns from feedback.
+
+**Key requirements:**
+1. NO hardcoded RSS feeds — agent discovers sources via Perplexity Sonar
+2. Posts go to private review channel (not directly to main channel)
+3. Inline buttons under each draft: Approve / Reject / Regen / Shorter / Longer / Translate
+4. Linked discussion chat: admin replies with feedback, agent modifies post
+5. Agent summarizes admin feedback + source stats to improve over time
+6. Auto-disable bad RSS sources based on health tracking
+
+### Definition of Done (Channel Agent v2)
+- [ ] Review channel flow: draft -> buttons -> approve -> publish to main channel
+- [ ] Inline keyboard with actionable buttons (approve, reject, regen, shorter, longer, translate)
+- [ ] Reply-based editing: admin writes feedback in discussion chat, agent updates draft
+- [ ] Source discovery agent: finds RSS feeds via Perplexity, validates, adds to DB
+- [ ] Admin feedback memory: agent summarizes preferences to improve future posts
+- [ ] Source health: auto-disable broken feeds, relevance scoring from admin actions
+- [ ] Unit tests for review handler, source discovery, feedback system
+- [ ] RSS sources from .env deprecated — agent manages sources autonomously
 
 ## 2) Task board
 
 ### Done
 - [x] Wire `events` router (chat_member handlers were dead code) — `c30a961`
-- [x] Make `agent_core` optional when agent disabled (prevented handler crash) — `c30a961`
-- [x] Add `allowed_updates` filter to `start_polling` — eliminates noise from edited_message/channel_post/my_chat_member updates — `65eec30`
-- [x] TTL cache (5 min) for `get_chat_administrators` in ManagedChatsMiddleware — saves ~500-1000ms per group message — `65eec30`
-- [x] Investigate "Update is not handled" — root cause: regular non-command text messages in groups pass all routers with no match. `allowed_updates` filter fixes most noise; remaining is harmless.
-- [x] Improve docs/README — `624eb3d`
-- [x] E2E test infrastructure: FakeTelegramServer + 9 tests covering /report, /spam, escalation callbacks — `9c3d80d`
-- [x] DDD fix: move ORM models from `app/domain/models.py` to `app/infrastructure/db/models.py` — `c168308`
-- [x] testcontainers[postgres] dev dependency added — 6 PG integration tests pass, docker group configured
-- [x] Add user to `docker` group for testcontainers PG tests
-- [x] Pre-commit hooks configured (ruff, mypy, pytest on push, eslint/tsc for webapp)
-- [x] All ruff, mypy, formatting issues resolved (0 errors across all tools)
-
-### ON HOLD (needs Azamat)
-- [ ] Verify bot has admin rights in test chat — mute failed with "API Error", delete failed with "Message too old" (expected for old messages, but admin rights should be confirmed).
+- [x] Make `agent_core` optional when agent disabled — `c30a961`
+- [x] `allowed_updates` filter + admin cache TTL — `65eec30`
+- [x] E2E test infrastructure: FakeTelegramServer + 9 tests — `9c3d80d`
+- [x] DDD fix: ORM models from domain to infrastructure — `c168308`
+- [x] testcontainers[postgres] + 6 PG integration tests
+- [x] Pre-commit hooks (ruff, mypy, pytest, eslint/tsc)
+- [x] All code quality: ruff 0, mypy 0, 285 tests
+- [x] Channel agent v1: RSS fetch -> LLM screen -> generate -> publish — `f56bc72`
+- [x] Perplexity Sonar discovery + DB-backed source management — `3057497`
+- [x] Successfully published 3 posts to @test908070 (msg IDs 44-46)
 
 ### In progress
-- [ ] DDD repository refactor for agent models — code complete in worktree, needs clean merge (`docs/ddd-refactor.patch`)
+- [ ] Channel agent v2: review flow with inline buttons + discussion chat editing
+- [ ] Source discovery agent: auto-find RSS feeds
+- [ ] Admin feedback memory / source quality tracking
 
-### Designed (architecture plans complete, ready for implementation)
-- [ ] Multi-agent hierarchy: Coordinator + 4 agents (Moderation/Content/Orchestration/Analytics) — see `docs/ARCHITECTURE_PLAN.md` section 1
-- [ ] Channel/content agent: 5-stage pipeline (Discover/Screen/Generate/Review/Publish) — section 2
-- [ ] Approval workflow: generalized escalation with multi-approver, batch, timeout policies — section 3
-- [ ] Pyrogram integration: same-process, read-only first, rate limiter, safety plan — section 4
-- [ ] Cost control: per-agent budgets, token tracking, model routing — section 5
+### ON HOLD
+- [ ] Verify bot admin rights in test chat
+- [ ] DDD repository refactor — patch at `docs/ddd-refactor.patch`
 
-### Backlog (next implementation)
-- [ ] Phase 1: Foundation (BaseAgent, Coordinator, cost tracking, TelegramActionGuard)
-- [ ] Phase 2: Approval system (ApprovalRequest/Vote tables, ApprovalService)
-- [ ] Phase 3: Analytics agent (read-only, scheduled reports)
-- [ ] Phase 4: Content agent (RSS fetcher, screening, generation, publisher)
-- [ ] Phase 5: Orchestration agent + Pyrogram foundation
-- [ ] Phase 6: Hardening (budget alerts, memory reflection, webapp dashboard)
+### Backlog
+- [ ] Multi-agent hierarchy (Coordinator + Moderation/Content/Orchestration/Analytics)
+- [ ] Approval workflow: generalized escalation with multi-approver
+- [ ] Pyrogram integration
+- [ ] Cost control: per-agent budgets, token tracking
+- [ ] Analytics agent (scheduled reports)
+- [ ] Webapp dashboard for channel management
 
-## 3) Research queue (parallel)
+## 3) Architecture: Channel Agent v2
 
-Goal: learn from recent experiments in autonomous multi-agent systems and long-term memory that worked in practice.
+```
+Source Discovery Agent (daily)
+  Perplexity: "find RSS feeds about..."
+  -> validate (fetch + check items)
+  -> add to DB (channel_sources)
+  -> auto-disable broken sources
 
-### Topics
-- [x] Multi-agent orchestration patterns (manager/worker, planner/executor, debate/reviewer)
-- [x] Cost control tactics (cheap model routing, caching, retrieval, budget caps)
-- [x] Long-term memory approaches (DB-backed, retrieval + reflection, feedback loops)
-- [x] Telegram automation architectures (Bot API + Client API hybrid)
+Content Pipeline (every N minutes)
+  1. Fetch DB sources + Perplexity discovery
+  2. Screen items (Gemini Flash, score 0-10)
+  3. Generate post (Gemini Flash, HTML)
+  4. Send to Review Channel with inline buttons
 
-### Findings
-- PydanticAI agent-as-tool is the best fit for cross-agent delegation (already in stack)
-- Deterministic coordinator (not LLM) saves tokens at 4-agent scale
-- DB-backed task queue sufficient; no message broker needed yet
-- Gemini Flash at $0.01-0.05/day for 1000 moderation events
-- Memory: add behavior_rules table + nightly reflection task
-- Pyrogram: same-process, read-only first, circuit breaker for FloodWait
-- Full details in `docs/ARCHITECTURE_PLAN.md`
+Review Channel (@private)
+  [Draft post text]
+  [Approve] [Reject] [Regen] [Shorter] [Longer] [Translate]
+
+  Discussion Chat (linked):
+    Admin: "add deadline info"
+    Agent: *updates post* "Done, updated version above"
+    Admin: *clicks Approve*
+
+Main Channel (@test908070)
+  Published post
+
+Feedback Memory:
+  Agent summarizes: which sources admin likes, what edits are common,
+  which topics get approved vs rejected -> uses this to improve
+```
 
 ## 4) Decisions log (ADR-lite)
 
-Record only decisions that matter later.
-
-- 2026-03-05: Approval policy — Ask for approval by default on sensitive actions; specifically title changes and slowmode changes always require explicit approval. Other orchestration actions can be autonomous.
-- 2026-03-05: Client API integration — Use a separate Pyrogram service account (not Azamat's personal account).
-- 2026-03-05: `allowed_updates` — Only receive `message`, `callback_query`, `chat_member` from Telegram. Other update types are not handled and add noise.
-- 2026-03-05: Admin cache TTL = 5 min — Tradeoff between API cost and freshness. If admin changes aren't detected fast enough, reduce `_CACHE_TTL` in `managed_chats.py`.
+- 2026-03-06: RSS sources NOT in .env — agent discovers them autonomously via Perplexity
+- 2026-03-06: All posts go through review channel first — no direct publishing
+- 2026-03-06: Review channel has linked discussion chat for back-and-forth with agent
+- 2026-03-06: Agent summarizes admin feedback to improve source selection and post quality
+- 2026-03-05: Approval policy — sensitive actions always require explicit approval
+- 2026-03-05: Client API — separate Pyrogram service account
+- 2026-03-05: `allowed_updates` — message, callback_query, chat_member only
+- 2026-03-05: Admin cache TTL = 5 min
 
 ## 5) Open questions for Azamat
 
-- Q1: What requires approval early on? -> Default: ask approval for sensitive actions.
-- Q2: Chat orchestration permissions? -> Title + slowmode require approval; other metadata/actions can be autonomous.
-- Q3: Pyrogram account? -> Separate service account (not personal).
-- Q4: Confirm bot has admin rights (can restrict members) in the test chat. Logs show "Error while muting user: API Error".
+- Q1 (resolved): Posts require approval -> Yes, always via review channel
+- Q2 (resolved): RSS sources approach -> Agent discovers autonomously, no .env hardcoding
+- Q3: Create private review channel with linked discussion chat — needed for v2
+- Q4: Confirm bot has admin rights in test chat
 
 ## 6) Status updates (chronological)
 
-- 2026-03-05: Environment fixed, migrations OK, bot starts polling; first runtime bug fixed (timezone-naive/aware timestamps in escalation recovery).
-- 2026-03-05: Agent pipeline confirmed working end-to-end from logs (2 handled updates, ~60s each for LLM call). Action errors are expected edge cases (missing admin rights, old messages).
-- 2026-03-05: Four fixes applied — events router wired, agent_core optional, allowed_updates filter, admin cache TTL. All tests pass (270/270). Commits: `c30a961`, `65eec30`.
-- 2026-03-05: E2E test infra built — FakeTelegramServer (aiohttp), 9 e2e tests for /report, /spam, escalation, managed chats. testcontainers added for future PG tests. 279 tests pass.
-- 2026-03-05: DDD refactor — ORM models moved from domain to infrastructure. Backwards-compat shim kept. Escalation manual test replaced by automated e2e tests.
-- 2026-03-06: PG integration tests working (6 tests via testcontainers). Pre-commit hooks installed (ruff, mypy, pytest, eslint/tsc). All code quality checks pass (ruff 0, mypy 0, 285 tests). DDD/multi-agent/channel-agent design work in progress.
-
-## 7) Manual test checklist for Azamat: escalation flow
-
-Prerequisites:
-- Bot running (`docker-compose -f docker-compose.dev.yaml up`)
-- `AGENT_ENABLED=true` and `AGENT_OPENROUTER_API_KEY` set in `.env`
-- Bot has **admin rights** in the test group chat (can restrict/ban members)
-- Your user ID is in `ADMIN_SUPER_ADMINS`
-
-Steps:
-1. In a group chat, have someone (or a second account) send a message
-2. Reply to that message with `/report` or `/spam`
-3. Bot should respond "Analiziruyu soobshcheniye..." then show a decision
-4. If the agent decides to **escalate**, you'll get a DM with action buttons
-5. Click one of the buttons (e.g., "Mut", "Ban", "Ignor")
-6. Verify:
-   - [ ] Bot responds with "Vypolneno: ..." in the callback
-   - [ ] The escalation message gets updated with the decision
-   - [ ] The action is actually executed (user muted/banned/etc.)
-   - [ ] Check DB: `SELECT * FROM agent_escalations ORDER BY id DESC LIMIT 5;` — `status` should be `resolved`, `resolved_action` filled
-
-If the agent does NOT escalate (decides on its own), try sending `/report` on a borderline message, or temporarily lower the agent's confidence threshold.
+- 2026-03-05: Agent pipeline end-to-end confirmed. 4 fixes applied. E2E tests built. DDD refactor.
+- 2026-03-06: PG integration tests. Pre-commit hooks. All quality checks pass (285 tests).
+- 2026-03-06: Channel agent v1 built and deployed. RSS + Perplexity discovery pipeline. 3 posts published to @test908070. Perplexity Sonar found excellent content (scholarships scoring 10/10).
+- 2026-03-06: Starting v2 — review flow with inline buttons, discussion chat editing, source discovery agent, admin feedback memory.

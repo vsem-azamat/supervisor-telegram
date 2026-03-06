@@ -7,7 +7,7 @@ from app.presentation.telegram.middlewares import (
     chat_type as chat_type_middlewares,
 )
 
-from . import admin, agent_handler, events, groups, moderation, service, start, webapp
+from . import admin, agent_handler, channel_review, events, groups, moderation, service, start, webapp
 
 router = Router()
 
@@ -26,4 +26,5 @@ router.include_router(admin.admin_router)
 router.include_router(groups.groups_router)
 router.include_router(service.router)
 router.include_router(webapp.router)
+router.include_router(channel_review.channel_review_router)
 router.include_router(events.router)

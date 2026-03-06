@@ -46,8 +46,13 @@ class Container:
         """Set bot instance."""
         self._bot = bot
 
-    def get(self, interface: type[T]) -> T:
-        """Get service instance."""
+    def get(self, interface: type[T] | str) -> T:
+        """Get service instance by type or string key."""
+        if isinstance(interface, str):
+            if interface == "session_maker":
+                return self._session_maker
+            raise ValueError(f"Unknown string key: {interface}")
+
         # Check singletons first
         if interface in self._singletons:
             return self._singletons[interface]  # type: ignore
