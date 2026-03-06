@@ -373,7 +373,7 @@ class SingleChannelOrchestrator:
         # 4. Generate post
         language = self._language_name()
         post = await generate_post(
-            relevant[:3],
+            relevant[:1],  # 1 news = 1 post
             api_key=self.api_key,
             model=self.config.generation_model,
             language=language,
@@ -392,7 +392,7 @@ class SingleChannelOrchestrator:
                 review_chat_id=review_chat_id,
                 channel_id=channel_id,
                 post=post,
-                source_items=relevant[:3],
+                source_items=relevant[:1],
                 session_maker=self.session_maker,
             )
             if post_id:

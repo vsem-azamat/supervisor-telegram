@@ -142,6 +142,19 @@ Agent autonomously discovers content, generates posts, sends to private review c
 - [x] Working RSS feeds identified: ct24.cz (with images), irozhlas.cz (with images), novinky.cz, seznamzpravy.cz, blesk.cz
 - [x] 500 tests passing, all quality checks green
 
+### Done (v3.1 — 1 news = 1 post, multi-image, deployment)
+- [x] GENERATION_PROMPT: enforce single news per post, max 900 chars (fits photo caption)
+- [x] Multi-image publisher: media group/album support with graceful fallback chain
+- [x] Smart image filtering: skip thumbnails (width<400), deduplicate by base URL, max 3 images
+- [x] `image_urls` JSON column on ChannelPost + Alembic migration
+- [x] Orchestrator + workflow: generate one post per relevant item (not 3 combined)
+- [x] @konnekt_channel created (https://t.me/konnekt_channel) with bot + Azamat as admins
+- [x] 5 RSS sources added to DB: CT24, iROZHLAS, Novinky, Seznam Zpravy, Blesk
+- [x] E2E review flow verified: fetch -> screen -> generate -> review -> approve -> publish
+- [x] 3 test posts published with proper format (443-589 chars, photo+caption, Konnekt footer)
+- [x] Deployed in test mode: @test908070 channel, -1003823967369 review group
+- [x] 500 tests passing, all quality checks green
+
 ### ON HOLD
 - [ ] DDD repository refactor — patch at `docs/ddd-refactor.patch`
 
@@ -174,8 +187,8 @@ Review Channel (@private)
     Agent: *updates post* "Done, updated version above"
     Admin: *clicks Approve*
 
-Main Channel (@test908070)
-  Published post
+Main Channel (@test908070 test / @konnekt_channel prod)
+  Published post (photo + caption, 1 news = 1 post)
 
 Feedback Memory:
   Agent summarizes: which sources admin likes, what edits are common,
@@ -219,3 +232,4 @@ Feedback Memory:
 - 2026-03-06: Review infrastructure created: "Konnekt Review" (-1003823967369), bot + Azamat as admins. Key lesson: ManagedChatsMiddleware requires super_admin to be admin in group, otherwise bot auto-leaves.
 - 2026-03-06: v2.5 — Code quality refactor: extracted LLM client, centralized config/constants/datetime, deduplicated RSS parsing, fixed logging. 461 tests. All checks pass.
 - 2026-03-06: v3.0 — Brand identity + image system. Analyzed 3 competitor channels. Created Konnekt style guide with distinctive footer. Built image pipeline (OG image, RSS media, HTML img fallback). 8 posts published to @test908070 (5 text + 3 with photos). Updated generation prompt, publisher, review flow. 500 tests. All checks pass.
+- 2026-03-06: v3.1 — 1 news = 1 post (no more cramming). Multi-image albums. Smart image filtering (width>=400, dedup by base URL). @konnekt_channel created. 5 RSS sources in DB. Full E2E review flow verified. Deployed in test mode.
