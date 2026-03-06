@@ -114,8 +114,18 @@ Agent autonomously discovers content, generates posts, sends to private review c
 - [x] Alembic migration applied: channel_posts review columns + source relevance_score
 - [x] 461 tests passing (50 new: 14 escalation, 22 orchestrator, 14 telethon)
 
-### In progress
-- [ ] Code quality refactor: eliminate magic values, centralize constants, DRY violations (15 categories found by code review)
+### Done (v2.5 — Code quality refactor)
+- [x] Extracted `openrouter_chat_completion()` into `app/agent/channel/llm_client.py` (replaced 4 duplicated HTTP patterns)
+- [x] Created `app/core/time.py` with `utc_now()` helper (replaced 15+ inline datetime calls)
+- [x] Centralized `LANGUAGE_NAMES` + `language_name()` in channel config
+- [x] Added `http_timeout`, `screening_threshold`, `temperature` to `ChannelAgentSettings`
+- [x] Added `openrouter_base_url` to `AgentSettings`
+- [x] Added `_MAX_API_PAGE_SIZE`, `_BLACKLIST_PAGE_SIZE` constants
+- [x] Deduplicated RSS feed parsing into `_parse_feed_entries()` helper
+- [x] Fixed moderation logging (stdlib logger %-style, not structlog kwargs)
+- [x] Fixed hardcoded timezone to use `settings.timezone`
+- [x] Added Gemini 3.1 model pricing to cost_tracker
+- [x] 461 tests passing, all quality checks green
 
 ### ON HOLD
 - [ ] DDD repository refactor — patch at `docs/ddd-refactor.patch`
@@ -192,3 +202,4 @@ Feedback Memory:
 - 2026-03-06: Telethon Client API authorized and tested: get_user_info, get_chat_info, get_chat_history, get_chat_members, search_messages, forward_messages — all working against real Telegram.
 - 2026-03-06: Available test resources: FFGroup (-4650848481), Konnekt Dev (-1002287191880, @test908070), Bot (5145935834), Azamat (268388996).
 - 2026-03-06: Review infrastructure created: "Konnekt Review" (-1003823967369), bot + Azamat as admins. Key lesson: ManagedChatsMiddleware requires super_admin to be admin in group, otherwise bot auto-leaves.
+- 2026-03-06: v2.5 — Code quality refactor: extracted LLM client, centralized config/constants/datetime, deduplicated RSS parsing, fixed logging. 461 tests. All checks pass.
