@@ -106,6 +106,9 @@ class WebAppSettings(BaseSettings):
 
     url: str = Field(default="http://localhost:3000", description="Web app URL")
     api_secret: str = Field(default="your-secret-key", description="API secret for webapp communication")
+    api_enabled: bool = Field(default=False, description="Enable the stats/auth HTTP API")
+    api_port: int = Field(default=8081, description="Port for the stats/auth HTTP API")
+    allowed_emails: list[str] = Field(default_factory=list, description="Emails allowed to request magic links")
 
     model_config = SettingsConfigDict(
         env_prefix="WEBAPP_",
@@ -114,6 +117,16 @@ class WebAppSettings(BaseSettings):
         env_file_encoding="utf-8",
         extra="ignore",
     )
+
+    @field_validator("allowed_emails", mode="before")
+    @classmethod
+    def parse_email_list(cls, v: Any) -> list[str]:
+        """Parse comma-separated email list."""
+        if isinstance(v, str):
+            return [e.strip() for e in v.split(",") if e.strip()]
+        if isinstance(v, list):
+            return [str(e) for e in v]
+        return []
 
 
 class AgentSettings(BaseSettings):

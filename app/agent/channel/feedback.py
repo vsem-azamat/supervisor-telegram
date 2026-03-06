@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 import httpx
 from sqlalchemy import select
 
+from app.agent.channel.cost_tracker import extract_usage_from_openrouter_response, log_usage
 from app.core.logging import get_logger
 from app.infrastructure.db.models import ChannelPost, ChannelSource
 
@@ -98,6 +99,9 @@ async def get_feedback_summary(
             resp.raise_for_status()
 
         data = resp.json()
+        usage = extract_usage_from_openrouter_response(data, model, "feedback", channel_id=channel_id)
+        if usage:
+            await log_usage(usage)
         summary = data["choices"][0]["message"]["content"].strip()
         logger.info("feedback_summarized", channel_id=channel_id, length=len(summary))
         return summary

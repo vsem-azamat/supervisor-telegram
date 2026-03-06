@@ -9,6 +9,7 @@ from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
+from app.agent.channel.cost_tracker import extract_usage_from_pydanticai_result, log_usage
 from app.core.logging import get_logger
 
 if TYPE_CHECKING:
@@ -79,8 +80,18 @@ async def screen_items(
     for item in items:
         try:
             result = await agent.run(item.summary)
+            usage = extract_usage_from_pydanticai_result(result, model, "screening")
+            if usage:
+                await log_usage(usage)
             score_text = result.output.strip()
-            score = int("".join(c for c in score_text if c.isdigit())[:2] or "0")
+            # Parse score: try direct int first, then extract first number
+            try:
+                score = int(score_text)
+            except ValueError:
+                import re
+
+                m = re.search(r"\b(\d{1,2})\b", score_text)
+                score = int(m.group(1)) if m else 0
             if score >= threshold:
                 relevant.append(item)
                 logger.info("item_relevant", title=item.title[:60], score=score)
@@ -118,6 +129,9 @@ async def generate_post(
 
     try:
         result = await agent.run(prompt)
+        usage = extract_usage_from_pydanticai_result(result, model, "generation")
+        if usage:
+            await log_usage(usage)
         logger.info("post_generated", length=len(result.output.text))
         return result.output
     except Exception:

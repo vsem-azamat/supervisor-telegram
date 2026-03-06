@@ -132,15 +132,13 @@ async def update_source_relevance(
     if not source_urls:
         return
     async with session_maker() as session:
-        for url in source_urls:
-            result = await session.execute(select(ChannelSource).where(ChannelSource.url == url))
-            source = result.scalar_one_or_none()
-            if not source:
-                continue
+        result = await session.execute(select(ChannelSource).where(ChannelSource.url.in_(source_urls)))
+        sources = list(result.scalars().all())
+        for source in sources:
             if approved:
                 source.boost_relevance()
             else:
                 source.penalize_relevance()
                 if not source.enabled:
-                    logger.warning("source_auto_disabled_low_relevance", url=url, score=source.relevance_score)
+                    logger.warning("source_auto_disabled_low_relevance", url=source.url, score=source.relevance_score)
         await session.commit()

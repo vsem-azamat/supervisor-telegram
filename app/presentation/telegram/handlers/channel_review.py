@@ -38,6 +38,13 @@ def _extract_post_id(callback_data: str, prefix: str) -> int | None:
         return None
 
 
+def _is_super_admin(user_id: int) -> bool:
+    """Check if user is a super admin."""
+    from app.core.config import settings
+
+    return user_id in settings.admin.super_admins
+
+
 def _get_config() -> tuple[Any, str]:
     """Get channel config and API key."""
     from app.agent.channel.config import ChannelAgentSettings
@@ -50,6 +57,11 @@ def _get_config() -> tuple[Any, str]:
 async def on_review_callback(callback: CallbackQuery) -> None:
     """Handle all channel post review button callbacks."""
     if not callback.data or not callback.message:
+        return
+
+    # Auth: only super admins can use review buttons
+    if not callback.from_user or not _is_super_admin(callback.from_user.id):
+        await callback.answer("Access denied", show_alert=True)
         return
 
     data = callback.data
@@ -164,6 +176,10 @@ async def on_review_callback(callback: CallbackQuery) -> None:
 async def on_review_reply(message: Message) -> None:
     """Handle replies in the discussion chat — admin editing posts via conversation."""
     if not message.text or not message.reply_to_message:
+        return
+
+    # Auth: only super admins can edit via replies
+    if not message.from_user or not _is_super_admin(message.from_user.id):
         return
 
     reply_msg = message.reply_to_message

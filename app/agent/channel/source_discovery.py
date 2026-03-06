@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 
+from app.agent.channel.cost_tracker import extract_usage_from_openrouter_response, log_usage
 from app.agent.channel.source_manager import add_source
 from app.agent.channel.sources import fetch_rss
 from app.core.logging import get_logger
@@ -54,6 +55,9 @@ async def discover_rss_feeds(
             resp.raise_for_status()
 
         data = resp.json()
+        usage = extract_usage_from_openrouter_response(data, model, "source_discovery")
+        if usage:
+            await log_usage(usage)
         content = data["choices"][0]["message"]["content"].strip()
 
         if content.startswith("```"):

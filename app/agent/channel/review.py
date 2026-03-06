@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
+from app.agent.channel.cost_tracker import extract_usage_from_openrouter_response, log_usage
 from app.core.logging import get_logger
 from app.infrastructure.db.models import ChannelPost
 
@@ -207,8 +208,6 @@ async def handle_edit_request(
     session_maker: async_sessionmaker[AsyncSession],
 ) -> str:
     """Edit a post based on admin instruction. Updates the review message."""
-    import json
-
     import httpx
     from sqlalchemy import select
 
@@ -245,6 +244,9 @@ async def handle_edit_request(
                 resp.raise_for_status()
 
             data = resp.json()
+            usage = extract_usage_from_openrouter_response(data, model, "edit")
+            if usage:
+                await log_usage(usage)
             new_text = data["choices"][0]["message"]["content"].strip()
 
             # Remove markdown code fences if present
@@ -271,8 +273,6 @@ async def handle_edit_request(
             logger.info("post_edited", post_id=post_id, instruction=instruction[:60])
             return "Post updated."
 
-        except json.JSONDecodeError:
-            return "Failed to parse LLM response."
         except Exception:
             logger.exception("edit_error", post_id=post_id)
             return "Edit failed."
