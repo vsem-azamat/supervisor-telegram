@@ -86,17 +86,35 @@ Agent autonomously discovers content, generates posts, sends to private review c
 - [x] API unit tests
 - [x] 401 tests passing, all quality checks green
 
+### Done (v2.2 — Burr, Telethon, research)
+- [x] Research: 8 docs on multi-agent architectures, memory, content automation, observability, Telegram ecosystem, framework comparisons
+- [x] Code reviews: security, architecture, channel agent quality — 3 review docs
+- [x] Security fixes: HTML injection (escape_html), prompt injection (XML delimiters), secret validation, race conditions
+- [x] Burr state machine: 7-action content pipeline with HITL halt/resume, fallback to legacy on error
+- [x] Telethon Client API: authorized work account (@work_azamat), wrapper with flood wait handling, 6 methods tested against real API
+- [x] Dependency upgrades: aiogram 3.26, pydantic 2.12.5, sqlalchemy 2.0.48, ruff 0.15.5, burr 0.40.2, telethon 1.42+
+- [x] Pre-commit hooks fixed: ruff 0.15.5, pytest skips PG integration tests
+- [x] 411 tests passing, all quality checks green
+
+### Done (v2.3 — Review infrastructure)
+- [x] Created "Konnekt Review" supergroup (-1003823967369) via Telethon
+- [x] Bot @konnekt_moder_bot added as admin with posting rights
+- [x] Azamat (268388996) added as admin (required for ManagedChatsMiddleware)
+- [x] CHANNEL_REVIEW_CHAT_ID configured in .env
+- [x] Bot verified: can send messages to review group
+- [x] Telethon client: added create_supergroup, add_chat_admin, invite_to_chat, send_message methods
+- [x] Setup script: scripts/setup_review_channel.py
+- [x] Key finding: ManagedChatsMiddleware makes bot leave_chat if no super_admin is admin in group
+
 ### In progress
-- [ ] Create private review channel in Telegram + set CHANNEL_REVIEW_CHAT_ID
+- [ ] End-to-end test: full review flow with real Telegram
 
 ### ON HOLD
-- [ ] Verify bot admin rights in test chat
 - [ ] DDD repository refactor — patch at `docs/ddd-refactor.patch`
 
 ### Backlog
 - [ ] Multi-agent hierarchy (Coordinator + Moderation/Content/Orchestration/Analytics)
 - [ ] Approval workflow: generalized escalation with multi-approver
-- [ ] Pyrogram integration
 - [ ] Analytics agent (scheduled reports)
 
 ## 3) Architecture: Channel Agent v2
@@ -138,7 +156,10 @@ Feedback Memory:
 - 2026-03-06: Review channel has linked discussion chat for back-and-forth with agent
 - 2026-03-06: Agent summarizes admin feedback to improve source selection and post quality
 - 2026-03-05: Approval policy — sensitive actions always require explicit approval
-- 2026-03-05: Client API — separate Pyrogram service account
+- 2026-03-06: Client API — Telethon (not Pyrogram), authorized work account with session file
+- 2026-03-06: Burr chosen over LangGraph — lightweight async state machine, Apache Incubating, no legacy baggage
+- 2026-03-06: pgvector preferred over Qdrant at our scale (< 1M vectors, already have PostgreSQL)
+- 2026-03-05: Client API — separate Pyrogram service account (superseded by Telethon)
 - 2026-03-05: `allowed_updates` — message, callback_query, chat_member only
 - 2026-03-05: Admin cache TTL = 5 min
 
@@ -157,3 +178,7 @@ Feedback Memory:
 - 2026-03-06: Starting v2 — review flow with inline buttons, discussion chat editing, source discovery agent, admin feedback memory.
 - 2026-03-06: v2 code complete — review flow, feedback memory wired into generation, source relevance scoring, alembic migration. 351 tests (66 channel agent v2). All quality checks pass.
 - 2026-03-06: v2.1 — security fixes (auth on review callbacks), performance (async RSS, executor, N+1), multi-channel orchestration, cost tracking, REST API with magic link auth. 401 tests. All checks pass.
+- 2026-03-06: v2.2 — Burr workflow, Telethon integration, security fixes (HTML/prompt injection), 8 research docs, 3 code reviews, dependency upgrades. 411 tests.
+- 2026-03-06: Telethon Client API authorized and tested: get_user_info, get_chat_info, get_chat_history, get_chat_members, search_messages, forward_messages — all working against real Telegram.
+- 2026-03-06: Available test resources: FFGroup (-4650848481), Konnekt Dev (-1002287191880, @test908070), Bot (5145935834), Azamat (268388996).
+- 2026-03-06: Review infrastructure created: "Konnekt Review" (-1003823967369), bot + Azamat as admins. Key lesson: ManagedChatsMiddleware requires super_admin to be admin in group, otherwise bot auto-leaves.

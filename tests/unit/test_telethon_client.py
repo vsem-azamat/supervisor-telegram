@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from app.core.config import TelethonSettings
 from app.infrastructure.telegram.telethon_client import (
+    ChatInfo,
     ChatMember,
     MessageInfo,
     TelethonClient,
@@ -163,6 +164,26 @@ class TestDisabledNoOp:
     async def test_forward_messages_returns_empty(self, telethon_client_disabled):
         result = await telethon_client_disabled.forward_messages(123, 456, [1, 2])
         assert result == []
+
+    @pytest.mark.asyncio
+    async def test_create_supergroup_returns_none(self, telethon_client_disabled):
+        result = await telethon_client_disabled.create_supergroup("Test Group")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_add_chat_admin_returns_false(self, telethon_client_disabled):
+        result = await telethon_client_disabled.add_chat_admin(123, 456)
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_invite_to_chat_returns_false(self, telethon_client_disabled):
+        result = await telethon_client_disabled.invite_to_chat(123, 456)
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_send_message_returns_none(self, telethon_client_disabled):
+        result = await telethon_client_disabled.send_message(123, "hello")
+        assert result is None
 
 
 # --- FloodWait retry logic tests ---
@@ -365,3 +386,140 @@ class TestForwardMessages:
         assert len(result) == 1
         assert result[0].message_id == 10
         assert result[0].chat_id == 456
+
+
+class TestNotConnectedNoOp:
+    """Methods should return empty results when enabled but not connected."""
+
+    @pytest.mark.asyncio
+    async def test_create_supergroup_not_connected(self, enabled_settings):
+        tc = TelethonClient(settings=enabled_settings)
+        result = await tc.create_supergroup("Test")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_add_chat_admin_not_connected(self, enabled_settings):
+        tc = TelethonClient(settings=enabled_settings)
+        result = await tc.add_chat_admin(123, 456)
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_invite_to_chat_not_connected(self, enabled_settings):
+        tc = TelethonClient(settings=enabled_settings)
+        result = await tc.invite_to_chat(123, 456)
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_send_message_not_connected(self, enabled_settings):
+        tc = TelethonClient(settings=enabled_settings)
+        result = await tc.send_message(123, "hello")
+        assert result is None
+
+
+class TestCreateSupergroup:
+    @pytest.mark.asyncio
+    async def test_creates_and_returns_chat_info(self, telethon_client_enabled, mock_telegram_client):
+        mock_chat = MagicMock()
+        mock_chat.id = 999
+        mock_chat.title = "New Group"
+        mock_chat.username = None
+
+        mock_result = MagicMock()
+        mock_result.chats = [mock_chat]
+
+        mock_telegram_client.side_effect = AsyncMock(return_value=mock_result)
+
+        with (
+            patch("telethon.errors.FloodWaitError", type("FWE", (Exception,), {"seconds": 0})),
+            patch("telethon.tl.functions.channels.CreateChannelRequest"),
+        ):
+            result = await telethon_client_enabled.create_supergroup("New Group", about="desc")
+
+        assert result is not None
+        assert isinstance(result, ChatInfo)
+        assert result.chat_id == 999
+        assert result.title == "New Group"
+        assert result.is_channel is False
+
+
+class TestAddChatAdmin:
+    @pytest.mark.asyncio
+    async def test_success_returns_true(self, telethon_client_enabled, mock_telegram_client):
+        mock_telegram_client.side_effect = AsyncMock(return_value=MagicMock())
+
+        with (
+            patch("telethon.errors.FloodWaitError", type("FWE", (Exception,), {"seconds": 0})),
+            patch("telethon.tl.functions.channels.EditAdminRequest"),
+            patch("telethon.tl.types.ChatAdminRights"),
+        ):
+            result = await telethon_client_enabled.add_chat_admin(123, 456, title="mod")
+
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_failure_returns_false(self, telethon_client_enabled, mock_telegram_client):
+        mock_telegram_client.side_effect = RuntimeError("permission denied")
+
+        with (
+            patch("telethon.errors.FloodWaitError", type("FWE", (Exception,), {"seconds": 0})),
+            patch("telethon.tl.functions.channels.EditAdminRequest"),
+            patch("telethon.tl.types.ChatAdminRights"),
+            patch(
+                "app.infrastructure.telegram.telethon_client.asyncio.sleep",
+                new_callable=AsyncMock,
+            ),
+        ):
+            result = await telethon_client_enabled.add_chat_admin(123, 456)
+
+        assert result is False
+
+
+class TestInviteToChat:
+    @pytest.mark.asyncio
+    async def test_success_returns_true(self, telethon_client_enabled, mock_telegram_client):
+        mock_telegram_client.side_effect = AsyncMock(return_value=MagicMock())
+
+        with (
+            patch("telethon.errors.FloodWaitError", type("FWE", (Exception,), {"seconds": 0})),
+            patch("telethon.tl.functions.channels.InviteToChannelRequest"),
+        ):
+            result = await telethon_client_enabled.invite_to_chat(123, 456)
+
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_failure_returns_false(self, telethon_client_enabled, mock_telegram_client):
+        mock_telegram_client.side_effect = RuntimeError("user not found")
+
+        with (
+            patch("telethon.errors.FloodWaitError", type("FWE", (Exception,), {"seconds": 0})),
+            patch("telethon.tl.functions.channels.InviteToChannelRequest"),
+            patch(
+                "app.infrastructure.telegram.telethon_client.asyncio.sleep",
+                new_callable=AsyncMock,
+            ),
+        ):
+            result = await telethon_client_enabled.invite_to_chat(123, 456)
+
+        assert result is False
+
+
+class TestSendMessage:
+    @pytest.mark.asyncio
+    async def test_sends_and_returns_message_info(self, telethon_client_enabled, mock_telegram_client):
+        mock_msg = MagicMock()
+        mock_msg.id = 42
+        mock_msg.sender_id = 100
+        mock_msg.text = "hello world"
+        mock_msg.date = "2024-01-01"
+
+        mock_telegram_client.send_message = AsyncMock(return_value=mock_msg)
+
+        with patch("telethon.errors.FloodWaitError", type("FWE", (Exception,), {"seconds": 0})):
+            result = await telethon_client_enabled.send_message(123, "hello world")
+
+        assert result is not None
+        assert isinstance(result, MessageInfo)
+        assert result.message_id == 42
+        assert result.chat_id == 123
+        assert result.text == "hello world"

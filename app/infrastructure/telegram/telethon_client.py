@@ -359,6 +359,136 @@ class TelethonClient:
             for msg in messages
         ]
 
+    async def create_supergroup(self, title: str, about: str = "") -> ChatInfo | None:
+        """Create a new supergroup (megagroup).
+
+        Args:
+            title: The title for the new supergroup.
+            about: Optional description for the supergroup.
+
+        Returns:
+            ChatInfo object with the new group's info, or None if unavailable.
+        """
+        if not self.is_available or self._client is None:
+            return None
+
+        from telethon.tl.functions.channels import CreateChannelRequest
+
+        async def _fetch() -> Any:
+            assert self._client is not None  # noqa: S101
+            return await self._client(CreateChannelRequest(title=title, about=about, megagroup=True))
+
+        logger.info("Creating supergroup", title=title)
+        result = await self._execute_with_flood_wait(_fetch)
+        chat = result.chats[0]
+        return ChatInfo(
+            chat_id=chat.id,
+            title=chat.title,
+            username=getattr(chat, "username", None),
+            is_channel=False,
+        )
+
+    async def add_chat_admin(self, chat_id: int, user_id: int, title: str = "") -> bool:
+        """Promote a user to admin in a chat.
+
+        Args:
+            chat_id: The chat ID.
+            user_id: The user ID to promote.
+            title: Optional custom admin title.
+
+        Returns:
+            True on success, False on failure.
+        """
+        if not self.is_available or self._client is None:
+            return False
+
+        from telethon.tl.functions.channels import EditAdminRequest
+        from telethon.tl.types import ChatAdminRights
+
+        admin_rights = ChatAdminRights(
+            post_messages=True,
+            edit_messages=True,
+            delete_messages=True,
+            ban_users=True,
+            invite_users=True,
+            pin_messages=True,
+            manage_call=True,
+        )
+
+        async def _fetch() -> Any:
+            assert self._client is not None  # noqa: S101
+            return await self._client(
+                EditAdminRequest(
+                    channel=chat_id,
+                    user_id=user_id,
+                    admin_rights=admin_rights,
+                    rank=title,
+                )
+            )
+
+        logger.info("Adding chat admin", chat_id=chat_id, user_id=user_id)
+        try:
+            await self._execute_with_flood_wait(_fetch)
+            return True
+        except Exception:
+            logger.error("Failed to add chat admin", chat_id=chat_id, user_id=user_id, exc_info=True)
+            return False
+
+    async def invite_to_chat(self, chat_id: int, user_id: int) -> bool:
+        """Invite a user to a chat.
+
+        Args:
+            chat_id: The chat ID.
+            user_id: The user ID to invite.
+
+        Returns:
+            True on success, False on failure.
+        """
+        if not self.is_available or self._client is None:
+            return False
+
+        from telethon.tl.functions.channels import InviteToChannelRequest
+
+        async def _fetch() -> Any:
+            assert self._client is not None  # noqa: S101
+            return await self._client(InviteToChannelRequest(channel=chat_id, users=[user_id]))
+
+        logger.info("Inviting user to chat", chat_id=chat_id, user_id=user_id)
+        try:
+            await self._execute_with_flood_wait(_fetch)
+            return True
+        except Exception:
+            logger.error("Failed to invite user to chat", chat_id=chat_id, user_id=user_id, exc_info=True)
+            return False
+
+    async def send_message(self, chat_id: int, text: str, parse_mode: str = "html") -> MessageInfo | None:
+        """Send a message to a chat.
+
+        Args:
+            chat_id: The chat ID.
+            text: Message text to send.
+            parse_mode: Parse mode for the message (default "html").
+
+        Returns:
+            MessageInfo object on success, or None if unavailable.
+        """
+        if not self.is_available or self._client is None:
+            return None
+
+        async def _fetch() -> Message:
+            assert self._client is not None  # noqa: S101
+            return await self._client.send_message(chat_id, text, parse_mode=parse_mode)
+
+        logger.info("Sending message", chat_id=chat_id)
+        msg: Message = await self._execute_with_flood_wait(_fetch)
+        return MessageInfo(
+            message_id=msg.id,
+            chat_id=chat_id,
+            sender_id=msg.sender_id,
+            text=msg.text,
+            date=msg.date,
+        )
+
     async def forward_messages(
         self,
         from_chat: int,
