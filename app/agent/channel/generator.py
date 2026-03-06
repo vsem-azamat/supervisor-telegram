@@ -22,7 +22,7 @@ logger = get_logger("channel.generator")
 _XML_HTML_TAG_RE = re.compile(r"<[^>]+>")
 
 # Canonical footer — must appear at the end of every post.
-KONNEKT_FOOTER = "——\n🔗 <b>Konnekt</b> | @konnekt_channel"
+KONNEKT_FOOTER = "——\n🔗 **Konnekt** | @konnekt_channel"
 
 
 def _sanitize_content(text: str) -> str:
@@ -33,7 +33,7 @@ def _sanitize_content(text: str) -> str:
 class GeneratedPost(BaseModel):
     """Output from the post generation agent."""
 
-    text: str = Field(description="The post text ready for Telegram (HTML format)")
+    text: str = Field(description="The post text in Markdown format")
     is_sensitive: bool = Field(default=False, description="Whether the post needs admin review")
     image_url: str | None = Field(default=None, description="Primary image URL (backward compat)")
     image_urls: list[str] = Field(default_factory=list, description="All image URLs for the post")
@@ -74,16 +74,16 @@ EMOJI BY CATEGORY (use the most fitting one at the headline start):
 ⚡ Breaking or urgent news
 
 FORMATTING RULES:
-- Start with ONE relevant emoji (from the list above) + bold headline: e.g. "🎓 <b>CVUT продлил дедлайн стипендии</b>"
+- Start with ONE relevant emoji (from the list above) + bold headline: e.g. "🎓 **CVUT продлил дедлайн стипендии**"
 - Body: 1-2 short paragraphs. Get to the point fast.
 - Always leave a blank line between the headline, each paragraph, and the footer. \
 The post must have clear visual breathing room.
-- If there's a source URL, include it as: <a href="URL">Подробнее</a>
+- If there's a source URL, include it as: [Подробнее](URL)
 - ALWAYS end with our footer (mandatory, on every post):
   ——
-  🔗 <b>Konnekt</b> | @konnekt_channel
-- Use HTML tags ONLY: <b>, <i>, <a href="...">
-- Do NOT use markdown (**, __, etc.) — only HTML
+  🔗 **Konnekt** | @konnekt_channel
+- Use standard Markdown: **bold**, *italic*, [link](url), `code`
+- Do NOT use HTML tags
 - Do NOT use hashtags
 
 STYLE:

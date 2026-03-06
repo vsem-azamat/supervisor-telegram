@@ -12,7 +12,6 @@ import time
 from typing import TYPE_CHECKING
 
 from aiogram import Bot, Dispatcher, F, Router
-from aiogram.client.default import DefaultBotProperties
 from aiogram.filters import CommandStart
 from aiogram.types import Message  # noqa: TC002
 
@@ -20,6 +19,7 @@ from app.assistant.agent import AssistantDeps, create_assistant_agent
 from app.assistant.config import AssistantSettings
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.markdown import md_to_entities_chunked
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
@@ -65,69 +65,6 @@ def _evict_conversations() -> None:
         for uid, _ in sorted_by_access[:to_remove]:
             _conversations.pop(uid, None)
             _conversation_last_access.pop(uid, None)
-
-
-def _md_to_html(text: str) -> str:
-    """Convert basic Markdown to Telegram HTML. Best-effort, not a full parser."""
-    import html
-    import re
-
-    # Escape HTML entities first to prevent injection / parse errors
-    text = html.escape(text, quote=False)
-
-    # Code blocks FIRST (before inline code consumes backticks)
-    text = re.sub(r"```\w*\n?(.*?)```", r"<pre>\1</pre>", text, flags=re.DOTALL)
-    # Inline code
-    text = re.sub(r"`([^`]+?)`", r"<code>\1</code>", text)
-    # Bold: **text**
-    text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
-    # Italic: __text__ (underscore italic) and *text* (asterisk italic)
-    text = re.sub(r"__(.+?)__", r"<i>\1</i>", text)
-    text = re.sub(r"(?<!\w)\*([^*]+?)\*(?!\w)", r"<i>\1</i>", text)
-    # Links: [text](url) → <a href="url">text</a>
-    text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r'<a href="\2">\1</a>', text)
-    # Headers: ### text → <b>text</b>
-    return re.sub(r"^#{1,3}\s+(.+)$", r"<b>\1</b>", text, flags=re.MULTILINE)
-
-
-def _split_html_safe(text: str, max_len: int = 4096) -> list[str]:
-    """Split text on line boundaries to avoid breaking HTML tags.
-
-    Falls back to hard split only if a single line exceeds max_len.
-    """
-    if len(text) <= max_len:
-        return [text]
-
-    chunks: list[str] = []
-    lines = text.split("\n")
-    current: list[str] = []
-    current_len = 0
-
-    for line in lines:
-        # +1 accounts for the newline character we'll rejoin with
-        line_len = len(line) + (1 if current else 0)
-
-        if current_len + line_len > max_len and current:
-            chunks.append("\n".join(current))
-            current = []
-            current_len = 0
-
-        # If a single line is longer than max_len, hard-split it
-        if len(line) > max_len:
-            if current:
-                chunks.append("\n".join(current))
-                current = []
-                current_len = 0
-            for i in range(0, len(line), max_len):
-                chunks.append(line[i : i + max_len])
-        else:
-            current.append(line)
-            current_len += line_len
-
-    if current:
-        chunks.append("\n".join(current))
-
-    return chunks
 
 
 async def _chat(user_id: int, user_message: str) -> str:
@@ -185,7 +122,6 @@ async def cmd_start(message: Message) -> None:
         "- Настраивать приветственные сообщения\n"
         "- Показывать статистику и расходы\n\n"
         "Просто напиши что нужно — я пойму.",
-        parse_mode="HTML",
     )
 
 
@@ -204,18 +140,9 @@ async def handle_message(message: Message) -> None:
         logger.exception("assistant_chat_error", user_id=message.from_user.id)
         response = "Произошла ошибка. Попробуй ещё раз."
 
-    # Convert Markdown to HTML and send with fallback to plain text
-    html_response = _md_to_html(response)
-    chunks = _split_html_safe(html_response)
-    for chunk in chunks:
-        try:
-            await message.answer(chunk, parse_mode="HTML")
-        except Exception:
-            # HTML parse failed — fall back to plain text for entire response
-            plain_chunks = _split_html_safe(response)
-            for pc in plain_chunks:
-                await message.answer(pc, parse_mode=None)
-            break
+    # Convert Markdown → entities (no parse_mode needed)
+    for chunk_text, chunk_entities in md_to_entities_chunked(response):
+        await message.answer(chunk_text, entities=chunk_entities)
 
 
 # ---------------------------------------------------------------------------
@@ -250,10 +177,7 @@ def setup_assistant(
     )
     _super_admins = set(settings.admin.super_admins)
 
-    bot = Bot(
-        token=assistant_settings.token,
-        default=DefaultBotProperties(parse_mode="HTML"),
-    )
+    bot = Bot(token=assistant_settings.token)
     dp = Dispatcher()
     dp.include_router(router)
 

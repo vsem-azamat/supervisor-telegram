@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from aiogram.types import InputMediaPhoto, URLInputFile
 
 from app.core.logging import get_logger
+from app.core.markdown import md_to_entities
 
 if TYPE_CHECKING:
     from aiogram import Bot
@@ -45,22 +46,23 @@ async def publish_post(bot: Bot, channel_id: int | str, post: GeneratedPost) -> 
 async def _send_media_group(bot: Bot, channel_id: int | str, post: GeneratedPost, image_urls: list[str]) -> int | None:
     """Send post as a media group (album) — caption on first photo."""
     try:
+        plain, entities = md_to_entities(post.text)
         media = []
         for i, url in enumerate(image_urls[:10]):  # Telegram max 10 per group
             photo = URLInputFile(url)
-            if i == 0 and len(post.text) <= 1024:
-                media.append(InputMediaPhoto(media=photo, caption=post.text, parse_mode="HTML"))
+            if i == 0 and len(plain) <= 1024:
+                media.append(InputMediaPhoto(media=photo, caption=plain, caption_entities=entities))
             else:
                 media.append(InputMediaPhoto(media=photo))
 
         messages = await bot.send_media_group(chat_id=channel_id, media=media)
 
         # If caption was too long, send text separately as reply
-        if len(post.text) > 1024 and messages:
+        if len(plain) > 1024 and messages:
             text_msg = await bot.send_message(
                 chat_id=channel_id,
-                text=post.text,
-                parse_mode="HTML",
+                text=plain,
+                entities=entities,
                 disable_web_page_preview=True,
                 reply_to_message_id=messages[0].message_id,
             )
@@ -89,20 +91,21 @@ async def _send_media_group(bot: Bot, channel_id: int | str, post: GeneratedPost
 async def _send_photo_post(bot: Bot, channel_id: int | str, post: GeneratedPost, image_url: str) -> int | None:
     """Send post as a single photo with caption."""
     try:
+        plain, entities = md_to_entities(post.text)
         photo = URLInputFile(image_url)
-        if len(post.text) <= 1024:
+        if len(plain) <= 1024:
             msg = await bot.send_photo(
                 chat_id=channel_id,
                 photo=photo,
-                caption=post.text,
-                parse_mode="HTML",
+                caption=plain,
+                caption_entities=entities,
             )
         else:
             photo_msg = await bot.send_photo(chat_id=channel_id, photo=photo)
             msg = await bot.send_message(
                 chat_id=channel_id,
-                text=post.text,
-                parse_mode="HTML",
+                text=plain,
+                entities=entities,
                 disable_web_page_preview=True,
                 reply_to_message_id=photo_msg.message_id,
             )
@@ -116,10 +119,11 @@ async def _send_photo_post(bot: Bot, channel_id: int | str, post: GeneratedPost,
 async def _send_text_post(bot: Bot, channel_id: int | str, post: GeneratedPost) -> int | None:
     """Send post as plain text message."""
     try:
+        plain, entities = md_to_entities(post.text)
         msg = await bot.send_message(
             chat_id=channel_id,
-            text=post.text,
-            parse_mode="HTML",
+            text=plain,
+            entities=entities,
             disable_web_page_preview=False,
         )
         logger.info("post_published", channel_id=channel_id, message_id=msg.message_id)

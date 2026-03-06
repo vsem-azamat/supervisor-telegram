@@ -264,12 +264,15 @@ def create_assistant_agent(model_name: str = "") -> Agent[AssistantDeps, str]:
 
     @agent.tool
     async def publish_text(ctx: RunContext[AssistantDeps], channel_id: str, text: str) -> str:
-        """Publish a text message directly to a channel. Text supports HTML formatting."""
+        """Publish a text message directly to a channel. Text supports Markdown formatting."""
         error = await _validate_channel_id(ctx, channel_id)
         if error:
             return error
         try:
-            msg = await ctx.deps.main_bot.send_message(chat_id=channel_id, text=text, parse_mode="HTML")
+            from app.core.markdown import md_to_entities
+
+            plain, entities = md_to_entities(text)
+            msg = await ctx.deps.main_bot.send_message(chat_id=channel_id, text=plain, entities=entities)
             return f"Published to {channel_id}, message_id={msg.message_id}"
         except Exception:
             logger.exception("publish_text_failed", channel_id=channel_id)
@@ -474,14 +477,17 @@ def create_assistant_agent(model_name: str = "") -> Agent[AssistantDeps, str]:
 
     @agent.tool
     async def send_message(ctx: RunContext[AssistantDeps], chat_id: str, text: str) -> str:
-        """Send a message to any managed chat or known channel. Supports HTML formatting."""
+        """Send a message to any managed chat or known channel. Supports Markdown formatting."""
         # Validate: must be a managed chat or known channel
         error = await _validate_channel_id(ctx, chat_id)
         if error:
             return error
 
         try:
-            msg = await ctx.deps.main_bot.send_message(chat_id=chat_id, text=text, parse_mode="HTML")
+            from app.core.markdown import md_to_entities
+
+            plain, entities = md_to_entities(text)
+            msg = await ctx.deps.main_bot.send_message(chat_id=chat_id, text=plain, entities=entities)
             return f"Sent to {chat_id}, message_id={msg.message_id}"
         except Exception:
             logger.exception("send_message_failed", chat_id=chat_id)

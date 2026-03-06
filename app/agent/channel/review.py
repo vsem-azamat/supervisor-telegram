@@ -10,6 +10,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, U
 from app.agent.channel.generator import KONNEKT_FOOTER
 from app.agent.channel.llm_client import openrouter_chat_completion
 from app.core.logging import get_logger
+from app.core.markdown import md_to_entities
 from app.infrastructure.db.models import ChannelPost
 
 if TYPE_CHECKING:
@@ -56,9 +57,9 @@ def _format_review_message(post_text: str, sources: list[ContentItem] | None = N
         source_lines = []
         for s in sources[:3]:
             source_lines.append(f"  {s.title[:50]}")
-        parts.append("<i>Sources:</i>\n" + "\n".join(source_lines))
+        parts.append("*Sources:*\n" + "\n".join(source_lines))
 
-    parts.append("<i>Reply to this message to edit via conversation.</i>")
+    parts.append("*Reply to this message to edit via conversation.*")
     return "\n".join(parts)
 
 
@@ -70,14 +71,16 @@ async def _send_review_message(
     image_url: str | None = None,
 ) -> Message:
     """Send review message — photo with caption if image available, else text."""
-    if image_url and len(text) <= 1024:
+    plain, entities = md_to_entities(text)
+
+    if image_url and len(plain) <= 1024:
         try:
             photo = URLInputFile(image_url)
             return await bot.send_photo(
                 chat_id=chat_id,
                 photo=photo,
-                caption=text,
-                parse_mode="HTML",
+                caption=plain,
+                caption_entities=entities,
                 reply_markup=keyboard,
             )
         except Exception:
@@ -85,8 +88,8 @@ async def _send_review_message(
 
     return await bot.send_message(
         chat_id=chat_id,
-        text=text,
-        parse_mode="HTML",
+        text=plain,
+        entities=entities,
         reply_markup=keyboard,
         disable_web_page_preview=True,
     )
@@ -271,7 +274,7 @@ async def handle_edit_request(
                             "You are a post editor for the Konnekt Telegram channel "
                             "(CIS students in Czech Republic). "
                             "Edit the post according to the instruction. "
-                            "Return ONLY the edited post text in HTML format for Telegram. "
+                            "Return ONLY the edited post text in Markdown format. "
                             "No explanations.\n\n"
                             "RULES YOU MUST FOLLOW:\n"
                             "- LENGTH: 300-500 chars for news, up to 700 for analysis. "
@@ -283,7 +286,8 @@ async def handle_edit_request(
                             "  GOOD: 'Если вы ещё не подали заявку — есть хорошая новость.'\n"
                             "- Always leave blank lines between headline, paragraphs, and footer.\n"
                             "- Max 1 emoji (at headline start), max 1 exclamation mark per post.\n"
-                            "- Use HTML only (<b>, <i>, <a>), no markdown, no hashtags.\n"
+                            "- Use standard Markdown: **bold**, *italic*, [link](url). "
+                            "No HTML tags, no hashtags.\n"
                             f"- ALWAYS end with the Konnekt footer:\n  {KONNEKT_FOOTER}"
                         ),
                     },
@@ -316,11 +320,14 @@ async def handle_edit_request(
             if post.review_message_id:
                 keyboard = _build_review_keyboard(post_id)
                 try:
+                    review_plain, review_entities = md_to_entities(
+                        _format_review_message(new_text),
+                    )
                     await bot.edit_message_text(
                         chat_id=review_chat_id,
                         message_id=post.review_message_id,
-                        text=_format_review_message(new_text),
-                        parse_mode="HTML",
+                        text=review_plain,
+                        entities=review_entities,
                         reply_markup=keyboard,
                     )
                 except Exception:
@@ -387,11 +394,14 @@ async def handle_regen(
         if post.review_message_id:
             keyboard = _build_review_keyboard(post_id)
             try:
+                regen_plain, regen_entities = md_to_entities(
+                    _format_review_message(new_post.text),
+                )
                 await bot.edit_message_text(
                     chat_id=review_chat_id,
                     message_id=post.review_message_id,
-                    text=_format_review_message(new_post.text),
-                    parse_mode="HTML",
+                    text=regen_plain,
+                    entities=regen_entities,
                     reply_markup=keyboard,
                 )
             except Exception:

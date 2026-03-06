@@ -1,4 +1,4 @@
-"""Behavioral unit tests for the assistant bot module."""
+"""Behavioral unit tests for the assistant bot and markdown conversion."""
 
 from __future__ import annotations
 
@@ -7,113 +7,99 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import pytest_asyncio  # noqa: F401
-from app.assistant.bot import _evict_conversations, _md_to_html, _split_html_safe
+from app.assistant.bot import _evict_conversations
+from app.core.markdown import md_to_entities, md_to_entities_chunked
 
 # ---------------------------------------------------------------------------
-# 1. MD -> HTML converter tests
+# 1. Markdown → entities converter tests
 # ---------------------------------------------------------------------------
 
 
-class TestMdToHtml:
+class TestMdToEntities:
     def test_bold(self) -> None:
-        assert _md_to_html("**text**") == "<b>text</b>"
-
-    def test_italic_double_underscore(self) -> None:
-        assert _md_to_html("__text__") == "<i>text</i>"
+        text, entities = md_to_entities("**text**")
+        assert text == "text"
+        assert len(entities) == 1
+        assert entities[0].type == "bold"
 
     def test_italic(self) -> None:
-        assert _md_to_html("*text*") == "<i>text</i>"
+        text, entities = md_to_entities("*text*")
+        assert text == "text"
+        assert len(entities) == 1
+        assert entities[0].type == "italic"
 
     def test_inline_code(self) -> None:
-        assert _md_to_html("`code`") == "<code>code</code>"
+        text, entities = md_to_entities("`code`")
+        assert text == "code"
+        assert len(entities) == 1
+        assert entities[0].type == "code"
 
     def test_code_block(self) -> None:
-        result = _md_to_html("```python\ncode\n```")
-        assert "<pre>" in result
-        assert "code" in result
+        text, entities = md_to_entities("```python\nprint(1)\n```")
+        assert "print(1)" in text
+        assert any(e.type == "pre" for e in entities)
 
-    def test_code_block_no_language(self) -> None:
-        result = _md_to_html("```\ncode\n```")
-        assert "<pre>" in result
-        assert "code" in result
+    def test_link(self) -> None:
+        text, entities = md_to_entities("[click](https://example.com)")
+        assert text == "click"
+        assert len(entities) == 1
+        assert entities[0].type == "text_link"
+        assert entities[0].url == "https://example.com"
 
-    def test_header(self) -> None:
-        assert _md_to_html("### Title") == "<b>Title</b>"
+    def test_mixed_formatting(self) -> None:
+        text, entities = md_to_entities("**bold** and *italic* and `code`")
+        assert "bold" in text
+        assert "italic" in text
+        assert "code" in text
+        types = {e.type for e in entities}
+        assert "bold" in types
+        assert "italic" in types
+        assert "code" in types
 
-    def test_header_h1(self) -> None:
-        assert _md_to_html("# Title") == "<b>Title</b>"
+    def test_plain_text_no_entities(self) -> None:
+        text, entities = md_to_entities("Hello, this is plain text.")
+        assert text == "Hello, this is plain text."
+        assert entities == []
 
-    def test_header_h2(self) -> None:
-        assert _md_to_html("## Title") == "<b>Title</b>"
+    def test_html_chars_safe(self) -> None:
+        text, entities = md_to_entities("I <3 cats & dogs")
+        assert "<3" in text  # Literal, not HTML
+        assert "&" in text  # Literal, not &amp;
 
-    def test_mixed_bold_and_italic(self) -> None:
-        result = _md_to_html("**bold** and *italic*")
-        assert "<b>bold</b>" in result
-        assert "<i>italic</i>" in result
-
-    def test_html_entities_escaped(self) -> None:
-        assert _md_to_html("I <3 cats & dogs") == "I &lt;3 cats &amp; dogs"
-
-    def test_link_converted(self) -> None:
-        result = _md_to_html("[click](https://example.com)")
-        assert result == '<a href="https://example.com">click</a>'
-
-    def test_plain_text_unchanged(self) -> None:
-        text = "Hello, this is plain text."
-        assert _md_to_html(text) == text
-
-    def test_nested_bold_italic_no_crash(self) -> None:
-        # Known limitation -- just check it doesn't crash
-        result = _md_to_html("**bold *italic* bold**")
-        assert isinstance(result, str)
-        assert len(result) > 0
+    def test_channel_post_format(self) -> None:
+        md = "💰 **Реальные зарплаты растут**\n\nТекст поста.\n\n[Подробнее](https://example.com)"
+        text, entities = md_to_entities(md)
+        assert "Реальные зарплаты растут" in text
+        assert "Подробнее" in text
+        assert any(e.type == "bold" for e in entities)
+        assert any(e.type == "text_link" for e in entities)
 
 
 # ---------------------------------------------------------------------------
-# 2. HTML-safe splitter tests
+# 2. Chunked conversion tests
 # ---------------------------------------------------------------------------
 
 
-class TestSplitHtmlSafe:
+class TestMdToEntitiesChunked:
     def test_short_text_single_chunk(self) -> None:
-        text = "Hello world"
-        assert _split_html_safe(text) == [text]
+        chunks = md_to_entities_chunked("Hello **world**")
+        assert len(chunks) == 1
+        text, entities = chunks[0]
+        assert "world" in text
+        assert any(e.type == "bold" for e in entities)
 
     def test_empty_text(self) -> None:
-        assert _split_html_safe("") == [""]
+        chunks = md_to_entities_chunked("")
+        assert len(chunks) == 1
+        assert chunks[0][0] == ""
 
-    def test_exactly_4096_characters(self) -> None:
-        text = "a" * 4096
-        assert _split_html_safe(text) == [text]
-
-    def test_long_text_splits_on_line_boundaries(self) -> None:
-        # Create text with many lines that exceed 4096 total
-        lines = [f"Line {i}: " + "x" * 80 for i in range(100)]
-        text = "\n".join(lines)
-        chunks = _split_html_safe(text)
+    def test_respects_max_len(self) -> None:
+        # Generate text longer than max_len
+        long_md = "\n\n".join(f"Line {i}: " + "x" * 80 for i in range(100))
+        chunks = md_to_entities_chunked(long_md, max_len=500)
         assert len(chunks) > 1
-        # All chunks should be within the limit
-        for chunk in chunks:
-            assert len(chunk) <= 4096
-        # Reassembling should give back the original content (by characters)
-        reassembled = "\n".join(chunks)
-        assert reassembled == text
-
-    def test_very_long_single_line_hard_split(self) -> None:
-        text = "x" * 10000
-        chunks = _split_html_safe(text)
-        assert len(chunks) > 1
-        for chunk in chunks:
-            assert len(chunk) <= 4096
-        # Reassembled content should match
-        assert "".join(chunks) == text
-
-    def test_custom_max_len(self) -> None:
-        text = "line1\nline2\nline3"
-        chunks = _split_html_safe(text, max_len=10)
-        assert len(chunks) >= 2
-        for chunk in chunks:
-            assert len(chunk) <= 10
+        for text, _ in chunks:
+            assert len(text) <= 500
 
 
 # ---------------------------------------------------------------------------
@@ -133,11 +119,9 @@ class TestEvictConversations:
         from app.assistant import bot
 
         now = time.monotonic()
-        # Add a conversation that's 2 hours old
         bot._conversations[111] = [MagicMock()]
         bot._conversation_last_access[111] = now - 7200  # 2 hours ago
 
-        # Add a recent conversation
         bot._conversations[222] = [MagicMock()]
         bot._conversation_last_access[222] = now
 
@@ -153,7 +137,7 @@ class TestEvictConversations:
 
         now = time.monotonic()
         bot._conversations[333] = [MagicMock()]
-        bot._conversation_last_access[333] = now - 60  # 1 minute ago
+        bot._conversation_last_access[333] = now - 60
 
         _evict_conversations()
 
@@ -163,22 +147,18 @@ class TestEvictConversations:
         from app.assistant import bot
 
         now = time.monotonic()
-        # Fill with 55 users (above _MAX_USERS=50), all recent
         for uid in range(55):
             bot._conversations[uid] = [MagicMock()]
-            bot._conversation_last_access[uid] = now - (55 - uid)  # oldest first
+            bot._conversation_last_access[uid] = now - (55 - uid)
 
         _evict_conversations()
 
-        # Should have at most 50 users remaining
         assert len(bot._conversations) <= 50
         assert len(bot._conversation_last_access) <= 50
 
-        # The 5 oldest (uid 0-4) should have been evicted
         for uid in range(5):
             assert uid not in bot._conversations
 
-        # The newest should still be there
         for uid in range(50, 55):
             assert uid in bot._conversations
 
@@ -200,9 +180,7 @@ class TestCreateAssistantAgent:
         from app.assistant.agent import create_assistant_agent
 
         agent = create_assistant_agent()
-        # Count tools registered on the agent
         tool_count = len(agent._function_toolset.tools)
-        # 24 tools defined in agent.py
         assert tool_count == 24, f"Expected 24 tools, got {tool_count}: {list(agent._function_toolset.tools.keys())}"
 
 
@@ -238,7 +216,6 @@ class TestChat:
     async def test_returns_error_when_agent_not_initialized(self) -> None:
         from app.assistant import bot
 
-        # Save and clear module state
         saved_agent = bot._agent
         saved_deps = bot._deps
         bot._agent = None
@@ -271,7 +248,6 @@ class TestChat:
         bot._agent = mock_agent
         bot._deps = mock_deps
 
-        # Override timeout to be very short
         saved_timeout = bot._AGENT_TIMEOUT_SECONDS
         bot._AGENT_TIMEOUT_SECONDS = 0.01  # type: ignore[assignment]
 

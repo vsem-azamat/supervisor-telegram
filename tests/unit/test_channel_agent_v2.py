@@ -350,7 +350,7 @@ class TestReviewFlow:
         mock_bot.send_message.assert_called_once()
         call_kwargs = mock_bot.send_message.call_args[1]
         assert call_kwargs["chat_id"] == -1001234
-        assert call_kwargs["parse_mode"] == "HTML"
+        assert "entities" in call_kwargs  # entities-based formatting, no parse_mode
 
         # Verify DB record
         async with session_maker() as session:
