@@ -5,7 +5,7 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.utils.callback_answer import CallbackAnswerMiddleware
 
 from app.core.config import settings
-from app.core.container import setup_container
+from app.core.container import container, setup_container
 from app.core.logging import get_logger, setup_logging
 from app.infrastructure.db.session import close_db, create_session_maker, insert_chat_link
 from app.presentation.telegram.handlers import router
@@ -30,6 +30,12 @@ async def on_startup(bot: Bot) -> None:
         await insert_chat_link()
         logger.info("Chat links initialized")
 
+        # Start Telethon client if configured
+        telethon_client = container.get_telethon_client()
+        if telethon_client:
+            await telethon_client.start()
+            logger.info("Telethon client started")
+
         logger.info("Bot startup completed")
     except Exception as e:
         logger.error("Startup error", error=str(e), exc_info=True)
@@ -39,6 +45,12 @@ async def on_startup(bot: Bot) -> None:
 async def on_shutdown(bot: Bot) -> None:
     """Bot shutdown handler."""
     try:
+        # Stop Telethon client
+        telethon_client = container.get_telethon_client()
+        if telethon_client:
+            await telethon_client.stop()
+            logger.info("Telethon client stopped")
+
         await bot.delete_webhook()
         await bot.close()
         await close_db()
@@ -66,6 +78,14 @@ async def main() -> None:
 
     # Setup dependency injection
     setup_container(session_maker, bot)
+
+    # Setup Telethon client if configured
+    if settings.telethon.enabled:
+        from app.infrastructure.telegram.telethon_client import TelethonClient
+
+        telethon_client = TelethonClient(settings=settings.telethon)
+        container.set_telethon_client(telethon_client)
+        logger.info("Telethon client configured", session=settings.telethon.session_name)
 
     # Create agent (singleton, shared across requests) — lazy import to avoid circular deps
     agent_core = None

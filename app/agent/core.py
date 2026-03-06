@@ -16,6 +16,7 @@ from app.agent.prompts import MODERATION_PROMPT
 from app.agent.schemas import ActionType, AgentDeps, AgentEvent, ModerationResult
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.presentation.telegram.utils.other import escape_html
 
 if TYPE_CHECKING:
     from pydantic_ai.agent import AgentRunResult
@@ -146,7 +147,7 @@ class AgentCore:
             logger.error("Agent run failed", error=str(e))
             decision = ModerationResult(
                 action="escalate",
-                reason=f"Ошибка анализа: {e}",
+                reason="Ошибка анализа: не удалось обработать запрос",
                 suggested_action="ignore",
             )
 
@@ -183,12 +184,12 @@ class AgentCore:
         ]
 
         if event.target_message_text:
-            parts.append(f'\nReported message:\n"""\n{event.target_message_text}\n"""')
+            parts.append(f"\nReported message:\n<user_message>\n{event.target_message_text}\n</user_message>")
 
         if event.context_messages:
             parts.append("\nRecent messages from this user in this chat:")
             for msg in event.context_messages[-5:]:
-                parts.append(f"- {msg.get('text', '[no text]')}")
+                parts.append(f"<user_message>{msg.get('text', '[no text]')}</user_message>")
 
         return "\n".join(parts)
 
@@ -273,7 +274,7 @@ class AgentCore:
         try:
             await bot.send_message(
                 event.chat_id,
-                f"⚠️ {event.target_display_name}, {text}",
+                f"⚠️ {escape_html(event.target_display_name)}, {escape_html(text)}",
                 reply_to_message_id=event.message_id,
             )
         except Exception as e:

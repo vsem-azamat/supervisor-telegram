@@ -41,9 +41,13 @@ class Chat(Base):
     time_delete: Mapped[int] = mapped_column(Integer, default=60)
     is_welcome_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     is_captcha_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.now)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=lambda: datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+    )
     modified_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now
+        DateTime,
+        default=lambda: datetime.datetime.now(datetime.UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.datetime.now(datetime.UTC).replace(tzinfo=None),
     )
 
     def __init__(
@@ -103,9 +107,13 @@ class User(Base):
     last_name: Mapped[str | None] = mapped_column(String, nullable=True)
     verify: Mapped[bool] = mapped_column(Boolean, default=True)
     blocked: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.now)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=lambda: datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+    )
     modified_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=datetime.datetime.now, onupdate=datetime.datetime.now
+        DateTime,
+        default=lambda: datetime.datetime.now(datetime.UTC).replace(tzinfo=None),
+        onupdate=lambda: datetime.datetime.now(datetime.UTC).replace(tzinfo=None),
     )
 
     def __init__(
@@ -208,7 +216,9 @@ class Message(Base):
     message_id: Mapped[int] = mapped_column(BigInteger)
     message: Mapped[str | None] = mapped_column(String, nullable=True)
     message_info: Mapped[dict[str, Any]] = mapped_column(JSON)
-    timestamp: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.now)
+    timestamp: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=lambda: datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+    )
     spam: Mapped[bool] = mapped_column(Boolean, default=False)
 
     def __init__(
@@ -256,7 +266,9 @@ class ChannelSource(Base):
     last_fetched_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     last_error: Mapped[str | None] = mapped_column(String, nullable=True)
     added_by: Mapped[str] = mapped_column(String(16), default="agent")
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.now)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=lambda: datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+    )
 
     def __init__(
         self,
@@ -277,7 +289,7 @@ class ChannelSource(Base):
     def record_success(self) -> None:
         self.error_count = 0
         self.last_error = None
-        self.last_fetched_at = datetime.datetime.now()
+        self.last_fetched_at = datetime.datetime.now(datetime.UTC)
 
     def record_error(self, error: str) -> None:
         self.error_count += 1
@@ -318,7 +330,9 @@ class ChannelPost(Base):
     review_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     status: Mapped[str] = mapped_column(String(16), default="draft")
     admin_feedback: Mapped[str | None] = mapped_column(String, nullable=True)
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.now)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=lambda: datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+    )
 
     def __init__(
         self,
@@ -372,7 +386,9 @@ class AgentDecision(Base):
     reason: Mapped[str] = mapped_column(String)
     confidence: Mapped[float | None] = mapped_column(default=None)
     admin_override: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.now)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=lambda: datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+    )
 
     def __init__(
         self,
@@ -416,7 +432,9 @@ class AgentEscalation(Base):
     resolved_by: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     resolved_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     timeout_at: Mapped[datetime.datetime] = mapped_column(DateTime)
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=datetime.datetime.now)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime, default=lambda: datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+    )
 
     def __init__(
         self,

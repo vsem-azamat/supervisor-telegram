@@ -98,9 +98,9 @@ class MessageRepository(IMessageRepository):
         if chat_id is not None:
             query = query.where(Message.chat_id == chat_id)
 
-        result = await self.db.execute(query)
+        cursor = await self.db.execute(query)
         await self.db.commit()
-        return result.rowcount or 0
+        return cursor.rowcount or 0  # type: ignore[attr-defined]
 
     def _model_to_entity(self, message_model: Message) -> MessageEntity:
         """Convert database model to domain entity."""

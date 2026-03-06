@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Awaitable, Callable
 
 from aiohttp import web
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -12,6 +13,7 @@ from app.presentation.api.stats import get_all_channels_stats, get_channel_stats
 
 _SESSION_MAKER_KEY: web.AppKey[async_sessionmaker[AsyncSession]] = web.AppKey("session_maker", async_sessionmaker)
 _ALLOWED_EMAILS_KEY: web.AppKey[list[str]] = web.AppKey("allowed_emails", list)
+_ALLOWED_ORIGINS_KEY: web.AppKey[list[str]] = web.AppKey("allowed_origins", list)
 
 
 def _json_response(data: object, *, status: int = 200) -> web.Response:
@@ -68,9 +70,10 @@ async def handle_magic_link(request: web.Request) -> web.Response:
     if email not in allowed:
         return _error("Email not allowed", status=403)
 
-    role = body.get("role", "viewer")
-    if role not in ("admin", "viewer"):
-        role = "viewer"
+    # Role is determined server-side based on email — never from the request body.
+    # All magic-link users get "viewer" role. Admin roles should be granted
+    # via a separate admin_emails configuration if needed in the future.
+    role = "viewer"
 
     token = generate_magic_link(email, role=role)
     return _json_response({"token": token, "email": email, "role": role}, status=201)
@@ -139,6 +142,39 @@ async def handle_channel_detail(request: web.Request) -> web.Response:
 
 
 # ---------------------------------------------------------------------------
+# CORS middleware
+# ---------------------------------------------------------------------------
+
+_Handler = Callable[[web.Request], Awaitable[web.StreamResponse]]
+
+
+@web.middleware
+async def cors_middleware(request: web.Request, handler: _Handler) -> web.StreamResponse:
+    """Add CORS headers, restricted to explicitly allowed origins."""
+    origin = request.headers.get("Origin", "")
+    allowed_origins: list[str] = request.app.get(_ALLOWED_ORIGINS_KEY, [])
+
+    # Determine if origin is allowed
+    allow_origin = origin if origin in allowed_origins else ""
+
+    # Handle CORS preflight
+    if request.method == "OPTIONS":
+        resp = web.Response(status=204)
+        if allow_origin:
+            resp.headers["Access-Control-Allow-Origin"] = allow_origin
+            resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+            resp.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
+            resp.headers["Access-Control-Max-Age"] = "3600"
+        return resp
+
+    response = await handler(request)
+    if allow_origin:
+        response.headers["Access-Control-Allow-Origin"] = allow_origin
+        response.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
+    return response
+
+
+# ---------------------------------------------------------------------------
 # App factory
 # ---------------------------------------------------------------------------
 
@@ -146,11 +182,13 @@ async def handle_channel_detail(request: web.Request) -> web.Response:
 def create_api_app(
     session_maker: async_sessionmaker[AsyncSession],
     allowed_emails: list[str] | None = None,
+    allowed_origins: list[str] | None = None,
 ) -> web.Application:
     """Build and return the aiohttp Application with all routes registered."""
-    app = web.Application()
+    app = web.Application(middlewares=[cors_middleware])
     app[_SESSION_MAKER_KEY] = session_maker
     app[_ALLOWED_EMAILS_KEY] = allowed_emails or []
+    app[_ALLOWED_ORIGINS_KEY] = allowed_origins or []
 
     app.router.add_post("/api/auth/magic-link", handle_magic_link)
     app.router.add_get("/api/auth/verify", handle_verify)

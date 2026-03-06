@@ -185,6 +185,10 @@ async def handle_reject(
         post = result.scalar_one_or_none()
         if not post:
             return "Post not found."
+        if post.status == "rejected":
+            return "Already rejected."
+        if post.status == "approved":
+            return "Already published — cannot reject."
 
         source_urls = await _extract_source_urls(post)
         post.reject(reason)
@@ -216,6 +220,10 @@ async def handle_edit_request(
         post = result.scalar_one_or_none()
         if not post:
             return "Post not found."
+        if post.status == "approved":
+            return "Already published — cannot edit."
+        if post.status == "rejected":
+            return "Post was rejected — cannot edit."
 
         # Ask LLM to edit
         try:
@@ -298,6 +306,10 @@ async def handle_regen(
         post = result.scalar_one_or_none()
         if not post:
             return "Post not found."
+        if post.status == "approved":
+            return "Already published — cannot regenerate."
+        if post.status == "rejected":
+            return "Post was rejected — cannot regenerate."
 
         # Rebuild ContentItems from stored source data
         items = []

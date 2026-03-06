@@ -71,18 +71,61 @@ async def fetch_rss(feed_url: str, max_items: int = 10) -> list[ContentItem]:
     return items
 
 
-async def fetch_all_sources(rss_urls: list[str], max_concurrent: int = 5) -> list[ContentItem]:
-    """Fetch content from all sources concurrently."""
+@dataclass
+class FetchResult:
+    """Result of fetching content from all sources, with per-URL status."""
+
+    items: list[ContentItem]
+    errored_urls: set[str]  # URLs that failed during HTTP fetch
+    successful_urls: set[str]  # URLs that were fetched successfully (may have 0 items)
+
+
+async def fetch_all_sources(rss_urls: list[str], max_concurrent: int = 5) -> FetchResult:
+    """Fetch content from all sources concurrently.
+
+    Returns a :class:`FetchResult` containing items and per-URL success/error info.
+    """
     sem = asyncio.Semaphore(max_concurrent)
+    errored_urls: set[str] = set()
+    successful_urls: set[str] = set()
 
     async def _fetch(url: str) -> list[ContentItem]:
         async with sem:
-            return await fetch_rss(url)
+            try:
+                async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+                    resp = await client.get(url)
+                    resp.raise_for_status()
+
+                loop = asyncio.get_running_loop()
+                feed = await loop.run_in_executor(None, partial(feedparser.parse, resp.text))
+                items: list[ContentItem] = []
+                for entry in feed.entries[:10]:
+                    ext_id = (
+                        entry.get("id")
+                        or entry.get("link")
+                        or hashlib.sha256(entry.get("title", "").encode()).hexdigest()
+                    )
+                    body = entry.get("summary", entry.get("description", ""))
+                    items.append(
+                        ContentItem(
+                            source_url=url,
+                            external_id=str(ext_id),
+                            title=entry.get("title", ""),
+                            body=_strip_html(body),
+                            url=entry.get("link"),
+                        )
+                    )
+                logger.info("rss_fetched", feed_url=url, items_count=len(items))
+                successful_urls.add(url)
+                return items
+            except Exception:
+                logger.exception("rss_fetch_error", feed_url=url)
+                errored_urls.add(url)
+                return []
 
     results = await asyncio.gather(*[_fetch(url) for url in rss_urls], return_exceptions=True)
     all_items: list[ContentItem] = []
     for result in results:
         if isinstance(result, list):
             all_items.extend(result)
-        # Exceptions already logged inside fetch_rss
-    return all_items
+    return FetchResult(items=all_items, errored_urls=errored_urls, successful_urls=successful_urls)

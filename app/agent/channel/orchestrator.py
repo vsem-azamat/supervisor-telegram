@@ -20,6 +20,7 @@ from app.agent.channel.source_manager import (
 )
 from app.agent.channel.sources import fetch_all_sources
 from app.core.logging import get_logger
+from app.infrastructure.db.models import ChannelPost
 
 if TYPE_CHECKING:
     from aiogram import Bot
@@ -86,6 +87,8 @@ class SingleChannelOrchestrator:
         self._last_reset: datetime = datetime.now(UTC)
         self._last_source_discovery: datetime | None = None
         self._task: asyncio.Task[None] | None = None
+        # Burr workflow: stored halted app state keyed by post_id
+        self._pending_reviews: dict[int, dict[str, object]] = {}
 
     @property
     def channel_id(self) -> int | str:
@@ -180,7 +183,11 @@ class SingleChannelOrchestrator:
         logger.info("source_discovery_done", added=added)
 
     async def _run_cycle(self) -> None:
-        """Run one full pipeline cycle."""
+        """Run one full pipeline cycle.
+
+        Delegates to the Burr state-machine workflow when available, falling
+        back to the legacy inline implementation otherwise.
+        """
         self._maybe_reset_daily_counter()
 
         max_posts = self.channel_config.max_posts_per_day
@@ -188,6 +195,86 @@ class SingleChannelOrchestrator:
             logger.info("daily_post_limit_reached", count=self._posts_today, channel_id=self.channel_config.channel_id)
             return
 
+        try:
+            await self._run_cycle_burr()
+        except Exception:
+            logger.exception("burr_workflow_error_falling_back", channel_id=self.channel_config.channel_id)
+            await self._run_cycle_legacy()
+
+    async def _run_cycle_burr(self) -> None:
+        """Run the pipeline via a Burr state-machine workflow."""
+        from app.agent.channel.workflow import create_pipeline_app
+
+        channel_id = str(self.channel_config.channel_id)
+        app = create_pipeline_app(
+            channel_id=channel_id,
+            session_maker=self.session_maker,
+            bot=self.bot,
+            api_key=self.api_key,
+            config=self.config,
+            channel_config=self.channel_config,
+            app_id=f"pipeline-{channel_id}",
+        )
+
+        # Run until the workflow halts at await_review or reaches done
+        _action, _result, state = await app.arun(
+            halt_after=["await_review", "done"],
+        )
+
+        # If halted at await_review, store state for later resumption
+        post_id = state.get("post_id")
+        if _action and _action.name == "await_review" and post_id:
+            self._pending_reviews[post_id] = state.get_all()
+            logger.info("workflow_halted_for_review", post_id=post_id, channel_id=channel_id)
+        elif state.get("result_message", "").startswith("published_directly:"):
+            self._posts_today += 1
+
+    async def resume_review(self, post_id: int, decision: str) -> str:
+        """Resume a halted Burr workflow after admin review.
+
+        Parameters
+        ----------
+        post_id:
+            The DB post ID returned when the workflow halted.
+        decision:
+            ``"approved"`` or ``"rejected"``.
+
+        Returns
+        -------
+        A status message from the final workflow step.
+        """
+        from app.agent.channel.workflow import create_pipeline_app
+
+        saved_state = self._pending_reviews.pop(post_id, None)
+        if not saved_state:
+            logger.warning("no_pending_review", post_id=post_id)
+            return "No pending review found for this post."
+
+        saved_state["review_decision"] = decision
+
+        channel_id = str(self.channel_config.channel_id)
+        app = create_pipeline_app(
+            channel_id=channel_id,
+            session_maker=self.session_maker,
+            bot=self.bot,
+            api_key=self.api_key,
+            config=self.config,
+            channel_config=self.channel_config,
+            app_id=f"pipeline-{channel_id}-review-{post_id}",
+            resume_state=dict(saved_state),
+            entrypoint="await_review",
+        )
+
+        _action, _result, state = await app.arun(halt_after=["done"])
+
+        result_message = state.get("result_message", "")
+        if decision == "approved" and "Published" in result_message:
+            self._posts_today += 1
+        logger.info("workflow_review_complete", post_id=post_id, decision=decision, result=result_message)
+        return result_message
+
+    async def _run_cycle_legacy(self) -> None:
+        """Legacy inline pipeline (fallback if Burr is unavailable)."""
         channel_id = str(self.channel_config.channel_id)
 
         # 1. Gather content from all sources
@@ -198,16 +285,14 @@ class SingleChannelOrchestrator:
         if db_sources:
             rss_urls = [s.url for s in db_sources]
             logger.info("fetching_rss_sources", count=len(rss_urls))
-            rss_items = await fetch_all_sources(rss_urls)
-            all_items.extend(rss_items)
+            fetch_result = await fetch_all_sources(rss_urls)
+            all_items.extend(fetch_result.items)
 
-            # Track source health
-            fetched_urls = {item.source_url for item in rss_items}
-            for url in rss_urls:
-                if url in fetched_urls:
-                    await record_fetch_success(self.session_maker, url)
-                else:
-                    await record_fetch_error(self.session_maker, url, "no_items_returned")
+            # Track source health based on actual HTTP success/failure
+            for url in fetch_result.successful_urls:
+                await record_fetch_success(self.session_maker, url)
+            for url in fetch_result.errored_urls:
+                await record_fetch_error(self.session_maker, url, "fetch_error")
 
         # 1b. Discover fresh content via Perplexity Sonar
         if self.config.discovery_enabled:
@@ -220,8 +305,25 @@ class SingleChannelOrchestrator:
             )
             all_items.extend(discovered)
 
-        # Deduplicate against already seen
-        new_items = [i for i in all_items if i.external_id not in self._seen_ids]
+        # Deduplicate: in-memory cache as fast first pass, then DB as source of truth
+        candidates = [i for i in all_items if i.external_id not in self._seen_ids]
+        if candidates:
+            # Check DB for already-processed external_ids
+            from sqlalchemy import select
+
+            async with self.session_maker() as session:
+                existing_ext_ids_result = await session.execute(
+                    select(ChannelPost.external_id).where(
+                        ChannelPost.channel_id == channel_id,
+                        ChannelPost.external_id.in_([i.external_id for i in candidates]),
+                    )
+                )
+                existing_ext_ids = set(existing_ext_ids_result.scalars().all())
+            new_items = [i for i in candidates if i.external_id not in existing_ext_ids]
+        else:
+            new_items = []
+
+        # Update in-memory cache
         for item in new_items:
             self._seen_ids[item.external_id] = None
         # Evict oldest entries if over 10k

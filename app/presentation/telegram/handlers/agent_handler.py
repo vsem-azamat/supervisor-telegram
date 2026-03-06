@@ -10,7 +10,7 @@ from aiogram.filters import Command
 from app.agent.schemas import ActionType, AgentEvent, EventType
 from app.core.config import settings
 from app.core.logging import get_logger
-from app.presentation.telegram.utils.other import sleep_and_delete
+from app.presentation.telegram.utils.other import escape_html, sleep_and_delete
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -207,7 +207,7 @@ async def handle_escalation_action(
     if callback.message and isinstance(callback.message, types.Message):
         original_text = callback.message.text or ""
         await callback.message.edit_text(
-            f"{original_text}\n\n✅ <b>Решение:</b> {label} (от @{admin_name})",
+            f"{escape_html(original_text)}\n\n✅ <b>Решение:</b> {label} (от @{escape_html(admin_name)})",
             reply_markup=None,
         )
 

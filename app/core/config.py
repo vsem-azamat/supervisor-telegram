@@ -1,8 +1,8 @@
 """Application configuration using Pydantic settings."""
 
-from typing import Any
+from typing import Any, Self
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -105,7 +105,7 @@ class WebAppSettings(BaseSettings):
     """Web application configuration."""
 
     url: str = Field(default="http://localhost:3000", description="Web app URL")
-    api_secret: str = Field(default="your-secret-key", description="API secret for webapp communication")
+    api_secret: str = Field(default="", description="API secret for webapp communication")
     api_enabled: bool = Field(default=False, description="Enable the stats/auth HTTP API")
     api_port: int = Field(default=8081, description="Port for the stats/auth HTTP API")
     allowed_emails: list[str] = Field(default_factory=list, description="Emails allowed to request magic links")
@@ -128,6 +128,14 @@ class WebAppSettings(BaseSettings):
             return [str(e) for e in v]
         return []
 
+    @model_validator(mode="after")
+    def validate_api_secret(self) -> Self:
+        """Ensure a real secret is set when the API is enabled."""
+        _placeholders = {"", "your-secret-key", "changeme", "secret"}
+        if self.api_enabled and self.api_secret in _placeholders:
+            raise ValueError("WEBAPP_API_SECRET must be set to a non-placeholder value when WEBAPP_API_ENABLED=true")
+        return self
+
 
 class AgentSettings(BaseSettings):
     """AI agent configuration."""
@@ -148,6 +156,24 @@ class AgentSettings(BaseSettings):
     )
 
 
+class TelethonSettings(BaseSettings):
+    """Telethon (Telegram Client API) configuration for userbot features."""
+
+    api_id: int = Field(default=0, description="API ID from https://my.telegram.org")
+    api_hash: str = Field(default="", description="API hash from https://my.telegram.org")
+    session_name: str = Field(default="moderator_userbot", description="Session file name")
+    enabled: bool = Field(default=False, description="Enable Telethon client")
+    phone: str | None = Field(default=None, description="Phone number for initial auth")
+
+    model_config = SettingsConfigDict(
+        env_prefix="TELETHON_",
+        case_sensitive=False,
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
 class AppSettings(BaseSettings):
     """Main application settings."""
 
@@ -161,6 +187,7 @@ class AppSettings(BaseSettings):
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
     webapp: WebAppSettings = Field(default_factory=WebAppSettings)
     agent: AgentSettings = Field(default_factory=AgentSettings)
+    telethon: TelethonSettings = Field(default_factory=TelethonSettings)
 
     model_config = SettingsConfigDict(
         env_file=".env",

@@ -4,6 +4,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.domain.entities import UserEntity
 from app.presentation.telegram.utils import BlacklistPagination, UnblockUser
+from app.presentation.telegram.utils.other import escape_html
 
 
 def build_blacklist_keyboard(
@@ -55,7 +56,7 @@ def build_blacklist_text(
 ) -> str:
     """Build text message for blacklist display."""
     if query:
-        text = f"<b>Search results for '{query}':</b>\n"
+        text = f"<b>Search results for '{escape_html(query)}':</b>\n"
         text += f"Found {total_count} users"
     else:
         text = f"<b>Blacklist ({total_count} users):</b>"
@@ -79,11 +80,11 @@ def build_user_details_keyboard(user: UserEntity) -> InlineKeyboardBuilder:
 def build_user_details_text(user: UserEntity) -> str:
     """Build text for individual user details."""
     text = "<b>Found in blacklist:</b>\n\n"
-    text += f"👤 {user.display_name}\n"
+    text += f"👤 {escape_html(user.display_name)}\n"
     text += f"🆔 ID: <code>{user.id}</code>"
 
     if user.username:
-        text += f"\n📝 Username: @{user.username}"
+        text += f"\n📝 Username: @{escape_html(user.username)}"
 
     if user.created_at:
         text += f"\n📅 Added: {user.created_at.strftime('%Y-%m-%d %H:%M')}"

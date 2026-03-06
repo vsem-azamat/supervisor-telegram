@@ -47,20 +47,3 @@ class AdminMiddleware(BaseMiddleware):
             return await handler(event, data)
         await you_are_not_admin(event)
         return None  # Stop further handler processing if not Admin
-
-
-class AnyAdminMiddleware(BaseMiddleware):
-    async def __call__(
-        self,
-        handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
-        event: TelegramObject,
-        data: dict[str, Any],
-    ) -> Any:
-        admin_repo: AdminRepository = data["admin_repo"]
-        admins_id = [admin.id for admin in await admin_repo.get_db_admins()]
-        if isinstance(event, types.Message) and (
-            event.from_user.id in admins_id or event.from_user.id in settings.admin.super_admins
-        ):
-            return await handler(event, data)
-        await you_are_not_admin(event)
-        return None  # Stop further handler processing if not AnyAdmin

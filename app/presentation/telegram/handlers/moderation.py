@@ -19,6 +19,7 @@ from app.presentation.telegram.utils.blacklist import (
     build_user_details_keyboard,
     build_user_details_text,
 )
+from app.presentation.telegram.utils.other import escape_html
 
 moderation_router = Router()
 
@@ -81,7 +82,7 @@ async def mute_user(message: types.Message, bot: Bot) -> None:
             permissions=read_only_permissions,
             until_date=mute_duration.until_date,
         )
-        mention = await other.get_user_mention(message.reply_to_message.from_user)
+        mention = other.get_user_mention(message.reply_to_message.from_user)
         text_mute = (
             f"{mention} в муте на {mute_duration.time} {mute_duration.unit}!\n\n"
             f"Дата размута: {mute_duration.formatted_until_date()}"
@@ -90,7 +91,7 @@ async def mute_user(message: types.Message, bot: Bot) -> None:
         await message.delete()
 
     except Exception as err:
-        await message.answer(f"Произошла ошибка:\n\n{err}")
+        await message.answer("Произошла ошибка. Попробуйте позже.")
         logger.error(f"Error while muting user: {err}")
 
 
@@ -117,10 +118,11 @@ async def unmute_user(message: types.Message) -> None:
             permissions=default_permissions,
             until_date=0,
         )
-        mention = await other.get_user_mention(message.reply_to_message.from_user)
+        mention = other.get_user_mention(message.reply_to_message.from_user)
         await message.answer(f"Пользователь {mention} размучен!")
     except Exception as err:
-        await message.answer(f"Произошла ошибка:\n\n{err}")
+        await message.answer("Произошла ошибка. Попробуйте позже.")
+        logger.error(f"Error while unmuting user: {err}")
 
 
 @moderation_router.message(Command("ban", prefix="!/"))
@@ -135,10 +137,11 @@ async def ban_user(message: types.Message, bot: Bot) -> None:
 
     try:
         await bot.ban_chat_member(message.chat.id, message.reply_to_message.from_user.id)
-        mention = await other.get_user_mention(message.reply_to_message.from_user)
+        mention = other.get_user_mention(message.reply_to_message.from_user)
         await message.answer(f"Пользователь {mention} забанен")
     except Exception as err:
-        error_msg = await message.answer(f"Что-то пошло не так:\n\n{err}")
+        error_msg = await message.answer("Что-то пошло не так. Попробуйте позже.")
+        logger.error(f"Error while banning user: {err}")
         await other.sleep_and_delete(error_msg, 10)
 
     await message.delete()
@@ -156,10 +159,11 @@ async def unban_user(message: types.Message, bot: Bot) -> None:
 
     try:
         await bot.unban_chat_member(message.chat.id, message.reply_to_message.from_user.id)
-        mention = await other.get_user_mention(message.reply_to_message.from_user)
+        mention = other.get_user_mention(message.reply_to_message.from_user)
         await message.answer(f"Пользователь {mention} разбанен")
     except Exception as err:
-        error_msg = await message.answer(f"Что-то пошло не так:\n\n{err}")
+        error_msg = await message.answer("Что-то пошло не так. Попробуйте позже.")
+        logger.error(f"Error while unbanning user: {err}")
         await other.sleep_and_delete(error_msg, 10)
 
     await message.delete()
@@ -288,12 +292,12 @@ async def process_blacklist_confirm(
             return
         await bot.ban_chat_member(callback.message.chat.id, user_id)
         member = await bot.get_chat_member(callback.message.chat.id, user_id)
-        mention = await other.get_user_mention(member.user)
+        mention = other.get_user_mention(member.user)
         await moderation_services.add_to_blacklist(db, bot, user_id, revoke_messages=revoke)
         await callback.message.edit_text(f"{mention} добавлен в черный список.")
     except Exception as err:
         if callback.message and isinstance(callback.message, types.Message):
-            await callback.message.edit_text(f"Произошла ошибка:\n\n{err}")
+            await callback.message.edit_text("Произошла ошибка. Попробуйте позже.")
         logger.error(f"Error while adding user {user_id} to blacklist: {err}")
 
     await callback.answer()
@@ -317,7 +321,7 @@ async def show_blacklist(message: types.Message, user_service: UserService) -> N
         user = await user_service.find_blocked_user(identifier)
 
         if not user:
-            await message.answer(f"User <code>{identifier}</code> not found in blacklist")
+            await message.answer(f"User <code>{escape_html(identifier)}</code> not found in blacklist")
             await message.delete()
             return
 
@@ -407,5 +411,5 @@ async def unblock_user_callback(
         user_identifier = str(user_id)
 
     if callback.message and isinstance(callback.message, types.Message):
-        await callback.message.edit_text(f"Пользователь {user_identifier} разблокирован")
+        await callback.message.edit_text(f"Пользователь {escape_html(user_identifier)} разблокирован")
     await callback.answer()

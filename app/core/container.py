@@ -1,9 +1,8 @@
 """Dependency injection container."""
 
-from typing import Any, TypeVar
+from __future__ import annotations
 
-from aiogram import Bot
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from app.domain.repositories import (
     IAdminRepository,
@@ -18,6 +17,12 @@ from app.infrastructure.db.repositories.chat_link import ChatLinkRepository
 from app.infrastructure.db.repositories.message import MessageRepository
 from app.infrastructure.db.repositories.user import UserRepository
 
+if TYPE_CHECKING:
+    from aiogram import Bot
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+    from app.infrastructure.telegram.telethon_client import TelethonClient
+
 T = TypeVar("T")
 
 
@@ -29,6 +34,7 @@ class Container:
         self._singletons: dict[type[Any], Any] = {}
         self._session_maker: async_sessionmaker[AsyncSession] | None = None
         self._bot: Bot | None = None
+        self._telethon_client: TelethonClient | None = None
 
     def register_singleton(self, interface: type[T], implementation: T) -> None:
         """Register a singleton service."""
@@ -45,6 +51,14 @@ class Container:
     def set_bot(self, bot: Bot) -> None:
         """Set bot instance."""
         self._bot = bot
+
+    def set_telethon_client(self, client: TelethonClient) -> None:
+        """Set Telethon client instance."""
+        self._telethon_client = client
+
+    def get_telethon_client(self) -> TelethonClient | None:
+        """Get Telethon client instance (None if not configured)."""
+        return self._telethon_client
 
     def get(self, interface: type[T] | str) -> T:
         """Get service instance by type or string key."""

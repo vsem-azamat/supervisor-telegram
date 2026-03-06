@@ -25,6 +25,7 @@ def run_api() -> None:
     app = create_api_app(
         session_maker=session_maker,
         allowed_emails=settings.webapp.allowed_emails,
+        allowed_origins=[settings.webapp.url] if settings.webapp.url else [],
     )
     logger.info("Starting API server", port=settings.webapp.api_port)
     web.run_app(app, port=settings.webapp.api_port, print=None)

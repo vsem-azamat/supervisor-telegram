@@ -13,6 +13,7 @@ from app.agent.schemas import AgentEvent
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.infrastructure.db.models import AgentEscalation
+from app.presentation.telegram.utils.other import escape_html
 
 logger = get_logger("agent.escalation")
 
@@ -44,9 +45,7 @@ class EscalationService:
     ) -> AgentEscalation:
         """Create escalation, send to admin, start timeout."""
         timeout_minutes = settings.agent.escalation_timeout_minutes
-        # NOTE: DB columns are stored as TIMESTAMP WITHOUT TIME ZONE (naive).
-        # Use naive UTC datetimes consistently to avoid asyncpg "offset-naive and offset-aware" errors.
-        timeout_at = datetime.datetime.utcnow() + datetime.timedelta(minutes=timeout_minutes)
+        timeout_at = datetime.datetime.now(datetime.UTC) + datetime.timedelta(minutes=timeout_minutes)
 
         escalation = AgentEscalation(
             chat_id=event.chat_id,
@@ -105,7 +104,7 @@ class EscalationService:
         escalation.status = "resolved"
         escalation.resolved_action = action
         escalation.resolved_by = admin_id
-        escalation.resolved_at = datetime.datetime.utcnow()
+        escalation.resolved_at = datetime.datetime.now(datetime.UTC)
         await self.db.commit()
 
         # Cancel timeout task
@@ -134,7 +133,7 @@ class EscalationService:
     async def recover_stale_escalations(cls, session_maker: async_sessionmaker[AsyncSession]) -> None:
         """On startup, mark stale pending escalations as timed out."""
         async with session_maker() as db:
-            now = datetime.datetime.utcnow()
+            now = datetime.datetime.now(datetime.UTC)
             stmt = select(AgentEscalation).where(
                 AgentEscalation.status == "pending",
                 AgentEscalation.timeout_at < now,
@@ -157,12 +156,15 @@ class EscalationService:
         admin_chat_id: int,
     ) -> TgMessage:
         """Send formatted escalation message to admin with action buttons."""
+        chat_label = escape_html(event.chat_title) if event.chat_title else str(event.chat_id)
+        display_name = escape_html(event.target_display_name)
+        username_part = f" (@{escape_html(event.target_username)})" if event.target_username else ""
+
         text = (
             f"🚨 <b>Модерация: требуется решение</b>\n\n"
-            f"📝 Событие: <code>{event.event_type}</code>\n"
-            f"💬 Чат: {event.chat_title or event.chat_id}\n"
-            f"👤 Пользователь: {event.target_display_name}"
-            f"{f' (@{event.target_username})' if event.target_username else ''}\n"
+            f"📝 Событие: <code>{escape_html(event.event_type)}</code>\n"
+            f"💬 Чат: {chat_label}\n"
+            f"👤 Пользователь: {display_name}{username_part}\n"
             f"🆔 ID: <code>{event.target_user_id}</code>\n\n"
         )
 
@@ -170,11 +172,11 @@ class EscalationService:
             truncated = event.target_message_text[:500]
             if len(event.target_message_text) > 500:
                 truncated += "..."
-            text += f"📄 Сообщение:\n<blockquote>{truncated}</blockquote>\n\n"
+            text += f"📄 Сообщение:\n<blockquote>{escape_html(truncated)}</blockquote>\n\n"
 
         text += (
-            f"🤖 Предложение: <b>{escalation.suggested_action}</b>\n"
-            f"💭 Причина: {escalation.reason}\n\n"
+            f"🤖 Предложение: <b>{escape_html(escalation.suggested_action)}</b>\n"
+            f"💭 Причина: {escape_html(escalation.reason)}\n\n"
             f"⏰ Таймаут: {settings.agent.escalation_timeout_minutes} мин "
             f"→ <i>{settings.agent.default_timeout_action}</i>"
         )
@@ -224,7 +226,7 @@ class EscalationService:
             default_action = settings.agent.default_timeout_action
             escalation.status = "timeout"
             escalation.resolved_action = default_action
-            escalation.resolved_at = datetime.datetime.utcnow()
+            escalation.resolved_at = datetime.datetime.now(datetime.UTC)
             await db.commit()
 
             # Log timeout outcome as an admin override on the original decision

@@ -8,7 +8,7 @@ Uses:
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -125,7 +125,7 @@ def _make_message(
         "message_id": message_id,
         "from": _make_user(from_user_id, username=f"user_{from_user_id}"),
         "chat": _make_chat(chat_id),
-        "date": int(datetime.now().timestamp()),
+        "date": int(datetime.now(UTC).timestamp()),
         "text": text,
         "entities": entities or [],
         "reply_to_message": reply_to_message,
@@ -280,7 +280,7 @@ class TestReportCommand:
             update_id=1,
             message=Message(
                 message_id=50,
-                date=datetime.now(),
+                date=datetime.now(UTC),
                 chat=Chat(id=CHAT_ID, type="supergroup", title="Test Chat"),
                 from_user=User(id=REPORTER_ID, is_bot=False, first_name="Reporter"),
                 text="/report",
@@ -300,7 +300,7 @@ class TestReportCommand:
         """Sending /report as reply should trigger agent and show result."""
         target_msg = Message(
             message_id=30,
-            date=datetime.now(),
+            date=datetime.now(UTC),
             chat=Chat(id=CHAT_ID, type="supergroup", title="Test Chat"),
             from_user=User(id=TARGET_USER_ID, is_bot=False, first_name="Target", username="target_user"),
             text="Buy cheap diploma!!!",
@@ -310,7 +310,7 @@ class TestReportCommand:
             update_id=2,
             message=Message(
                 message_id=50,
-                date=datetime.now(),
+                date=datetime.now(UTC),
                 chat=Chat(id=CHAT_ID, type="supergroup", title="Test Chat"),
                 from_user=User(id=REPORTER_ID, is_bot=False, first_name="Reporter"),
                 text="/report",
@@ -334,7 +334,7 @@ class TestReportCommand:
         """The /spam command should also trigger agent analysis."""
         target_msg = Message(
             message_id=31,
-            date=datetime.now(),
+            date=datetime.now(UTC),
             chat=Chat(id=CHAT_ID, type="supergroup", title="Test Chat"),
             from_user=User(id=TARGET_USER_ID, is_bot=False, first_name="Target"),
             text="Spam message",
@@ -344,7 +344,7 @@ class TestReportCommand:
             update_id=3,
             message=Message(
                 message_id=51,
-                date=datetime.now(),
+                date=datetime.now(UTC),
                 chat=Chat(id=CHAT_ID, type="supergroup", title="Test Chat"),
                 from_user=User(id=REPORTER_ID, is_bot=False, first_name="Reporter"),
                 text="/spam",
@@ -370,7 +370,7 @@ class TestReportCommand:
 
         target_msg = Message(
             message_id=30,
-            date=datetime.now(),
+            date=datetime.now(UTC),
             chat=Chat(id=CHAT_ID, type="supergroup", title="Test Chat"),
             from_user=User(id=TARGET_USER_ID, is_bot=False, first_name="Target"),
             text="Some message",
@@ -380,7 +380,7 @@ class TestReportCommand:
             update_id=4,
             message=Message(
                 message_id=52,
-                date=datetime.now(),
+                date=datetime.now(UTC),
                 chat=Chat(id=CHAT_ID, type="supergroup", title="Test Chat"),
                 from_user=User(id=REPORTER_ID, is_bot=False, first_name="Reporter"),
                 text="/report",
@@ -416,7 +416,7 @@ class TestEscalationCallback:
                 target_user_id=TARGET_USER_ID,
                 suggested_action="mute",
                 reason="Suspicious message",
-                timeout_at=datetime.utcnow() + timedelta(minutes=30),
+                timeout_at=datetime.now(UTC) + timedelta(minutes=30),
                 message_text="Buy cheap diploma!!!",
                 admin_message_id=999,
                 admin_chat_id=SUPER_ADMIN_ID,
@@ -429,7 +429,7 @@ class TestEscalationCallback:
         # Simulate admin clicking "ban" button
         escalation_msg = Message(
             message_id=999,
-            date=datetime.now(),
+            date=datetime.now(UTC),
             chat=Chat(id=SUPER_ADMIN_ID, type="private"),
             from_user=User(id=5145935834, is_bot=True, first_name="Bot"),
             text="Escalation details here",
@@ -481,7 +481,7 @@ class TestEscalationCallback:
                 target_user_id=TARGET_USER_ID,
                 suggested_action="mute",
                 reason="Suspicious",
-                timeout_at=datetime.utcnow() + timedelta(minutes=30),
+                timeout_at=datetime.now(UTC) + timedelta(minutes=30),
             )
             seed_session.add(escalation)
             await seed_session.commit()
@@ -499,7 +499,7 @@ class TestEscalationCallback:
                 data=f"esc:{esc_id}:ban",
                 message=Message(
                     message_id=999,
-                    date=datetime.now(),
+                    date=datetime.now(UTC),
                     chat=Chat(id=NON_ADMIN_ID, type="private"),
                     from_user=User(id=5145935834, is_bot=True, first_name="Bot"),
                     text="Escalation",
@@ -536,7 +536,7 @@ class TestEscalationCallback:
                 target_user_id=TARGET_USER_ID,
                 suggested_action="mute",
                 reason="Maybe spam",
-                timeout_at=datetime.utcnow() + timedelta(minutes=30),
+                timeout_at=datetime.now(UTC) + timedelta(minutes=30),
             )
             seed_session.add(escalation)
             await seed_session.commit()
@@ -552,7 +552,7 @@ class TestEscalationCallback:
                 data=f"esc:{esc_id}:ignore",
                 message=Message(
                     message_id=999,
-                    date=datetime.now(),
+                    date=datetime.now(UTC),
                     chat=Chat(id=SUPER_ADMIN_ID, type="private"),
                     from_user=User(id=5145935834, is_bot=True, first_name="Bot"),
                     text="Escalation",
@@ -593,7 +593,7 @@ class TestEscalationCallback:
                 target_user_id=TARGET_USER_ID,
                 suggested_action="mute",
                 reason="Old escalation",
-                timeout_at=datetime.utcnow() + timedelta(minutes=30),
+                timeout_at=datetime.now(UTC) + timedelta(minutes=30),
             )
             escalation.status = "resolved"
             escalation.resolved_action = "ban"
@@ -611,7 +611,7 @@ class TestEscalationCallback:
                 data=f"esc:{escalation.id}:mute",
                 message=Message(
                     message_id=999,
-                    date=datetime.now(),
+                    date=datetime.now(UTC),
                     chat=Chat(id=SUPER_ADMIN_ID, type="private"),
                     from_user=User(id=5145935834, is_bot=True, first_name="Bot"),
                     text="Escalation",
@@ -648,7 +648,7 @@ class TestManagedChatsMiddleware:
             update_id=20,
             message=Message(
                 message_id=1,
-                date=datetime.now(),
+                date=datetime.now(UTC),
                 chat=Chat(id=UNMANAGED_CHAT_ID, type="supergroup", title="Unmanaged"),
                 from_user=User(id=111, is_bot=False, first_name="Random"),
                 text="Hello",

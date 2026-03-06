@@ -105,12 +105,21 @@ def extract_usage_from_pydanticai_result(
 
 # ── In-memory accumulator ────────────────────────────────────────────
 
+_MAX_USAGE_HISTORY = 1000
+
 _usage_history: list[LLMUsage] = []
 
 
 async def log_usage(usage: LLMUsage) -> None:
-    """Log a single LLM usage record and accumulate it in memory."""
+    """Log a single LLM usage record and accumulate it in memory.
+
+    The in-memory history is capped at :data:`_MAX_USAGE_HISTORY` entries.
+    When the cap is reached, the oldest entries are evicted.
+    """
     _usage_history.append(usage)
+    # Evict oldest entries to prevent unbounded memory growth
+    if len(_usage_history) > _MAX_USAGE_HISTORY:
+        _usage_history[:] = _usage_history[-_MAX_USAGE_HISTORY:]
     logger.info(
         "llm_usage",
         model=usage.model,
