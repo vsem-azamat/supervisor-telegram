@@ -39,14 +39,17 @@ Agent autonomously discovers content, generates posts, sends to private review c
 6. Auto-disable bad RSS sources based on health tracking
 
 ### Definition of Done (Channel Agent v2)
-- [ ] Review channel flow: draft -> buttons -> approve -> publish to main channel
-- [ ] Inline keyboard with actionable buttons (approve, reject, regen, shorter, longer, translate)
-- [ ] Reply-based editing: admin writes feedback in discussion chat, agent updates draft
-- [ ] Source discovery agent: finds RSS feeds via Perplexity, validates, adds to DB
-- [ ] Admin feedback memory: agent summarizes preferences to improve future posts
-- [ ] Source health: auto-disable broken feeds, relevance scoring from admin actions
-- [ ] Unit tests for review handler, source discovery, feedback system
-- [ ] RSS sources from .env deprecated — agent manages sources autonomously
+- [x] Review channel flow: draft -> buttons -> approve -> publish to main channel
+- [x] Inline keyboard with actionable buttons (approve, reject, regen, shorter, longer, translate)
+- [x] Reply-based editing: admin writes feedback in discussion chat, agent updates draft
+- [x] Source discovery agent: finds RSS feeds via Perplexity, validates, adds to DB
+- [x] Admin feedback memory: agent summarizes preferences to improve future posts
+- [x] Source health: auto-disable broken feeds, relevance scoring from admin actions
+- [x] Unit tests for review handler, source discovery, feedback system (66 tests)
+- [x] RSS sources from .env deprecated — agent manages sources autonomously
+- [x] Alembic migration for v2 schema changes
+- [ ] Create private review channel + linked discussion chat in Telegram
+- [ ] End-to-end test: deploy and verify full review flow works
 
 ## 2) Task board
 
@@ -58,15 +61,20 @@ Agent autonomously discovers content, generates posts, sends to private review c
 - [x] DDD fix: ORM models from domain to infrastructure — `c168308`
 - [x] testcontainers[postgres] + 6 PG integration tests
 - [x] Pre-commit hooks (ruff, mypy, pytest, eslint/tsc)
-- [x] All code quality: ruff 0, mypy 0, 285 tests
+- [x] All code quality: ruff 0, mypy 0, 351 tests
 - [x] Channel agent v1: RSS fetch -> LLM screen -> generate -> publish — `f56bc72`
 - [x] Perplexity Sonar discovery + DB-backed source management — `3057497`
 - [x] Successfully published 3 posts to @test908070 (msg IDs 44-46)
 
+### Done (v2)
+- [x] Channel agent v2: review flow with inline buttons + discussion chat editing — `9b1fcf0`
+- [x] Source discovery agent: auto-find RSS feeds via Perplexity Sonar
+- [x] Admin feedback memory: summarizes preferences, wired into generation pipeline
+- [x] Source relevance scoring: approve boosts, reject penalizes, auto-disables low-quality
+- [x] Alembic migration for v2 columns (channel_posts + channel_sources)
+
 ### In progress
-- [ ] Channel agent v2: review flow with inline buttons + discussion chat editing
-- [ ] Source discovery agent: auto-find RSS feeds
-- [ ] Admin feedback memory / source quality tracking
+- [ ] Create private review channel in Telegram + set CHANNEL_REVIEW_CHAT_ID
 
 ### ON HOLD
 - [ ] Verify bot admin rights in test chat
@@ -136,3 +144,4 @@ Feedback Memory:
 - 2026-03-06: PG integration tests. Pre-commit hooks. All quality checks pass (285 tests).
 - 2026-03-06: Channel agent v1 built and deployed. RSS + Perplexity discovery pipeline. 3 posts published to @test908070. Perplexity Sonar found excellent content (scholarships scoring 10/10).
 - 2026-03-06: Starting v2 — review flow with inline buttons, discussion chat editing, source discovery agent, admin feedback memory.
+- 2026-03-06: v2 code complete — review flow, feedback memory wired into generation, source relevance scoring, alembic migration. 351 tests (66 channel agent v2). All quality checks pass.

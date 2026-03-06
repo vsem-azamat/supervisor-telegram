@@ -872,6 +872,77 @@ class TestHandlerHelpers:
 # ── ContentItem tests ────────────────────────────────────────────────
 
 
+class TestGeneratePostFeedbackContext:
+    """Tests for feedback_context parameter in generate_post()."""
+
+    async def test_generate_post_without_feedback_context(self, sample_content_items: list[ContentItem]) -> None:
+        """generate_post works with feedback_context=None (default, existing behavior)."""
+        from app.agent.channel.generator import generate_post
+
+        mock_result = MagicMock()
+        mock_result.output = GeneratedPost(text="<b>Post</b>", is_sensitive=False)
+
+        mock_agent = AsyncMock()
+        mock_agent.run.return_value = mock_result
+
+        with patch("app.agent.channel.generator._create_generation_agent", return_value=mock_agent):
+            post = await generate_post(sample_content_items, api_key="key", model="model")
+
+        assert post is not None
+        assert post.text == "<b>Post</b>"
+        # Verify the prompt does NOT contain admin preferences
+        call_args = mock_agent.run.call_args[0][0]
+        assert "Admin preferences" not in call_args
+
+    async def test_generate_post_with_feedback_context(self, sample_content_items: list[ContentItem]) -> None:
+        """generate_post includes feedback context in the LLM prompt when provided."""
+        from app.agent.channel.generator import generate_post
+
+        mock_result = MagicMock()
+        mock_result.output = GeneratedPost(text="<b>Post</b>", is_sensitive=False)
+
+        mock_agent = AsyncMock()
+        mock_agent.run.return_value = mock_result
+
+        feedback = "- Approves education content\n- Rejects memes"
+
+        with patch("app.agent.channel.generator._create_generation_agent", return_value=mock_agent):
+            post = await generate_post(
+                sample_content_items,
+                api_key="key",
+                model="model",
+                feedback_context=feedback,
+            )
+
+        assert post is not None
+        call_args = mock_agent.run.call_args[0][0]
+        assert "Admin preferences (use to guide your writing):" in call_args
+        assert "Approves education content" in call_args
+        assert "Rejects memes" in call_args
+
+    async def test_generate_post_with_empty_string_feedback(self, sample_content_items: list[ContentItem]) -> None:
+        """generate_post treats empty string feedback_context same as None."""
+        from app.agent.channel.generator import generate_post
+
+        mock_result = MagicMock()
+        mock_result.output = GeneratedPost(text="<b>Post</b>", is_sensitive=False)
+
+        mock_agent = AsyncMock()
+        mock_agent.run.return_value = mock_result
+
+        with patch("app.agent.channel.generator._create_generation_agent", return_value=mock_agent):
+            post = await generate_post(
+                sample_content_items,
+                api_key="key",
+                model="model",
+                feedback_context="",
+            )
+
+        assert post is not None
+        call_args = mock_agent.run.call_args[0][0]
+        assert "Admin preferences" not in call_args
+
+
 class TestContentItem:
     def test_summary_property(self) -> None:
         item = ContentItem(
@@ -900,3 +971,116 @@ class TestContentItem:
             body="",
         )
         assert item.summary == "Title Only"
+
+
+# ── Relevance scoring tests ──────────────────────────────────────────
+
+
+class TestRelevanceScoring:
+    async def test_boost_relevance_increases_score(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
+        async with session_maker() as session:
+            source = ChannelSource(channel_id="@test", url="https://x.com/feed", added_by="test")
+            session.add(source)
+            await session.flush()
+
+            assert source.relevance_score == 1.0
+            source.boost_relevance()
+            assert abs(source.relevance_score - 1.1) < 1e-9
+
+    async def test_boost_relevance_caps_at_2(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
+        async with session_maker() as session:
+            source = ChannelSource(channel_id="@test", url="https://x.com/feed", added_by="test")
+            source.relevance_score = 1.95
+            session.add(source)
+            await session.flush()
+
+            source.boost_relevance()
+            assert source.relevance_score == 2.0
+
+            # Another boost should stay at 2.0
+            source.boost_relevance()
+            assert source.relevance_score == 2.0
+
+    async def test_penalize_relevance_decreases_score(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
+        async with session_maker() as session:
+            source = ChannelSource(channel_id="@test", url="https://x.com/feed", added_by="test")
+            session.add(source)
+            await session.flush()
+
+            source.penalize_relevance()
+            assert abs(source.relevance_score - 0.8) < 1e-9
+            assert source.enabled is True
+
+    async def test_penalize_relevance_floors_at_0(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
+        async with session_maker() as session:
+            source = ChannelSource(channel_id="@test", url="https://x.com/feed", added_by="test")
+            source.relevance_score = 0.1
+            session.add(source)
+            await session.flush()
+
+            source.penalize_relevance()
+            assert source.relevance_score == 0.0
+            assert source.enabled is False
+
+    async def test_penalize_relevance_auto_disables_below_03(
+        self, session_maker: async_sessionmaker[AsyncSession]
+    ) -> None:
+        async with session_maker() as session:
+            source = ChannelSource(channel_id="@test", url="https://x.com/feed", added_by="test")
+            source.relevance_score = 0.4
+            session.add(source)
+            await session.flush()
+
+            source.penalize_relevance()
+            # 0.4 - 0.2 = 0.2, which is < 0.3
+            assert abs(source.relevance_score - 0.2) < 1e-9
+            assert source.enabled is False
+
+    async def test_update_source_relevance_approved(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
+        from app.agent.channel.source_manager import add_source, update_source_relevance
+
+        await add_source(session_maker, "@ch", "https://good.com/feed")
+        await update_source_relevance(session_maker, ["https://good.com/feed"], approved=True)
+
+        async with session_maker() as session:
+            source = (await session.execute(select(ChannelSource))).scalar_one()
+            assert abs(source.relevance_score - 1.1) < 1e-9
+
+    async def test_update_source_relevance_rejected(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
+        from app.agent.channel.source_manager import add_source, update_source_relevance
+
+        await add_source(session_maker, "@ch", "https://bad.com/feed")
+        await update_source_relevance(session_maker, ["https://bad.com/feed"], approved=False)
+
+        async with session_maker() as session:
+            source = (await session.execute(select(ChannelSource))).scalar_one()
+            assert abs(source.relevance_score - 0.8) < 1e-9
+
+    async def test_update_source_relevance_unknown_url_ignored(
+        self, session_maker: async_sessionmaker[AsyncSession]
+    ) -> None:
+        from app.agent.channel.source_manager import update_source_relevance
+
+        # Should not raise
+        await update_source_relevance(session_maker, ["https://nonexistent.com/feed"], approved=True)
+
+    async def test_get_active_sources_ordered_by_relevance(
+        self, session_maker: async_sessionmaker[AsyncSession]
+    ) -> None:
+        from app.agent.channel.source_manager import get_active_sources
+
+        async with session_maker() as session:
+            s1 = ChannelSource(channel_id="@ch", url="https://low.com/feed", added_by="test")
+            s1.relevance_score = 0.5
+            s2 = ChannelSource(channel_id="@ch", url="https://high.com/feed", added_by="test")
+            s2.relevance_score = 1.8
+            s3 = ChannelSource(channel_id="@ch", url="https://mid.com/feed", added_by="test")
+            s3.relevance_score = 1.0
+            session.add_all([s1, s2, s3])
+            await session.commit()
+
+        sources = await get_active_sources(session_maker, "@ch")
+        assert len(sources) == 3
+        assert sources[0].url == "https://high.com/feed"
+        assert sources[1].url == "https://mid.com/feed"
+        assert sources[2].url == "https://low.com/feed"

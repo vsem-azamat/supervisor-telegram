@@ -1,7 +1,7 @@
 import datetime
 from typing import Any
 
-from sqlalchemy import JSON, BigInteger, Boolean, DateTime, Integer, String
+from sqlalchemy import JSON, BigInteger, Boolean, DateTime, Float, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.infrastructure.db.base import Base
@@ -251,7 +251,7 @@ class ChannelSource(Base):
     title: Mapped[str | None] = mapped_column(String, nullable=True)
     language: Mapped[str | None] = mapped_column(String(8), nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
-    relevance_score: Mapped[float] = mapped_column(default=5.0)
+    relevance_score: Mapped[float] = mapped_column(Float, default=1.0)
     error_count: Mapped[int] = mapped_column(Integer, default=0)
     last_fetched_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     last_error: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -283,6 +283,16 @@ class ChannelSource(Base):
         self.error_count += 1
         self.last_error = error
         if self.error_count >= 5:
+            self.enabled = False
+
+    def boost_relevance(self) -> None:
+        """Increase relevance score by 0.1, capped at 2.0."""
+        self.relevance_score = min(self.relevance_score + 0.1, 2.0)
+
+    def penalize_relevance(self) -> None:
+        """Decrease relevance score by 0.2, floored at 0.0. Auto-disables below 0.3."""
+        self.relevance_score = max(self.relevance_score - 0.2, 0.0)
+        if self.relevance_score < 0.3:
             self.enabled = False
 
     def disable(self) -> None:

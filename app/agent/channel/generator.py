@@ -97,6 +97,7 @@ async def generate_post(
     api_key: str,
     model: str,
     language: str = "Russian",
+    feedback_context: str | None = None,
 ) -> GeneratedPost | None:
     """Generate a post from one or more content items."""
     if not items:
@@ -110,8 +111,13 @@ async def generate_post(
         for item in items[:3]  # max 3 sources per post
     )
 
+    prompt = f"Generate a post based on these sources:\n\n{source_text}"
+
+    if feedback_context:
+        prompt += f"\n\n---\nAdmin preferences (use to guide your writing):\n{feedback_context}"
+
     try:
-        result = await agent.run(f"Generate a post based on these sources:\n\n{source_text}")
+        result = await agent.run(prompt)
         logger.info("post_generated", length=len(result.output.text))
         return result.output
     except Exception:

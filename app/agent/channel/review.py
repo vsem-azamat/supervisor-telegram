@@ -115,6 +115,18 @@ async def send_for_review(
             return None
 
 
+async def _extract_source_urls(post: ChannelPost) -> list[str]:
+    """Extract unique source URLs from a post's source_items."""
+    if not post.source_items:
+        return []
+    urls: list[str] = []
+    for item in post.source_items:
+        source_url = item.get("source_url")
+        if source_url and source_url not in urls:
+            urls.append(source_url)
+    return urls
+
+
 async def handle_approve(
     bot: Bot,
     post_id: int,
@@ -124,6 +136,8 @@ async def handle_approve(
     """Approve and publish a post. Returns status message."""
     from sqlalchemy import select
 
+    from app.agent.channel.source_manager import update_source_relevance
+
     async with session_maker() as session:
         result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))
         post = result.scalar_one_or_none()
@@ -131,6 +145,8 @@ async def handle_approve(
             return "Post not found."
         if post.status == "approved":
             return "Already published."
+
+        source_urls = await _extract_source_urls(post)
 
         try:
             msg = await bot.send_message(
@@ -142,6 +158,11 @@ async def handle_approve(
             post.approve(msg.message_id)
             await session.commit()
             logger.info("post_approved", post_id=post_id, msg_id=msg.message_id)
+
+            # Boost relevance of contributing sources
+            if source_urls:
+                await update_source_relevance(session_maker, source_urls, approved=True)
+
             return f"Published! (msg #{msg.message_id})"
         except Exception:
             logger.exception("approve_publish_error", post_id=post_id)
@@ -156,14 +177,23 @@ async def handle_reject(
     """Reject a post."""
     from sqlalchemy import select
 
+    from app.agent.channel.source_manager import update_source_relevance
+
     async with session_maker() as session:
         result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))
         post = result.scalar_one_or_none()
         if not post:
             return "Post not found."
+
+        source_urls = await _extract_source_urls(post)
         post.reject(reason)
         await session.commit()
         logger.info("post_rejected", post_id=post_id)
+
+        # Penalize relevance of contributing sources
+        if source_urls:
+            await update_source_relevance(session_maker, source_urls, approved=False)
+
         return "Post rejected."
 
 

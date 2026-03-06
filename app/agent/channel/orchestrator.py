@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from app.agent.channel.discovery import discover_content
+from app.agent.channel.feedback import get_feedback_summary
 from app.agent.channel.generator import generate_post, screen_items
 from app.agent.channel.review import send_for_review
 from app.agent.channel.source_discovery import discover_and_add_sources
@@ -184,19 +185,34 @@ class ChannelOrchestrator:
 
         logger.info("relevant_items", count=len(relevant))
 
-        # 3. Generate post
+        # 3. Fetch admin feedback context (non-blocking)
+        feedback_context: str | None = None
+        try:
+            feedback_context = await get_feedback_summary(
+                session_maker=self.session_maker,
+                channel_id=channel_id,
+                api_key=self.api_key,
+                model=self.config.screening_model,
+            )
+            if feedback_context:
+                logger.info("feedback_context_loaded", length=len(feedback_context))
+        except Exception:
+            logger.exception("feedback_context_error")
+
+        # 4. Generate post
         post = await generate_post(
             relevant[:3],
             api_key=self.api_key,
             model=self.config.generation_model,
             language=self._language_name(),
+            feedback_context=feedback_context,
         )
 
         if not post:
             logger.warning("post_generation_failed")
             return
 
-        # 4. Send for review (or direct publish if no review channel)
+        # 5. Send for review (or direct publish if no review channel)
         if self.config.review_chat_id:
             post_id = await send_for_review(
                 bot=self.bot,

@@ -21,13 +21,15 @@ async def get_active_sources(
     session_maker: async_sessionmaker[AsyncSession],
     channel_id: str,
 ) -> list[ChannelSource]:
-    """Get all enabled sources for a channel."""
+    """Get all enabled sources for a channel, ordered by relevance score descending."""
     async with session_maker() as session:
         result = await session.execute(
-            select(ChannelSource).where(
+            select(ChannelSource)
+            .where(
                 ChannelSource.channel_id == channel_id,
                 ChannelSource.enabled.is_(True),
             )
+            .order_by(ChannelSource.relevance_score.desc())
         )
         return list(result.scalars().all())
 
@@ -118,3 +120,27 @@ async def seed_sources_from_env(
     if added:
         logger.info("sources_seeded", count=added, channel_id=channel_id)
     return added
+
+
+async def update_source_relevance(
+    session_maker: async_sessionmaker[AsyncSession],
+    source_urls: list[str],
+    *,
+    approved: bool,
+) -> None:
+    """Boost or penalize relevance score for sources based on admin approval."""
+    if not source_urls:
+        return
+    async with session_maker() as session:
+        for url in source_urls:
+            result = await session.execute(select(ChannelSource).where(ChannelSource.url == url))
+            source = result.scalar_one_or_none()
+            if not source:
+                continue
+            if approved:
+                source.boost_relevance()
+            else:
+                source.penalize_relevance()
+                if not source.enabled:
+                    logger.warning("source_auto_disabled_low_relevance", url=url, score=source.relevance_score)
+        await session.commit()
