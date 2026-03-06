@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -1084,3 +1085,317 @@ class TestRelevanceScoring:
         assert sources[0].url == "https://high.com/feed"
         assert sources[1].url == "https://mid.com/feed"
         assert sources[2].url == "https://low.com/feed"
+
+
+# ── Cost Tracker Tests ───────────────────────────────────────────────
+
+
+class TestCostTracker:
+    """Tests for the LLM cost tracking module."""
+
+    def setup_method(self) -> None:
+        from app.agent.channel.cost_tracker import reset_usage_history
+
+        reset_usage_history()
+
+    def test_extract_usage_from_openrouter_response_valid(self) -> None:
+        from app.agent.channel.cost_tracker import extract_usage_from_openrouter_response
+
+        response = {
+            "choices": [{"message": {"content": "hello"}}],
+            "usage": {
+                "prompt_tokens": 100,
+                "completion_tokens": 50,
+                "total_tokens": 150,
+            },
+        }
+        usage = extract_usage_from_openrouter_response(response, "perplexity/sonar", "discovery", "@mychannel")
+
+        assert usage is not None
+        assert usage.model == "perplexity/sonar"
+        assert usage.operation == "discovery"
+        assert usage.prompt_tokens == 100
+        assert usage.completion_tokens == 50
+        assert usage.total_tokens == 150
+        assert usage.channel_id == "@mychannel"
+        assert usage.estimated_cost_usd > 0
+
+    def test_extract_usage_from_openrouter_response_missing_usage(self) -> None:
+        from app.agent.channel.cost_tracker import extract_usage_from_openrouter_response
+
+        response = {"choices": [{"message": {"content": "hello"}}]}
+        usage = extract_usage_from_openrouter_response(response, "perplexity/sonar", "discovery")
+        assert usage is None
+
+    def test_cost_estimation_known_model(self) -> None:
+        from app.agent.channel.cost_tracker import _estimate_cost
+
+        # google/gemini-2.0-flash-001: input=0.0001, output=0.0004 per 1k tokens
+        cost = _estimate_cost("google/gemini-2.0-flash-001", 1000, 1000)
+        expected = (1000 / 1000) * 0.0001 + (1000 / 1000) * 0.0004
+        assert abs(cost - expected) < 1e-8
+
+    def test_cost_estimation_unknown_model(self) -> None:
+        from app.agent.channel.cost_tracker import _estimate_cost
+
+        # Unknown model defaults to input=0.001, output=0.001 per 1k tokens
+        cost = _estimate_cost("unknown/model-xyz", 500, 200)
+        expected = (500 / 1000) * 0.001 + (200 / 1000) * 0.001
+        assert abs(cost - expected) < 1e-8
+
+    def test_extract_usage_from_pydanticai_result(self) -> None:
+        from app.agent.channel.cost_tracker import extract_usage_from_pydanticai_result
+
+        # Mock PydanticAI result with usage()
+        mock_usage = MagicMock()
+        mock_usage.request_tokens = 200
+        mock_usage.response_tokens = 100
+        mock_usage.total_tokens = 300
+
+        mock_result = MagicMock()
+        mock_result.usage.return_value = mock_usage
+
+        usage = extract_usage_from_pydanticai_result(mock_result, "google/gemini-2.0-flash-001", "screening")
+
+        assert usage is not None
+        assert usage.prompt_tokens == 200
+        assert usage.completion_tokens == 100
+        assert usage.total_tokens == 300
+        assert usage.operation == "screening"
+
+    def test_extract_usage_from_pydanticai_result_no_usage(self) -> None:
+        from app.agent.channel.cost_tracker import extract_usage_from_pydanticai_result
+
+        mock_result = MagicMock()
+        mock_result.usage.return_value = None
+
+        usage = extract_usage_from_pydanticai_result(mock_result, "some/model", "generation")
+        assert usage is None
+
+    @pytest.mark.asyncio
+    async def test_log_usage_and_session_summary(self) -> None:
+        from app.agent.channel.cost_tracker import LLMUsage, get_session_summary, log_usage
+
+        await log_usage(
+            LLMUsage(
+                model="perplexity/sonar",
+                operation="discovery",
+                prompt_tokens=100,
+                completion_tokens=50,
+                total_tokens=150,
+                estimated_cost_usd=0.00015,
+            )
+        )
+        await log_usage(
+            LLMUsage(
+                model="google/gemini-2.0-flash-001",
+                operation="screening",
+                prompt_tokens=200,
+                completion_tokens=80,
+                total_tokens=280,
+                estimated_cost_usd=0.00005,
+            )
+        )
+        await log_usage(
+            LLMUsage(
+                model="perplexity/sonar",
+                operation="discovery",
+                prompt_tokens=120,
+                completion_tokens=60,
+                total_tokens=180,
+                estimated_cost_usd=0.00018,
+            )
+        )
+
+        summary = get_session_summary()
+        assert summary["total_tokens"] == 150 + 280 + 180
+        assert summary["total_calls"] == 3
+        assert summary["total_cost_usd"] > 0
+
+        by_op = summary["by_operation"]
+        assert "discovery" in by_op
+        assert by_op["discovery"]["calls"] == 2
+        assert by_op["discovery"]["tokens"] == 150 + 180
+
+        assert "screening" in by_op
+        assert by_op["screening"]["calls"] == 1
+        assert by_op["screening"]["tokens"] == 280
+
+
+# ── Multi-channel & scheduling tests ─────────────────────────────────
+
+
+class TestChannelConfigGetChannels:
+    """Test ChannelAgentSettings.get_channels() method."""
+
+    def test_get_channels_returns_explicit_list(self) -> None:
+        from app.agent.channel.config import ChannelAgentSettings, ChannelConfig
+
+        cfg = ChannelAgentSettings(
+            enabled=True,
+            channels=[
+                ChannelConfig(channel_id="@chan1", language="cs"),
+                ChannelConfig(channel_id=-100123, language="en", max_posts_per_day=5),
+            ],
+            _env_file=None,  # type: ignore[call-arg]
+        )
+        channels = cfg.get_channels()
+        assert len(channels) == 2
+        assert channels[0].channel_id == "@chan1"
+        assert channels[0].language == "cs"
+        assert channels[1].channel_id == -100123
+        assert channels[1].max_posts_per_day == 5
+
+    def test_get_channels_legacy_fallback(self) -> None:
+        """Legacy single-channel env vars produce one ChannelConfig."""
+        import warnings
+
+        from app.agent.channel.config import ChannelAgentSettings
+
+        cfg = ChannelAgentSettings(
+            enabled=True,
+            channel_id="@legacy_chan",
+            review_chat_id=-999,
+            language="cs",
+            max_posts_per_day=2,
+            discovery_query="test query",
+            source_discovery_query="rss query",
+            _env_file=None,  # type: ignore[call-arg]
+        )
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            channels = cfg.get_channels()
+            assert len(w) == 1
+            assert "deprecated" in str(w[0].message).lower()
+
+        assert len(channels) == 1
+        ch = channels[0]
+        assert ch.channel_id == "@legacy_chan"
+        assert ch.review_chat_id == -999
+        assert ch.language == "cs"
+        assert ch.max_posts_per_day == 2
+        assert ch.discovery_query == "test query"
+        assert ch.source_discovery_query == "rss query"
+
+    def test_get_channels_empty_when_no_channel_id(self) -> None:
+        from app.agent.channel.config import ChannelAgentSettings
+
+        cfg = ChannelAgentSettings(enabled=True, _env_file=None)  # type: ignore[call-arg]
+        assert cfg.get_channels() == []
+
+    def test_posting_schedule_parsed_from_string(self) -> None:
+        from app.agent.channel.config import ChannelConfig
+
+        ch = ChannelConfig(channel_id="@ch", posting_schedule="09:00, 18:30")  # type: ignore[arg-type]
+        assert ch.posting_schedule == ["09:00", "18:30"]
+
+    def test_posting_schedule_empty_string(self) -> None:
+        from app.agent.channel.config import ChannelConfig
+
+        ch = ChannelConfig(channel_id="@ch", posting_schedule="")  # type: ignore[arg-type]
+        assert ch.posting_schedule == []
+
+
+class TestNextScheduledTime:
+    """Test _next_scheduled_time() helper."""
+
+    def test_next_time_later_today(self) -> None:
+        from app.agent.channel.orchestrator import _next_scheduled_time
+
+        now = datetime(2026, 3, 6, 10, 0, 0, tzinfo=UTC)
+        result = _next_scheduled_time(["09:00", "14:00", "20:00"], now=now)
+        assert result.hour == 14
+        assert result.minute == 0
+        assert result.day == 6
+
+    def test_next_time_wraps_to_tomorrow(self) -> None:
+        from app.agent.channel.orchestrator import _next_scheduled_time
+
+        now = datetime(2026, 3, 6, 22, 0, 0, tzinfo=UTC)
+        result = _next_scheduled_time(["09:00", "18:00"], now=now)
+        assert result.day == 7
+        assert result.hour == 9
+        assert result.minute == 0
+
+    def test_next_time_single_entry(self) -> None:
+        from app.agent.channel.orchestrator import _next_scheduled_time
+
+        now = datetime(2026, 3, 6, 8, 0, 0, tzinfo=UTC)
+        result = _next_scheduled_time(["12:30"], now=now)
+        assert result.hour == 12
+        assert result.minute == 30
+        assert result.day == 6
+
+    def test_next_time_empty_schedule_raises(self) -> None:
+        from app.agent.channel.orchestrator import _next_scheduled_time
+
+        with pytest.raises(ValueError, match="schedule must not be empty"):
+            _next_scheduled_time([])
+
+    def test_next_time_invalid_entry_raises(self) -> None:
+        from app.agent.channel.orchestrator import _next_scheduled_time
+
+        with pytest.raises(ValueError, match="Invalid schedule entry"):
+            _next_scheduled_time(["bad"])
+
+
+class TestChannelOrchestratorMulti:
+    """Test ChannelOrchestrator creates correct number of sub-orchestrators."""
+
+    def test_creates_sub_orchestrators_per_channel(self) -> None:
+        from app.agent.channel.config import ChannelAgentSettings, ChannelConfig
+        from app.agent.channel.orchestrator import ChannelOrchestrator
+
+        cfg = ChannelAgentSettings(
+            enabled=True,
+            channels=[
+                ChannelConfig(channel_id="@chan1"),
+                ChannelConfig(channel_id="@chan2"),
+                ChannelConfig(channel_id="@chan3"),
+            ],
+            _env_file=None,  # type: ignore[call-arg]
+        )
+        orch = ChannelOrchestrator(
+            bot=MagicMock(),
+            config=cfg,
+            api_key="test-key",
+            session_maker=MagicMock(),
+        )
+        assert len(orch.orchestrators) == 3
+        ids = [str(o.channel_id) for o in orch.orchestrators]
+        assert ids == ["@chan1", "@chan2", "@chan3"]
+
+    def test_creates_zero_orchestrators_when_no_channels(self) -> None:
+        from app.agent.channel.config import ChannelAgentSettings
+        from app.agent.channel.orchestrator import ChannelOrchestrator
+
+        cfg = ChannelAgentSettings(enabled=True, _env_file=None)  # type: ignore[call-arg]
+        orch = ChannelOrchestrator(
+            bot=MagicMock(),
+            config=cfg,
+            api_key="test-key",
+            session_maker=MagicMock(),
+        )
+        assert len(orch.orchestrators) == 0
+
+    def test_legacy_single_channel_creates_one_orchestrator(self) -> None:
+        import warnings
+
+        from app.agent.channel.config import ChannelAgentSettings
+        from app.agent.channel.orchestrator import ChannelOrchestrator
+
+        cfg = ChannelAgentSettings(
+            enabled=True,
+            channel_id="@legacy",
+            _env_file=None,  # type: ignore[call-arg]
+        )
+        with warnings.catch_warnings(record=True):
+            warnings.simplefilter("always")
+            orch = ChannelOrchestrator(
+                bot=MagicMock(),
+                config=cfg,
+                api_key="test-key",
+                session_maker=MagicMock(),
+            )
+        assert len(orch.orchestrators) == 1
+        assert str(orch.orchestrators[0].channel_id) == "@legacy"

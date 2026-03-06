@@ -86,7 +86,7 @@ async def main() -> None:
         from app.agent.channel.config import ChannelAgentSettings
 
         channel_config = ChannelAgentSettings()
-        if channel_config.enabled and channel_config.channel_id:
+        if channel_config.enabled and (channel_config.channel_id or channel_config.channels):
             from app.agent.channel.orchestrator import ChannelOrchestrator
 
             channel_orchestrator = ChannelOrchestrator(
