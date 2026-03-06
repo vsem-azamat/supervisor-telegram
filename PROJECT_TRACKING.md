@@ -73,6 +73,19 @@ Agent autonomously discovers content, generates posts, sends to private review c
 - [x] Source relevance scoring: approve boosts, reject penalizes, auto-disables low-quality
 - [x] Alembic migration for v2 columns (channel_posts + channel_sources)
 
+### Done (v2.1 — security, perf, features)
+- [x] Super admin auth on review callbacks + reply handlers — `cf04abf`
+- [x] Performance: async RSS fetching (gather+semaphore), feedparser in executor, N+1 fix
+- [x] Multi-channel orchestration with per-channel configs and posting schedules
+- [x] LLM cost tracking with structured logging (`cost_tracker.py`)
+- [x] REST API with magic link auth for stats (no Telegram WebApp dependency)
+- [x] Score parsing bugfix (8.5 no longer parsed as 85)
+- [x] Memory leak fix: cap _seen_ids at 10k with LRU eviction
+- [x] HTML stripping on RSS content before LLM processing
+- [x] E2E tests for channel review flow (8 tests)
+- [x] API unit tests
+- [x] 401 tests passing, all quality checks green
+
 ### In progress
 - [ ] Create private review channel in Telegram + set CHANNEL_REVIEW_CHAT_ID
 
@@ -84,9 +97,7 @@ Agent autonomously discovers content, generates posts, sends to private review c
 - [ ] Multi-agent hierarchy (Coordinator + Moderation/Content/Orchestration/Analytics)
 - [ ] Approval workflow: generalized escalation with multi-approver
 - [ ] Pyrogram integration
-- [ ] Cost control: per-agent budgets, token tracking
 - [ ] Analytics agent (scheduled reports)
-- [ ] Webapp dashboard for channel management
 
 ## 3) Architecture: Channel Agent v2
 
@@ -145,3 +156,4 @@ Feedback Memory:
 - 2026-03-06: Channel agent v1 built and deployed. RSS + Perplexity discovery pipeline. 3 posts published to @test908070. Perplexity Sonar found excellent content (scholarships scoring 10/10).
 - 2026-03-06: Starting v2 — review flow with inline buttons, discussion chat editing, source discovery agent, admin feedback memory.
 - 2026-03-06: v2 code complete — review flow, feedback memory wired into generation, source relevance scoring, alembic migration. 351 tests (66 channel agent v2). All quality checks pass.
+- 2026-03-06: v2.1 — security fixes (auth on review callbacks), performance (async RSS, executor, N+1), multi-channel orchestration, cost tracking, REST API with magic link auth. 401 tests. All checks pass.
