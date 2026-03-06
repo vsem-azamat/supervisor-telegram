@@ -1,0 +1,167 @@
+"""Unit tests for channel generator — sanitization, screening, generation."""
+
+from __future__ import annotations
+
+from unittest.mock import AsyncMock, MagicMock, patch
+
+from app.agent.channel.generator import _sanitize_content, generate_post, screen_items
+
+# ---------------------------------------------------------------------------
+# _sanitize_content
+# ---------------------------------------------------------------------------
+
+
+class TestSanitizeContent:
+    def test_strips_html_tags(self) -> None:
+        assert _sanitize_content("<b>Hello</b> world") == "Hello world"
+
+    def test_strips_nested_tags(self) -> None:
+        assert _sanitize_content('<a href="x"><b>text</b></a>') == "text"
+
+    def test_empty_string(self) -> None:
+        assert _sanitize_content("") == ""
+
+    def test_no_tags_unchanged(self) -> None:
+        assert _sanitize_content("plain text 123") == "plain text 123"
+
+    def test_strips_self_closing_tags(self) -> None:
+        assert _sanitize_content("before<br/>after") == "beforeafter"
+
+    def test_strips_script_tags(self) -> None:
+        result = _sanitize_content("<script>alert('xss')</script>")
+        assert "script" not in result
+        assert "alert" in result  # content between tags is kept
+
+    def test_greedy_strips_angle_bracket_content(self) -> None:
+        # The regex is intentionally greedy for security — anything between < > is stripped
+        assert _sanitize_content("a < b > c") == "a  c"
+
+
+# ---------------------------------------------------------------------------
+# screen_items
+# ---------------------------------------------------------------------------
+
+
+class TestScreenItems:
+    async def test_empty_list_returns_empty(self) -> None:
+        result = await screen_items([], api_key="k", model="m")
+        assert result == []
+
+    async def test_filters_by_threshold(self) -> None:
+        items = [MagicMock(title="Good", summary="relevant content", external_id="1")]
+
+        mock_result = MagicMock()
+        mock_result.output = "8"
+        mock_result.usage = MagicMock(return_value=None)
+
+        with (
+            patch("app.agent.channel.generator._create_screening_agent") as mock_agent_factory,
+            patch("app.agent.channel.generator.extract_usage_from_pydanticai_result", return_value=None),
+        ):
+            mock_agent = MagicMock()
+            mock_agent.run = AsyncMock(return_value=mock_result)
+            mock_agent_factory.return_value = mock_agent
+
+            result = await screen_items(items, api_key="k", model="m", threshold=5)  # type: ignore[arg-type]
+            assert len(result) == 1
+
+    async def test_below_threshold_filtered_out(self) -> None:
+        items = [MagicMock(title="Bad", summary="irrelevant", external_id="1")]
+
+        mock_result = MagicMock()
+        mock_result.output = "2"
+
+        with (
+            patch("app.agent.channel.generator._create_screening_agent") as mock_agent_factory,
+            patch("app.agent.channel.generator.extract_usage_from_pydanticai_result", return_value=None),
+        ):
+            mock_agent = MagicMock()
+            mock_agent.run = AsyncMock(return_value=mock_result)
+            mock_agent_factory.return_value = mock_agent
+
+            result = await screen_items(items, api_key="k", model="m", threshold=5)  # type: ignore[arg-type]
+            assert len(result) == 0
+
+    async def test_score_parsing_fraction(self) -> None:
+        """When LLM returns '7/10', the regex extracts 7."""
+        items = [MagicMock(title="Test", summary="content", external_id="1")]
+
+        mock_result = MagicMock()
+        mock_result.output = "7/10"
+
+        with (
+            patch("app.agent.channel.generator._create_screening_agent") as mock_agent_factory,
+            patch("app.agent.channel.generator.extract_usage_from_pydanticai_result", return_value=None),
+        ):
+            mock_agent = MagicMock()
+            mock_agent.run = AsyncMock(return_value=mock_result)
+            mock_agent_factory.return_value = mock_agent
+
+            result = await screen_items(items, api_key="k", model="m", threshold=5)  # type: ignore[arg-type]
+            assert len(result) == 1
+
+    async def test_exception_per_item_continues(self) -> None:
+        items = [
+            MagicMock(title="Fail", summary="will fail", external_id="1"),
+            MagicMock(title="Pass", summary="will pass", external_id="2"),
+        ]
+
+        mock_result_ok = MagicMock()
+        mock_result_ok.output = "8"
+
+        with (
+            patch("app.agent.channel.generator._create_screening_agent") as mock_agent_factory,
+            patch("app.agent.channel.generator.extract_usage_from_pydanticai_result", return_value=None),
+        ):
+            mock_agent = MagicMock()
+            mock_agent.run = AsyncMock(side_effect=[Exception("LLM error"), mock_result_ok])
+            mock_agent_factory.return_value = mock_agent
+
+            result = await screen_items(items, api_key="k", model="m", threshold=5)  # type: ignore[arg-type]
+            # First item failed, second passed
+            assert len(result) == 1
+            assert result[0].title == "Pass"
+
+
+# ---------------------------------------------------------------------------
+# generate_post
+# ---------------------------------------------------------------------------
+
+
+class TestGeneratePost:
+    async def test_empty_items_returns_none(self) -> None:
+        result = await generate_post([], api_key="k", model="m")
+        assert result is None
+
+    async def test_uses_first_item_only(self) -> None:
+        """generate_post always uses items[0] regardless of list length."""
+        items = [
+            MagicMock(title="First", body="First content", url="https://example.com/1"),
+            MagicMock(title="Second", body="Second content", url="https://example.com/2"),
+        ]
+
+        mock_post = MagicMock()
+        mock_post.text = "Generated text"
+        mock_post.image_url = None
+        mock_post.image_urls = []
+
+        mock_result = MagicMock()
+        mock_result.output = mock_post
+
+        with (
+            patch("app.agent.channel.generator._create_generation_agent") as mock_agent_factory,
+            patch("app.agent.channel.generator.extract_usage_from_pydanticai_result", return_value=None),
+            patch("app.agent.channel.images.find_images_for_post", new=AsyncMock(return_value=[])),
+        ):
+            mock_agent = MagicMock()
+            mock_agent.run = AsyncMock(return_value=mock_result)
+            mock_agent_factory.return_value = mock_agent
+
+            result = await generate_post(items, api_key="k", model="m")  # type: ignore[arg-type]
+            assert result is not None
+
+            # Verify the prompt only contains the first item
+            call_args = mock_agent.run.call_args
+            prompt = call_args.args[0] if call_args.args else call_args.kwargs.get("user_prompt", "")
+            assert "First" in prompt
+            assert "Second" not in prompt
