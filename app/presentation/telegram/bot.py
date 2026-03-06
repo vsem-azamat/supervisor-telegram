@@ -80,6 +80,29 @@ async def main() -> None:
     else:
         logger.info("Agent disabled (set AGENT_ENABLED=true and AGENT_OPENROUTER_API_KEY)")
 
+    # Create channel content agent
+    channel_orchestrator = None
+    try:
+        from app.agent.channel.config import ChannelAgentSettings
+
+        channel_config = ChannelAgentSettings()
+        if channel_config.enabled and channel_config.channel_id:
+            from app.agent.channel.orchestrator import ChannelOrchestrator
+
+            channel_orchestrator = ChannelOrchestrator(
+                bot=bot,
+                config=channel_config,
+                api_key=settings.agent.openrouter_api_key,
+            )
+            channel_orchestrator.start()
+            logger.info(
+                "Channel agent enabled",
+                channel_id=channel_config.channel_id,
+                sources=len(channel_config.rss_source_list),
+            )
+    except Exception:
+        logger.exception("Channel agent init failed")
+
     # Setup middlewares
     dp.update.middleware(DependenciesMiddleware(session_pool=session_maker, bot=bot, agent_core=agent_core))
     dp.update.middleware(ManagedChatsMiddleware())
@@ -105,6 +128,8 @@ async def main() -> None:
         raise
 
     finally:
+        if channel_orchestrator:
+            await channel_orchestrator.stop()
         await bot.session.close()
         logger.info("Bot session closed")
 

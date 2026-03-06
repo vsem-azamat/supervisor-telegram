@@ -27,6 +27,7 @@ dependencies = [
     "pytz>=2024.1",
     "pydantic-ai[openai]>=0.2",
     "httpx>=0.27",
+    "feedparser>=6.0.12",
 ]
 
 [build-system]
@@ -248,11 +249,11 @@ disallow_any_generics = false
 # Agent module — PydanticAI and dynamic patterns
 [[tool.mypy.overrides]]
 module = "app.agent.*"
-disable_error_code = ["union-attr", "arg-type"]
+disable_error_code = ["union-attr", "arg-type", "no-any-return", "call-overload"]
 disallow_any_generics = false
 
 [[tool.mypy.overrides]]
-module = ["pydantic_ai.*", "openai.*"]
+module = ["pydantic_ai.*", "openai.*", "feedparser.*"]
 ignore_missing_imports = true
 
 [dependency-groups]
