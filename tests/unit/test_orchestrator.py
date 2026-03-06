@@ -180,7 +180,7 @@ class TestSingleChannelOrchestrator:
 
     def test_language_name_unknown_falls_back(self, single_orch: SingleChannelOrchestrator):
         single_orch.channel_config.language = "de"
-        assert single_orch._language_name() == "Russian"
+        assert single_orch._language_name() == "de"
 
     @pytest.mark.asyncio
     async def test_run_cycle_respects_daily_limit(self, single_orch: SingleChannelOrchestrator):

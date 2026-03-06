@@ -6,6 +6,8 @@ from zoneinfo import ZoneInfo
 
 from aiogram import types
 
+from app.core.config import settings
+
 
 def escape_html(text: str) -> str:
     """Escape HTML special characters in user-controlled text.
@@ -89,7 +91,7 @@ def calculate_mute_duration(message: str) -> MuteDuration:
         "w": datetime.timedelta(weeks=time),
     }
     timedelta = units.get(unit, datetime.timedelta(minutes=5))
-    local_tz = ZoneInfo("Europe/Prague")
+    local_tz = ZoneInfo(settings.timezone)
     until_date = datetime.datetime.now(datetime.UTC).astimezone(local_tz) + timedelta
 
     return MuteDuration(until_date, time, unit)

@@ -107,7 +107,9 @@ async def on_review_callback(callback: CallbackQuery) -> None:
             await callback.answer("Invalid post ID")
             return
         await callback.answer("Regenerating...")
-        language = {"ru": "Russian", "cs": "Czech", "en": "English"}.get(channel_config.language, "Russian")
+        from app.agent.channel.config import language_name
+
+        language = language_name(channel_config.language)
         result = await handle_regen(
             bot,
             post_id,

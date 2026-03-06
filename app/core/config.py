@@ -141,10 +141,11 @@ class AgentSettings(BaseSettings):
     """AI agent configuration."""
 
     openrouter_api_key: str = Field(default="", description="OpenRouter API key")
-    model: str = Field(default="google/gemini-2.0-flash-001", description="LLM model to use via OpenRouter")
+    model: str = Field(default="google/gemini-3.1-pro-preview", description="LLM model to use via OpenRouter")
     temperature: float = Field(default=0.3, description="LLM temperature")
     escalation_timeout_minutes: int = Field(default=30, description="Minutes before escalation times out")
     default_timeout_action: str = Field(default="ignore", description="Default action on escalation timeout")
+    openrouter_base_url: str = Field(default="https://openrouter.ai/api/v1", description="OpenRouter API base URL")
     enabled: bool = Field(default=False, description="Whether the agent is enabled")
 
     model_config = SettingsConfigDict(

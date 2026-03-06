@@ -106,8 +106,16 @@ Agent autonomously discovers content, generates posts, sends to private review c
 - [x] Setup script: scripts/setup_review_channel.py
 - [x] Key finding: ManagedChatsMiddleware makes bot leave_chat if no super_admin is admin in group
 
+### Done (v2.4 — Live pipeline test, model upgrade, DB fixes)
+- [x] Full content pipeline tested against real Telegram (RSS -> screen -> generate -> review)
+- [x] Two posts successfully sent to "Konnekt Review" with inline buttons
+- [x] Gemini 3.1 models: screening/generation = gemini-3.1-flash-lite-preview, agent = gemini-3.1-pro-preview
+- [x] Fixed datetime timezone mismatch (naive vs aware) for PostgreSQL TIMESTAMP columns
+- [x] Alembic migration applied: channel_posts review columns + source relevance_score
+- [x] 461 tests passing (50 new: 14 escalation, 22 orchestrator, 14 telethon)
+
 ### In progress
-- [ ] End-to-end test: full review flow with real Telegram
+- [ ] Code quality refactor: eliminate magic values, centralize constants, DRY violations (15 categories found by code review)
 
 ### ON HOLD
 - [ ] DDD repository refactor — patch at `docs/ddd-refactor.patch`
@@ -159,6 +167,8 @@ Feedback Memory:
 - 2026-03-06: Client API — Telethon (not Pyrogram), authorized work account with session file
 - 2026-03-06: Burr chosen over LangGraph — lightweight async state machine, Apache Incubating, no legacy baggage
 - 2026-03-06: pgvector preferred over Qdrant at our scale (< 1M vectors, already have PostgreSQL)
+- 2026-03-06: Gemini 3.1 models: agent=gemini-3.1-pro-preview, screening/generation=gemini-3.1-flash-lite-preview
+- 2026-03-06: Code quality refactor: eliminate 15 categories of magic values, centralize config, DRY
 - 2026-03-05: Client API — separate Pyrogram service account (superseded by Telethon)
 - 2026-03-05: `allowed_updates` — message, callback_query, chat_member only
 - 2026-03-05: Admin cache TTL = 5 min

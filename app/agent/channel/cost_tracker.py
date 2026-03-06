@@ -13,6 +13,8 @@ logger = get_logger("channel.cost_tracker")
 # Rough per-1k-token pricing for known models (USD).
 MODEL_COSTS: dict[str, dict[str, float]] = {
     "google/gemini-2.0-flash-001": {"input": 0.0001, "output": 0.0004},
+    "google/gemini-3.1-pro-preview": {"input": 0.00025, "output": 0.001},
+    "google/gemini-3.1-flash-lite-preview": {"input": 0.00005, "output": 0.0002},
     "perplexity/sonar": {"input": 0.001, "output": 0.001},
 }
 

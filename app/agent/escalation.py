@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from app.agent.schemas import AgentEvent
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.time import utc_now
 from app.infrastructure.db.models import AgentEscalation
 from app.presentation.telegram.utils.other import escape_html
 
@@ -45,9 +46,7 @@ class EscalationService:
     ) -> AgentEscalation:
         """Create escalation, send to admin, start timeout."""
         timeout_minutes = settings.agent.escalation_timeout_minutes
-        timeout_at = datetime.datetime.now(datetime.UTC).replace(tzinfo=None) + datetime.timedelta(
-            minutes=timeout_minutes
-        )
+        timeout_at = utc_now() + datetime.timedelta(minutes=timeout_minutes)
 
         escalation = AgentEscalation(
             chat_id=event.chat_id,
@@ -106,7 +105,7 @@ class EscalationService:
         escalation.status = "resolved"
         escalation.resolved_action = action
         escalation.resolved_by = admin_id
-        escalation.resolved_at = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+        escalation.resolved_at = utc_now()
         await self.db.commit()
 
         # Cancel timeout task
@@ -135,7 +134,7 @@ class EscalationService:
     async def recover_stale_escalations(cls, session_maker: async_sessionmaker[AsyncSession]) -> None:
         """On startup, mark stale pending escalations as timed out."""
         async with session_maker() as db:
-            now = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+            now = utc_now()
             stmt = select(AgentEscalation).where(
                 AgentEscalation.status == "pending",
                 AgentEscalation.timeout_at < now,
@@ -228,7 +227,7 @@ class EscalationService:
             default_action = settings.agent.default_timeout_action
             escalation.status = "timeout"
             escalation.resolved_action = default_action
-            escalation.resolved_at = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
+            escalation.resolved_at = utc_now()
             await db.commit()
 
             # Log timeout outcome as an admin override on the original decision

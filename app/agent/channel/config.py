@@ -35,6 +35,18 @@ class ChannelConfig(BaseModel):
         return []
 
 
+LANGUAGE_NAMES: dict[str, str] = {
+    "ru": "Russian",
+    "cs": "Czech",
+    "en": "English",
+}
+
+
+def language_name(code: str) -> str:
+    """Get full language name from code, defaulting to the code itself."""
+    return LANGUAGE_NAMES.get(code, code)
+
+
 class ChannelAgentSettings(BaseSettings):
     """Channel content agent configuration."""
 
@@ -66,8 +78,15 @@ class ChannelAgentSettings(BaseSettings):
     )
 
     # LLM settings
-    screening_model: str = Field(default="google/gemini-2.0-flash-001", description="Cheap model for screening")
-    generation_model: str = Field(default="google/gemini-2.0-flash-001", description="Model for post generation")
+    screening_model: str = Field(
+        default="google/gemini-3.1-flash-lite-preview", description="Cheap model for screening"
+    )
+    generation_model: str = Field(
+        default="google/gemini-3.1-flash-lite-preview", description="Model for post generation"
+    )
+    http_timeout: int = Field(default=30, description="HTTP client timeout in seconds")
+    screening_threshold: int = Field(default=5, description="Minimum relevance score (0-10) to pass screening")
+    temperature: float = Field(default=0.3, description="LLM temperature for content generation")
 
     # Deprecated — sources managed by agent via DB
     rss_sources: str = Field(default="", description="DEPRECATED: use source_discovery_enabled instead")

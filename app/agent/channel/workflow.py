@@ -55,7 +55,7 @@ async def fetch_sources(state: State) -> State:
         db_sources = await get_active_sources(session_maker, channel_id)
         if db_sources:
             rss_urls = [s.url for s in db_sources]
-            fetch_result = await fetch_all_sources(rss_urls)
+            fetch_result = await fetch_all_sources(rss_urls, http_timeout=config.http_timeout)
             all_items.extend(fetch_result.items)
 
             for url in fetch_result.successful_urls:
@@ -66,7 +66,13 @@ async def fetch_sources(state: State) -> State:
         # Perplexity Sonar discovery
         if config.discovery_enabled:
             query = channel_config.discovery_query or config.discovery_query
-            discovered = await discover_content(api_key=api_key, query=query, model=config.discovery_model)
+            discovered = await discover_content(
+                api_key=api_key,
+                query=query,
+                model=config.discovery_model,
+                http_timeout=config.http_timeout,
+                temperature=config.temperature,
+            )
             all_items.extend(discovered)
 
         # Deduplicate against DB
@@ -107,7 +113,9 @@ async def screen_content(state: State) -> State:
     config: ChannelAgentSettings = state["config"]
 
     try:
-        relevant = await screen_items(items, api_key=api_key, model=config.screening_model, threshold=5)
+        relevant = await screen_items(
+            items, api_key=api_key, model=config.screening_model, threshold=config.screening_threshold
+        )
         logger.info("workflow_screen_done", relevant=len(relevant), total=len(items))
         return state.update(relevant_items=relevant, error=None)
     except Exception as exc:
@@ -135,14 +143,20 @@ async def generate_post(state: State) -> State:
     session_maker: async_sessionmaker[AsyncSession] = state["session_maker"]
 
     # Determine language
-    lang = channel_config.language
-    language = {"ru": "Russian", "cs": "Czech", "en": "English"}.get(lang, "Russian")
+    from app.agent.channel.config import language_name
+
+    language = language_name(channel_config.language)
 
     # Non-blocking feedback context
     feedback_context: str | None = None
     try:
         feedback_context = await get_feedback_summary(
-            session_maker=session_maker, channel_id=channel_id, api_key=api_key, model=config.screening_model
+            session_maker=session_maker,
+            channel_id=channel_id,
+            api_key=api_key,
+            model=config.screening_model,
+            http_timeout=config.http_timeout,
+            temperature=config.temperature,
         )
     except Exception:
         logger.exception("workflow_feedback_error")

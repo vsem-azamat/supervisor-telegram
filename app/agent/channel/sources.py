@@ -42,33 +42,40 @@ def _strip_html(text: str) -> str:
     return _HTML_TAG_RE.sub("", text)
 
 
-async def fetch_rss(feed_url: str, max_items: int = 10) -> list[ContentItem]:
-    """Fetch items from an RSS feed."""
+def _parse_feed_entries(feed: object, source_url: str, max_items: int = 10) -> list[ContentItem]:
+    """Parse feedparser entries into ContentItem list."""
     items: list[ContentItem] = []
+    for entry in feed.entries[:max_items]:  # type: ignore[attr-defined]
+        ext_id = entry.get("id") or entry.get("link") or hashlib.sha256(entry.get("title", "").encode()).hexdigest()
+        body = entry.get("summary", entry.get("description", ""))
+        items.append(
+            ContentItem(
+                source_url=source_url,
+                external_id=str(ext_id),
+                title=entry.get("title", ""),
+                body=_strip_html(body),
+                url=entry.get("link"),
+            )
+        )
+    return items
+
+
+async def fetch_rss(feed_url: str, max_items: int = 10, *, http_timeout: int = 30) -> list[ContentItem]:
+    """Fetch items from an RSS feed."""
     try:
-        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=http_timeout, follow_redirects=True) as client:
             resp = await client.get(feed_url)
             resp.raise_for_status()
 
         # Run blocking feedparser in executor to avoid stalling the event loop
         loop = asyncio.get_running_loop()
         feed = await loop.run_in_executor(None, partial(feedparser.parse, resp.text))
-        for entry in feed.entries[:max_items]:
-            ext_id = entry.get("id") or entry.get("link") or hashlib.sha256(entry.get("title", "").encode()).hexdigest()
-            body = entry.get("summary", entry.get("description", ""))
-            items.append(
-                ContentItem(
-                    source_url=feed_url,
-                    external_id=str(ext_id),
-                    title=entry.get("title", ""),
-                    body=_strip_html(body),
-                    url=entry.get("link"),
-                )
-            )
+        items = _parse_feed_entries(feed, feed_url, max_items=max_items)
         logger.info("rss_fetched", feed_url=feed_url, items_count=len(items))
+        return items
     except Exception:
         logger.exception("rss_fetch_error", feed_url=feed_url)
-    return items
+        return []
 
 
 @dataclass
@@ -80,7 +87,7 @@ class FetchResult:
     successful_urls: set[str]  # URLs that were fetched successfully (may have 0 items)
 
 
-async def fetch_all_sources(rss_urls: list[str], max_concurrent: int = 5) -> FetchResult:
+async def fetch_all_sources(rss_urls: list[str], max_concurrent: int = 5, *, http_timeout: int = 30) -> FetchResult:
     """Fetch content from all sources concurrently.
 
     Returns a :class:`FetchResult` containing items and per-URL success/error info.
@@ -92,29 +99,13 @@ async def fetch_all_sources(rss_urls: list[str], max_concurrent: int = 5) -> Fet
     async def _fetch(url: str) -> list[ContentItem]:
         async with sem:
             try:
-                async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+                async with httpx.AsyncClient(timeout=http_timeout, follow_redirects=True) as client:
                     resp = await client.get(url)
                     resp.raise_for_status()
 
                 loop = asyncio.get_running_loop()
                 feed = await loop.run_in_executor(None, partial(feedparser.parse, resp.text))
-                items: list[ContentItem] = []
-                for entry in feed.entries[:10]:
-                    ext_id = (
-                        entry.get("id")
-                        or entry.get("link")
-                        or hashlib.sha256(entry.get("title", "").encode()).hexdigest()
-                    )
-                    body = entry.get("summary", entry.get("description", ""))
-                    items.append(
-                        ContentItem(
-                            source_url=url,
-                            external_id=str(ext_id),
-                            title=entry.get("title", ""),
-                            body=_strip_html(body),
-                            url=entry.get("link"),
-                        )
-                    )
+                items = _parse_feed_entries(feed, url)
                 logger.info("rss_fetched", feed_url=url, items_count=len(items))
                 successful_urls.add(url)
                 return items

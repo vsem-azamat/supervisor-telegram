@@ -756,7 +756,7 @@ class TestSourceDiscovery:
 
         with patch("httpx.AsyncClient") as mock_cls:
             mock_cls.return_value = mock_httpx_client('[{"url": "https://a.com/feed", "title": "Feed A"}]')  # type: ignore[operator]
-            feeds = await discover_rss_feeds("fake-key", "Czech education")
+            feeds = await discover_rss_feeds("fake-key", "Czech education", model="perplexity/sonar")
             assert len(feeds) == 1
             assert feeds[0]["url"] == "https://a.com/feed"
 
@@ -765,7 +765,7 @@ class TestSourceDiscovery:
 
         with patch("httpx.AsyncClient") as mock_cls:
             mock_cls.return_value = mock_httpx_client('```json\n[{"url": "https://b.com/feed", "title": "B"}]\n```')  # type: ignore[operator]
-            feeds = await discover_rss_feeds("fake-key", "query")
+            feeds = await discover_rss_feeds("fake-key", "query", model="perplexity/sonar")
             assert len(feeds) == 1
             assert feeds[0]["url"] == "https://b.com/feed"
 
@@ -774,7 +774,7 @@ class TestSourceDiscovery:
 
         with patch("httpx.AsyncClient") as mock_cls:
             mock_cls.return_value = mock_httpx_client(raise_error=True)  # type: ignore[operator]
-            feeds = await discover_rss_feeds("fake-key", "query")
+            feeds = await discover_rss_feeds("fake-key", "query", model="perplexity/sonar")
             assert feeds == []
 
     async def test_discover_and_add_sources(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
@@ -790,7 +790,7 @@ class TestSourceDiscovery:
             ]
             mock_validate.side_effect = [True, False]  # first valid, second broken
 
-            added = await discover_and_add_sources("key", "@ch", "query", session_maker)
+            added = await discover_and_add_sources("key", "@ch", "query", session_maker, model="perplexity/sonar")
             assert added == 1
 
             async with session_maker() as session:
@@ -806,7 +806,7 @@ class TestFeedbackSummary:
     async def test_no_posts_returns_none(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         from app.agent.channel.feedback import get_feedback_summary
 
-        result = await get_feedback_summary(session_maker, "@ch", "key")
+        result = await get_feedback_summary(session_maker, "@ch", "key", model="google/gemini-3.1-flash-lite-preview")
         assert result is None
 
     async def test_summarizes_feedback(
@@ -830,7 +830,9 @@ class TestFeedbackSummary:
 
         with patch("httpx.AsyncClient") as mock_cls:
             mock_cls.return_value = mock_httpx_client("- Approves education content\n- Rejects offtopic")  # type: ignore[operator]
-            summary = await get_feedback_summary(session_maker, "@ch", "key")
+            summary = await get_feedback_summary(
+                session_maker, "@ch", "key", model="google/gemini-3.1-flash-lite-preview"
+            )
             assert summary is not None
             assert "Approves" in summary
 
@@ -853,7 +855,9 @@ class TestFeedbackSummary:
 
         with patch("httpx.AsyncClient") as mock_cls:
             mock_cls.return_value = mock_httpx_client(raise_error=True)  # type: ignore[operator]
-            result = await get_feedback_summary(session_maker, "@ch", "key")
+            result = await get_feedback_summary(
+                session_maker, "@ch", "key", model="google/gemini-3.1-flash-lite-preview"
+            )
             assert result is None
 
 

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-from app.agent.channel.cost_tracker import extract_usage_from_openrouter_response, log_usage
+from app.agent.channel.llm_client import openrouter_chat_completion
 from app.core.logging import get_logger
 from app.infrastructure.db.models import ChannelPost
 
@@ -210,9 +210,11 @@ async def handle_edit_request(
     model: str,
     review_chat_id: int | str,
     session_maker: async_sessionmaker[AsyncSession],
+    *,
+    http_timeout: int = 30,
+    temperature: float = 0.3,
 ) -> str:
     """Edit a post based on admin instruction. Updates the review message."""
-    import httpx
     from sqlalchemy import select
 
     async with session_maker() as session:
@@ -227,39 +229,28 @@ async def handle_edit_request(
 
         # Ask LLM to edit
         try:
-            async with httpx.AsyncClient(timeout=30) as client:
-                resp = await client.post(
-                    "https://openrouter.ai/api/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                    json={
-                        "model": model,
-                        "messages": [
-                            {
-                                "role": "system",
-                                "content": (
-                                    "You are a post editor. Edit the post according to the instruction. "
-                                    "Return ONLY the edited post text in HTML format for Telegram. No explanations."
-                                ),
-                            },
-                            {
-                                "role": "user",
-                                "content": f"Current post:\n{post.post_text}\n\nInstruction: {instruction}",
-                            },
-                        ],
-                        "temperature": 0.3,
+            new_text = await openrouter_chat_completion(
+                api_key=api_key,
+                model=model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": (
+                            "You are a post editor. Edit the post according to the instruction. "
+                            "Return ONLY the edited post text in HTML format for Telegram. No explanations."
+                        ),
                     },
-                )
-                resp.raise_for_status()
-
-            data = resp.json()
-            usage = extract_usage_from_openrouter_response(data, model, "edit")
-            if usage:
-                await log_usage(usage)
-            new_text = data["choices"][0]["message"]["content"].strip()
-
-            # Remove markdown code fences if present
-            if new_text.startswith("```"):
-                new_text = new_text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+                    {
+                        "role": "user",
+                        "content": f"Current post:\n{post.post_text}\n\nInstruction: {instruction}",
+                    },
+                ],
+                operation="edit",
+                temperature=temperature,
+                timeout=http_timeout,
+            )
+            if not new_text:
+                return "Edit failed."
 
             post.update_text(new_text)
 

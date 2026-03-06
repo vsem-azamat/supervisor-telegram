@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import httpx
 from sqlalchemy import select
 
-from app.agent.channel.cost_tracker import extract_usage_from_openrouter_response, log_usage
+from app.agent.channel.llm_client import openrouter_chat_completion
 from app.core.logging import get_logger
 from app.infrastructure.db.models import ChannelPost, ChannelSource
 
@@ -21,7 +20,10 @@ async def get_feedback_summary(
     session_maker: async_sessionmaker[AsyncSession],
     channel_id: str,
     api_key: str,
-    model: str = "google/gemini-2.0-flash-001",
+    model: str,
+    *,
+    http_timeout: int = 30,
+    temperature: float = 0.2,
 ) -> str | None:
     """Summarize admin feedback patterns for a channel.
 
@@ -76,34 +78,28 @@ async def get_feedback_summary(
 
     # Ask LLM to summarize
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json={
-                    "model": model,
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": (
-                                "Summarize the admin's content preferences in 3-5 bullet points. "
-                                "What topics do they approve? What do they reject? "
-                                "What patterns do you see? Keep it concise."
-                            ),
-                        },
-                        {"role": "user", "content": context},
-                    ],
-                    "temperature": 0.2,
+        summary = await openrouter_chat_completion(
+            api_key=api_key,
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Summarize the admin's content preferences in 3-5 bullet points. "
+                        "What topics do they approve? What do they reject? "
+                        "What patterns do you see? Keep it concise."
+                    ),
                 },
-            )
-            resp.raise_for_status()
-
-        data = resp.json()
-        usage = extract_usage_from_openrouter_response(data, model, "feedback", channel_id=channel_id)
-        if usage:
-            await log_usage(usage)
-        summary = data["choices"][0]["message"]["content"].strip()
-        logger.info("feedback_summarized", channel_id=channel_id, length=len(summary))
+                {"role": "user", "content": context},
+            ],
+            operation="feedback",
+            channel_id=channel_id,
+            temperature=temperature,
+            timeout=http_timeout,
+            strip_code_fences=False,
+        )
+        if summary:
+            logger.info("feedback_summarized", channel_id=channel_id, length=len(summary))
         return summary
 
     except Exception:

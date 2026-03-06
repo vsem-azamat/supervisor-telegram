@@ -178,6 +178,8 @@ class SingleChannelOrchestrator:
             query=query,
             session_maker=self.session_maker,
             model=self.config.discovery_model,
+            http_timeout=self.config.http_timeout,
+            temperature=self.config.temperature,
         )
         self._last_source_discovery = now
         logger.info("source_discovery_done", added=added)
@@ -285,7 +287,7 @@ class SingleChannelOrchestrator:
         if db_sources:
             rss_urls = [s.url for s in db_sources]
             logger.info("fetching_rss_sources", count=len(rss_urls))
-            fetch_result = await fetch_all_sources(rss_urls)
+            fetch_result = await fetch_all_sources(rss_urls, http_timeout=self.config.http_timeout)
             all_items.extend(fetch_result.items)
 
             # Track source health based on actual HTTP success/failure
@@ -302,6 +304,8 @@ class SingleChannelOrchestrator:
                 api_key=self.api_key,
                 query=query,
                 model=self.config.discovery_model,
+                http_timeout=self.config.http_timeout,
+                temperature=self.config.temperature,
             )
             all_items.extend(discovered)
 
@@ -341,7 +345,7 @@ class SingleChannelOrchestrator:
             new_items,
             api_key=self.api_key,
             model=self.config.screening_model,
-            threshold=5,
+            threshold=self.config.screening_threshold,
         )
 
         if not relevant:
@@ -358,6 +362,8 @@ class SingleChannelOrchestrator:
                 channel_id=channel_id,
                 api_key=self.api_key,
                 model=self.config.screening_model,
+                http_timeout=self.config.http_timeout,
+                temperature=self.config.temperature,
             )
             if feedback_context:
                 logger.info("feedback_context_loaded", length=len(feedback_context))
@@ -412,8 +418,9 @@ class SingleChannelOrchestrator:
 
     def _language_name(self) -> str:
         """Convert language code to name."""
-        lang = self.channel_config.language
-        return {"ru": "Russian", "cs": "Czech", "en": "English"}.get(lang, "Russian")
+        from app.agent.channel.config import language_name
+
+        return language_name(self.channel_config.language)
 
 
 class ChannelOrchestrator:

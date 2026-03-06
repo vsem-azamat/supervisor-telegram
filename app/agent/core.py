@@ -28,7 +28,7 @@ logger = get_logger("agent.core")
 def _create_pydantic_agent() -> Agent[AgentDeps, ModerationResult]:
     """Create and configure the PydanticAI moderation agent."""
     provider = OpenAIProvider(
-        base_url="https://openrouter.ai/api/v1",
+        base_url=settings.agent.openrouter_base_url,
         api_key=settings.agent.openrouter_api_key,
     )
     model = OpenAIModel(settings.agent.model, provider=provider)

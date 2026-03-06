@@ -5,9 +5,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
-import httpx
-
-from app.agent.channel.cost_tracker import extract_usage_from_openrouter_response, log_usage
+from app.agent.channel.llm_client import openrouter_chat_completion
 from app.agent.channel.source_manager import add_source
 from app.agent.channel.sources import fetch_rss
 from app.core.logging import get_logger
@@ -35,33 +33,26 @@ Return ONLY the JSON array."""
 async def discover_rss_feeds(
     api_key: str,
     query: str,
-    model: str = "perplexity/sonar",
+    model: str,
+    *,
+    http_timeout: int = 30,
+    temperature: float = 0.2,
 ) -> list[dict[str, str]]:
     """Use Perplexity Sonar to find RSS feed URLs for a given topic."""
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-                json={
-                    "model": model,
-                    "messages": [
-                        {"role": "system", "content": FIND_FEEDS_PROMPT},
-                        {"role": "user", "content": query},
-                    ],
-                    "temperature": 0.2,
-                },
-            )
-            resp.raise_for_status()
-
-        data = resp.json()
-        usage = extract_usage_from_openrouter_response(data, model, "source_discovery")
-        if usage:
-            await log_usage(usage)
-        content = data["choices"][0]["message"]["content"].strip()
-
-        if content.startswith("```"):
-            content = content.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+        content = await openrouter_chat_completion(
+            api_key=api_key,
+            model=model,
+            messages=[
+                {"role": "system", "content": FIND_FEEDS_PROMPT},
+                {"role": "user", "content": query},
+            ],
+            operation="source_discovery",
+            temperature=temperature,
+            timeout=http_timeout,
+        )
+        if not content:
+            return []
 
         feeds = json.loads(content)
         logger.info("feeds_discovered", count=len(feeds), query=query[:60])
@@ -86,13 +77,16 @@ async def discover_and_add_sources(
     channel_id: str,
     query: str,
     session_maker: async_sessionmaker[AsyncSession],
-    model: str = "perplexity/sonar",
+    model: str,
+    *,
+    http_timeout: int = 30,
+    temperature: float = 0.2,
 ) -> int:
     """Discover RSS feeds, validate them, and add working ones to DB.
 
     Returns the number of new sources added.
     """
-    feeds = await discover_rss_feeds(api_key, query, model)
+    feeds = await discover_rss_feeds(api_key, query, model, http_timeout=http_timeout, temperature=temperature)
     added = 0
 
     for feed in feeds:

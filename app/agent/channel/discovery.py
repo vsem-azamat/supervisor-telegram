@@ -5,9 +5,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
-import httpx
-
-from app.agent.channel.cost_tracker import extract_usage_from_openrouter_response, log_usage
+from app.agent.channel.llm_client import openrouter_chat_completion
 from app.core.logging import get_logger
 
 if TYPE_CHECKING:
@@ -33,8 +31,11 @@ Focus on RECENT news from the last few days."""
 
 async def discover_content(
     api_key: str,
-    query: str = "Czech Republic news for international students this week",
-    model: str = "perplexity/sonar",
+    query: str,
+    model: str,
+    *,
+    http_timeout: int = 30,
+    temperature: float = 0.3,
 ) -> list[ContentItem]:
     """Discover fresh content using Perplexity Sonar via OpenRouter.
 
@@ -46,36 +47,21 @@ async def discover_content(
     from app.agent.channel.sources import ContentItem
 
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": model,
-                    "messages": [
-                        {"role": "system", "content": DISCOVERY_SYSTEM},
-                        {"role": "user", "content": query},
-                    ],
-                    "temperature": 0.3,
-                },
-            )
-            resp.raise_for_status()
+        content = await openrouter_chat_completion(
+            api_key=api_key,
+            model=model,
+            messages=[
+                {"role": "system", "content": DISCOVERY_SYSTEM},
+                {"role": "user", "content": query},
+            ],
+            operation="discovery",
+            temperature=temperature,
+            timeout=http_timeout,
+        )
+        if not content:
+            return []
 
-        data = resp.json()
-        usage = extract_usage_from_openrouter_response(data, model, "discovery")
-        if usage:
-            await log_usage(usage)
-        content = data["choices"][0]["message"]["content"]
-
-        # Parse JSON from response (handle markdown code blocks)
-        text = content.strip()
-        if text.startswith("```"):
-            text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
-
-        raw_items = json.loads(text)
+        raw_items = json.loads(content)
 
         items: list[ContentItem] = []
         for raw in raw_items:
