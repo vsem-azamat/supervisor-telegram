@@ -68,17 +68,23 @@ def _evict_conversations() -> None:
 
 def _md_to_html(text: str) -> str:
     """Convert basic Markdown to Telegram HTML. Best-effort, not a full parser."""
+    import html
     import re
 
-    # Bold: **text** or __text__ → <b>text</b>
-    text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
-    text = re.sub(r"__(.+?)__", r"<b>\1</b>", text)
-    # Italic: *text* or _text_ (but not inside words like user_name)
-    text = re.sub(r"(?<!\w)\*([^*]+?)\*(?!\w)", r"<i>\1</i>", text)
-    # Inline code: `text` → <code>text</code>
-    text = re.sub(r"`([^`]+?)`", r"<code>\1</code>", text)
-    # Code blocks: ```text``` → <pre>text</pre>
+    # Escape HTML entities first to prevent injection / parse errors
+    text = html.escape(text, quote=False)
+
+    # Code blocks FIRST (before inline code consumes backticks)
     text = re.sub(r"```\w*\n?(.*?)```", r"<pre>\1</pre>", text, flags=re.DOTALL)
+    # Inline code
+    text = re.sub(r"`([^`]+?)`", r"<code>\1</code>", text)
+    # Bold: **text**
+    text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
+    # Italic: __text__ (underscore italic) and *text* (asterisk italic)
+    text = re.sub(r"__(.+?)__", r"<i>\1</i>", text)
+    text = re.sub(r"(?<!\w)\*([^*]+?)\*(?!\w)", r"<i>\1</i>", text)
+    # Links: [text](url) → <a href="url">text</a>
+    text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r'<a href="\2">\1</a>', text)
     # Headers: ### text → <b>text</b>
     return re.sub(r"^#{1,3}\s+(.+)$", r"<b>\1</b>", text, flags=re.MULTILINE)
 
@@ -204,8 +210,10 @@ async def handle_message(message: Message) -> None:
         try:
             await message.answer(chunk, parse_mode="HTML")
         except Exception:
-            # HTML parse failed — send as plain text
-            await message.answer(response[:4096] if len(response) <= 4096 else chunk, parse_mode=None)
+            # HTML parse failed — fall back to plain text for entire response
+            plain_chunks = _split_html_safe(response)
+            for pc in plain_chunks:
+                await message.answer(pc, parse_mode=None)
             break
 
 
