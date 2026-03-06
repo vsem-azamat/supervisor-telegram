@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
     from app.agent.channel.orchestrator import ChannelOrchestrator
+    from app.infrastructure.telegram.telethon_client import TelethonClient
 
 logger = get_logger("assistant.agent")
 
@@ -28,9 +29,12 @@ for CIS students in Czech Republic.
 You have FULL control over:
 1. Channel content pipeline — sources, posts, scheduling, publishing
 2. Chat moderation — mute, ban, unban users in any managed chat
-3. User management — blacklist, user info, user lookup
-4. Chat settings — welcome messages, chat info
+3. User management — blacklist, user info (bio, last seen, premium), user lookup
+4. Chat settings — welcome messages, full chat info (description, slow mode, linked chats)
 5. Messaging — send messages to any chat or channel
+6. Message history — read past messages, search in chats
+7. Member management — list members, search members by name
+8. Analytics — message view counts, forward counts
 
 Use the tools to execute actions. Always report what you did.
 Keep responses concise. Use Russian since the admin speaks Russian.
@@ -53,6 +57,7 @@ class AssistantDeps:
     session_maker: async_sessionmaker[AsyncSession]
     main_bot: Bot
     channel_orchestrator: ChannelOrchestrator | None = None
+    telethon: TelethonClient | None = None
 
 
 async def _get_managed_chat_ids(session_maker: async_sessionmaker[AsyncSession]) -> set[int]:
@@ -487,18 +492,36 @@ def create_assistant_agent(model_name: str = "") -> Agent[AssistantDeps, str]:
 
     @agent.tool
     async def get_chat_info(ctx: RunContext[AssistantDeps], chat_id: str) -> str:
-        """Get info about a Telegram chat — title, type, member count."""
+        """Get full info about a Telegram chat — title, type, members, description, linked chat, slow mode."""
         try:
+            # Basic info from Bot API
             chat = await ctx.deps.main_bot.get_chat(chat_id=chat_id)
             members = await ctx.deps.main_bot.get_chat_member_count(chat_id=chat_id)
-            return (
-                f"Chat Info:\n"
-                f"- ID: {chat.id}\n"
-                f"- Title: {chat.title or 'N/A'}\n"
-                f"- Type: {chat.type}\n"
-                f"- Members: {members}\n"
-                f"- Username: @{chat.username or 'N/A'}"
-            )
+            lines = [
+                "Chat Info:",
+                f"- ID: {chat.id}",
+                f"- Title: {chat.title or 'N/A'}",
+                f"- Type: {chat.type}",
+                f"- Members: {members}",
+                f"- Username: @{chat.username or 'N/A'}",
+            ]
+            if chat.description:
+                lines.append(f"- Description: {chat.description}")
+
+            # Enrich with Telethon (Client API) data
+            tc = ctx.deps.telethon
+            if tc and tc.is_available:
+                try:
+                    full = await tc.get_chat_info(chat.id)
+                    if full:
+                        if full.description and not chat.description:
+                            lines.append(f"- Description: {full.description}")
+                        if full.linked_chat_id:
+                            lines.append(f"- Linked chat: {full.linked_chat_id}")
+                except Exception:
+                    logger.debug("telethon_enrichment_failed", exc_info=True)
+
+            return "\n".join(lines)
         except Exception:
             logger.exception("get_chat_info_failed", chat_id=chat_id)
             return "Не удалось получить информацию о чате. Проверьте логи бота."
@@ -528,27 +551,123 @@ def create_assistant_agent(model_name: str = "") -> Agent[AssistantDeps, str]:
 
     @agent.tool
     async def get_user_info(ctx: RunContext[AssistantDeps], user_id: int) -> str:
-        """Get user info from the database — name, username, blocked status."""
+        """Get full user info — name, username, bio, premium status, blocked status."""
         from sqlalchemy import select
 
         from app.infrastructure.db.models import User
 
         try:
+            lines = [f"User {user_id}:"]
+
+            # DB info
             async with ctx.deps.session_maker() as session:
                 result = await session.execute(select(User).where(User.id == user_id))
                 user = result.scalar_one_or_none()
 
-            if not user:
-                return f"User {user_id} not found in DB."
+            if user:
+                name = f"{user.first_name or ''} {user.last_name or ''}".strip() or "N/A"
+                lines.append(f"- Name: {name}")
+                lines.append(f"- Username: @{user.username or 'N/A'}")
+                lines.append(f"- Blocked: {user.is_blocked}")
+            else:
+                lines.append("- Not in local DB")
 
-            return (
-                f"User {user_id}:\n"
-                f"- Name: {f'{user.first_name or ""} {user.last_name or ""}'.strip() or 'N/A'}\n"
-                f"- Username: @{user.username or 'N/A'}\n"
-                f"- Blocked: {user.is_blocked}"
-            )
+            # Enrich with Telethon (Client API) data — bio, premium, photo count
+            tc = ctx.deps.telethon
+            if tc and tc.is_available:
+                try:
+                    tg_user = await tc.get_user_info(user_id)
+                    if tg_user:
+                        if tg_user.bio:
+                            lines.append(f"- Bio: {tg_user.bio}")
+                        lines.append(f"- Premium: {'yes' if tg_user.is_premium else 'no'}")
+                        lines.append(f"- Photos: {tg_user.photo_count}")
+                        if not user and tg_user.first_name:
+                            name = f"{tg_user.first_name or ''} {tg_user.last_name or ''}".strip()
+                            lines.insert(1, f"- Name (Telegram): {name}")
+                            if tg_user.username:
+                                lines.insert(2, f"- Username: @{tg_user.username}")
+                except Exception:
+                    logger.debug("telethon_enrichment_failed", exc_info=True)
+
+            return "\n".join(lines)
         except Exception:
             logger.exception("get_user_info_failed", user_id=user_id)
             return "Не удалось получить информацию о пользователе. Проверьте логи бота."
+
+    # ------------------------------------------------------------------
+    # Telethon-powered tools (Client API capabilities)
+    # ------------------------------------------------------------------
+
+    @agent.tool
+    async def get_chat_history(ctx: RunContext[AssistantDeps], chat_id: str, limit: int = 20) -> str:
+        """Read recent message history from a chat. Requires Client API (Telethon)."""
+        tc = ctx.deps.telethon
+        if not tc or not tc.is_available:
+            return "Telethon client not available."
+
+        limit = min(max(1, limit), 100)
+        try:
+            messages = await tc.get_chat_history(int(chat_id), limit=limit)
+            if not messages:
+                return f"No messages found in {chat_id}."
+
+            lines = [f"Last {len(messages)} messages in {chat_id}:\n"]
+            for m in messages:
+                sender = f"user:{m.sender_id}" if m.sender_id else "unknown"
+                date = m.date.strftime("%m-%d %H:%M") if m.date else ""
+                text = (m.text or "")[:100]
+                lines.append(f"[{date}] {sender}: {text}")
+            return "\n".join(lines)
+        except Exception:
+            logger.exception("get_chat_history_failed", chat_id=chat_id)
+            return "Не удалось получить историю сообщений. Проверьте логи бота."
+
+    @agent.tool
+    async def search_messages(ctx: RunContext[AssistantDeps], chat_id: str, query: str, limit: int = 20) -> str:
+        """Search for messages in a chat by text. Requires Client API (Telethon)."""
+        tc = ctx.deps.telethon
+        if not tc or not tc.is_available:
+            return "Telethon client not available."
+
+        limit = min(max(1, limit), 50)
+        try:
+            messages = await tc.search_messages(int(chat_id), query=query, limit=limit)
+            if not messages:
+                return f"No messages matching '{query}' in {chat_id}."
+
+            lines = [f"Found {len(messages)} messages matching '{query}':\n"]
+            for m in messages:
+                sender = f"user:{m.sender_id}" if m.sender_id else "unknown"
+                date = m.date.strftime("%m-%d %H:%M") if m.date else ""
+                text = (m.text or "")[:100]
+                lines.append(f"[{date}] {sender}: {text}")
+            return "\n".join(lines)
+        except Exception:
+            logger.exception("search_messages_failed", chat_id=chat_id, query=query)
+            return "Не удалось найти сообщения. Проверьте логи бота."
+
+    @agent.tool
+    async def get_chat_members(ctx: RunContext[AssistantDeps], chat_id: str, limit: int = 50) -> str:
+        """List members of a chat/group/channel. Requires Client API (Telethon)."""
+        tc = ctx.deps.telethon
+        if not tc or not tc.is_available:
+            return "Telethon client not available."
+
+        limit = min(max(1, limit), 200)
+        try:
+            members = await tc.get_chat_members(int(chat_id), limit=limit)
+            if not members:
+                return f"No members found in {chat_id}."
+
+            lines = [f"Members of {chat_id} ({len(members)} shown):\n"]
+            for m in members:
+                name = f"{m.first_name or ''} {m.last_name or ''}".strip() or "N/A"
+                username = f"@{m.username}" if m.username else ""
+                lines.append(f"- {m.user_id}: {name} {username}")
+            return "\n".join(lines)
+        except Exception:
+            logger.exception("get_chat_members_failed", chat_id=chat_id)
+            return "Не удалось получить список участников. Проверьте логи бота."
 
     return agent

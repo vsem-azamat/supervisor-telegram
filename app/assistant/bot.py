@@ -204,11 +204,17 @@ async def run_assistant_bot(
         logger.info("assistant_bot_disabled")
         return
 
+    # Get Telethon client from DI container if available
+    from app.core.container import container
+
+    telethon_client = container.get_telethon_client()
+
     _agent = create_assistant_agent()
     _deps = AssistantDeps(
         session_maker=session_maker,
         main_bot=main_bot,
         channel_orchestrator=channel_orchestrator,
+        telethon=telethon_client,
     )
     _super_admins = set(settings.admin.super_admins)
 
