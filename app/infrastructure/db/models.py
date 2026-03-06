@@ -321,6 +321,7 @@ class ChannelPost(Base):
     telegram_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     review_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     review_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    image_url: Mapped[str | None] = mapped_column(String, nullable=True)
     status: Mapped[str] = mapped_column(String(16), default="draft")
     admin_feedback: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
@@ -336,6 +337,7 @@ class ChannelPost(Base):
         telegram_message_id: int | None = None,
         review_message_id: int | None = None,
         review_chat_id: int | None = None,
+        image_url: str | None = None,
         status: str = "draft",
     ) -> None:
         self.channel_id = channel_id
@@ -347,6 +349,7 @@ class ChannelPost(Base):
         self.telegram_message_id = telegram_message_id
         self.review_message_id = review_message_id
         self.review_chat_id = review_chat_id
+        self.image_url = image_url
         self.status = status
 
     def approve(self, message_id: int) -> None:

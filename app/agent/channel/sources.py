@@ -28,6 +28,7 @@ class ContentItem:
     title: str
     body: str
     url: str | None = None
+    image_url: str | None = None
     discovered_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     @property
@@ -44,6 +45,8 @@ def _strip_html(text: str) -> str:
 
 def _parse_feed_entries(feed: object, source_url: str, max_items: int = 10) -> list[ContentItem]:
     """Parse feedparser entries into ContentItem list."""
+    from app.agent.channel.images import extract_rss_media_url
+
     items: list[ContentItem] = []
     for entry in feed.entries[:max_items]:  # type: ignore[attr-defined]
         ext_id = entry.get("id") or entry.get("link") or hashlib.sha256(entry.get("title", "").encode()).hexdigest()
@@ -55,6 +58,7 @@ def _parse_feed_entries(feed: object, source_url: str, max_items: int = 10) -> l
                 title=entry.get("title", ""),
                 body=_strip_html(body),
                 url=entry.get("link"),
+                image_url=extract_rss_media_url(entry),
             )
         )
     return items

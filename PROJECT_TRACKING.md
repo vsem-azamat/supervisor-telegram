@@ -127,6 +127,21 @@ Agent autonomously discovers content, generates posts, sends to private review c
 - [x] Added Gemini 3.1 model pricing to cost_tracker
 - [x] 461 tests passing, all quality checks green
 
+### Done (v3.0 — Brand identity, images, content style)
+- [x] Competitor analysis: @the_cesko, @pozor_brno, @czech_info — content style, footers, engagement patterns
+- [x] Brand style guide: `docs/content-style-guide.md` — Konnekt tone, footer, formatting rules
+- [x] Updated GENERATION_PROMPT with Konnekt brand style (footer, tone, no hashtags)
+- [x] Image system: `app/agent/channel/images.py` — OG image extraction, RSS media tags, HTML img fallback
+- [x] RSS media extraction: `extract_rss_media_url()` for media:content, media:thumbnail, enclosures
+- [x] `image_url` field added to ContentItem, GeneratedPost, ChannelPost model
+- [x] Publisher updated: sends photo+caption (<=1024 chars) or photo+text reply (>1024)
+- [x] Review flow updated: sends photo with review buttons
+- [x] Approve flow updated: publishes with photo via centralized publisher
+- [x] Alembic migration: `image_url` column on channel_posts
+- [x] 8 test posts published to @test908070 (5 text-only + 3 with photos from RSS/OG images)
+- [x] Working RSS feeds identified: ct24.cz (with images), irozhlas.cz (with images), novinky.cz, seznamzpravy.cz, blesk.cz
+- [x] 500 tests passing, all quality checks green
+
 ### ON HOLD
 - [ ] DDD repository refactor — patch at `docs/ddd-refactor.patch`
 
@@ -203,3 +218,4 @@ Feedback Memory:
 - 2026-03-06: Available test resources: FFGroup (-4650848481), Konnekt Dev (-1002287191880, @test908070), Bot (5145935834), Azamat (268388996).
 - 2026-03-06: Review infrastructure created: "Konnekt Review" (-1003823967369), bot + Azamat as admins. Key lesson: ManagedChatsMiddleware requires super_admin to be admin in group, otherwise bot auto-leaves.
 - 2026-03-06: v2.5 — Code quality refactor: extracted LLM client, centralized config/constants/datetime, deduplicated RSS parsing, fixed logging. 461 tests. All checks pass.
+- 2026-03-06: v3.0 — Brand identity + image system. Analyzed 3 competitor channels. Created Konnekt style guide with distinctive footer. Built image pipeline (OG image, RSS media, HTML img fallback). 8 posts published to @test908070 (5 text + 3 with photos). Updated generation prompt, publisher, review flow. 500 tests. All checks pass.

@@ -54,6 +54,7 @@ class _FakeGeneratedPost:
     def __init__(self, text: str) -> None:
         self.text = text
         self.is_sensitive = False
+        self.image_url = None
 
 
 # ---- Fixtures ----

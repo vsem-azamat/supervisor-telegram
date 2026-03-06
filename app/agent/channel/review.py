@@ -5,7 +5,7 @@ from __future__ import annotations
 from hashlib import sha256
 from typing import TYPE_CHECKING
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, URLInputFile
 
 from app.agent.channel.llm_client import openrouter_chat_completion
 from app.core.logging import get_logger
@@ -61,6 +61,36 @@ def _format_review_message(post_text: str, sources: list[ContentItem] | None = N
     return "\n".join(parts)
 
 
+async def _send_review_message(
+    bot: Bot,
+    chat_id: int | str,
+    text: str,
+    keyboard: InlineKeyboardMarkup,
+    image_url: str | None = None,
+) -> Message:
+    """Send review message — photo with caption if image available, else text."""
+    if image_url and len(text) <= 1024:
+        try:
+            photo = URLInputFile(image_url)
+            return await bot.send_photo(
+                chat_id=chat_id,
+                photo=photo,
+                caption=text,
+                parse_mode="HTML",
+                reply_markup=keyboard,
+            )
+        except Exception:
+            logger.warning("review_photo_failed_fallback_to_text")
+
+    return await bot.send_message(
+        chat_id=chat_id,
+        text=text,
+        parse_mode="HTML",
+        reply_markup=keyboard,
+        disable_web_page_preview=True,
+    )
+
+
 async def send_for_review(
     bot: Bot,
     review_chat_id: int | str,
@@ -85,6 +115,7 @@ async def send_for_review(
             external_id=ext_id,
             title=source_items[0].title[:200] if source_items else "Generated post",
             post_text=post.text,
+            image_url=post.image_url,
             source_items=source_data,
             review_chat_id=int(review_chat_id)
             if isinstance(review_chat_id, str) and review_chat_id.lstrip("-").isdigit()
@@ -94,18 +125,12 @@ async def send_for_review(
         await session.flush()
         post_id = db_post.id
 
-        # Send to review channel
+        # Send to review channel (photo + caption or text)
         review_text = _format_review_message(post.text, source_items)
         keyboard = _build_review_keyboard(post_id)
 
         try:
-            msg = await bot.send_message(
-                chat_id=review_chat_id,
-                text=review_text,
-                parse_mode="HTML",
-                reply_markup=keyboard,
-                disable_web_page_preview=True,
-            )
+            msg = await _send_review_message(bot, review_chat_id, review_text, keyboard, post.image_url)
             db_post.review_message_id = msg.message_id
             await session.commit()
             logger.info("review_sent", post_id=post_id, review_msg=msg.message_id)
@@ -150,21 +175,25 @@ async def handle_approve(
         source_urls = await _extract_source_urls(post)
 
         try:
-            msg = await bot.send_message(
-                chat_id=channel_id,
+            from app.agent.channel.generator import GeneratedPost
+            from app.agent.channel.publisher import publish_post as _publish
+
+            gen_post = GeneratedPost(
                 text=post.post_text,
-                parse_mode="HTML",
-                disable_web_page_preview=False,
+                image_url=getattr(post, "image_url", None),
             )
-            post.approve(msg.message_id)
+            msg_id = await _publish(bot, channel_id, gen_post)
+            if not msg_id:
+                return "Failed to publish."
+            post.approve(msg_id)
             await session.commit()
-            logger.info("post_approved", post_id=post_id, msg_id=msg.message_id)
+            logger.info("post_approved", post_id=post_id, msg_id=msg_id)
 
             # Boost relevance of contributing sources
             if source_urls:
                 await update_source_relevance(session_maker, source_urls, approved=True)
 
-            return f"Published! (msg #{msg.message_id})"
+            return f"Published! (msg #{msg_id})"
         except Exception:
             logger.exception("approve_publish_error", post_id=post_id)
             return "Failed to publish."
