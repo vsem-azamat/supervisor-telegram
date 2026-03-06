@@ -66,6 +66,23 @@ def _evict_conversations() -> None:
             _conversation_last_access.pop(uid, None)
 
 
+def _md_to_html(text: str) -> str:
+    """Convert basic Markdown to Telegram HTML. Best-effort, not a full parser."""
+    import re
+
+    # Bold: **text** or __text__ → <b>text</b>
+    text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
+    text = re.sub(r"__(.+?)__", r"<b>\1</b>", text)
+    # Italic: *text* or _text_ (but not inside words like user_name)
+    text = re.sub(r"(?<!\w)\*([^*]+?)\*(?!\w)", r"<i>\1</i>", text)
+    # Inline code: `text` → <code>text</code>
+    text = re.sub(r"`([^`]+?)`", r"<code>\1</code>", text)
+    # Code blocks: ```text``` → <pre>text</pre>
+    text = re.sub(r"```\w*\n?(.*?)```", r"<pre>\1</pre>", text, flags=re.DOTALL)
+    # Headers: ### text → <b>text</b>
+    return re.sub(r"^#{1,3}\s+(.+)$", r"<b>\1</b>", text, flags=re.MULTILINE)
+
+
 def _split_html_safe(text: str, max_len: int = 4096) -> list[str]:
     """Split text on line boundaries to avoid breaking HTML tags.
 
@@ -180,10 +197,16 @@ async def handle_message(message: Message) -> None:
         logger.exception("assistant_chat_error", user_id=message.from_user.id)
         response = "Произошла ошибка. Попробуй ещё раз."
 
-    # Split long messages on line boundaries to avoid breaking HTML tags
-    chunks = _split_html_safe(response)
+    # Convert Markdown to HTML and send with fallback to plain text
+    html_response = _md_to_html(response)
+    chunks = _split_html_safe(html_response)
     for chunk in chunks:
-        await message.answer(chunk)
+        try:
+            await message.answer(chunk, parse_mode="HTML")
+        except Exception:
+            # HTML parse failed — send as plain text
+            await message.answer(response[:4096] if len(response) <= 4096 else chunk, parse_mode=None)
+            break
 
 
 # ---------------------------------------------------------------------------

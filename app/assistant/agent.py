@@ -41,10 +41,7 @@ Keep responses concise. Use Russian since the admin speaks Russian.
 If unsure about a destructive action (ban, blacklist), confirm with the user first.
 For read-only actions (status, info, list), execute immediately.
 
-FORMATTING RULES — you MUST follow these strictly:
-- Use Telegram HTML only: <b>bold</b>, <i>italic</i>, <code>inline code</code>, <pre>code block</pre>
-- NEVER use Markdown syntax (**, __, `, ```, #, -, *). It will render as raw text in Telegram.
-- For lists, use plain lines with a dash or bullet character, not Markdown list syntax.
+Format responses naturally with Markdown (bold, code, lists). Keep them clean and readable.
 """
 
 _SCHEDULE_TIME_RE = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
