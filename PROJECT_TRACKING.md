@@ -53,27 +53,41 @@ Constraints:
 - [ ] Verify bot has admin rights in test chat — mute failed with "API Error", delete failed with "Message too old" (expected for old messages, but admin rights should be confirmed).
 
 ### In progress
-- [ ] Further DDD cleanup: agent layer directly uses SQLAlchemy (no repository abstraction for AgentDecision/AgentEscalation)
+- [ ] DDD repository refactor for agent models — code complete in worktree, needs clean merge (`docs/ddd-refactor.patch`)
 
-### Backlog (next)
-- [ ] Channel/content agent (autonomous content generation + scheduling)
-- [ ] Hierarchy of subagents (roles + tool access boundaries)
-- [ ] Approval/permission workflow design (ask-approve-execute loop)
-- [ ] Chat/channel orchestration tools (pin/title/description/rules)
-- [ ] Pyrogram integration plan (Client API capabilities, safety)
+### Designed (architecture plans complete, ready for implementation)
+- [ ] Multi-agent hierarchy: Coordinator + 4 agents (Moderation/Content/Orchestration/Analytics) — see `docs/ARCHITECTURE_PLAN.md` section 1
+- [ ] Channel/content agent: 5-stage pipeline (Discover/Screen/Generate/Review/Publish) — section 2
+- [ ] Approval workflow: generalized escalation with multi-approver, batch, timeout policies — section 3
+- [ ] Pyrogram integration: same-process, read-only first, rate limiter, safety plan — section 4
+- [ ] Cost control: per-agent budgets, token tracking, model routing — section 5
+
+### Backlog (next implementation)
+- [ ] Phase 1: Foundation (BaseAgent, Coordinator, cost tracking, TelegramActionGuard)
+- [ ] Phase 2: Approval system (ApprovalRequest/Vote tables, ApprovalService)
+- [ ] Phase 3: Analytics agent (read-only, scheduled reports)
+- [ ] Phase 4: Content agent (RSS fetcher, screening, generation, publisher)
+- [ ] Phase 5: Orchestration agent + Pyrogram foundation
+- [ ] Phase 6: Hardening (budget alerts, memory reflection, webapp dashboard)
 
 ## 3) Research queue (parallel)
 
 Goal: learn from recent experiments in autonomous multi-agent systems and long-term memory that worked in practice.
 
 ### Topics
-- [ ] Multi-agent orchestration patterns (manager/worker, planner/executor, debate/reviewer)
-- [ ] Cost control tactics (cheap model routing, caching, retrieval, budget caps)
-- [ ] Long-term memory approaches (DB-backed, retrieval + reflection, feedback loops)
-- [ ] Telegram automation architectures (Bot API + Client API hybrid)
+- [x] Multi-agent orchestration patterns (manager/worker, planner/executor, debate/reviewer)
+- [x] Cost control tactics (cheap model routing, caching, retrieval, budget caps)
+- [x] Long-term memory approaches (DB-backed, retrieval + reflection, feedback loops)
+- [x] Telegram automation architectures (Bot API + Client API hybrid)
 
-### Findings (append as you go)
-- (empty)
+### Findings
+- PydanticAI agent-as-tool is the best fit for cross-agent delegation (already in stack)
+- Deterministic coordinator (not LLM) saves tokens at 4-agent scale
+- DB-backed task queue sufficient; no message broker needed yet
+- Gemini Flash at $0.01-0.05/day for 1000 moderation events
+- Memory: add behavior_rules table + nightly reflection task
+- Pyrogram: same-process, read-only first, circuit breaker for FloodWait
+- Full details in `docs/ARCHITECTURE_PLAN.md`
 
 ## 4) Decisions log (ADR-lite)
 
