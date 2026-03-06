@@ -289,7 +289,7 @@ class ChannelSource(Base):
     def record_success(self) -> None:
         self.error_count = 0
         self.last_error = None
-        self.last_fetched_at = datetime.datetime.now(datetime.UTC)
+        self.last_fetched_at = datetime.datetime.now(datetime.UTC).replace(tzinfo=None)
 
     def record_error(self, error: str) -> None:
         self.error_count += 1
