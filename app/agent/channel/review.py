@@ -116,6 +116,7 @@ async def send_for_review(
             title=source_items[0].title[:200] if source_items else "Generated post",
             post_text=post.text,
             image_url=post.image_url,
+            image_urls=post.image_urls or None,
             source_items=source_data,
             review_chat_id=int(review_chat_id)
             if isinstance(review_chat_id, str) and review_chat_id.lstrip("-").isdigit()
@@ -181,6 +182,7 @@ async def handle_approve(
             gen_post = GeneratedPost(
                 text=post.post_text,
                 image_url=getattr(post, "image_url", None),
+                image_urls=getattr(post, "image_urls", None) or [],
             )
             msg_id = await _publish(bot, channel_id, gen_post)
             if not msg_id:

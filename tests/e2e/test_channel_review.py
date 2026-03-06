@@ -55,6 +55,7 @@ class _FakeGeneratedPost:
         self.text = text
         self.is_sensitive = False
         self.image_url = None
+        self.image_urls: list[str] = []
 
 
 # ---- Fixtures ----

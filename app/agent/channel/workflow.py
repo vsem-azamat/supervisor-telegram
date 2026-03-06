@@ -163,7 +163,7 @@ async def generate_post(state: State) -> State:
 
     try:
         post = await _generate(
-            relevant[:3],
+            relevant[:1],  # 1 news = 1 post
             api_key=api_key,
             model=config.generation_model,
             language=language,
@@ -172,8 +172,13 @@ async def generate_post(state: State) -> State:
         if post is None:
             return state.update(generated_post=None, error="generation_failed")
 
-        post_dict = {"text": post.text, "is_sensitive": post.is_sensitive, "image_url": post.image_url}
-        logger.info("workflow_generate_done", length=len(post.text), has_image=bool(post.image_url))
+        post_dict = {
+            "text": post.text,
+            "is_sensitive": post.is_sensitive,
+            "image_url": post.image_url,
+            "image_urls": post.image_urls,
+        }
+        logger.info("workflow_generate_done", length=len(post.text), images=len(post.image_urls))
         return state.update(generated_post=post_dict, error=None)
 
     except Exception as exc:
@@ -206,6 +211,7 @@ async def send_for_review(state: State) -> State:
         text=post_dict["text"],
         is_sensitive=post_dict.get("is_sensitive", False),
         image_url=post_dict.get("image_url"),
+        image_urls=post_dict.get("image_urls", []),
     )
 
     if review_chat_id:
