@@ -106,6 +106,11 @@ async def on_review_callback(callback: CallbackQuery) -> None:
             result = await handle_approve(bot, post_id, channel.telegram_id, session_maker)
             await callback.answer(result, show_alert=True)
 
+            if "Published" in result:
+                from app.agent.channel.review_agent import clear_review_conversation
+
+                clear_review_conversation(post_id)
+
             if callback.message and "Published" in result:
                 with contextlib.suppress(Exception):
                     await callback.message.edit_reply_markup(reply_markup=None)
@@ -120,6 +125,11 @@ async def on_review_callback(callback: CallbackQuery) -> None:
             return
         result = await handle_reject(post_id, session_maker)
         await callback.answer(result, show_alert=True)
+
+        if "rejected" in result.lower():
+            from app.agent.channel.review_agent import clear_review_conversation
+
+            clear_review_conversation(post_id)
 
         if callback.message:
             with contextlib.suppress(Exception):
@@ -289,24 +299,30 @@ async def on_review_reply(message: Message) -> None:
     if not session_maker:
         return
 
-    generation_model, api_key = _get_global_config()
+    _generation_model, api_key = _get_global_config()
     channel = await _get_channel_for_post(post_id, session_maker)
     if not channel:
         await message.reply("Channel not found.")
         return
     review_chat_id: int | str = channel.review_chat_id or message.chat.id
 
-    result = await handle_edit_request(
-        bot,
-        post_id,
-        message.text,
-        api_key,
-        generation_model,
-        review_chat_id,
-        session_maker,
-        footer=channel.footer,
-        channel_name=channel.name,
-        channel_username=channel.username,
-    )
+    try:
+        from app.agent.channel.review_agent import ReviewAgentDeps, review_agent_turn
+
+        deps = ReviewAgentDeps(
+            session_maker=session_maker,
+            bot=bot,
+            post_id=post_id,
+            channel_id=channel.telegram_id,
+            channel_name=channel.name,
+            channel_username=channel.username,
+            footer=channel.footer,
+            review_chat_id=review_chat_id,
+            api_key=api_key,
+        )
+        result = await review_agent_turn(post_id, message.text, deps)
+    except Exception:
+        logger.exception("review_agent_reply_error", post_id=post_id)
+        result = "Failed to process edit request."
 
     await message.reply(result)
