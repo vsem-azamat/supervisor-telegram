@@ -49,10 +49,12 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
         for ch in channels:
             status = "ON" if ch.enabled else "OFF"
             schedule = ", ".join(ch.posting_schedule) if ch.posting_schedule else "interval"
+            username_str = f"@{ch.username}" if ch.username else "no username"
             lines.append(
-                f"- [{status}] {ch.telegram_id} — {ch.name} ({ch.language})\n"
+                f"- [{status}] {ch.telegram_id} ({username_str}) — {ch.name} ({ch.language})\n"
                 f"  review: {ch.review_chat_id or 'нет'}, max: {ch.max_posts_per_day}/day, "
-                f"schedule: {schedule}, today: {ch.daily_posts_count}"
+                f"schedule: {schedule}, today: {ch.daily_posts_count}\n"
+                f"  footer: {ch.footer}"
             )
             if ch.description:
                 lines.append(f"  desc: {ch.description[:80]}")
@@ -102,7 +104,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
         telegram_id: str,
         fields_json: str,
     ) -> str:
-        """Update channel fields. fields_json is a JSON object with keys to update, e.g. '{"name": "New Name", "language": "cs", "enabled": true}'. Valid keys: name, description, language, review_chat_id, max_posts_per_day, posting_schedule, discovery_query, source_discovery_query, enabled."""
+        """Update channel fields. fields_json is a JSON object with keys to update, e.g. '{"footer_template": "——\\n🔗 **Name** | @channel"}'. Valid keys: name, description, language, review_chat_id, max_posts_per_day, posting_schedule, discovery_query, source_discovery_query, enabled, username, footer_template. Use footer_template to set custom post footer."""
         import json
 
         from app.agent.channel.channel_repo import update_channel
