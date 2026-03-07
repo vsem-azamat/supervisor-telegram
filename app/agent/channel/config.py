@@ -88,6 +88,15 @@ class ChannelAgentSettings(BaseSettings):
     screening_threshold: int = Field(default=5, description="Minimum relevance score (0-10) to pass screening")
     temperature: float = Field(default=0.3, description="LLM temperature for content generation")
 
+    # Brave Search — complementary to Perplexity for URL-based factual search
+    brave_discovery_enabled: bool = Field(
+        default=False, description="Enable Brave Web Search as additional discovery source"
+    )
+    brave_discovery_query: str = Field(
+        default="Czech Republic students news this week",
+        description="Brave Search query for content discovery",
+    )
+
     # Embedding settings for semantic dedup
     # NOTE: embedding dimension (768) is a schema constant in embeddings.py — changing it requires a DB migration
     embedding_model: str = Field(

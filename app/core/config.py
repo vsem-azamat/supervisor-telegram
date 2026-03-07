@@ -146,6 +146,7 @@ class AgentSettings(BaseSettings):
     escalation_timeout_minutes: int = Field(default=30, description="Minutes before escalation times out")
     default_timeout_action: str = Field(default="ignore", description="Default action on escalation timeout")
     openrouter_base_url: str = Field(default="https://openrouter.ai/api/v1", description="OpenRouter API base URL")
+    brave_api_key: str = Field(default="", description="Brave Search API key for web search")
     enabled: bool = Field(default=False, description="Whether the agent is enabled")
 
     model_config = SettingsConfigDict(

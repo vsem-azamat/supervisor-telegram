@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 from burr.core import ApplicationBuilder, GraphBuilder, Result, State, action, default
 from burr.core.action import Condition
 
+from app.core.config import settings
 from app.core.logging import get_logger
 
 if TYPE_CHECKING:
@@ -32,7 +33,10 @@ logger = get_logger("channel.workflow")
 # ---------------------------------------------------------------------------
 
 
-@action(reads=["channel_id", "config", "channel", "api_key", "session_maker"], writes=["content_items", "error"])
+@action(
+    reads=["channel_id", "config", "channel", "api_key", "brave_api_key", "session_maker"],
+    writes=["content_items", "error"],
+)
 async def fetch_sources(state: State) -> State:
     """Fetch RSS content and discover fresh items from all configured sources."""
     from app.agent.channel.discovery import discover_content
@@ -64,7 +68,7 @@ async def fetch_sources(state: State) -> State:
             for url in fetch_result.errored_urls:
                 await record_fetch_error(session_maker, url, "fetch_error")
 
-        # Perplexity Sonar discovery
+        # Perplexity Sonar discovery (synthesized summaries, broader topics)
         if config.discovery_enabled:
             query = channel.discovery_query or config.discovery_query
             discovered = await discover_content(
@@ -75,6 +79,25 @@ async def fetch_sources(state: State) -> State:
                 temperature=config.temperature,
             )
             all_items.extend(discovered)
+
+        # Brave Web Search discovery (factual, URL-based, recent news)
+        if config.brave_discovery_enabled:
+            try:
+                from app.agent.channel.brave_search import discover_content_brave
+
+                brave_key: str = state.get("brave_api_key", "") or settings.agent.brave_api_key
+                if brave_key:
+                    brave_query = channel.discovery_query or config.brave_discovery_query
+                    brave_items = await discover_content_brave(
+                        api_key=brave_key,
+                        query=brave_query,
+                        count=5,
+                        freshness="pw",
+                        timeout=config.http_timeout,
+                    )
+                    all_items.extend(brave_items)
+            except Exception:
+                logger.exception("brave_discovery_error", channel_id=channel_id)
 
         # Deduplicate against DB
         if all_items:
@@ -425,6 +448,7 @@ def create_pipeline_app(
     config: ChannelAgentSettings,
     channel: Channel,
     *,
+    brave_api_key: str = "",
     app_id: str | None = None,
     resume_state: dict[str, Any] | None = None,
     entrypoint: str = "fetch_sources",
@@ -437,6 +461,7 @@ def create_pipeline_app(
         "session_maker": session_maker,
         "bot": bot,
         "api_key": api_key,
+        "brave_api_key": brave_api_key,
         "config": config,
         "channel": channel,
         "content_items": [],

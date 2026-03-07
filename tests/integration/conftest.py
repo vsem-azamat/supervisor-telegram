@@ -12,6 +12,7 @@ Usage in tests:
 import pytest
 import pytest_asyncio
 from app.infrastructure.db.base import Base
+from sqlalchemy import text as sa_text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 # Skip entire module if docker is unavailable
@@ -33,7 +34,7 @@ def pg_container():
     """Start a PostgreSQL container for the test session."""
     from testcontainers.postgres import PostgresContainer
 
-    with PostgresContainer("postgres:17", driver="asyncpg") as pg:
+    with PostgresContainer("pgvector/pgvector:pg18", driver="asyncpg") as pg:
         yield pg
 
 
@@ -49,6 +50,7 @@ async def pg_engine(pg_url: str):
     """Create async engine per-test to avoid event loop issues."""
     engine = create_async_engine(pg_url, echo=False)
     async with engine.begin() as conn:
+        await conn.execute(sa_text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.run_sync(Base.metadata.create_all)
     yield engine
     # Clean up all tables
