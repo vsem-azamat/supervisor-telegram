@@ -126,7 +126,7 @@ def register_dedup_tools(agent: Agent[AssistantDeps, str]) -> None:
 
     @agent.tool
     async def search_news(ctx: RunContext[AssistantDeps], query: str, count: int = 5, freshness: str = "pw") -> str:  # noqa: ARG001
-        """Search the web for news using Brave Search API. freshness: pd=past day, pw=past week, pm=past month."""
+        """Search the web for current news and information. Use this to find fresh content before generating posts. freshness: pd=past day, pw=past week, pm=past month."""
         brave_key = settings.agent.brave_api_key
         if not brave_key:
             return "Brave API key not configured. Set AGENT_BRAVE_API_KEY in .env."

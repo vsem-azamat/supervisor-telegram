@@ -157,7 +157,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
 
     @agent.tool
     async def get_sources(ctx: RunContext[AssistantDeps], channel_id: str) -> str:
-        """List RSS sources for a channel. channel_id is required — ask the user which channel."""
+        """List RSS sources for a channel. Use list_channels first if unsure about channel_id."""
         from sqlalchemy import select
 
         from app.infrastructure.db.models import ChannelSource
@@ -177,7 +177,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
 
     @agent.tool
     async def add_source(ctx: RunContext[AssistantDeps], url: str, channel_id: str, title: str = "") -> str:
-        """Add a new RSS source for a channel. channel_id is required — ask the user which channel."""
+        """Add a new RSS source for a channel."""
         error = await _validate_channel_id(ctx, channel_id)
         if error:
             return error
@@ -232,7 +232,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
 
     @agent.tool
     async def run_pipeline(ctx: RunContext[AssistantDeps], channel_id: str = "") -> str:
-        """Trigger content pipeline cycle now. Leave channel_id empty for all channels."""
+        """Run the automated content pipeline: fetches news from RSS, generates posts via LLM, sends drafts to review chat. Leave channel_id empty for all channels."""
         orch = ctx.deps.channel_orchestrator
         if not orch:
             return "Channel orchestrator is not running."
@@ -245,7 +245,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
 
     @agent.tool
     async def get_recent_posts(ctx: RunContext[AssistantDeps], channel_id: str, limit: int = 5) -> str:
-        """Get recent posts from the database. channel_id is required — ask the user which channel."""
+        """Get recent posts from the database for a channel."""
         from sqlalchemy import select
 
         from app.infrastructure.db.models import ChannelPost
@@ -290,7 +290,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
 
     @agent.tool
     async def publish_text(ctx: RunContext[AssistantDeps], channel_id: str, text: str) -> str:
-        """Publish a text message directly to a channel. Text supports Markdown formatting."""
+        """Publish text directly to a channel, skipping review. You can compose the text yourself. Supports Markdown."""
         error = await _validate_channel_id(ctx, channel_id)
         if error:
             return error
@@ -335,3 +335,104 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
                 o.channel.posting_schedule = times
 
         return f"Расписание обновлено: {times} для {updated} канал(ов). Сохранено в БД."
+
+    @agent.tool
+    async def generate_and_review(
+        ctx: RunContext[AssistantDeps],
+        channel_id: str,
+        topic: str,
+        source_url: str = "",
+    ) -> str:
+        """Generate a styled post from a topic and send it for admin review. Use after search_news to turn a found article into a post. channel_id: target channel. topic: news headline + description. source_url: optional article URL."""
+        from hashlib import sha256
+
+        from sqlalchemy import select
+
+        from app.agent.channel.config import language_name
+        from app.agent.channel.exceptions import GenerationError
+        from app.agent.channel.generator import generate_post as _generate
+        from app.agent.channel.sources import ContentItem
+        from app.core.config import settings
+        from app.infrastructure.db.models import Channel
+
+        error = await _validate_channel_id(ctx, channel_id)
+        if error:
+            return error
+
+        if not topic.strip():
+            return "Укажите тему или текст для генерации поста."
+
+        async with ctx.deps.session_maker() as session:
+            result = await session.execute(select(Channel).where(Channel.telegram_id == channel_id))
+            channel = result.scalar_one_or_none()
+
+        if not channel:
+            return f"Канал {channel_id} не найден в базе."
+
+        ext_id = sha256(f"{channel_id}:{topic[:100]}".encode()).hexdigest()[:16]
+        item = ContentItem(
+            source_url=source_url or "assistant",
+            external_id=ext_id,
+            title=topic[:200],
+            body=topic,
+            url=source_url or None,
+        )
+
+        api_key = settings.agent.openrouter_api_key
+        gen_model = settings.channel.generation_model
+        lang = language_name(channel.language)
+
+        try:
+            post = await _generate(
+                [item],
+                api_key=api_key,
+                model=gen_model,
+                language=lang,
+            )
+        except GenerationError:
+            logger.exception("generate_and_review_failed", channel_id=channel_id)
+            return "Не удалось сгенерировать пост. Проверьте логи."
+        except Exception:
+            logger.exception("generate_and_review_failed", channel_id=channel_id)
+            return "Не удалось сгенерировать пост. Проверьте логи."
+
+        if not post:
+            return "Генерация не вернула результат. Попробуйте другую тему."
+
+        review_chat_id = channel.review_chat_id
+        if review_chat_id:
+            from app.agent.channel.review import send_for_review as _send_review
+
+            try:
+                post_id = await _send_review(
+                    bot=ctx.deps.main_bot,
+                    review_chat_id=review_chat_id,
+                    channel_id=channel_id,
+                    post=post,
+                    source_items=[item],
+                    session_maker=ctx.deps.session_maker,
+                    api_key=api_key,
+                    embedding_model=settings.channel.embedding_model,
+                )
+            except Exception:
+                logger.exception("generate_and_review_send_failed", channel_id=channel_id)
+                return "Пост сгенерирован, но не удалось отправить на ревью."
+
+            if not post_id:
+                return "Пост сгенерирован, но отправка на ревью не удалась."
+
+            preview = post.text[:300] + ("..." if len(post.text) > 300 else "")
+            return f"Пост #{post_id} отправлен на ревью.\n\nПревью:\n{preview}"
+        from app.agent.channel.publisher import publish_post as _publish
+
+        try:
+            msg_id = await _publish(ctx.deps.main_bot, channel.telegram_id, post)
+        except Exception:
+            logger.exception("generate_and_review_publish_failed", channel_id=channel_id)
+            return "Пост сгенерирован, но публикация не удалась."
+
+        if not msg_id:
+            return "Пост сгенерирован, но публикация не удалась."
+
+        preview = post.text[:300] + ("..." if len(post.text) > 300 else "")
+        return f"Пост опубликован (нет review_chat_id). msg_id={msg_id}\n\nПревью:\n{preview}"
