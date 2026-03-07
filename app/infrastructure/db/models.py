@@ -2,6 +2,7 @@ import datetime
 from typing import Any
 
 import sqlalchemy as sa
+from pgvector.sqlalchemy import Vector  # type: ignore[import-untyped]
 from sqlalchemy import JSON, BigInteger, Boolean, DateTime, Float, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -392,6 +393,8 @@ class ChannelPost(Base):
     image_urls: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     status: Mapped[str] = mapped_column(String(16), default="draft")
     admin_feedback: Mapped[str | None] = mapped_column(String, nullable=True)
+    embedding: Mapped[Any | None] = mapped_column(Vector(768), nullable=True)
+    embedding_model: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
 
     def __init__(
@@ -408,6 +411,8 @@ class ChannelPost(Base):
         image_url: str | None = None,
         image_urls: list[str] | None = None,
         status: str = "draft",
+        embedding: Any | None = None,
+        embedding_model: str | None = None,
     ) -> None:
         self.channel_id = channel_id
         self.external_id = external_id
@@ -421,6 +426,8 @@ class ChannelPost(Base):
         self.image_url = image_url
         self.image_urls = image_urls
         self.status = status
+        self.embedding = embedding
+        self.embedding_model = embedding_model
 
     def approve(self, message_id: int) -> None:
         self.status = "approved"

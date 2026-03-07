@@ -88,6 +88,15 @@ class ChannelAgentSettings(BaseSettings):
     screening_threshold: int = Field(default=5, description="Minimum relevance score (0-10) to pass screening")
     temperature: float = Field(default=0.3, description="LLM temperature for content generation")
 
+    # Embedding settings for semantic dedup
+    embedding_model: str = Field(
+        default="openai/text-embedding-3-small", description="Embedding model for semantic dedup"
+    )
+    embedding_dimensions: int = Field(default=768, description="Embedding vector dimensions")
+    semantic_dedup_threshold: float = Field(
+        default=0.85, description="Cosine similarity threshold to consider items as duplicates (0-1)"
+    )
+
     # Deprecated — sources managed by agent via DB
     rss_sources: str = Field(default="", description="DEPRECATED: use source_discovery_enabled instead")
 

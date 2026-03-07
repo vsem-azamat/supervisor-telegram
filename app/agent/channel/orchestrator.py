@@ -325,6 +325,26 @@ class SingleChannelOrchestrator:
             logger.info("no_new_content")
             return
 
+        # Semantic dedup — filter items similar to recent posts (cross-source)
+        try:
+            from app.agent.channel.semantic_dedup import filter_semantic_duplicates
+
+            new_items = await filter_semantic_duplicates(
+                new_items,
+                channel_id=channel_id,
+                api_key=self.api_key,
+                session_maker=self.session_maker,
+                model=self.config.embedding_model,
+                dimensions=self.config.embedding_dimensions,
+                threshold=self.config.semantic_dedup_threshold,
+            )
+        except Exception:
+            logger.exception("semantic_dedup_error_skipping", channel_id=channel_id)
+
+        if not new_items:
+            logger.info("no_new_content_after_semantic_dedup")
+            return
+
         logger.info("new_items_found", count=len(new_items))
 
         # 2. Screen for relevance

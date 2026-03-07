@@ -142,6 +142,28 @@ async def send_for_review(
             db_post.review_message_id = msg.message_id
             await session.commit()
             logger.info("review_sent", post_id=post_id, review_msg=msg.message_id)
+
+            # Store embedding asynchronously (non-blocking, best-effort)
+            try:
+                from app.agent.channel.config import ChannelAgentSettings
+                from app.agent.channel.semantic_dedup import store_post_embedding
+                from app.core.config import settings
+
+                ch_settings = ChannelAgentSettings()
+                embed_text = (
+                    f"{source_items[0].title} {source_items[0].body[:100]}" if source_items else post.text[:200]
+                )
+                await store_post_embedding(
+                    post_id=post_id,
+                    text_for_embedding=embed_text,
+                    api_key=settings.agent.openrouter_api_key,
+                    session_maker=session_maker,
+                    model=ch_settings.embedding_model,
+                    dimensions=ch_settings.embedding_dimensions,
+                )
+            except Exception:
+                logger.debug("embedding_store_skipped", post_id=post_id, exc_info=True)
+
             return post_id
         except Exception:
             logger.exception("review_send_error", review_chat_id=review_chat_id)

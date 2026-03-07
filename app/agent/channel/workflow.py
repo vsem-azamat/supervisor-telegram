@@ -93,6 +93,23 @@ async def fetch_sources(state: State) -> State:
                 existing_ids = set(existing_result.scalars().all())
             all_items = [i for i in all_items if i.external_id not in existing_ids]
 
+        # Semantic dedup — filter items similar to recent posts (cross-source)
+        if all_items:
+            try:
+                from app.agent.channel.semantic_dedup import filter_semantic_duplicates
+
+                all_items = await filter_semantic_duplicates(
+                    all_items,
+                    channel_id=channel_id,
+                    api_key=api_key,
+                    session_maker=session_maker,
+                    model=config.embedding_model,
+                    dimensions=config.embedding_dimensions,
+                    threshold=config.semantic_dedup_threshold,
+                )
+            except Exception:
+                logger.exception("semantic_dedup_error_skipping", channel_id=channel_id)
+
         logger.info("workflow_fetch_done", count=len(all_items), channel_id=channel_id)
         return state.update(content_items=all_items, error=None)
 

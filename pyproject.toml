@@ -31,6 +31,7 @@ dependencies = [
     "telethon>=1.42.0",
     "burr>=0.40.2",
     "telegramify-markdown==1.0.0rc5",
+    "pgvector>=0.4.2",
 ]
 
 [build-system]
