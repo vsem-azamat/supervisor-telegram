@@ -335,4 +335,7 @@ async def on_review_reply(message: Message) -> None:
         logger.exception("review_agent_reply_error", post_id=post_id)
         result = "Failed to process edit request."
 
-    await message.reply(result)
+    from app.core.markdown import md_to_entities
+
+    plain, entities = md_to_entities(result)
+    await message.reply(plain, entities=entities, parse_mode=None)

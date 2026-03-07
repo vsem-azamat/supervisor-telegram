@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from pydantic_ai import Agent, RunContext
-from pydantic_ai.messages import ModelMessage
+from pydantic_ai.messages import ModelMessage, ModelResponse, ToolCallPart
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
@@ -103,17 +103,39 @@ Not too formal, not too casual.
 - Always leave blank lines between headline, paragraphs, and footer.
 - ALWAYS end the post with the channel footer shown above.
 
-## Workflow
-1. First call `get_current_post` to see the current text.
+## CRITICAL Workflow — you MUST follow these steps every time
+1. ALWAYS call `get_current_post` first to read the current text from DB.
 2. Make edits based on the admin's instruction.
-3. After editing, ALWAYS call `update_post` to apply changes — otherwise nothing is saved.
-4. If the admin asks to search for information, use `web_search`.
-5. If the admin asks about images, use `find_new_images` and then `replace_images`.
+3. ALWAYS call `update_post` with the FULL edited text to save changes.
+4. After `update_post` succeeds, briefly confirm what you changed.
+5. If the admin asks to search for information, use `web_search`.
+6. If the admin asks about images, use `find_new_images` and then `replace_images`.
+
+## MANDATORY: You MUST call tools
+If the admin asks to edit, change, fix, shorten, rewrite, translate, or modify \
+the post in ANY way, you MUST:
+- Call `get_current_post` to read the current text
+- Call `update_post` with the full new text to save it
+
+If you do NOT call `update_post`, the post will NOT be changed — your edits are LOST. \
+The system will detect if you skip the tool call and force a retry.
+
+## Examples of CORRECT vs INCORRECT behavior
+
+INCORRECT (DO NOT DO THIS):
+  Admin: "сделай заголовок короче"
+  You: "Готово! Сократил заголовок."
+  ❌ WRONG — update_post was never called, nothing changed!
+
+CORRECT:
+  Admin: "сделай заголовок короче"
+  You: [calls get_current_post] → [calls update_post with edited text] → "Сократил заголовок с 12 до 7 слов."
+  ✅ RIGHT — tools were called, changes saved.
 
 ## Tools available
-- `get_current_post` — read the current post text from DB
+- `get_current_post` — read the current post text from DB (ALWAYS call first)
 - `web_search` — search the web for facts or context
-- `update_post` — save the edited text (enforces footer and length limits)
+- `update_post` — save the edited text (MUST call to apply any changes)
 - `find_new_images` — search for images by keywords
 - `replace_images` — replace the post's images with new URLs
 
@@ -346,6 +368,24 @@ async def _review_agent_turn_inner(
         logger.exception("review_agent_error", post_id=post_id)
         return "Ошибка агента. Попробуй ещё раз."
 
+    # Check if model skipped update_post on what looks like an edit request
+    if _looks_like_edit_request(user_message) and not _has_tool_call(result, "update_post"):
+        logger.warning("review_agent_skipped_update_post", post_id=post_id)
+        # Retry once with explicit nudge
+        try:
+            retry_history = list(result.all_messages())
+            result = await asyncio.wait_for(
+                agent.run(
+                    "Ты не вызвал update_post. Пожалуйста, вызови get_current_post, "
+                    "внеси изменения и обязательно вызови update_post с полным текстом.",
+                    deps=deps,
+                    message_history=retry_history,
+                ),
+                timeout=_AGENT_TIMEOUT_SECONDS,
+            )
+        except Exception:
+            logger.exception("review_agent_retry_error", post_id=post_id)
+
     # Track usage/cost
     from app.agent.channel.cost_tracker import extract_usage_from_pydanticai_result, log_usage
 
@@ -369,3 +409,44 @@ async def _review_agent_turn_inner(
         history_len=len(_review_conversations[post_id]),
     )
     return result.output
+
+
+def _has_tool_call(result: Any, tool_name: str) -> bool:
+    """Check if a specific tool was called in the agent's response messages."""
+    for msg in result.all_messages():
+        if isinstance(msg, ModelResponse):
+            for part in msg.parts:
+                if isinstance(part, ToolCallPart) and part.tool_name == tool_name:
+                    return True
+    return False
+
+
+# Keywords that indicate the admin wants to edit the post
+_EDIT_KEYWORDS = (
+    "измени",
+    "поменяй",
+    "исправ",
+    "сократи",
+    "удлини",
+    "перепиши",
+    "переделай",
+    "убери",
+    "добавь",
+    "замени",
+    "сделай",
+    "переведи",
+    "отредактируй",
+    "подправ",
+    "форматиро",
+    "короче",
+    "длиннее",
+    "обнови",
+    "перефразируй",
+    "упрости",
+)
+
+
+def _looks_like_edit_request(text: str) -> bool:
+    """Heuristic: does the user message look like a post edit request?"""
+    lower = text.lower()
+    return any(kw in lower for kw in _EDIT_KEYWORDS)

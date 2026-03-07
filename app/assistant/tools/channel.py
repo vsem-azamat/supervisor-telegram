@@ -321,7 +321,9 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
             from app.core.markdown import md_to_entities
 
             plain, entities = md_to_entities(text)
-            msg = await ctx.deps.main_bot.send_message(chat_id=channel_id, text=plain, entities=entities)
+            msg = await ctx.deps.main_bot.send_message(
+                chat_id=channel_id, text=plain, entities=entities, parse_mode=None
+            )
             return f"Published to {channel_id}, message_id={msg.message_id}"
         except Exception:
             logger.exception("publish_text_failed", channel_id=channel_id)

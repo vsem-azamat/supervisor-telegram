@@ -307,17 +307,32 @@ class TestReviewFlow:
 
         kb = _build_review_keyboard(42)
         assert len(kb.inline_keyboard) == 2
-        assert len(kb.inline_keyboard[0]) == 3  # Approve, Reject, Regen
-        assert len(kb.inline_keyboard[1]) == 3  # Shorter, Longer, Translate
+        assert len(kb.inline_keyboard[0]) == 3  # Approve, Reject, Delete
+        assert len(kb.inline_keyboard[1]) == 3  # Shorter, Longer, Regen
         assert kb.inline_keyboard[0][0].callback_data == "chpost:approve:42"
         assert kb.inline_keyboard[0][1].callback_data == "chpost:reject:42"
+
+    async def test_build_review_keyboard_with_channel_and_sources(self) -> None:
+        from app.agent.channel.review import _build_review_keyboard
+
+        kb = _build_review_keyboard(
+            42,
+            source_items=[{"title": "Article 1", "url": "https://example.com/1"}],
+            channel_name="Test Channel",
+            channel_username="test_channel",
+        )
+        # 2 action rows + channel row + source row
+        assert len(kb.inline_keyboard) == 4
+        # Row 3: channel
+        assert kb.inline_keyboard[2][0].url == "https://t.me/test_channel"
+        # Row 4: sources
+        assert kb.inline_keyboard[3][0].url == "https://example.com/1"
 
     async def test_format_review_message(self) -> None:
         from app.agent.channel.review import _format_review_message
 
         msg = _format_review_message("<b>Hello</b>")
-        assert "<b>Hello</b>" in msg
-        assert "Reply to edit via conversation." in msg
+        assert msg == "<b>Hello</b>"
 
     async def test_send_for_review(
         self,

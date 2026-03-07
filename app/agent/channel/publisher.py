@@ -51,7 +51,7 @@ async def _send_media_group(bot: Bot, channel_id: int | str, post: GeneratedPost
         for i, url in enumerate(image_urls[:10]):  # Telegram max 10 per group
             photo = URLInputFile(url)
             if i == 0 and len(plain) <= 1024:
-                media.append(InputMediaPhoto(media=photo, caption=plain, caption_entities=entities))
+                media.append(InputMediaPhoto(media=photo, caption=plain, caption_entities=entities, parse_mode=None))
             else:
                 media.append(InputMediaPhoto(media=photo))
 
@@ -65,6 +65,7 @@ async def _send_media_group(bot: Bot, channel_id: int | str, post: GeneratedPost
                 entities=entities,
                 disable_web_page_preview=True,
                 reply_to_message_id=messages[0].message_id,
+                parse_mode=None,
             )
             logger.info(
                 "media_group_published",
@@ -99,6 +100,7 @@ async def _send_photo_post(bot: Bot, channel_id: int | str, post: GeneratedPost,
                 photo=photo,
                 caption=plain,
                 caption_entities=entities,
+                parse_mode=None,
             )
         else:
             photo_msg = await bot.send_photo(chat_id=channel_id, photo=photo)
@@ -108,6 +110,7 @@ async def _send_photo_post(bot: Bot, channel_id: int | str, post: GeneratedPost,
                 entities=entities,
                 disable_web_page_preview=True,
                 reply_to_message_id=photo_msg.message_id,
+                parse_mode=None,
             )
         logger.info("photo_post_published", channel_id=channel_id, message_id=msg.message_id)
         return msg.message_id
@@ -125,6 +128,7 @@ async def _send_text_post(bot: Bot, channel_id: int | str, post: GeneratedPost) 
             text=plain,
             entities=entities,
             disable_web_page_preview=False,
+            parse_mode=None,
         )
         logger.info("post_published", channel_id=channel_id, message_id=msg.message_id)
         return msg.message_id

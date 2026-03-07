@@ -41,29 +41,21 @@ def _build_review_keyboard(
 ) -> InlineKeyboardMarkup:
     """Build inline keyboard for post review."""
     rows: list[list[InlineKeyboardButton]] = [
+        # Row 1: main actions
         [
             InlineKeyboardButton(text="✅ Approve", callback_data=f"{CB_APPROVE}{post_id}"),
             InlineKeyboardButton(text="❌ Reject", callback_data=f"{CB_REJECT}{post_id}"),
-            InlineKeyboardButton(text="🔄 Regen", callback_data=f"{CB_REGEN}{post_id}"),
+            InlineKeyboardButton(text="🗑 Delete", callback_data=f"{CB_REJECT}{post_id}"),
         ],
+        # Row 2: edit actions
         [
             InlineKeyboardButton(text="✂️ Shorter", callback_data=f"{CB_SHORTER}{post_id}"),
             InlineKeyboardButton(text="📝 Longer", callback_data=f"{CB_LONGER}{post_id}"),
-            InlineKeyboardButton(text="🌐 Translate", callback_data=f"{CB_TRANSLATE}{post_id}"),
+            InlineKeyboardButton(text="🔄 Regen", callback_data=f"{CB_REGEN}{post_id}"),
         ],
     ]
 
-    # Source URL buttons (max 2)
-    if source_items:
-        source_buttons = [
-            InlineKeyboardButton(text=f"📰 {item['title'][:25]}", url=item["url"])
-            for item in source_items[:2]
-            if item.get("url")
-        ]
-        if source_buttons:
-            rows.append(source_buttons)
-
-    # Channel info row
+    # Row 3: target channel
     if channel_name:
         if channel_username:
             rows.append(
@@ -84,12 +76,22 @@ def _build_review_keyboard(
                 ]
             )
 
+    # Row 4: source links (up to 3 columns)
+    if source_items:
+        source_buttons = [
+            InlineKeyboardButton(text=f"📰 {item['title'][:25]}", url=item["url"])
+            for item in source_items[:3]
+            if item.get("url")
+        ]
+        if source_buttons:
+            rows.append(source_buttons)
+
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def _format_review_message(post_text: str) -> str:
-    """Format the review message with metadata."""
-    return f"{post_text}\n\n---\n*Reply to edit via conversation.*"
+    """Format the review message — show exactly as it will be published."""
+    return post_text
 
 
 async def _send_review_message(
@@ -99,7 +101,11 @@ async def _send_review_message(
     keyboard: InlineKeyboardMarkup,
     image_url: str | None = None,
 ) -> Message:
-    """Send review message — photo with caption if image available, else text."""
+    """Send review message — photo with caption if image available, else text.
+
+    NOTE: parse_mode=None is required to override the bot's default parse_mode="HTML",
+    otherwise caption_entities / entities are silently ignored by Telegram.
+    """
     plain, entities = md_to_entities(text)
 
     if image_url and len(plain) <= 1024:
@@ -111,9 +117,10 @@ async def _send_review_message(
                 caption=plain,
                 caption_entities=entities,
                 reply_markup=keyboard,
+                parse_mode=None,
             )
         except Exception:
-            logger.warning("review_photo_failed_fallback_to_text")
+            logger.exception("review_photo_failed_fallback_to_text")
 
     return await bot.send_message(
         chat_id=chat_id,
@@ -121,6 +128,7 @@ async def _send_review_message(
         entities=entities,
         reply_markup=keyboard,
         disable_web_page_preview=True,
+        parse_mode=None,
     )
 
 
@@ -132,7 +140,10 @@ async def _edit_review_message(
     entities: list[Any],
     keyboard: InlineKeyboardMarkup,
 ) -> None:
-    """Edit a review message — handles both text messages and photo captions."""
+    """Edit a review message — handles both text messages and photo captions.
+
+    NOTE: parse_mode=None overrides bot default to let entities work.
+    """
     try:
         await bot.edit_message_text(
             chat_id=chat_id,
@@ -140,6 +151,7 @@ async def _edit_review_message(
             text=text,
             entities=entities,
             reply_markup=keyboard,
+            parse_mode=None,
         )
     except Exception as exc:
         # If edit_message_text fails, the message is likely a photo — try edit_message_caption
@@ -153,6 +165,7 @@ async def _edit_review_message(
                 caption=caption,
                 caption_entities=cap_entities,
                 reply_markup=keyboard,
+                parse_mode=None,
             )
         else:
             raise

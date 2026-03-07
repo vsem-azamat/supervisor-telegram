@@ -10,25 +10,26 @@ from app.core.logging import get_logger
 
 logger = get_logger("channel.cost_tracker")
 
-# Rough per-1k-token pricing for known models (USD).
-# "cache_read" = price per 1k cached input tokens (typically 90% cheaper for Anthropic).
+# Per-1k-token pricing (USD) from OpenRouter, updated 2026-03-07.
+# "cache_read" = price per 1k cached-input tokens.
 MODEL_COSTS: dict[str, dict[str, float]] = {
-    "google/gemini-2.0-flash-001": {"input": 0.0001, "output": 0.0004, "cache_read": 0.0000025, "cache_write": 0.0001},
+    # Classification only (spam detection, screening) — NOT for agentic/chat use.
+    "google/gemini-2.0-flash-001": {"input": 0.0001, "output": 0.0004, "cache_read": 0.000025, "cache_write": 0.0001},
     "google/gemini-3.1-pro-preview": {
-        "input": 0.00025,
-        "output": 0.001,
-        "cache_read": 0.0000625,
-        "cache_write": 0.00025,
+        "input": 0.002,
+        "output": 0.012,
+        "cache_read": 0.0002,
+        "cache_write": 0.000375,
     },
     "google/gemini-3.1-flash-lite-preview": {
-        "input": 0.00005,
-        "output": 0.0002,
-        "cache_read": 0.0000125,
-        "cache_write": 0.00005,
+        "input": 0.00025,
+        "output": 0.0015,
+        "cache_read": 0.000025,
+        "cache_write": 0.001,
     },
     "perplexity/sonar": {"input": 0.001, "output": 0.001, "cache_read": 0.001, "cache_write": 0.001},
     "anthropic/claude-sonnet-4-6": {"input": 0.003, "output": 0.015, "cache_read": 0.0003, "cache_write": 0.00375},
-    "anthropic/claude-haiku-4-5": {"input": 0.0008, "output": 0.004, "cache_read": 0.00008, "cache_write": 0.001},
+    "anthropic/claude-haiku-4-5": {"input": 0.001, "output": 0.005, "cache_read": 0.0001, "cache_write": 0.00125},
 }
 
 _DEFAULT_COST = {"input": 0.001, "output": 0.001, "cache_read": 0.0001, "cache_write": 0.001}
@@ -141,13 +142,25 @@ def extract_usage_from_pydanticai_result(
         return None
 
     def _int(val: Any) -> int:
+        if val is None or val is False:
+            return 0
+        if isinstance(val, (int, float)):
+            return int(val)
         try:
-            return int(val) if val else 0
+            return int(val)
         except (TypeError, ValueError):
             return 0
 
-    prompt_tokens = _int(getattr(usage, "request_tokens", 0))
-    completion_tokens = _int(getattr(usage, "response_tokens", 0))
+    def _get_token_field(obj: Any, *field_names: str) -> int:
+        """Get first valid integer field from an object, trying field names in order."""
+        for name in field_names:
+            val = getattr(obj, name, None)
+            if isinstance(val, (int, float)):
+                return int(val)
+        return 0
+
+    prompt_tokens = _get_token_field(usage, "input_tokens", "request_tokens")
+    completion_tokens = _get_token_field(usage, "output_tokens", "response_tokens")
     total_tokens = _int(getattr(usage, "total_tokens", 0)) or (prompt_tokens + completion_tokens)
     cache_read = _int(getattr(usage, "cache_read_tokens", 0))
     cache_write = _int(getattr(usage, "cache_write_tokens", 0))
