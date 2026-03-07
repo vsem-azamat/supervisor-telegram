@@ -161,6 +161,9 @@ async def on_review_callback(callback: CallbackQuery) -> None:
                 channel_username=channel.username,
             )
             await bot.send_message(chat_id, result)
+            from app.agent.channel.review_agent import clear_review_conversation
+
+            clear_review_conversation(post_id)
         except Exception:
             logger.exception("regen_callback_error", post_id=post_id)
             await bot.send_message(chat_id, "Regeneration failed.")
@@ -190,6 +193,9 @@ async def on_review_callback(callback: CallbackQuery) -> None:
                 channel_username=channel.username,
             )
             await bot.send_message(chat_id, result)
+            from app.agent.channel.review_agent import clear_review_conversation
+
+            clear_review_conversation(post_id)
         except Exception:
             logger.exception("shorter_callback_error", post_id=post_id)
             await bot.send_message(chat_id, "Edit failed.")
@@ -219,6 +225,9 @@ async def on_review_callback(callback: CallbackQuery) -> None:
                 channel_username=channel.username,
             )
             await bot.send_message(chat_id, result)
+            from app.agent.channel.review_agent import clear_review_conversation
+
+            clear_review_conversation(post_id)
         except Exception:
             logger.exception("longer_callback_error", post_id=post_id)
             await bot.send_message(chat_id, "Edit failed.")
@@ -250,6 +259,9 @@ async def on_review_callback(callback: CallbackQuery) -> None:
                 channel_username=channel.username,
             )
             await bot.send_message(chat_id, result)
+            from app.agent.channel.review_agent import clear_review_conversation
+
+            clear_review_conversation(post_id)
         except Exception:
             logger.exception("translate_callback_error", post_id=post_id)
             await bot.send_message(chat_id, "Translation failed.")
@@ -299,7 +311,6 @@ async def on_review_reply(message: Message) -> None:
     if not session_maker:
         return
 
-    _generation_model, api_key = _get_global_config()
     channel = await _get_channel_for_post(post_id, session_maker)
     if not channel:
         await message.reply("Channel not found.")
@@ -318,7 +329,6 @@ async def on_review_reply(message: Message) -> None:
             channel_username=channel.username,
             footer=channel.footer,
             review_chat_id=review_chat_id,
-            api_key=api_key,
         )
         result = await review_agent_turn(post_id, message.text, deps)
     except Exception:

@@ -5,6 +5,7 @@ that has tools and memory, enabling multi-turn editing sessions per post.
 """
 
 import asyncio
+import functools
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -36,7 +37,6 @@ class ReviewAgentDeps:
     channel_username: str | None
     footer: str
     review_chat_id: int | str
-    api_key: str
 
 
 # ---------------------------------------------------------------------------
@@ -81,12 +81,14 @@ def clear_review_conversation(post_id: int) -> None:
 # Agent creation
 # ---------------------------------------------------------------------------
 
+_FOOTER_PLACEHOLDER = "{{FOOTER}}"
+
 _SYSTEM_PROMPT_TEMPLATE = """\
 You are a post editor for a Telegram channel. Your job is to edit posts \
 according to admin instructions while maintaining the channel's style.
 
 ## Current channel footer
-{footer}
+{{FOOTER}}
 
 ## Rules
 - LENGTH: 300-500 chars for news, up to 700 for analysis. Hard limit 900 chars.
@@ -118,8 +120,19 @@ Respond in Russian. Be concise — the admin is in a chat, not reading an essay.
 """
 
 
+_post_locks: dict[int, asyncio.Lock] = {}
+
+
+def _get_post_lock(post_id: int) -> asyncio.Lock:
+    """Get or create an asyncio lock for a specific post to serialize turns."""
+    if post_id not in _post_locks:
+        _post_locks[post_id] = asyncio.Lock()
+    return _post_locks[post_id]
+
+
+@functools.lru_cache(maxsize=4)
 def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
-    """Create the PydanticAI review agent with all tools."""
+    """Create the PydanticAI review agent with all tools (cached per model)."""
     model_name = model_name or settings.channel.generation_model
 
     provider = OpenAIProvider(
@@ -137,7 +150,7 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
     # Dynamic system prompt that injects the footer from deps
     @agent.system_prompt
     async def _system_prompt(ctx: RunContext[ReviewAgentDeps]) -> str:
-        return _SYSTEM_PROMPT_TEMPLATE.format(footer=ctx.deps.footer)
+        return _SYSTEM_PROMPT_TEMPLATE.replace(_FOOTER_PLACEHOLDER, ctx.deps.footer)
 
     # ------------------------------------------------------------------
     # Tools
@@ -166,6 +179,7 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
         if not api_key:
             return "Web search is not configured (no Brave API key)."
 
+        count = min(max(count, 1), 10)
         result = await brave_search_for_assistant(api_key, query, count=count)
         # Truncate to avoid blowing up context
         if len(result) > 2000:
@@ -197,6 +211,9 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
             if not post:
                 return "Post not found in DB."
 
+            if post.status != "draft":
+                return f"Cannot edit: post is already {post.status}."
+
             post.update_text(new_text)
 
             # 3. Update the review message in Telegram
@@ -222,12 +239,20 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
                     )
                 except Exception:
                     logger.exception("review_message_update_failed", post_id=ctx.deps.post_id)
+                    review_msg_failed = True
+                else:
+                    review_msg_failed = False
+            else:
+                review_msg_failed = False
 
             await session.commit()
 
         char_count = len(new_text)
         logger.info("post_updated_by_agent", post_id=ctx.deps.post_id, chars=char_count)
-        return f"Post updated ({char_count} chars)."
+        msg = f"Post updated ({char_count} chars)."
+        if review_msg_failed:
+            msg += " Warning: review message in chat could not be refreshed."
+        return msg
 
     @agent.tool
     async def find_new_images(ctx: RunContext[ReviewAgentDeps], query: str) -> str:
@@ -258,6 +283,9 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
             if not post:
                 return "Post not found in DB."
 
+            if post.status != "draft":
+                return f"Cannot edit: post is already {post.status}."
+
             post.image_url = image_urls[0] if image_urls else None
             post.image_urls = image_urls if image_urls else None
             await session.commit()
@@ -282,8 +310,20 @@ async def review_agent_turn(
     """Run one turn of the review agent conversation.
 
     Maintains per-post conversation history for multi-turn editing.
+    Uses per-post locks to serialize concurrent turns for the same post.
     Returns the agent's text response.
     """
+    lock = _get_post_lock(post_id)
+    async with lock:
+        return await _review_agent_turn_inner(post_id, user_message, deps, model)
+
+
+async def _review_agent_turn_inner(
+    post_id: int,
+    user_message: str,
+    deps: ReviewAgentDeps,
+    model: str,
+) -> str:
     _evict_review_conversations()
 
     history = _review_conversations.get(post_id)
@@ -310,9 +350,9 @@ async def review_agent_turn(
     _review_conversations[post_id] = all_msgs
     _review_last_access[post_id] = time.monotonic()
 
-    # Trim if too long — preserve the first message (system) + last N-1
+    # Trim long history — keep last N messages
     if len(all_msgs) > _MAX_HISTORY:
-        _review_conversations[post_id] = [all_msgs[0]] + all_msgs[-(_MAX_HISTORY - 1) :]
+        _review_conversations[post_id] = all_msgs[-_MAX_HISTORY:]
 
     logger.info(
         "review_agent_turn_done",
