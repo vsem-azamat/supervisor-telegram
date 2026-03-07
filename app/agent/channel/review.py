@@ -107,11 +107,14 @@ async def send_for_review(
 
     Creates a ChannelPost record in DB and returns its ID.
     """
-    # Build external_id from post content
-    ext_id = sha256(post.text[:200].encode()).hexdigest()[:16]
+    # Use the source item's external_id for dedup (matches the fetch-time dedup query)
+    ext_id = source_items[0].external_id if source_items else sha256(post.text[:200].encode()).hexdigest()[:16]
 
     # Save to DB first
-    source_data = [{"title": s.title, "url": s.url, "source_url": s.source_url} for s in source_items[:5]]
+    source_data = [
+        {"title": s.title, "url": s.url, "source_url": s.source_url, "external_id": s.external_id}
+        for s in source_items[:5]
+    ]
 
     async with session_maker() as session:
         db_post = ChannelPost(
