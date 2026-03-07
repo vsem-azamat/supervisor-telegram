@@ -346,6 +346,14 @@ async def _review_agent_turn_inner(
         logger.exception("review_agent_error", post_id=post_id)
         return "Ошибка агента. Попробуй ещё раз."
 
+    # Track usage/cost
+    from app.agent.channel.cost_tracker import extract_usage_from_pydanticai_result, log_usage
+
+    model_name = model or settings.channel.generation_model
+    usage = extract_usage_from_pydanticai_result(result, model_name, "review_agent")
+    if usage:
+        await log_usage(usage)
+
     # Save conversation for continuity
     all_msgs = list(result.all_messages())
     _review_conversations[post_id] = all_msgs

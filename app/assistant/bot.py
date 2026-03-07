@@ -90,6 +90,13 @@ async def _chat(user_id: int, user_message: str) -> str:
         logger.warning("assistant_agent_timeout", user_id=user_id, timeout=_AGENT_TIMEOUT_SECONDS)
         return "Превышено время ожидания ответа от агента. Попробуй ещё раз или упрости запрос."
 
+    # Track usage/cost
+    from app.agent.channel.cost_tracker import extract_usage_from_pydanticai_result, log_usage
+
+    usage = extract_usage_from_pydanticai_result(result, "anthropic/claude-sonnet-4-6", "assistant_chat")
+    if usage:
+        await log_usage(usage)
+
     # Save conversation for continuity
     all_msgs = list(result.all_messages())
     _conversations[user_id] = all_msgs

@@ -271,6 +271,7 @@ class TestChat:
         mock_result = MagicMock()
         mock_result.output = "response text"
         mock_result.all_messages.return_value = [MagicMock(), MagicMock()]
+        mock_result.usage.return_value = None  # Skip cost tracking
 
         mock_agent = MagicMock()
         mock_agent.run = AsyncMock(return_value=mock_result)

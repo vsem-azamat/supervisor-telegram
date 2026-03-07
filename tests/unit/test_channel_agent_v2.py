@@ -1132,17 +1132,27 @@ class TestCostTracker:
         from app.agent.channel.cost_tracker import _estimate_cost
 
         # google/gemini-2.0-flash-001: input=0.0001, output=0.0004 per 1k tokens
-        cost = _estimate_cost("google/gemini-2.0-flash-001", 1000, 1000)
+        cost, savings = _estimate_cost("google/gemini-2.0-flash-001", 1000, 1000)
         expected = (1000 / 1000) * 0.0001 + (1000 / 1000) * 0.0004
         assert abs(cost - expected) < 1e-8
+        assert savings == 0.0  # No cache tokens → no savings
 
     def test_cost_estimation_unknown_model(self) -> None:
         from app.agent.channel.cost_tracker import _estimate_cost
 
         # Unknown model defaults to input=0.001, output=0.001 per 1k tokens
-        cost = _estimate_cost("unknown/model-xyz", 500, 200)
+        cost, savings = _estimate_cost("unknown/model-xyz", 500, 200)
         expected = (500 / 1000) * 0.001 + (200 / 1000) * 0.001
         assert abs(cost - expected) < 1e-8
+
+    def test_cost_estimation_with_cache(self) -> None:
+        from app.agent.channel.cost_tracker import _estimate_cost
+
+        # Claude Sonnet: input=0.003, cache_read=0.0003 per 1k
+        # 1000 total input, 500 from cache read → 500 regular + 500 cached
+        cost, savings = _estimate_cost("anthropic/claude-sonnet-4-6", 1000, 100, cache_read_tokens=500)
+        assert savings > 0  # Should save money vs no cache
+        assert cost < (1000 / 1000) * 0.003 + (100 / 1000) * 0.015  # Cheaper than full price
 
     def test_extract_usage_from_pydanticai_result(self) -> None:
         from app.agent.channel.cost_tracker import extract_usage_from_pydanticai_result

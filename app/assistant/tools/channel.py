@@ -278,13 +278,35 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
             from app.agent.channel.cost_tracker import get_session_summary
 
             summary = get_session_summary()
-            return (
-                f"LLM Cost Report (current session):\n"
-                f"- Total cost: ${summary['total_cost_usd']:.4f}\n"
-                f"- Total tokens: {summary['total_tokens']}\n"
-                f"- Calls: {summary['total_calls']}\n"
-                f"- By operation: {summary.get('by_operation', {})}"
-            )
+            cache_read = summary.get("cache_read_tokens", 0)
+            cache_write = summary.get("cache_write_tokens", 0)
+            cache_savings = summary.get("cache_savings_usd", 0.0)
+
+            lines = [
+                "LLM Cost Report (current session):\n",
+                f"- Total cost: ${summary['total_cost_usd']:.4f}",
+                f"- Total tokens: {summary['total_tokens']}",
+                f"- Calls: {summary['total_calls']}",
+            ]
+
+            if cache_read or cache_write:
+                lines.append("\nCache stats:")
+                lines.append(f"- Cache read tokens: {cache_read}")
+                lines.append(f"- Cache write tokens: {cache_write}")
+                lines.append(f"- Cache savings: ${cache_savings:.4f}")
+                if summary["total_cost_usd"] > 0:
+                    pct = (cache_savings / (summary["total_cost_usd"] + cache_savings)) * 100
+                    lines.append(f"- Savings rate: {pct:.1f}%")
+
+            ops = summary.get("by_operation", {})
+            if ops:
+                lines.append("\nBy operation:")
+                for op, data in ops.items():
+                    sav = data.get("cache_savings_usd", 0)
+                    sav_str = f", saved ${sav:.4f}" if sav else ""
+                    lines.append(f"- {op}: {data['calls']} calls, ${data['cost_usd']:.4f}{sav_str}")
+
+            return "\n".join(lines)
         except Exception:
             logger.exception("get_cost_report_failed")
             return "Не удалось получить отчёт о расходах. Проверьте логи бота."
