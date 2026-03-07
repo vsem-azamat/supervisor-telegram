@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 
+from app.agent.channel.http import get_http_client
 from app.core.logging import get_logger
 from app.core.time import utc_now
 
@@ -17,25 +18,6 @@ logger = get_logger("channel.brave_search")
 
 BRAVE_SEARCH_URL = "https://api.search.brave.com/res/v1/web/search"
 VALID_FRESHNESS = {"pd", "pw", "pm", "py"}
-
-# Module-level reusable httpx client (matches llm_client.py pattern)
-_client: httpx.AsyncClient | None = None
-
-
-def _get_client(timeout: int = 15) -> httpx.AsyncClient:
-    """Return a reusable httpx client, creating one if needed."""
-    global _client  # noqa: PLW0603
-    if _client is None or _client.is_closed:
-        _client = httpx.AsyncClient(timeout=timeout)
-    return _client
-
-
-async def close_client() -> None:
-    """Close the module-level httpx client."""
-    global _client  # noqa: PLW0603
-    if _client and not _client.is_closed:
-        await _client.aclose()
-        _client = None
 
 
 async def brave_web_search(
@@ -66,7 +48,7 @@ async def brave_web_search(
 
     count = max(1, min(count, 20))
 
-    client = _get_client(timeout)
+    client = get_http_client(timeout=timeout)
     resp = await client.get(
         BRAVE_SEARCH_URL,
         headers={

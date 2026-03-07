@@ -124,15 +124,20 @@ async def increment_daily_count(
     session_maker: async_sessionmaker[AsyncSession],
     telegram_id: str,
 ) -> int:
-    """Atomically increment and return the daily post count."""
+    """Atomically increment and return the daily post count using SQL to avoid race conditions."""
+    from sqlalchemy import text
+
     async with session_maker() as session:
-        result = await session.execute(select(Channel).where(Channel.telegram_id == telegram_id))
-        channel = result.scalar_one_or_none()
-        if not channel:
-            return 0
-        count = channel.increment_daily_count()
+        result = await session.execute(
+            text(
+                "UPDATE channels SET daily_posts_count = daily_posts_count + 1 "
+                "WHERE telegram_id = :tid RETURNING daily_posts_count"
+            ),
+            {"tid": telegram_id},
+        )
+        row = result.fetchone()
         await session.commit()
-        return count
+        return row[0] if row else 0
 
 
 async def update_source_discovery_time(

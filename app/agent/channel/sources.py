@@ -12,6 +12,7 @@ from functools import partial
 import feedparser
 import httpx
 
+from app.agent.channel.http import get_http_client
 from app.core.logging import get_logger
 
 logger = get_logger("channel.sources")
@@ -67,9 +68,9 @@ def _parse_feed_entries(feed: object, source_url: str, max_items: int = 10) -> l
 async def fetch_rss(feed_url: str, max_items: int = 10, *, http_timeout: int = 30) -> list[ContentItem]:
     """Fetch items from an RSS feed."""
     try:
-        async with httpx.AsyncClient(timeout=http_timeout, follow_redirects=True) as client:
-            resp = await client.get(feed_url)
-            resp.raise_for_status()
+        client = get_http_client(timeout=http_timeout)
+        resp = await client.get(feed_url, timeout=httpx.Timeout(http_timeout))
+        resp.raise_for_status()
 
         # Run blocking feedparser in executor to avoid stalling the event loop
         loop = asyncio.get_running_loop()
@@ -103,9 +104,9 @@ async def fetch_all_sources(rss_urls: list[str], max_concurrent: int = 5, *, htt
     async def _fetch(url: str) -> list[ContentItem]:
         async with sem:
             try:
-                async with httpx.AsyncClient(timeout=http_timeout, follow_redirects=True) as client:
-                    resp = await client.get(url)
-                    resp.raise_for_status()
+                client = get_http_client(timeout=http_timeout)
+                resp = await client.get(url, timeout=httpx.Timeout(http_timeout))
+                resp.raise_for_status()
 
                 loop = asyncio.get_running_loop()
                 feed = await loop.run_in_executor(None, partial(feedparser.parse, resp.text))

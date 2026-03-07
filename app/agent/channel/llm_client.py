@@ -6,30 +6,32 @@ import re
 from typing import Any
 
 import httpx
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
 from app.agent.channel.cost_tracker import extract_usage_from_openrouter_response, log_usage
+from app.agent.channel.http import close_http_client, get_http_client
 from app.core.config import settings
 from app.core.logging import get_logger
 
 logger = get_logger("channel.llm_client")
 
-_client: httpx.AsyncClient | None = None
+# Retry transient HTTP errors (502, 503, 504, timeouts) with exponential backoff
+_TRANSIENT_RETRY = retry(
+    retry=retry_if_exception_type((httpx.TimeoutException, httpx.HTTPStatusError)),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=10),
+    reraise=True,
+)
 
 
 def _get_client(timeout: int = 30) -> httpx.AsyncClient:
-    """Return a reusable httpx client, creating one if needed."""
-    global _client
-    if _client is None or _client.is_closed:
-        _client = httpx.AsyncClient(timeout=timeout)
-    return _client
+    """Return the shared httpx client. Delegates to http.get_http_client()."""
+    return get_http_client(timeout=timeout)
 
 
 async def close_client() -> None:
-    """Close the module-level httpx client."""
-    global _client
-    if _client and not _client.is_closed:
-        await _client.aclose()
-        _client = None
+    """Close the shared httpx client."""
+    await close_http_client()
 
 
 _CODE_FENCE_RE = re.compile(r"^```(?:json|html|text)?\s*\n?", re.MULTILINE)
@@ -66,19 +68,23 @@ async def openrouter_chat_completion(
     if tools:
         payload["tools"] = tools
 
-    client = _get_client()
-    resp = await client.post(
-        f"{base_url}/chat/completions",
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://github.com/moderator-bot",
-        },
-        json=payload,
-        timeout=httpx.Timeout(timeout),
-    )
-    resp.raise_for_status()
-    data = resp.json()
+    @_TRANSIENT_RETRY
+    async def _call() -> dict[str, Any]:
+        client = _get_client()
+        resp = await client.post(
+            f"{base_url}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://github.com/moderator-bot",
+            },
+            json=payload,
+            timeout=httpx.Timeout(timeout),
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    data = await _call()
 
     # Track usage
     usage = extract_usage_from_openrouter_response(data, model=model, operation=operation, channel_id=channel_id)

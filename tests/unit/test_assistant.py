@@ -191,7 +191,7 @@ class TestCreateAssistantAgent:
 
 class TestScheduleTimeRegex:
     def setup_method(self) -> None:
-        from app.assistant.agent import _SCHEDULE_TIME_RE
+        from app.assistant.tools.channel import _SCHEDULE_TIME_RE
 
         self.pattern = _SCHEDULE_TIME_RE
 

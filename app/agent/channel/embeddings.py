@@ -33,7 +33,7 @@ async def get_embeddings(
 
     import httpx
 
-    from app.agent.channel.llm_client import _get_client
+    from app.agent.channel.http import get_http_client
 
     base_url = settings.agent.openrouter_base_url
 
@@ -43,7 +43,7 @@ async def get_embeddings(
         "dimensions": EMBEDDING_DIMS,
     }
 
-    client = _get_client(timeout=timeout)
+    client = get_http_client(timeout=timeout)
     resp = await client.post(
         f"{base_url}/embeddings",
         headers={
