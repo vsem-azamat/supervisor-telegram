@@ -89,10 +89,10 @@ class ChannelAgentSettings(BaseSettings):
     temperature: float = Field(default=0.3, description="LLM temperature for content generation")
 
     # Embedding settings for semantic dedup
+    # NOTE: embedding dimension (768) is a schema constant in embeddings.py — changing it requires a DB migration
     embedding_model: str = Field(
         default="openai/text-embedding-3-small", description="Embedding model for semantic dedup"
     )
-    embedding_dimensions: int = Field(default=768, description="Embedding vector dimensions")
     semantic_dedup_threshold: float = Field(
         default=0.85, description="Cosine similarity threshold to consider items as duplicates (0-1)"
     )

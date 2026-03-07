@@ -189,6 +189,10 @@ def create_assistant_agent(model_name: str = "") -> Agent[AssistantDeps, str]:
         """Create a new channel. telegram_id: @username or numeric ID. posting_schedule: comma-separated HH:MM."""
         from app.agent.channel.channel_repo import create_channel
 
+        # Validate telegram_id format
+        if not (telegram_id.startswith("@") or telegram_id.lstrip("-").isdigit()):
+            return "telegram_id должен быть @username или числовой ID."
+
         schedule_list = [t.strip() for t in posting_schedule.split(",") if t.strip()] or None
         try:
             ch = await create_channel(
@@ -227,21 +231,26 @@ def create_assistant_agent(model_name: str = "") -> Agent[AssistantDeps, str]:
         if not isinstance(fields, dict) or not fields:
             return "Укажите хотя бы одно поле для обновления."
 
-        allowed = {
-            "name",
-            "description",
-            "language",
-            "review_chat_id",
-            "max_posts_per_day",
-            "posting_schedule",
-            "discovery_query",
-            "source_discovery_query",
-            "enabled",
-            "username",
+        field_types: dict[str, type] = {
+            "name": str,
+            "description": str,
+            "language": str,
+            "review_chat_id": int,
+            "max_posts_per_day": int,
+            "posting_schedule": list,
+            "discovery_query": str,
+            "source_discovery_query": str,
+            "enabled": bool,
+            "username": str,
         }
-        bad = set(fields) - allowed
+        bad = set(fields) - set(field_types)
         if bad:
-            return f"Недопустимые поля: {bad}. Допустимые: {allowed}"
+            return f"Недопустимые поля: {bad}. Допустимые: {set(field_types)}"
+
+        for key, value in fields.items():
+            expected = field_types[key]
+            if not isinstance(value, expected):
+                return f"Поле '{key}' должно быть {expected.__name__}, получено {type(value).__name__}"
 
         try:
             ch = await update_channel(ctx.deps.session_maker, telegram_id, **fields)
@@ -316,18 +325,20 @@ def create_assistant_agent(model_name: str = "") -> Agent[AssistantDeps, str]:
             return "Не удалось добавить источник. Проверьте логи бота."
 
     @agent.tool
-    async def remove_source(ctx: RunContext[AssistantDeps], url: str) -> str:
-        """Remove an RSS source by URL."""
+    async def remove_source(ctx: RunContext[AssistantDeps], url: str, channel_id: str) -> str:
+        """Remove an RSS source by URL for a specific channel. channel_id is required."""
         from sqlalchemy import select
 
         from app.infrastructure.db.models import ChannelSource
 
         try:
             async with ctx.deps.session_maker() as session:
-                result = await session.execute(select(ChannelSource).where(ChannelSource.url == url))
+                result = await session.execute(
+                    select(ChannelSource).where(ChannelSource.channel_id == channel_id, ChannelSource.url == url)
+                )
                 source = result.scalar_one_or_none()
                 if not source:
-                    return f"Source not found: {url}"
+                    return f"Source not found: {url} for {channel_id}"
                 await session.delete(source)
                 await session.commit()
             return f"Removed source: {url}"

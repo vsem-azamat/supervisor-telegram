@@ -335,7 +335,6 @@ class SingleChannelOrchestrator:
                 api_key=self.api_key,
                 session_maker=self.session_maker,
                 model=self.config.embedding_model,
-                dimensions=self.config.embedding_dimensions,
                 threshold=self.config.semantic_dedup_threshold,
             )
         except Exception:
@@ -403,6 +402,8 @@ class SingleChannelOrchestrator:
                 post=post,
                 source_items=relevant[:1],
                 session_maker=self.session_maker,
+                api_key=self.api_key,
+                embedding_model=self.config.embedding_model,
             )
             if post_id:
                 logger.info("draft_sent_for_review", post_id=post_id)

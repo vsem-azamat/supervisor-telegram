@@ -104,7 +104,6 @@ async def fetch_sources(state: State) -> State:
                     api_key=api_key,
                     session_maker=session_maker,
                     model=config.embedding_model,
-                    dimensions=config.embedding_dimensions,
                     threshold=config.semantic_dedup_threshold,
                 )
             except Exception:
@@ -232,6 +231,8 @@ async def send_for_review(state: State) -> State:
 
     if review_chat_id:
         try:
+            api_key: str = state["api_key"]
+            config: ChannelAgentSettings = state["config"]
             post_id = await _send_review(
                 bot=bot,
                 review_chat_id=review_chat_id,
@@ -239,6 +240,8 @@ async def send_for_review(state: State) -> State:
                 post=post,
                 source_items=relevant[:3],
                 session_maker=session_maker,
+                api_key=api_key,
+                embedding_model=config.embedding_model,
             )
             if post_id:
                 logger.info("workflow_review_sent", post_id=post_id)

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, URLInputFile
 
+from app.agent.channel.embeddings import EMBEDDING_MODEL
 from app.agent.channel.generator import KONNEKT_FOOTER
 from app.agent.channel.llm_client import openrouter_chat_completion
 from app.core.logging import get_logger
@@ -102,6 +103,9 @@ async def send_for_review(
     post: GeneratedPost,
     source_items: list[ContentItem],
     session_maker: async_sessionmaker[AsyncSession],
+    *,
+    api_key: str = "",
+    embedding_model: str = "",
 ) -> int | None:
     """Send a generated post to the review channel with inline buttons.
 
@@ -143,26 +147,23 @@ async def send_for_review(
             await session.commit()
             logger.info("review_sent", post_id=post_id, review_msg=msg.message_id)
 
-            # Store embedding asynchronously (non-blocking, best-effort)
-            try:
-                from app.agent.channel.config import ChannelAgentSettings
-                from app.agent.channel.semantic_dedup import store_post_embedding
-                from app.core.config import settings
+            # Store embedding (non-blocking, best-effort)
+            if api_key:
+                try:
+                    from app.agent.channel.semantic_dedup import store_post_embedding
 
-                ch_settings = ChannelAgentSettings()
-                embed_text = (
-                    f"{source_items[0].title} {source_items[0].body[:100]}" if source_items else post.text[:200]
-                )
-                await store_post_embedding(
-                    post_id=post_id,
-                    text_for_embedding=embed_text,
-                    api_key=settings.agent.openrouter_api_key,
-                    session_maker=session_maker,
-                    model=ch_settings.embedding_model,
-                    dimensions=ch_settings.embedding_dimensions,
-                )
-            except Exception:
-                logger.debug("embedding_store_skipped", post_id=post_id, exc_info=True)
+                    embed_text = (
+                        f"{source_items[0].title} {source_items[0].body[:100]}" if source_items else post.text[:200]
+                    )
+                    await store_post_embedding(
+                        post_id=post_id,
+                        text_for_embedding=embed_text,
+                        api_key=api_key,
+                        session_maker=session_maker,
+                        model=embedding_model or EMBEDDING_MODEL,
+                    )
+                except Exception:
+                    logger.warning("embedding_store_failed", post_id=post_id, exc_info=True)
 
             return post_id
         except Exception:

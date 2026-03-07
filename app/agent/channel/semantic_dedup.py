@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import select, text
 
-from app.agent.channel.embeddings import DEFAULT_EMBEDDING_DIMS, DEFAULT_EMBEDDING_MODEL, get_embeddings
+from app.agent.channel.embeddings import EMBEDDING_MODEL, get_embeddings
 from app.core.logging import get_logger
 
 if TYPE_CHECKING:
@@ -22,21 +22,25 @@ if TYPE_CHECKING:
 logger = get_logger("channel.semantic_dedup")
 
 
+def _format_vector(embedding: list[float]) -> str:
+    """Format embedding as pgvector-compatible string with explicit precision."""
+    return "[" + ",".join(f"{x:.8f}" for x in embedding) + "]"
+
+
 async def filter_semantic_duplicates(
     items: list[ContentItem],
     *,
     channel_id: str,
     api_key: str,
     session_maker: async_sessionmaker[AsyncSession],
-    model: str = DEFAULT_EMBEDDING_MODEL,
-    dimensions: int = DEFAULT_EMBEDDING_DIMS,
+    model: str = EMBEDDING_MODEL,
     threshold: float = 0.85,
     lookback_days: int = 7,
 ) -> list[ContentItem]:
     """Filter out items semantically similar to recent posts.
 
-    For each candidate item, computes its title embedding and checks
-    cosine similarity against recent channel_posts embeddings.
+    Computes embeddings for all items in a single batch, then checks
+    cosine similarity against recent channel_posts in a single SQL query.
     Items with similarity >= threshold are considered duplicates and removed.
 
     Returns the filtered list of unique items.
@@ -48,22 +52,23 @@ async def filter_semantic_duplicates(
     texts = [f"{item.title} {item.body[:100]}" for item in items]
 
     try:
-        embeddings = await get_embeddings(texts, api_key=api_key, model=model, dimensions=dimensions)
+        embeddings = await get_embeddings(texts, api_key=api_key, model=model)
     except Exception:
-        logger.exception("embedding_api_error_skipping_semantic_dedup")
+        logger.warning("embedding_api_error_skipping_semantic_dedup", exc_info=True)
         return items  # Graceful degradation — skip semantic dedup on API failure
 
-    unique_items: list[ContentItem] = []
+    # Batch similarity check — single query for all candidates
+    duplicate_indices = await _find_similar_indices(
+        embeddings=embeddings,
+        channel_id=channel_id,
+        session_maker=session_maker,
+        threshold=threshold,
+        lookback_days=lookback_days,
+    )
 
-    for item, embedding in zip(items, embeddings, strict=True):
-        is_dup = await _is_similar_to_recent(
-            embedding=embedding,
-            channel_id=channel_id,
-            session_maker=session_maker,
-            threshold=threshold,
-            lookback_days=lookback_days,
-        )
-        if is_dup:
+    unique_items: list[ContentItem] = []
+    for i, item in enumerate(items):
+        if i in duplicate_indices:
             logger.info(
                 "semantic_duplicate_filtered",
                 title=item.title[:60],
@@ -84,39 +89,53 @@ async def filter_semantic_duplicates(
     return unique_items
 
 
-async def _is_similar_to_recent(
+async def _find_similar_indices(
     *,
-    embedding: list[float],
+    embeddings: list[list[float]],
     channel_id: str,
     session_maker: async_sessionmaker[AsyncSession],
     threshold: float,
     lookback_days: int,
-) -> bool:
-    """Check if an embedding is similar to any recent post in the channel."""
-    # pgvector cosine distance: 1 - cosine_similarity
-    # So distance < (1 - threshold) means similarity > threshold
+) -> set[int]:
+    """Check all embeddings against recent posts in a single batched query.
+
+    Returns set of indices (into the embeddings list) that are duplicates.
+    """
+    if not embeddings:
+        return set()
+
     max_distance = 1.0 - threshold
 
-    raw_query = text("""
-        SELECT 1 FROM channel_posts
-        WHERE channel_id = :channel_id
-          AND embedding IS NOT NULL
-          AND created_at > NOW() - make_interval(days => :days)
-          AND (embedding <=> cast(:embedding as vector)) < :max_distance
-        LIMIT 1
-    """)
+    # Build a VALUES list for all candidate embeddings
+    # Uses unnest with array of vectors to batch all comparisons
+    values_parts: list[str] = []
+    params: dict[str, object] = {
+        "channel_id": channel_id,
+        "days": lookback_days,
+        "max_distance": max_distance,
+    }
+    for i, emb in enumerate(embeddings):
+        param_name = f"emb_{i}"
+        values_parts.append(f"({i}, cast(:{param_name} as vector))")
+        params[param_name] = _format_vector(emb)
+
+    values_sql = ", ".join(values_parts)
+
+    query = text(f"""
+        SELECT DISTINCT c.idx
+        FROM (VALUES {values_sql}) AS c(idx, vec)
+        WHERE EXISTS (
+            SELECT 1 FROM channel_posts cp
+            WHERE cp.channel_id = :channel_id
+              AND cp.embedding IS NOT NULL
+              AND cp.created_at > NOW() - make_interval(days => :days)
+              AND (cp.embedding <=> c.vec) < :max_distance
+        )
+    """)  # noqa: S608
 
     async with session_maker() as session:
-        result = await session.execute(
-            raw_query,
-            {
-                "channel_id": channel_id,
-                "days": lookback_days,
-                "max_distance": max_distance,
-                "embedding": str(embedding),
-            },
-        )
-        return result.scalar_one_or_none() is not None
+        result = await session.execute(query, params)
+        return {row[0] for row in result.fetchall()}
 
 
 async def store_post_embedding(
@@ -125,14 +144,13 @@ async def store_post_embedding(
     text_for_embedding: str,
     api_key: str,
     session_maker: async_sessionmaker[AsyncSession],
-    model: str = DEFAULT_EMBEDDING_MODEL,
-    dimensions: int = DEFAULT_EMBEDDING_DIMS,
+    model: str = EMBEDDING_MODEL,
 ) -> None:
     """Compute and store embedding for a channel post."""
     from app.infrastructure.db.models import ChannelPost
 
     try:
-        embeddings = await get_embeddings([text_for_embedding], api_key=api_key, model=model, dimensions=dimensions)
+        embeddings = await get_embeddings([text_for_embedding], api_key=api_key, model=model)
         embedding = embeddings[0]
 
         async with session_maker() as session:
@@ -144,5 +162,5 @@ async def store_post_embedding(
                 await session.commit()
                 logger.info("embedding_stored", post_id=post_id, model=model)
     except Exception:
-        logger.exception("store_embedding_error", post_id=post_id)
+        logger.warning("store_embedding_error", post_id=post_id, exc_info=True)
         # Non-fatal — post is already saved, embedding is optional
