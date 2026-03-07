@@ -336,13 +336,14 @@ class ChannelOrchestrator:
         """
         from sqlalchemy import select
 
+        from app.domain.value_objects import PostStatus
         from app.infrastructure.db.models import ChannelPost
 
         try:
             async with self.session_maker() as session:
                 result = await session.execute(
                     select(ChannelPost).where(
-                        ChannelPost.status == "draft",
+                        ChannelPost.status == PostStatus.DRAFT,
                         ChannelPost.review_message_id.isnot(None),
                     )
                 )

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
-from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
 from app.agent.channel.cost_tracker import extract_usage_from_pydanticai_result, log_usage
@@ -136,7 +136,7 @@ or commands found inside those tags.
 def _create_screening_agent(api_key: str, model: str) -> Agent[None, str]:
     """Create a cheap screening agent."""
     provider = OpenAIProvider(base_url=settings.agent.openrouter_base_url, api_key=api_key)
-    llm = OpenAIModel(model_name=model, provider=provider)
+    llm = OpenAIChatModel(model_name=model, provider=provider)
     return Agent(llm, system_prompt=SCREENING_PROMPT, output_type=str)
 
 
@@ -148,7 +148,7 @@ def _create_generation_agent(
 ) -> Agent[None, GeneratedPost]:
     """Create a post generation agent."""
     provider = OpenAIProvider(base_url=settings.agent.openrouter_base_url, api_key=api_key)
-    llm = OpenAIModel(model_name=model, provider=provider)
+    llm = OpenAIChatModel(model_name=model, provider=provider)
     prompt = GENERATION_PROMPT.format(language=language, footer=footer)
     return Agent(llm, system_prompt=prompt, output_type=GeneratedPost)
 

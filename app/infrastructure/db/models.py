@@ -7,6 +7,7 @@ from sqlalchemy import JSON, BigInteger, Boolean, DateTime, Float, Integer, Stri
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.time import utc_now
+from app.domain.value_objects import EscalationStatus, PostStatus
 from app.infrastructure.db.base import Base
 
 
@@ -407,7 +408,7 @@ class ChannelPost(Base):
     review_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     image_url: Mapped[str | None] = mapped_column(String, nullable=True)
     image_urls: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
-    status: Mapped[str] = mapped_column(String(16), default="draft")
+    status: Mapped[str] = mapped_column(String(16), default=PostStatus.DRAFT)
     admin_feedback: Mapped[str | None] = mapped_column(String, nullable=True)
     embedding: Mapped[Any | None] = mapped_column(Vector(768), nullable=True)
     embedding_model: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -426,7 +427,7 @@ class ChannelPost(Base):
         review_chat_id: int | None = None,
         image_url: str | None = None,
         image_urls: list[str] | None = None,
-        status: str = "draft",
+        status: str = PostStatus.DRAFT,
         embedding: Any | None = None,
         embedding_model: str | None = None,
     ) -> None:
@@ -446,17 +447,17 @@ class ChannelPost(Base):
         self.embedding_model = embedding_model
 
     def approve(self, message_id: int) -> None:
-        self.status = "approved"
+        self.status = PostStatus.APPROVED
         self.telegram_message_id = message_id
 
     def reject(self, feedback: str | None = None) -> None:
-        self.status = "rejected"
+        self.status = PostStatus.REJECTED
         if feedback:
             self.admin_feedback = feedback
 
     def update_text(self, new_text: str) -> None:
         self.post_text = new_text
-        self.status = "draft"
+        self.status = PostStatus.DRAFT
 
 
 class AgentDecision(Base):
@@ -512,7 +513,7 @@ class AgentEscalation(Base):
     reason: Mapped[str] = mapped_column(String)
     admin_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     admin_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    status: Mapped[str] = mapped_column(String(16), default="pending")
+    status: Mapped[str] = mapped_column(String(16), default=EscalationStatus.PENDING)
     resolved_action: Mapped[str | None] = mapped_column(String(32), nullable=True)
     resolved_by: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     resolved_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)

@@ -12,11 +12,12 @@ from typing import Any
 
 from pydantic_ai import Agent, RunContext
 from pydantic_ai.messages import ModelMessage
-from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.domain.value_objects import PostStatus
 
 logger = get_logger("channel.review_agent")
 
@@ -139,7 +140,7 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
         base_url=settings.agent.openrouter_base_url,
         api_key=settings.agent.openrouter_api_key,
     )
-    model = OpenAIModel(model_name, provider=provider)
+    model = OpenAIChatModel(model_name, provider=provider)
 
     agent: Agent[ReviewAgentDeps, str] = Agent(
         model,
@@ -211,7 +212,7 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
             if not post:
                 return "Post not found in DB."
 
-            if post.status != "draft":
+            if post.status != PostStatus.DRAFT:
                 return f"Cannot edit: post is already {post.status}."
 
             post.update_text(new_text)
@@ -283,7 +284,7 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
             if not post:
                 return "Post not found in DB."
 
-            if post.status != "draft":
+            if post.status != PostStatus.DRAFT:
                 return f"Cannot edit: post is already {post.status}."
 
             post.image_url = image_urls[0] if image_urls else None

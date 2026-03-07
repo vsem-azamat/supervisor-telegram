@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import case, func, select
 
+from app.domain.value_objects import PostStatus
 from app.infrastructure.db.models import ChannelPost, ChannelSource
 
 if TYPE_CHECKING:
@@ -21,9 +22,9 @@ async def get_channel_stats(
         # Post counts by status
         post_q = select(
             func.count().label("total"),
-            func.count(case((ChannelPost.status == "approved", 1))).label("approved"),
-            func.count(case((ChannelPost.status == "rejected", 1))).label("rejected"),
-            func.count(case((ChannelPost.status == "draft", 1))).label("draft"),
+            func.count(case((ChannelPost.status == PostStatus.APPROVED, 1))).label("approved"),
+            func.count(case((ChannelPost.status == PostStatus.REJECTED, 1))).label("rejected"),
+            func.count(case((ChannelPost.status == PostStatus.DRAFT, 1))).label("draft"),
         ).where(ChannelPost.channel_id == channel_id)
         post_row = (await session.execute(post_q)).one()
 

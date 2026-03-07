@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from app.agent.channel.llm_client import openrouter_chat_completion
 from app.core.logging import get_logger
+from app.domain.value_objects import PostStatus
 from app.infrastructure.db.models import ChannelPost, ChannelSource
 
 if TYPE_CHECKING:
@@ -34,7 +35,9 @@ async def get_feedback_summary(
         # Get recent posts with their statuses
         posts_result = await session.execute(
             select(ChannelPost)
-            .where(ChannelPost.channel_id == channel_id, ChannelPost.status.in_(["approved", "rejected"]))
+            .where(
+                ChannelPost.channel_id == channel_id, ChannelPost.status.in_([PostStatus.APPROVED, PostStatus.REJECTED])
+            )
             .order_by(ChannelPost.created_at.desc())
             .limit(20)
         )
@@ -48,8 +51,8 @@ async def get_feedback_summary(
         return None
 
     # Build context for summarization
-    approved = [p for p in posts if p.status == "approved"]
-    rejected = [p for p in posts if p.status == "rejected"]
+    approved = [p for p in posts if p.status == PostStatus.APPROVED]
+    rejected = [p for p in posts if p.status == PostStatus.REJECTED]
 
     context_parts = [
         f"Channel: {channel_id}",

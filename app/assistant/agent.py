@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from pydantic_ai import Agent, RunContext
-from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
 from app.core.config import settings
@@ -136,7 +136,7 @@ def create_assistant_agent(model_name: str = "") -> Agent[AssistantDeps, str]:
         base_url=settings.agent.openrouter_base_url,
         api_key=settings.agent.openrouter_api_key,
     )
-    model = OpenAIModel(model_name, provider=provider)
+    model = OpenAIChatModel(model_name, provider=provider)
 
     agent: Agent[AssistantDeps, str] = Agent(
         model,

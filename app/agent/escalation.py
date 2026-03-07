@@ -13,6 +13,7 @@ from app.agent.schemas import AgentEvent
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.time import utc_now
+from app.domain.value_objects import EscalationStatus
 from app.infrastructure.db.models import AgentEscalation
 from app.presentation.telegram.utils.other import escape_html
 
@@ -94,7 +95,7 @@ class EscalationService:
         """Resolve an escalation with admin's chosen action."""
         stmt = select(AgentEscalation).where(
             AgentEscalation.id == escalation_id,
-            AgentEscalation.status == "pending",
+            AgentEscalation.status == EscalationStatus.PENDING,
         )
         result = await self.db.execute(stmt)
         escalation = result.scalar_one_or_none()
@@ -102,7 +103,7 @@ class EscalationService:
         if not escalation:
             return None
 
-        escalation.status = "resolved"
+        escalation.status = EscalationStatus.RESOLVED
         escalation.resolved_action = action
         escalation.resolved_by = admin_id
         escalation.resolved_at = utc_now()
@@ -125,7 +126,7 @@ class EscalationService:
         """Get a pending escalation by ID."""
         stmt = select(AgentEscalation).where(
             AgentEscalation.id == escalation_id,
-            AgentEscalation.status == "pending",
+            AgentEscalation.status == EscalationStatus.PENDING,
         )
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
@@ -136,14 +137,14 @@ class EscalationService:
         async with session_maker() as db:
             now = utc_now()
             stmt = select(AgentEscalation).where(
-                AgentEscalation.status == "pending",
+                AgentEscalation.status == EscalationStatus.PENDING,
                 AgentEscalation.timeout_at < now,
             )
             result = await db.execute(stmt)
             stale = result.scalars().all()
 
             for esc in stale:
-                esc.status = "timeout"
+                esc.status = EscalationStatus.TIMEOUT
                 esc.resolved_action = settings.agent.default_timeout_action
                 esc.resolved_at = now
             if stale:
@@ -216,7 +217,7 @@ class EscalationService:
         async with self._session_maker() as db:
             stmt = select(AgentEscalation).where(
                 AgentEscalation.id == escalation_id,
-                AgentEscalation.status == "pending",
+                AgentEscalation.status == EscalationStatus.PENDING,
             )
             result = await db.execute(stmt)
             escalation = result.scalar_one_or_none()
@@ -225,7 +226,7 @@ class EscalationService:
                 return
 
             default_action = settings.agent.default_timeout_action
-            escalation.status = "timeout"
+            escalation.status = EscalationStatus.TIMEOUT
             escalation.resolved_action = default_action
             escalation.resolved_at = utc_now()
             await db.commit()

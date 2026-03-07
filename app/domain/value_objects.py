@@ -1,7 +1,23 @@
 """Domain value objects for the moderation bot."""
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, StrEnum
+
+
+class PostStatus(StrEnum):
+    """Status of a channel post in the review pipeline."""
+
+    DRAFT = "draft"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
+class EscalationStatus(StrEnum):
+    """Status of an agent escalation."""
+
+    PENDING = "pending"
+    RESOLVED = "resolved"
+    TIMEOUT = "timeout"
 
 
 class ModerationAction(Enum):

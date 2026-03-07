@@ -12,6 +12,7 @@ from app.agent.channel.generator import DEFAULT_FOOTER, enforce_footer_and_lengt
 from app.agent.channel.llm_client import openrouter_chat_completion
 from app.core.logging import get_logger
 from app.core.markdown import md_to_entities
+from app.domain.value_objects import PostStatus
 from app.infrastructure.db.models import ChannelPost
 
 if TYPE_CHECKING:
@@ -288,7 +289,7 @@ async def handle_approve(
         post = result.scalar_one_or_none()
         if not post:
             return "Post not found."
-        if post.status == "approved":
+        if post.status == PostStatus.APPROVED:
             return "Already published."
 
         source_urls = await _extract_source_urls(post)
@@ -334,9 +335,9 @@ async def handle_reject(
         post = result.scalar_one_or_none()
         if not post:
             return "Post not found."
-        if post.status == "rejected":
+        if post.status == PostStatus.REJECTED:
             return "Already rejected."
-        if post.status == "approved":
+        if post.status == PostStatus.APPROVED:
             return "Already published — cannot reject."
 
         source_urls = await _extract_source_urls(post)
@@ -374,9 +375,9 @@ async def handle_edit_request(
         post = result.scalar_one_or_none()
         if not post:
             return "Post not found."
-        if post.status == "approved":
+        if post.status == PostStatus.APPROVED:
             return "Already published — cannot edit."
-        if post.status == "rejected":
+        if post.status == PostStatus.REJECTED:
             return "Post was rejected — cannot edit."
 
         # Resolve effective footer
@@ -484,9 +485,9 @@ async def handle_regen(
         post = result.scalar_one_or_none()
         if not post:
             return "Post not found."
-        if post.status == "approved":
+        if post.status == PostStatus.APPROVED:
             return "Already published — cannot regenerate."
-        if post.status == "rejected":
+        if post.status == PostStatus.REJECTED:
             return "Post was rejected — cannot regenerate."
 
         # Rebuild ContentItems from stored source data

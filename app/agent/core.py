@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 
 from aiogram import Bot, types
 from pydantic_ai import Agent, RunContext
-from pydantic_ai.models.openai import OpenAIModel
+from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
 from app.agent.escalation import EscalationService
@@ -31,7 +31,7 @@ def _create_pydantic_agent() -> Agent[AgentDeps, ModerationResult]:
         base_url=settings.agent.openrouter_base_url,
         api_key=settings.agent.openrouter_api_key,
     )
-    model = OpenAIModel(settings.agent.model, provider=provider)
+    model = OpenAIChatModel(settings.agent.model, provider=provider)
 
     agent: Agent[AgentDeps, ModerationResult] = Agent(
         model,
