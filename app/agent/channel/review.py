@@ -247,6 +247,19 @@ async def send_for_review(
             return None
 
 
+def _extract_source_btn_data(post: ChannelPost) -> list[dict[str, str]]:
+    """Extract source title+url pairs from a post for keyboard buttons."""
+    if not post.source_items:
+        return []
+    items: list[dict[str, str]] = []
+    for src in post.source_items[:2]:
+        url = src.get("url") or src.get("source_url")
+        title = src.get("title", "")
+        if url and url.startswith(("http://", "https://")):
+            items.append({"title": title[:25], "url": url})
+    return items
+
+
 async def _extract_source_urls(post: ChannelPost) -> list[str]:
     """Extract unique source URLs from a post's source_items."""
     if not post.source_items:
@@ -350,6 +363,8 @@ async def handle_edit_request(
     http_timeout: int = 30,
     temperature: float = 0.3,
     footer: str = "",
+    channel_name: str = "",
+    channel_username: str | None = None,
 ) -> str:
     """Edit a post based on admin instruction. Updates the review message."""
     from sqlalchemy import select
@@ -414,7 +429,13 @@ async def handle_edit_request(
 
             # Update review message
             if post.review_message_id:
-                keyboard = _build_review_keyboard(post_id)
+                source_btn_data = _extract_source_btn_data(post)
+                keyboard = _build_review_keyboard(
+                    post_id,
+                    source_items=source_btn_data,
+                    channel_name=channel_name,
+                    channel_username=channel_username,
+                )
                 try:
                     review_plain, review_entities = md_to_entities(
                         _format_review_message(new_text),
@@ -449,6 +470,8 @@ async def handle_regen(
     session_maker: async_sessionmaker[AsyncSession],
     *,
     footer: str = "",
+    channel_name: str = "",
+    channel_username: str | None = None,
 ) -> str:
     """Regenerate a post from its original sources."""
     from sqlalchemy import select
@@ -491,7 +514,13 @@ async def handle_regen(
 
         # Update review message
         if post.review_message_id:
-            keyboard = _build_review_keyboard(post_id)
+            source_btn_data = _extract_source_btn_data(post)
+            keyboard = _build_review_keyboard(
+                post_id,
+                source_items=source_btn_data,
+                channel_name=channel_name,
+                channel_username=channel_username,
+            )
             try:
                 regen_plain, regen_entities = md_to_entities(
                     _format_review_message(new_post.text),

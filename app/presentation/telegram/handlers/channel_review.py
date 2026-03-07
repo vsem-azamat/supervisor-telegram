@@ -130,12 +130,12 @@ async def on_review_callback(callback: CallbackQuery) -> None:
         if not post_id:
             await callback.answer("Invalid post ID")
             return
-        await callback.answer("Regenerating...")
         try:
             channel = await _get_channel_for_post(post_id, session_maker)
             if not channel:
                 await callback.answer("Channel not found", show_alert=True)
                 return
+            await callback.answer("Regenerating...")
             language = _channel_language(channel)
             review_chat_id = channel.review_chat_id or chat_id
             result = await handle_regen(
@@ -147,6 +147,8 @@ async def on_review_callback(callback: CallbackQuery) -> None:
                 review_chat_id,
                 session_maker,
                 footer=channel.footer,
+                channel_name=channel.name,
+                channel_username=channel.username,
             )
             await bot.send_message(chat_id, result)
         except Exception:
@@ -158,12 +160,12 @@ async def on_review_callback(callback: CallbackQuery) -> None:
         if not post_id:
             await callback.answer("Invalid post ID")
             return
-        await callback.answer("Making shorter...")
         try:
             channel = await _get_channel_for_post(post_id, session_maker)
             if not channel:
                 await callback.answer("Channel not found", show_alert=True)
                 return
+            await callback.answer("Making shorter...")
             review_chat_id = channel.review_chat_id or chat_id
             result = await handle_edit_request(
                 bot,
@@ -174,6 +176,8 @@ async def on_review_callback(callback: CallbackQuery) -> None:
                 review_chat_id,
                 session_maker,
                 footer=channel.footer,
+                channel_name=channel.name,
+                channel_username=channel.username,
             )
             await bot.send_message(chat_id, result)
         except Exception:
@@ -185,12 +189,12 @@ async def on_review_callback(callback: CallbackQuery) -> None:
         if not post_id:
             await callback.answer("Invalid post ID")
             return
-        await callback.answer("Expanding...")
         try:
             channel = await _get_channel_for_post(post_id, session_maker)
             if not channel:
                 await callback.answer("Channel not found", show_alert=True)
                 return
+            await callback.answer("Expanding...")
             review_chat_id = channel.review_chat_id or chat_id
             result = await handle_edit_request(
                 bot,
@@ -201,6 +205,8 @@ async def on_review_callback(callback: CallbackQuery) -> None:
                 review_chat_id,
                 session_maker,
                 footer=channel.footer,
+                channel_name=channel.name,
+                channel_username=channel.username,
             )
             await bot.send_message(chat_id, result)
         except Exception:
@@ -212,12 +218,12 @@ async def on_review_callback(callback: CallbackQuery) -> None:
         if not post_id:
             await callback.answer("Invalid post ID")
             return
-        await callback.answer("Translating...")
         try:
             channel = await _get_channel_for_post(post_id, session_maker)
             if not channel:
                 await callback.answer("Channel not found", show_alert=True)
                 return
+            await callback.answer("Translating...")
             language = _channel_language(channel)
             target = "Czech" if language == "Russian" else "Russian"
             review_chat_id = channel.review_chat_id or chat_id
@@ -230,11 +236,16 @@ async def on_review_callback(callback: CallbackQuery) -> None:
                 review_chat_id,
                 session_maker,
                 footer=channel.footer,
+                channel_name=channel.name,
+                channel_username=channel.username,
             )
             await bot.send_message(chat_id, result)
         except Exception:
             logger.exception("translate_callback_error", post_id=post_id)
             await bot.send_message(chat_id, "Translation failed.")
+
+    elif data.startswith("chpost:noop:"):
+        await callback.answer()
 
 
 def _channel_language(channel: Channel | None) -> str:
@@ -294,6 +305,8 @@ async def on_review_reply(message: Message) -> None:
         review_chat_id,
         session_maker,
         footer=channel.footer,
+        channel_name=channel.name,
+        channel_username=channel.username,
     )
 
     await message.reply(result)

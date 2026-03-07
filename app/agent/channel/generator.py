@@ -38,7 +38,9 @@ def enforce_footer_and_length(text: str, footer: str = "", *, max_length: int = 
 
     if len(text) > max_length:
         max_body = max_length - len("\n\n") - len(footer)
-        body = text.replace(footer, "").rstrip()
+        # Strip only the last occurrence of footer to avoid damaging body text
+        parts = text.rsplit(footer, 1)
+        body = parts[0].rstrip()
         if len(body) > max_body:
             truncated = body[:max_body]
             last_period = max(truncated.rfind("."), truncated.rfind("!"), truncated.rfind("?"))
