@@ -344,7 +344,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
         topic: str,
         source_url: str = "",
     ) -> str:
-        """Generate a styled post from a topic and send it for admin review. Use after search_news to turn a found article into a post. channel_id: target channel. topic: news headline + description. source_url: optional article URL."""
+        """Generate a styled post from a topic and send it for admin review. Use after search_news to turn a found article into a post. IMPORTANT: topic must contain the FULL details of the specific news story — title, key facts, context. Do NOT pass a vague summary. source_url: the article URL from search results (pass it!)."""
         from hashlib import sha256
 
         from sqlalchemy import select
