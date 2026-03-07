@@ -27,14 +27,15 @@ You are Konnekt Assistant — a powerful AI that manages the entire Konnekt Tele
 for CIS students in Czech Republic.
 
 You have FULL control over:
-1. Channel content pipeline — sources, posts, scheduling, publishing
-2. Chat moderation — mute, ban, unban users in any managed chat
-3. User management — blacklist, user info (bio, last seen, premium), user lookup
-4. Chat settings — welcome messages, full chat info (description, slow mode, linked chats)
-5. Messaging — send messages to any chat or channel
-6. Message history — read past messages, search in chats
-7. Member management — list members, search members by name
-8. Analytics — message view counts, forward counts
+1. Channel management — add/edit/remove channels, configure language/schedule/review chat
+2. Channel content pipeline — sources, posts, scheduling, publishing
+3. Chat moderation — mute, ban, unban users in any managed chat
+4. User management — blacklist, user info (bio, last seen, premium), user lookup
+5. Chat settings — welcome messages, full chat info (description, slow mode, linked chats)
+6. Messaging — send messages to any chat or channel
+7. Message history — read past messages, search in chats
+8. Member management — list members, search members by name
+9. Analytics — message view counts, forward counts
 
 Use the tools to execute actions. Always report what you did.
 Keep responses concise. Use Russian since the admin speaks Russian.
@@ -68,11 +69,15 @@ async def _get_managed_chat_ids(session_maker: async_sessionmaker[AsyncSession])
         return {row[0] for row in result.all()}
 
 
-def _get_known_channel_ids(orchestrator: ChannelOrchestrator | None) -> set[str]:
-    """Return channel IDs from the orchestrator config."""
-    if not orchestrator:
-        return set()
-    return {str(o.channel_id) for o in orchestrator.orchestrators}
+async def _get_known_channel_ids(session_maker: async_sessionmaker[AsyncSession]) -> set[str]:
+    """Return channel IDs from the DB channels table."""
+    from sqlalchemy import select
+
+    from app.infrastructure.db.models import Channel
+
+    async with session_maker() as session:
+        result = await session.execute(select(Channel.telegram_id))
+        return {row[0] for row in result.all()}
 
 
 async def _validate_chat_id(ctx: RunContext[AssistantDeps], chat_id: int | str) -> str | None:
@@ -90,7 +95,7 @@ async def _validate_chat_id(ctx: RunContext[AssistantDeps], chat_id: int | str) 
 
 async def _validate_channel_id(ctx: RunContext[AssistantDeps], channel_id: str) -> str | None:
     """Validate that channel_id is a known channel or managed chat. Returns error message or None."""
-    known_channels = _get_known_channel_ids(ctx.deps.channel_orchestrator)
+    known_channels = await _get_known_channel_ids(ctx.deps.session_maker)
     if channel_id in known_channels:
         return None
     # Also allow numeric chat IDs that are managed
@@ -142,6 +147,122 @@ def create_assistant_agent(model_name: str = "") -> Agent[AssistantDeps, str]:
         return "\n".join(lines)
 
     @agent.tool
+    async def list_channels(ctx: RunContext[AssistantDeps]) -> str:
+        """List all channels from the database with their config."""
+        from sqlalchemy import select
+
+        from app.infrastructure.db.models import Channel
+
+        async with ctx.deps.session_maker() as session:
+            result = await session.execute(select(Channel).order_by(Channel.id))
+            channels = list(result.scalars().all())
+
+        if not channels:
+            return "Нет каналов в базе."
+
+        lines = [f"Каналы ({len(channels)}):\n"]
+        for ch in channels:
+            status = "ON" if ch.enabled else "OFF"
+            schedule = ", ".join(ch.posting_schedule) if ch.posting_schedule else "interval"
+            lines.append(
+                f"- [{status}] {ch.telegram_id} — {ch.name} ({ch.language})\n"
+                f"  review: {ch.review_chat_id or 'нет'}, max: {ch.max_posts_per_day}/day, "
+                f"schedule: {schedule}, today: {ch.daily_posts_count}"
+            )
+            if ch.description:
+                lines.append(f"  desc: {ch.description[:80]}")
+        return "\n".join(lines)
+
+    @agent.tool
+    async def add_channel(
+        ctx: RunContext[AssistantDeps],
+        telegram_id: str,
+        name: str,
+        description: str = "",
+        language: str = "ru",
+        review_chat_id: int = 0,
+        max_posts_per_day: int = 3,
+        posting_schedule: str = "",
+        discovery_query: str = "",
+        source_discovery_query: str = "",
+    ) -> str:
+        """Create a new channel. telegram_id: @username or numeric ID. posting_schedule: comma-separated HH:MM."""
+        from app.agent.channel.channel_repo import create_channel
+
+        schedule_list = [t.strip() for t in posting_schedule.split(",") if t.strip()] or None
+        try:
+            ch = await create_channel(
+                ctx.deps.session_maker,
+                telegram_id=telegram_id,
+                name=name,
+                description=description,
+                language=language,
+                review_chat_id=review_chat_id or None,
+                max_posts_per_day=max_posts_per_day,
+                posting_schedule=schedule_list,
+                discovery_query=discovery_query,
+                source_discovery_query=source_discovery_query,
+            )
+            return f"Канал создан: {ch.telegram_id} — {ch.name} (id={ch.id})"
+        except Exception:
+            logger.exception("add_channel_failed", telegram_id=telegram_id)
+            return "Не удалось создать канал. Возможно, такой telegram_id уже существует."
+
+    @agent.tool
+    async def edit_channel(
+        ctx: RunContext[AssistantDeps],
+        telegram_id: str,
+        fields_json: str,
+    ) -> str:
+        """Update channel fields. fields_json is a JSON object with keys to update, e.g. '{"name": "New Name", "language": "cs", "enabled": true}'. Valid keys: name, description, language, review_chat_id, max_posts_per_day, posting_schedule, discovery_query, source_discovery_query, enabled."""
+        import json
+
+        from app.agent.channel.channel_repo import update_channel
+
+        try:
+            fields = json.loads(fields_json)
+        except json.JSONDecodeError:
+            return 'Неверный JSON. Пример: {"name": "New Name", "language": "cs"}'
+
+        if not isinstance(fields, dict) or not fields:
+            return "Укажите хотя бы одно поле для обновления."
+
+        allowed = {
+            "name",
+            "description",
+            "language",
+            "review_chat_id",
+            "max_posts_per_day",
+            "posting_schedule",
+            "discovery_query",
+            "source_discovery_query",
+            "enabled",
+            "username",
+        }
+        bad = set(fields) - allowed
+        if bad:
+            return f"Недопустимые поля: {bad}. Допустимые: {allowed}"
+
+        try:
+            ch = await update_channel(ctx.deps.session_maker, telegram_id, **fields)
+            if not ch:
+                return f"Канал {telegram_id} не найден."
+            return f"Канал {telegram_id} обновлён: {list(fields.keys())}"
+        except Exception:
+            logger.exception("edit_channel_failed", telegram_id=telegram_id)
+            return "Не удалось обновить канал. Проверьте логи."
+
+    @agent.tool
+    async def remove_channel(ctx: RunContext[AssistantDeps], telegram_id: str) -> str:
+        """Delete a channel from the DB. The orchestrator will stop it on next refresh."""
+        from app.agent.channel.channel_repo import delete_channel
+
+        ok = await delete_channel(ctx.deps.session_maker, telegram_id)
+        if not ok:
+            return f"Канал {telegram_id} не найден."
+        return f"Канал {telegram_id} удалён. Оркестратор остановит его в течение 5 минут."
+
+    @agent.tool
     async def get_sources(ctx: RunContext[AssistantDeps], channel_id: str) -> str:
         """List RSS sources for a channel. channel_id is required — ask the user which channel."""
         from sqlalchemy import select
@@ -174,9 +295,11 @@ def create_assistant_agent(model_name: str = "") -> Agent[AssistantDeps, str]:
 
         try:
             async with ctx.deps.session_maker() as session:
-                existing = await session.execute(select(ChannelSource).where(ChannelSource.url == url))
+                existing = await session.execute(
+                    select(ChannelSource).where(ChannelSource.channel_id == channel_id, ChannelSource.url == url)
+                )
                 if existing.scalar_one_or_none():
-                    return f"Source already exists: {url}"
+                    return f"Source already exists for {channel_id}: {url}"
 
                 source = ChannelSource(
                     channel_id=channel_id,
@@ -289,23 +412,36 @@ def create_assistant_agent(model_name: str = "") -> Agent[AssistantDeps, str]:
 
     @agent.tool
     async def set_schedule(ctx: RunContext[AssistantDeps], schedule: str, channel_id: str = "") -> str:
-        """Set posting schedule. Format: comma-separated HH:MM times in UTC, e.g. '09:00,15:00,21:00'."""
-        orch = ctx.deps.channel_orchestrator
-        if not orch:
-            return "Channel orchestrator is not running."
-
+        """Set posting schedule. Format: comma-separated HH:MM times in UTC, e.g. '09:00,15:00,21:00'. Persists to DB."""
         times = [t.strip() for t in schedule.split(",") if t.strip()]
         for t in times:
             if not _SCHEDULE_TIME_RE.match(t):
                 return f"Неверный формат времени: {t}. Используйте HH:MM (00:00-23:59)."
 
-        targets = orch.orchestrators
-        if channel_id:
-            targets = [o for o in targets if str(o.channel_id) == channel_id]
+        from app.agent.channel.channel_repo import get_active_channels, update_channel
 
-        for o in targets:
-            o.channel.posting_schedule = times
-        return f"Schedule updated to {times} for {len(targets)} channel(s)."
+        if channel_id:
+            ch = await update_channel(ctx.deps.session_maker, channel_id, posting_schedule=times)
+            if not ch:
+                return f"Канал {channel_id} не найден."
+            updated = 1
+        else:
+            channels = await get_active_channels(ctx.deps.session_maker)
+            updated = 0
+            for ch in channels:
+                await update_channel(ctx.deps.session_maker, ch.telegram_id, posting_schedule=times)
+                updated += 1
+
+        # Also update in-memory orchestrators if running
+        orch = ctx.deps.channel_orchestrator
+        if orch:
+            targets = orch.orchestrators
+            if channel_id:
+                targets = [o for o in targets if str(o.channel_id) == channel_id]
+            for o in targets:
+                o.channel.posting_schedule = times
+
+        return f"Расписание обновлено: {times} для {updated} канал(ов). Сохранено в БД."
 
     # ------------------------------------------------------------------
     # Moderation tools
