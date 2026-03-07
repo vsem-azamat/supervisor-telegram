@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+from datetime import UTC
 from typing import TYPE_CHECKING, Any
 
 from aiogram import F, Router
@@ -11,10 +12,14 @@ from app.agent.channel.review import (
     CB_APPROVE,
     CB_DELETE,
     CB_LONGER,
+    CB_PUBLISH_NOW,
     CB_REGEN,
     CB_REJECT,
+    CB_SCHEDULE,
+    CB_SCHEDULE_PICK,
     CB_SHORTER,
     CB_TRANSLATE,
+    build_schedule_picker_keyboard,
     handle_approve,
     handle_delete,
     handle_edit_request,
@@ -155,6 +160,130 @@ async def on_review_callback(callback: CallbackQuery) -> None:
         except Exception:
             logger.exception("delete_callback_error", post_id=post_id)
             await callback.answer("Delete failed", show_alert=True)
+
+    elif data.startswith(CB_SCHEDULE):
+        post_id = _extract_post_id(data, CB_SCHEDULE)
+        if not post_id:
+            await callback.answer("Invalid post ID")
+            return
+        try:
+            channel = await _get_channel_for_post(post_id, session_maker)
+            if not channel or not channel.publish_schedule:
+                await callback.answer("No publish schedule configured", show_alert=True)
+                return
+
+            from app.agent.channel.schedule_manager import get_occupied_slots, next_publish_slot
+
+            occupied = await get_occupied_slots(session_maker, channel.telegram_id)
+            slots = []
+            from app.core.time import utc_now
+
+            now = utc_now()
+            temp_occupied = list(occupied)
+            for _i in range(5):
+                try:
+                    slot = next_publish_slot(channel.publish_schedule, temp_occupied, now)
+                    slots.append(slot)
+                    temp_occupied.append(slot)
+                except ValueError:
+                    break
+
+            if not slots:
+                await callback.answer("No available slots found", show_alert=True)
+                return
+
+            keyboard = build_schedule_picker_keyboard(post_id, slots)
+            if callback.message:
+                await callback.message.edit_reply_markup(reply_markup=keyboard)
+            await callback.answer()
+        except Exception:
+            logger.exception("schedule_callback_error", post_id=post_id)
+            await callback.answer("Schedule failed", show_alert=True)
+
+    elif data.startswith(CB_SCHEDULE_PICK):
+        # Format: chpost:sp:{post_id}:{unix_timestamp}
+        raw = data[len(CB_SCHEDULE_PICK) :]
+        parts = raw.split(":")
+        if len(parts) != 2:
+            await callback.answer("Invalid schedule data")
+            return
+        try:
+            post_id = int(parts[0])
+            schedule_ts = int(parts[1])
+        except ValueError:
+            await callback.answer("Invalid schedule data")
+            return
+
+        from datetime import datetime
+
+        schedule_time = datetime.fromtimestamp(schedule_ts, tz=UTC).replace(tzinfo=None)
+
+        try:
+            channel = await _get_channel_for_post(post_id, session_maker)
+            if not channel:
+                await callback.answer("Channel not found", show_alert=True)
+                return
+
+            tc = container.get_telethon_client()
+            if not tc or not tc.is_available:
+                await callback.answer("Scheduling unavailable (Telethon not connected)", show_alert=True)
+                return
+
+            from app.agent.channel.schedule_manager import schedule_post
+
+            result = await schedule_post(tc, session_maker, post_id, channel, schedule_time)
+            await callback.answer(result, show_alert=True)
+
+            if "Scheduled" in result and callback.message:
+                with contextlib.suppress(Exception):
+                    await callback.message.edit_reply_markup(reply_markup=None)
+        except Exception:
+            logger.exception("schedule_pick_error", post_id=post_id)
+            await callback.answer("Scheduling failed", show_alert=True)
+
+    elif data.startswith(CB_PUBLISH_NOW):
+        post_id = _extract_post_id(data, CB_PUBLISH_NOW)
+        if not post_id:
+            await callback.answer("Invalid post ID")
+            return
+        try:
+            channel = await _get_channel_for_post(post_id, session_maker)
+            if not channel:
+                await callback.answer("Channel not found", show_alert=True)
+                return
+
+            # If post is currently scheduled, cancel the schedule first
+            from sqlalchemy import select
+
+            from app.infrastructure.db.models import ChannelPost
+
+            async with session_maker() as session:
+                r = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))
+                post = r.scalar_one_or_none()
+
+            from app.domain.value_objects import PostStatus
+
+            if post and post.status == PostStatus.SCHEDULED:
+                tc = container.get_telethon_client()
+                if tc and tc.is_available:
+                    from app.agent.channel.schedule_manager import cancel_scheduled_post
+
+                    await cancel_scheduled_post(tc, session_maker, post_id, channel)
+
+            result = await handle_approve(bot, post_id, channel.telegram_id, session_maker)
+            await callback.answer(result, show_alert=True)
+
+            if "Published" in result:
+                from app.agent.channel.review_agent import clear_review_conversation
+
+                clear_review_conversation(post_id)
+
+            if callback.message and "Published" in result:
+                with contextlib.suppress(Exception):
+                    await callback.message.edit_reply_markup(reply_markup=None)
+        except Exception:
+            logger.exception("publish_now_error", post_id=post_id)
+            await callback.answer("Publish failed", show_alert=True)
 
     elif data.startswith(CB_REGEN):
         post_id = _extract_post_id(data, CB_REGEN)

@@ -489,6 +489,187 @@ class TelethonClient:
             date=msg.date,
         )
 
+    async def send_scheduled_message(
+        self,
+        chat_id: int,
+        text: str,
+        schedule_date: Any,
+        *,
+        parse_mode: str = "html",
+    ) -> MessageInfo | None:
+        """Send a message scheduled for future delivery via Client API.
+
+        Returns MessageInfo with the scheduled message ID, or None.
+        """
+        if not self.is_available or self._client is None:
+            return None
+
+        async def _fetch() -> Message:
+            assert self._client is not None  # noqa: S101
+            return await self._client.send_message(
+                chat_id,
+                text,
+                parse_mode=parse_mode,
+                schedule=schedule_date,
+            )
+
+        logger.info("Sending scheduled message", chat_id=chat_id, schedule=str(schedule_date))
+        msg: Message = await self._execute_with_flood_wait(_fetch)
+        return MessageInfo(
+            message_id=msg.id,
+            chat_id=chat_id,
+            sender_id=msg.sender_id,
+            text=msg.text,
+            date=msg.date,
+        )
+
+    async def send_scheduled_photo(
+        self,
+        chat_id: int,
+        photo: str,
+        caption: str,
+        schedule_date: Any,
+        *,
+        parse_mode: str = "html",
+    ) -> MessageInfo | None:
+        """Send a photo scheduled for future delivery."""
+        if not self.is_available or self._client is None:
+            return None
+
+        async def _fetch() -> Message:
+            assert self._client is not None  # noqa: S101
+            return await self._client.send_file(
+                chat_id,
+                photo,
+                caption=caption,
+                parse_mode=parse_mode,
+                schedule=schedule_date,
+            )
+
+        logger.info("Sending scheduled photo", chat_id=chat_id, schedule=str(schedule_date))
+        msg: Message = await self._execute_with_flood_wait(_fetch)
+        return MessageInfo(
+            message_id=msg.id,
+            chat_id=chat_id,
+            sender_id=msg.sender_id,
+            text=msg.text,
+            date=msg.date,
+        )
+
+    async def edit_scheduled_message(
+        self,
+        chat_id: int,
+        message_id: int,
+        text: str,
+    ) -> bool:
+        """Edit a scheduled (not yet delivered) message."""
+        if not self.is_available or self._client is None:
+            return False
+
+        async def _fetch() -> Any:
+            assert self._client is not None  # noqa: S101
+            entity = await self._client.get_input_entity(chat_id)
+            from telethon.tl.functions.messages import EditMessageRequest
+
+            return await self._client(
+                EditMessageRequest(
+                    peer=entity,
+                    id=message_id,
+                    message=text,
+                    schedule_date=None,  # keep existing schedule
+                )
+            )
+
+        try:
+            await self._execute_with_flood_wait(_fetch)
+            return True
+        except Exception:
+            logger.error("Failed to edit scheduled message", chat_id=chat_id, message_id=message_id, exc_info=True)
+            return False
+
+    async def delete_scheduled_messages(
+        self,
+        chat_id: int,
+        message_ids: list[int],
+    ) -> bool:
+        """Delete scheduled messages before they are delivered."""
+        if not self.is_available or self._client is None:
+            return False
+
+        from telethon.tl.functions.messages import DeleteScheduledMessagesRequest
+
+        async def _fetch() -> Any:
+            assert self._client is not None  # noqa: S101
+            entity = await self._client.get_input_entity(chat_id)
+            return await self._client(
+                DeleteScheduledMessagesRequest(
+                    peer=entity,
+                    id=message_ids,
+                )
+            )
+
+        try:
+            await self._execute_with_flood_wait(_fetch)
+            return True
+        except Exception:
+            logger.error("Failed to delete scheduled messages", chat_id=chat_id, ids=message_ids, exc_info=True)
+            return False
+
+    async def get_scheduled_messages(
+        self,
+        chat_id: int,
+    ) -> list[MessageInfo]:
+        """List all currently scheduled messages for a chat."""
+        if not self.is_available or self._client is None:
+            return []
+
+        from telethon.tl.functions.messages import GetScheduledHistoryRequest
+
+        async def _fetch() -> Any:
+            assert self._client is not None  # noqa: S101
+            entity = await self._client.get_input_entity(chat_id)
+            return await self._client(GetScheduledHistoryRequest(peer=entity, hash=0))
+
+        result = await self._execute_with_flood_wait(_fetch)
+        return [
+            MessageInfo(
+                message_id=msg.id,
+                chat_id=chat_id,
+                sender_id=getattr(msg, "from_id", None) and getattr(msg.from_id, "user_id", None),
+                text=msg.message,
+                date=msg.date,
+            )
+            for msg in result.messages
+        ]
+
+    async def send_scheduled_messages_now(
+        self,
+        chat_id: int,
+        message_ids: list[int],
+    ) -> bool:
+        """Force-send scheduled messages immediately."""
+        if not self.is_available or self._client is None:
+            return False
+
+        from telethon.tl.functions.messages import SendScheduledMessagesRequest
+
+        async def _fetch() -> Any:
+            assert self._client is not None  # noqa: S101
+            entity = await self._client.get_input_entity(chat_id)
+            return await self._client(
+                SendScheduledMessagesRequest(
+                    peer=entity,
+                    id=message_ids,
+                )
+            )
+
+        try:
+            await self._execute_with_flood_wait(_fetch)
+            return True
+        except Exception:
+            logger.error("Failed to send scheduled messages now", chat_id=chat_id, ids=message_ids, exc_info=True)
+            return False
+
     async def forward_messages(
         self,
         from_chat: int,

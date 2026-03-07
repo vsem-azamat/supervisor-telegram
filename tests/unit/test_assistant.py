@@ -181,7 +181,7 @@ class TestCreateAssistantAgent:
 
         agent = create_assistant_agent()
         tool_count = len(agent._function_toolset.tools)
-        assert tool_count == 33, f"Expected 33 tools, got {tool_count}: {list(agent._function_toolset.tools.keys())}"
+        assert tool_count == 38, f"Expected 38 tools, got {tool_count}: {list(agent._function_toolset.tools.keys())}"
 
 
 # ---------------------------------------------------------------------------

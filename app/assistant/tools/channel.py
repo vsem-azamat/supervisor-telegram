@@ -49,11 +49,12 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
         for ch in channels:
             status = "ON" if ch.enabled else "OFF"
             schedule = ", ".join(ch.posting_schedule) if ch.posting_schedule else "interval"
+            pub_schedule = ", ".join(ch.publish_schedule) if ch.publish_schedule else "immediate"
             username_str = f"@{ch.username}" if ch.username else "no username"
             lines.append(
                 f"- [{status}] {ch.telegram_id} ({username_str}) — {ch.name} ({ch.language})\n"
                 f"  review: {ch.review_chat_id or 'нет'}, max: {ch.max_posts_per_day}/day, "
-                f"schedule: {schedule}, today: {ch.daily_posts_count}\n"
+                f"schedule: {schedule}, publish: {pub_schedule}, today: {ch.daily_posts_count}\n"
                 f"  footer: {ch.footer}"
             )
             if ch.description:
@@ -104,7 +105,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
         telegram_id: str,
         fields_json: str,
     ) -> str:
-        """Update channel fields. fields_json is a JSON object with keys to update, e.g. '{"footer_template": "——\\n🔗 **Name** | @channel"}'. Valid keys: name, description, language, review_chat_id, max_posts_per_day, posting_schedule, discovery_query, source_discovery_query, enabled, username, footer_template. Use footer_template to set custom post footer."""
+        """Update channel fields. fields_json is a JSON object with keys to update, e.g. '{"footer_template": "——\\n🔗 **Name** | @channel"}'. Valid keys: name, description, language, review_chat_id, max_posts_per_day, posting_schedule, publish_schedule, discovery_query, source_discovery_query, enabled, username, footer_template. Use footer_template for custom footer, publish_schedule for auto-scheduling (list of HH:MM UTC)."""
         import json
 
         from app.agent.channel.channel_repo import update_channel
@@ -124,6 +125,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
             "review_chat_id": int,
             "max_posts_per_day": int,
             "posting_schedule": list,
+            "publish_schedule": list,
             "discovery_query": str,
             "source_discovery_query": str,
             "enabled": bool,
@@ -443,6 +445,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
                     embedding_model=settings.channel.embedding_model,
                     channel_name=channel.name,
                     channel_username=channel.username,
+                    has_publish_schedule=bool(channel.publish_schedule),
                 )
             except Exception:
                 logger.exception("generate_and_review_send_failed", channel_id=channel_id)
@@ -466,3 +469,169 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
 
         preview = post.text[:300] + ("..." if len(post.text) > 300 else "")
         return f"Пост опубликован (нет review_chat_id). msg_id={msg_id}\n\nПревью:\n{preview}"
+
+    @agent.tool
+    async def list_scheduled(ctx: RunContext[AssistantDeps], channel_id: str = "") -> str:
+        """List all currently scheduled (not yet published) posts. Leave channel_id empty for all channels."""
+        from sqlalchemy import select
+
+        from app.infrastructure.db.models import ChannelPost
+
+        query = select(ChannelPost).where(ChannelPost.status == "scheduled").order_by(ChannelPost.scheduled_at)
+        if channel_id:
+            query = query.where(ChannelPost.channel_id == channel_id)
+
+        async with ctx.deps.session_maker() as session:
+            result = await session.execute(query)
+            posts = result.scalars().all()
+
+        if not posts:
+            return "Нет запланированных постов."
+
+        lines = [f"Scheduled posts ({len(posts)}):\n"]
+        for p in posts:
+            time_str = p.scheduled_at.strftime("%d %b %H:%M UTC") if p.scheduled_at else "?"
+            lines.append(f"- #{p.id} [{p.channel_id}] {time_str}: {p.title[:50]}")
+        return "\n".join(lines)
+
+    @agent.tool
+    async def schedule_post_tool(
+        ctx: RunContext[AssistantDeps],
+        post_id: int,
+        time: str = "",
+    ) -> str:
+        """Schedule a draft post for future delivery. time format: 'YYYY-MM-DD HH:MM' UTC, or empty for next available slot. IMPORTANT: Ask for confirmation first."""
+        from datetime import datetime as dt
+
+        from sqlalchemy import select
+
+        from app.infrastructure.db.models import Channel, ChannelPost
+
+        tc = ctx.deps.telethon
+        if not tc or not tc.is_available:
+            return "Telethon client not available for scheduling."
+
+        async with ctx.deps.session_maker() as session:
+            result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))
+            post = result.scalar_one_or_none()
+
+        if not post:
+            return "Post not found."
+
+        async with ctx.deps.session_maker() as session:
+            ch_result = await session.execute(select(Channel).where(Channel.telegram_id == post.channel_id))
+            channel = ch_result.scalar_one_or_none()
+
+        if not channel:
+            return f"Channel {post.channel_id} not found."
+
+        if time:
+            try:
+                publish_time = dt.strptime(time, "%Y-%m-%d %H:%M")
+            except ValueError:
+                return "Invalid time format. Use 'YYYY-MM-DD HH:MM' UTC."
+        elif channel.publish_schedule:
+            from app.agent.channel.schedule_manager import get_occupied_slots, next_publish_slot
+
+            occupied = await get_occupied_slots(ctx.deps.session_maker, channel.telegram_id)
+            try:
+                publish_time = next_publish_slot(channel.publish_schedule, occupied)
+            except ValueError:
+                return "No available publish slots."
+        else:
+            return "No time specified and no publish_schedule configured for this channel."
+
+        from app.agent.channel.schedule_manager import schedule_post
+
+        return await schedule_post(tc, ctx.deps.session_maker, post_id, channel, publish_time)
+
+    @agent.tool
+    async def reschedule_post_tool(
+        ctx: RunContext[AssistantDeps],
+        post_id: int,
+        new_time: str,
+    ) -> str:
+        """Reschedule an already-scheduled post. Format: 'YYYY-MM-DD HH:MM' UTC."""
+        from datetime import datetime as dt
+
+        from sqlalchemy import select
+
+        from app.infrastructure.db.models import Channel, ChannelPost
+
+        tc = ctx.deps.telethon
+        if not tc or not tc.is_available:
+            return "Telethon client not available."
+
+        try:
+            publish_time = dt.strptime(new_time, "%Y-%m-%d %H:%M")
+        except ValueError:
+            return "Invalid time format. Use 'YYYY-MM-DD HH:MM' UTC."
+
+        async with ctx.deps.session_maker() as session:
+            result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))
+            post = result.scalar_one_or_none()
+
+        if not post:
+            return "Post not found."
+
+        async with ctx.deps.session_maker() as session:
+            ch_result = await session.execute(select(Channel).where(Channel.telegram_id == post.channel_id))
+            channel = ch_result.scalar_one_or_none()
+
+        if not channel:
+            return f"Channel {post.channel_id} not found."
+
+        from app.agent.channel.schedule_manager import reschedule_post
+
+        return await reschedule_post(tc, ctx.deps.session_maker, post_id, channel, publish_time)
+
+    @agent.tool
+    async def cancel_scheduled_post_tool(ctx: RunContext[AssistantDeps], post_id: int) -> str:
+        """Cancel a scheduled post — removes from Telegram queue, reverts to draft."""
+        from sqlalchemy import select
+
+        from app.infrastructure.db.models import Channel, ChannelPost
+
+        tc = ctx.deps.telethon
+        if not tc or not tc.is_available:
+            return "Telethon client not available."
+
+        async with ctx.deps.session_maker() as session:
+            result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))
+            post = result.scalar_one_or_none()
+
+        if not post:
+            return "Post not found."
+
+        async with ctx.deps.session_maker() as session:
+            ch_result = await session.execute(select(Channel).where(Channel.telegram_id == post.channel_id))
+            channel = ch_result.scalar_one_or_none()
+
+        if not channel:
+            return f"Channel {post.channel_id} not found."
+
+        from app.agent.channel.schedule_manager import cancel_scheduled_post
+
+        return await cancel_scheduled_post(tc, ctx.deps.session_maker, post_id, channel)
+
+    @agent.tool
+    async def set_publish_schedule(
+        ctx: RunContext[AssistantDeps],
+        channel_id: str,
+        schedule: str,
+    ) -> str:
+        """Set when approved posts go live. Format: comma-separated HH:MM UTC, e.g. '09:00,13:00,18:00'. Empty string disables scheduling (posts publish immediately on approve)."""
+        from app.agent.channel.channel_repo import update_channel
+
+        times = [t.strip() for t in schedule.split(",") if t.strip()] if schedule else []
+        for t in times:
+            if not _SCHEDULE_TIME_RE.match(t):
+                return f"Invalid time format: {t}. Use HH:MM (00:00-23:59)."
+
+        ch = await update_channel(ctx.deps.session_maker, channel_id, publish_schedule=times or None)
+        if not ch:
+            return f"Channel {channel_id} not found."
+
+        if times:
+            return f"Publish schedule set: {times} for {channel_id}. Approved posts will be scheduled."
+        return f"Publish schedule cleared for {channel_id}. Posts will publish immediately on approve."

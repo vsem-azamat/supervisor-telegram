@@ -8,6 +8,7 @@ class PostStatus(StrEnum):
     """Status of a channel post in the review pipeline."""
 
     DRAFT = "draft"
+    SCHEDULED = "scheduled"
     APPROVED = "approved"
     REJECTED = "rejected"
 

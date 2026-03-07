@@ -31,6 +31,9 @@ CB_REGEN = "chpost:regen:"
 CB_SHORTER = "chpost:shorter:"
 CB_LONGER = "chpost:longer:"
 CB_DELETE = "chpost:delete:"
+CB_SCHEDULE = "chpost:sched:"
+CB_SCHEDULE_PICK = "chpost:sp:"
+CB_PUBLISH_NOW = "chpost:pubnow:"
 CB_TRANSLATE = "chpost:translate:"
 
 
@@ -39,15 +42,22 @@ def _build_review_keyboard(
     source_items: list[dict[str, str]] | None = None,
     channel_name: str = "",
     channel_username: str | None = None,
+    has_publish_schedule: bool = False,
 ) -> InlineKeyboardMarkup:
     """Build inline keyboard for post review."""
-    rows: list[list[InlineKeyboardButton]] = [
-        # Row 1: main actions
+    main_row = [
+        InlineKeyboardButton(text="✅ Approve", callback_data=f"{CB_APPROVE}{post_id}"),
+    ]
+    if has_publish_schedule:
+        main_row.append(InlineKeyboardButton(text="⏰ Schedule", callback_data=f"{CB_SCHEDULE}{post_id}"))
+    main_row.extend(
         [
-            InlineKeyboardButton(text="✅ Approve", callback_data=f"{CB_APPROVE}{post_id}"),
             InlineKeyboardButton(text="❌ Reject", callback_data=f"{CB_REJECT}{post_id}"),
             InlineKeyboardButton(text="🗑 Delete", callback_data=f"{CB_DELETE}{post_id}"),
-        ],
+        ]
+    )
+    rows: list[list[InlineKeyboardButton]] = [
+        main_row,
         # Row 2: edit actions
         [
             InlineKeyboardButton(text="✂️ Shorter", callback_data=f"{CB_SHORTER}{post_id}"),
@@ -87,6 +97,33 @@ def _build_review_keyboard(
         if source_buttons:
             rows.append(source_buttons)
 
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def build_schedule_picker_keyboard(
+    post_id: int,
+    available_slots: list[Any],
+) -> InlineKeyboardMarkup:
+    """Build time picker for scheduling. Shows next 5 available slots."""
+    rows: list[list[InlineKeyboardButton]] = []
+    for slot in available_slots[:5]:
+        label = slot.strftime("%d %b %H:%M UTC")
+        ts = int(slot.timestamp())
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=f"📅 {label}",
+                    callback_data=f"{CB_SCHEDULE_PICK}{post_id}:{ts}",
+                ),
+            ]
+        )
+    # Add "Publish now" and "Back" buttons
+    rows.append(
+        [
+            InlineKeyboardButton(text="🚀 Publish now", callback_data=f"{CB_PUBLISH_NOW}{post_id}"),
+            InlineKeyboardButton(text="⬅️ Back", callback_data=f"chpost:noop:{post_id}"),
+        ]
+    )
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -184,6 +221,7 @@ async def send_for_review(
     embedding_model: str = "",
     channel_name: str = "",
     channel_username: str | None = None,
+    has_publish_schedule: bool = False,
 ) -> int | None:
     """Send a generated post to the review channel with inline buttons.
 
@@ -229,6 +267,7 @@ async def send_for_review(
             source_items=source_btn_data,
             channel_name=channel_name,
             channel_username=channel_username,
+            has_publish_schedule=has_publish_schedule,
         )
 
         try:
@@ -293,7 +332,7 @@ async def handle_approve(
     channel_id: int | str,
     session_maker: async_sessionmaker[AsyncSession],
 ) -> str:
-    """Approve and publish a post. Returns status message."""
+    """Approve and publish a post immediately. Returns status message."""
     from sqlalchemy import select
 
     from app.agent.channel.source_manager import update_source_relevance
@@ -305,6 +344,8 @@ async def handle_approve(
             return "Post not found."
         if post.status == PostStatus.APPROVED:
             return "Already published."
+        if post.status == PostStatus.SCHEDULED:
+            return "Post is scheduled. Use 'Publish now' to send immediately."
 
         source_urls = await _extract_source_urls(post)
 
@@ -497,6 +538,26 @@ async def handle_edit_request(
                     )
                 except Exception:
                     logger.exception("review_update_error")
+
+            # If post is scheduled, update the Telegram scheduled message too
+            if post.status == PostStatus.SCHEDULED and post.scheduled_telegram_id:
+                try:
+                    from sqlalchemy import select as sa_select
+
+                    from app.agent.channel.schedule_manager import update_scheduled_text
+                    from app.core.container import container
+                    from app.infrastructure.db.models import Channel
+
+                    tc = container.get_telethon_client()
+                    if tc:
+                        ch_result = await session.execute(
+                            sa_select(Channel).where(Channel.telegram_id == post.channel_id)
+                        )
+                        ch = ch_result.scalar_one_or_none()
+                        if ch:
+                            await update_scheduled_text(tc, ch, post)
+                except Exception:
+                    logger.warning("scheduled_message_update_failed", post_id=post_id, exc_info=True)
 
             await session.commit()
             logger.info("post_edited", post_id=post_id, instruction=instruction[:60])

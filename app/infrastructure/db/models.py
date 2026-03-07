@@ -263,6 +263,7 @@ class Channel(Base):
     review_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     max_posts_per_day: Mapped[int] = mapped_column(Integer, default=3)
     posting_schedule: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    publish_schedule: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     discovery_query: Mapped[str] = mapped_column(String, default="")
     source_discovery_query: Mapped[str] = mapped_column(String, default="")
     daily_posts_count: Mapped[int] = mapped_column(Integer, default=0)
@@ -410,6 +411,9 @@ class ChannelPost(Base):
     image_urls: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     status: Mapped[str] = mapped_column(String(16), default=PostStatus.DRAFT)
     admin_feedback: Mapped[str | None] = mapped_column(String, nullable=True)
+    scheduled_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    scheduled_telegram_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    published_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     embedding: Mapped[Any | None] = mapped_column(Vector(768), nullable=True)
     embedding_model: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
@@ -449,6 +453,28 @@ class ChannelPost(Base):
     def approve(self, message_id: int) -> None:
         self.status = PostStatus.APPROVED
         self.telegram_message_id = message_id
+        self.published_at = utc_now()
+
+    def schedule(self, scheduled_at: datetime.datetime, telegram_scheduled_id: int) -> None:
+        self.status = PostStatus.SCHEDULED
+        self.scheduled_at = scheduled_at
+        self.scheduled_telegram_id = telegram_scheduled_id
+
+    def confirm_published(self, message_id: int) -> None:
+        """Transition from SCHEDULED to APPROVED once Telegram delivers the message."""
+        self.status = PostStatus.APPROVED
+        self.telegram_message_id = message_id
+        self.published_at = utc_now()
+
+    def reschedule(self, new_time: datetime.datetime, new_telegram_id: int) -> None:
+        self.scheduled_at = new_time
+        self.scheduled_telegram_id = new_telegram_id
+
+    def unschedule(self) -> None:
+        """Revert a scheduled post back to draft."""
+        self.status = PostStatus.DRAFT
+        self.scheduled_at = None
+        self.scheduled_telegram_id = None
 
     def reject(self, feedback: str | None = None) -> None:
         self.status = PostStatus.REJECTED
