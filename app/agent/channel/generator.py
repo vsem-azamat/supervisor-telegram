@@ -128,10 +128,75 @@ async def screen_items(
     model: str,
     threshold: int = 5,
 ) -> list[ContentItem]:
-    """Screen items for relevance, return only relevant ones."""
+    """Screen items for relevance using a single batched LLM call.
+
+    Sends all items in one request as a JSON array, asking the LLM to return
+    scores for each. Falls back to per-item screening on parse failure.
+    """
     if not items:
         return []
 
+    from app.agent.channel.exceptions import ScreeningError
+    from app.agent.channel.llm_client import openrouter_chat_completion
+
+    sanitized = [_sanitize_content(item.summary) for item in items]
+
+    # Build a numbered list for the LLM
+    numbered = "\n".join(f"{i}: <content_item>{s}</content_item>" for i, s in enumerate(sanitized))
+    prompt = (
+        f"Rate each content item's relevance (0-10) for CIS students in Czech Republic.\n"
+        f'Return ONLY a JSON object mapping index to score, e.g. {{"0": 7, "1": 3, "2": 9}}\n\n'
+        f"{numbered}"
+    )
+
+    try:
+        content = await openrouter_chat_completion(
+            api_key=api_key,
+            model=model,
+            messages=[
+                {"role": "system", "content": SCREENING_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+            operation="screening_batch",
+            temperature=0.1,
+        )
+        if not content:
+            raise ScreeningError("Empty screening response")
+
+        import json
+
+        scores: dict[str, int] = json.loads(content)
+
+        relevant: list[ContentItem] = []
+        for i, item in enumerate(items):
+            raw = scores.get(str(i), 0)
+            score = min(max(int(raw), 0), 10)
+            if score >= threshold:
+                relevant.append(item)
+                logger.info("item_relevant", title=item.title[:60], score=score)
+            else:
+                logger.debug("item_irrelevant", title=item.title[:60], score=score)
+
+        logger.info("batch_screening_done", total=len(items), relevant=len(relevant))
+        return relevant
+
+    except (ScreeningError, Exception) as exc:
+        # Fall back to per-item screening if batch fails
+        if not isinstance(exc, ScreeningError):
+            logger.warning("batch_screening_failed_fallback", error=str(exc))
+        else:
+            logger.warning("batch_screening_parse_failed_fallback")
+
+        return await _screen_items_sequential(items, api_key, model, threshold)
+
+
+async def _screen_items_sequential(
+    items: list[ContentItem],
+    api_key: str,
+    model: str,
+    threshold: int,
+) -> list[ContentItem]:
+    """Fallback: screen items one by one (original per-item approach)."""
     agent = _create_screening_agent(api_key, model)
     relevant: list[ContentItem] = []
 
@@ -143,13 +208,11 @@ async def screen_items(
             if usage:
                 await log_usage(usage)
             score_text = result.output.strip()
-            # Parse score: try direct int first, then extract first number
             try:
                 score = int(score_text)
             except ValueError:
                 m = re.search(r"\b(\d{1,2})\b", score_text)
                 score = int(m.group(1)) if m else 0
-            # Clamp to valid range 0-10
             score = min(max(score, 0), 10)
             if score >= threshold:
                 relevant.append(item)
@@ -185,6 +248,8 @@ async def generate_post(
 
     if feedback_context:
         prompt += f"\n\n---\nAdmin preferences (use to guide your writing):\n{feedback_context}"
+
+    from app.agent.channel.exceptions import GenerationError
 
     try:
         result = await agent.run(prompt)
@@ -256,6 +321,7 @@ async def generate_post(
 
         logger.info("post_generated", length=len(post.text), images=len(image_urls))
         return post
-    except Exception:
-        logger.exception("generation_error")
-        return None
+    except GenerationError:
+        raise
+    except Exception as exc:
+        raise GenerationError("Post generation failed") from exc

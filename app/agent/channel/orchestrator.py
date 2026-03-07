@@ -287,6 +287,9 @@ class ChannelOrchestrator:
 
     async def _refresh_loop(self) -> None:
         """Periodically refresh active channels from DB and manage sub-orchestrators."""
+        # On first run, recover orphaned reviews from DB
+        await self._recover_orphaned_reviews()
+
         while True:
             try:
                 await self._refresh_channels()
@@ -325,6 +328,47 @@ class ChannelOrchestrator:
                 self._orchestrators[ch.telegram_id] = orch
                 orch.start()
                 logger.info("channel_added", channel_id=ch.telegram_id, name=ch.name)
+
+    async def _recover_orphaned_reviews(self) -> None:
+        """Scan DB for draft posts with review_message_id and load into pending reviews.
+
+        This handles the case where the bot restarted while reviews were pending.
+        """
+        from sqlalchemy import select
+
+        from app.infrastructure.db.models import ChannelPost
+
+        try:
+            async with self.session_maker() as session:
+                result = await session.execute(
+                    select(ChannelPost).where(
+                        ChannelPost.status == "draft",
+                        ChannelPost.review_message_id.isnot(None),
+                    )
+                )
+                orphans = list(result.scalars().all())
+
+            if not orphans:
+                return
+
+            # Ensure orchestrators are loaded so we can attach reviews
+            await self._refresh_channels()
+
+            recovered = 0
+            for post in orphans:
+                orch = self._orchestrators.get(post.channel_id)
+                if orch and post.id not in orch._pending_reviews:
+                    orch._pending_reviews[post.id] = {
+                        "channel_id": post.channel_id,
+                        "post_id": post.id,
+                        "review_decision": None,
+                    }
+                    recovered += 1
+
+            if recovered:
+                logger.info("orphaned_reviews_recovered", count=recovered, total_orphans=len(orphans))
+        except Exception:
+            logger.exception("orphaned_review_recovery_failed")
 
     async def stop(self) -> None:
         """Stop all sub-orchestrators."""

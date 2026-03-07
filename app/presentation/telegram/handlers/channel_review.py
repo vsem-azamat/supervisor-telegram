@@ -49,11 +49,9 @@ def _is_super_admin(user_id: int) -> bool:
 
 def _get_global_config() -> tuple[str, str]:
     """Get global settings: (generation_model, api_key)."""
-    from app.agent.channel.config import ChannelAgentSettings
     from app.core.config import settings
 
-    channel_settings = ChannelAgentSettings()
-    return channel_settings.generation_model, settings.agent.openrouter_api_key
+    return settings.channel.generation_model, settings.agent.openrouter_api_key
 
 
 async def _get_channel_for_post(post_id: int, session_maker: Any) -> Channel | None:

@@ -130,9 +130,7 @@ def _init_channel_orchestrator(
 ) -> ChannelOrchestrator | None:
     """Initialize the channel content orchestrator if enabled."""
     try:
-        from app.agent.channel.config import ChannelAgentSettings
-
-        config = ChannelAgentSettings()
+        config = settings.channel
         if config.enabled:
             from app.agent.channel.orchestrator import ChannelOrchestrator
 

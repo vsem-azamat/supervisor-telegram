@@ -1,9 +1,14 @@
 """Application configuration using Pydantic settings."""
 
-from typing import Any, Self
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Self
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+if TYPE_CHECKING:
+    from app.agent.channel.config import ChannelAgentSettings
 
 
 class DatabaseSettings(BaseSettings):
@@ -190,6 +195,15 @@ class AppSettings(BaseSettings):
     webapp: WebAppSettings = Field(default_factory=WebAppSettings)
     agent: AgentSettings = Field(default_factory=AgentSettings)
     telethon: TelethonSettings = Field(default_factory=TelethonSettings)
+
+    @property
+    def channel(self) -> ChannelAgentSettings:
+        """Lazily load and cache ChannelAgentSettings singleton."""
+        if not hasattr(self, "_channel_settings"):
+            from app.agent.channel.config import ChannelAgentSettings
+
+            object.__setattr__(self, "_channel_settings", ChannelAgentSettings())
+        return self._channel_settings  # type: ignore[attr-defined]
 
     model_config = SettingsConfigDict(
         env_file=".env",

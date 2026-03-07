@@ -15,6 +15,13 @@ from typing import TYPE_CHECKING, Any
 from burr.core import ApplicationBuilder, GraphBuilder, Result, State, action, default
 from burr.core.action import Condition
 
+from app.agent.channel.exceptions import (
+    ChannelPipelineError,
+    GenerationError,
+    PublishError,
+    ScreeningError,
+    SourceFetchError,
+)
 from app.core.config import settings
 from app.core.logging import get_logger
 
@@ -135,6 +142,12 @@ async def fetch_sources(state: State) -> State:
         logger.info("workflow_fetch_done", count=len(all_items), channel_id=channel_id)
         return state.update(content_items=all_items, error=None)
 
+    except SourceFetchError as exc:
+        logger.warning("workflow_fetch_source_error", channel_id=channel_id, error=str(exc))
+        return state.update(content_items=[], error=str(exc))
+    except ChannelPipelineError as exc:
+        logger.warning("workflow_fetch_pipeline_error", channel_id=channel_id, error=str(exc))
+        return state.update(content_items=[], error=str(exc))
     except Exception as exc:
         logger.exception("workflow_fetch_error", channel_id=channel_id)
         return state.update(content_items=[], error=str(exc))
@@ -158,6 +171,9 @@ async def screen_content(state: State) -> State:
         )
         logger.info("workflow_screen_done", relevant=len(relevant), total=len(items))
         return state.update(relevant_items=relevant, error=None)
+    except ScreeningError as exc:
+        logger.warning("workflow_screen_error", error=str(exc))
+        return state.update(relevant_items=[], error=str(exc))
     except Exception as exc:
         logger.exception("workflow_screen_error")
         return state.update(relevant_items=[], error=str(exc))
@@ -220,6 +236,9 @@ async def generate_post(state: State) -> State:
         logger.info("workflow_generate_done", length=len(post.text), images=len(post.image_urls))
         return state.update(generated_post=post_dict, error=None)
 
+    except GenerationError as exc:
+        logger.warning("workflow_generate_error", error=str(exc))
+        return state.update(generated_post=None, error=str(exc))
     except Exception as exc:
         logger.exception("workflow_generate_error")
         return state.update(generated_post=None, error=str(exc))
@@ -318,6 +337,9 @@ async def publish_post(state: State) -> State:
         )
         logger.info("workflow_published", post_id=post_id, result=result)
         return state.update(result_message=result, error=None)
+    except PublishError as exc:
+        logger.warning("workflow_publish_error", post_id=post_id, error=str(exc))
+        return state.update(result_message="publish_failed", error=str(exc))
     except Exception as exc:
         logger.exception("workflow_publish_error", post_id=post_id)
         return state.update(result_message="publish_failed", error=str(exc))
