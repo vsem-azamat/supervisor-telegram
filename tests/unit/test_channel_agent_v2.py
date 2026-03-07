@@ -311,6 +311,7 @@ class TestReviewFlow:
         assert len(kb.inline_keyboard[1]) == 3  # Shorter, Longer, Regen
         assert kb.inline_keyboard[0][0].callback_data == "chpost:approve:42"
         assert kb.inline_keyboard[0][1].callback_data == "chpost:reject:42"
+        assert kb.inline_keyboard[0][2].callback_data == "chpost:delete:42"
 
     async def test_build_review_keyboard_with_channel_and_sources(self) -> None:
         from app.agent.channel.review import _build_review_keyboard

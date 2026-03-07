@@ -9,12 +9,14 @@ from aiogram import F, Router
 
 from app.agent.channel.review import (
     CB_APPROVE,
+    CB_DELETE,
     CB_LONGER,
     CB_REGEN,
     CB_REJECT,
     CB_SHORTER,
     CB_TRANSLATE,
     handle_approve,
+    handle_delete,
     handle_edit_request,
     handle_regen,
     handle_reject,
@@ -134,6 +136,25 @@ async def on_review_callback(callback: CallbackQuery) -> None:
         if callback.message:
             with contextlib.suppress(Exception):
                 await callback.message.edit_reply_markup(reply_markup=None)
+
+    elif data.startswith(CB_DELETE):
+        post_id = _extract_post_id(data, CB_DELETE)
+        if not post_id:
+            await callback.answer("Invalid post ID")
+            return
+        try:
+            review_message_id = callback.message.message_id if callback.message else None
+            result = await handle_delete(bot, post_id, chat_id, review_message_id, session_maker)
+            if "deleted" not in result.lower():
+                await callback.answer(result, show_alert=True)
+            else:
+                from app.agent.channel.review_agent import clear_review_conversation
+
+                clear_review_conversation(post_id)
+                # Message already deleted by handle_delete, no need to answer
+        except Exception:
+            logger.exception("delete_callback_error", post_id=post_id)
+            await callback.answer("Delete failed", show_alert=True)
 
     elif data.startswith(CB_REGEN):
         post_id = _extract_post_id(data, CB_REGEN)

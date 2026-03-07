@@ -30,6 +30,7 @@ CB_REJECT = "chpost:reject:"
 CB_REGEN = "chpost:regen:"
 CB_SHORTER = "chpost:shorter:"
 CB_LONGER = "chpost:longer:"
+CB_DELETE = "chpost:delete:"
 CB_TRANSLATE = "chpost:translate:"
 
 
@@ -45,7 +46,7 @@ def _build_review_keyboard(
         [
             InlineKeyboardButton(text="✅ Approve", callback_data=f"{CB_APPROVE}{post_id}"),
             InlineKeyboardButton(text="❌ Reject", callback_data=f"{CB_REJECT}{post_id}"),
-            InlineKeyboardButton(text="🗑 Delete", callback_data=f"{CB_REJECT}{post_id}"),
+            InlineKeyboardButton(text="🗑 Delete", callback_data=f"{CB_DELETE}{post_id}"),
         ],
         # Row 2: edit actions
         [
@@ -363,6 +364,38 @@ async def handle_reject(
             await update_source_relevance(session_maker, source_urls, approved=False)
 
         return "Post rejected."
+
+
+async def handle_delete(
+    bot: Bot,
+    post_id: int,
+    review_chat_id: int | str,
+    review_message_id: int | None,
+    session_maker: async_sessionmaker[AsyncSession],
+) -> str:
+    """Delete a post from DB and remove the review message from chat."""
+    from sqlalchemy import select
+
+    async with session_maker() as session:
+        result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))
+        post = result.scalar_one_or_none()
+        if not post:
+            return "Post not found."
+        if post.status == PostStatus.APPROVED:
+            return "Already published — cannot delete."
+
+        await session.delete(post)
+        await session.commit()
+        logger.info("post_deleted", post_id=post_id)
+
+    # Remove review message from chat
+    if review_message_id:
+        try:
+            await bot.delete_message(chat_id=review_chat_id, message_id=review_message_id)
+        except Exception:
+            logger.warning("review_message_delete_failed", post_id=post_id, exc_info=True)
+
+    return "Post deleted."
 
 
 async def handle_edit_request(
