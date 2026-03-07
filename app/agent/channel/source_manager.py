@@ -76,7 +76,9 @@ async def add_source(
 ) -> bool:
     """Add a new source. Returns False if it already exists."""
     async with session_maker() as session:
-        existing = await session.execute(select(ChannelSource).where(ChannelSource.url == url))
+        existing = await session.execute(
+            select(ChannelSource).where(ChannelSource.channel_id == channel_id, ChannelSource.url == url)
+        )
         if existing.scalar_one_or_none():
             return False
         source = ChannelSource(

@@ -1348,32 +1348,9 @@ class TestNextScheduledTime:
 
 
 class TestChannelOrchestratorMulti:
-    """Test ChannelOrchestrator creates correct number of sub-orchestrators."""
+    """Test ChannelOrchestrator — now reads channels from DB via _refresh_channels."""
 
-    def test_creates_sub_orchestrators_per_channel(self) -> None:
-        from app.agent.channel.config import ChannelAgentSettings, ChannelConfig
-        from app.agent.channel.orchestrator import ChannelOrchestrator
-
-        cfg = ChannelAgentSettings(
-            enabled=True,
-            channels=[
-                ChannelConfig(channel_id="@chan1"),
-                ChannelConfig(channel_id="@chan2"),
-                ChannelConfig(channel_id="@chan3"),
-            ],
-            _env_file=None,  # type: ignore[call-arg]
-        )
-        orch = ChannelOrchestrator(
-            bot=MagicMock(),
-            config=cfg,
-            api_key="test-key",
-            session_maker=MagicMock(),
-        )
-        assert len(orch.orchestrators) == 3
-        ids = [str(o.channel_id) for o in orch.orchestrators]
-        assert ids == ["@chan1", "@chan2", "@chan3"]
-
-    def test_creates_zero_orchestrators_when_no_channels(self) -> None:
+    def test_starts_empty_before_refresh(self) -> None:
         from app.agent.channel.config import ChannelAgentSettings
         from app.agent.channel.orchestrator import ChannelOrchestrator
 
@@ -1386,24 +1363,31 @@ class TestChannelOrchestratorMulti:
         )
         assert len(orch.orchestrators) == 0
 
-    def test_legacy_single_channel_creates_one_orchestrator(self) -> None:
-        import warnings
+    @pytest.mark.asyncio
+    async def test_refresh_populates_from_db(self) -> None:
+        from unittest.mock import patch
 
         from app.agent.channel.config import ChannelAgentSettings
-        from app.agent.channel.orchestrator import ChannelOrchestrator
+        from app.agent.channel.orchestrator import ChannelOrchestrator, SingleChannelOrchestrator
+        from app.infrastructure.db.models import Channel
 
-        cfg = ChannelAgentSettings(
-            enabled=True,
-            channel_id="@legacy",
-            _env_file=None,  # type: ignore[call-arg]
+        cfg = ChannelAgentSettings(enabled=True, _env_file=None)  # type: ignore[call-arg]
+        orch = ChannelOrchestrator(
+            bot=MagicMock(),
+            config=cfg,
+            api_key="test-key",
+            session_maker=MagicMock(),
         )
-        with warnings.catch_warnings(record=True):
-            warnings.simplefilter("always")
-            orch = ChannelOrchestrator(
-                bot=MagicMock(),
-                config=cfg,
-                api_key="test-key",
-                session_maker=MagicMock(),
-            )
-        assert len(orch.orchestrators) == 1
-        assert str(orch.orchestrators[0].channel_id) == "@legacy"
+
+        channels = [
+            Channel(telegram_id="@chan1", name="Chan1"),
+            Channel(telegram_id="@chan2", name="Chan2"),
+            Channel(telegram_id="@chan3", name="Chan3"),
+        ]
+        with patch("app.agent.channel.orchestrator.get_active_channels", new_callable=AsyncMock, return_value=channels):
+            with patch.object(SingleChannelOrchestrator, "start"):
+                await orch._refresh_channels()
+
+        assert len(orch.orchestrators) == 3
+        ids = sorted(o.channel_id for o in orch.orchestrators)
+        assert ids == ["@chan1", "@chan2", "@chan3"]

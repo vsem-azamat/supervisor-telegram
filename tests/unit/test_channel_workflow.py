@@ -5,7 +5,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from app.agent.channel.config import ChannelAgentSettings, ChannelConfig
+from app.agent.channel.config import ChannelAgentSettings
 from app.agent.channel.sources import ContentItem
 from app.agent.channel.workflow import (
     _has_content,
@@ -17,6 +17,7 @@ from app.agent.channel.workflow import (
     build_content_pipeline_graph,
     create_pipeline_app,
 )
+from app.infrastructure.db.models import Channel
 from burr.core import State
 
 # ---------------------------------------------------------------------------
@@ -24,24 +25,27 @@ from burr.core import State
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture
-def channel_config() -> ChannelConfig:
-    return ChannelConfig(
-        channel_id=-1001234567890,
-        review_chat_id=-1009999999999,
-        language="en",
-        max_posts_per_day=3,
-    )
+def _make_channel(**kwargs: object) -> Channel:
+    defaults = {
+        "telegram_id": "-1001234567890",
+        "name": "Test Channel",
+        "description": "Test channel",
+        "language": "en",
+        "review_chat_id": -1009999999999,
+        "max_posts_per_day": 3,
+    }
+    defaults.update(kwargs)
+    return Channel(**defaults)  # type: ignore[arg-type]
 
 
 @pytest.fixture
-def channel_config_no_review() -> ChannelConfig:
-    return ChannelConfig(
-        channel_id=-1001234567890,
-        review_chat_id=0,
-        language="en",
-        max_posts_per_day=3,
-    )
+def channel() -> Channel:
+    return _make_channel()
+
+
+@pytest.fixture
+def channel_no_review() -> Channel:
+    return _make_channel(review_chat_id=None)
 
 
 @pytest.fixture
@@ -66,7 +70,6 @@ def mock_bot() -> AsyncMock:
 
 @pytest.fixture
 def mock_session_maker() -> MagicMock:
-    """Mock session_maker that returns an async context manager on call."""
     maker = MagicMock()
     session = MagicMock()
     session.execute = AsyncMock(return_value=MagicMock())
@@ -75,7 +78,7 @@ def mock_session_maker() -> MagicMock:
     session.__aenter__ = AsyncMock(return_value=session)
     session.__aexit__ = AsyncMock(return_value=None)
     maker.return_value = session
-    maker._mock_session = session  # expose for test customization
+    maker._mock_session = session
     return maker
 
 
@@ -98,8 +101,6 @@ def sample_items() -> list[ContentItem]:
 
 
 class TestGraphDefinition:
-    """Verify the graph structure and transitions."""
-
     def test_graph_builds_successfully(self):
         graph = build_content_pipeline_graph()
         assert graph is not None
@@ -120,7 +121,6 @@ class TestGraphDefinition:
 
     def test_graph_has_transitions(self):
         graph = build_content_pipeline_graph()
-        # Graph should have transitions defined
         assert len(graph.transitions) > 0
 
 
@@ -130,8 +130,6 @@ class TestGraphDefinition:
 
 
 class TestTransitionGuards:
-    """Test individual transition guard functions."""
-
     def test_has_content_true(self, sample_items):
         state = State({"content_items": sample_items})
         assert _has_content(state) is True
@@ -160,12 +158,12 @@ class TestTransitionGuards:
         state = State({"generated_post": None})
         assert _has_post(state) is False
 
-    def test_has_review_channel_true(self, channel_config, agent_settings):
-        state = State({"channel_config": channel_config, "config": agent_settings})
+    def test_has_review_channel_true(self, channel, agent_settings):
+        state = State({"channel": channel, "config": agent_settings})
         assert _has_review_channel(state) is True
 
-    def test_has_review_channel_false(self, channel_config_no_review, agent_settings):
-        state = State({"channel_config": channel_config_no_review, "config": agent_settings})
+    def test_has_review_channel_false(self, channel_no_review, agent_settings):
+        state = State({"channel": channel_no_review, "config": agent_settings})
         assert _has_review_channel(state) is False
 
     def test_is_approved(self):
@@ -184,10 +182,8 @@ class TestTransitionGuards:
 
 
 class TestFetchSourcesAction:
-    """Test the fetch_sources action in isolation."""
-
     @pytest.mark.asyncio
-    async def test_fetch_returns_items(self, agent_settings, channel_config, mock_session_maker):
+    async def test_fetch_returns_items(self, agent_settings, channel, mock_session_maker):
         from app.agent.channel.workflow import fetch_sources
 
         mock_items = [
@@ -204,14 +200,13 @@ class TestFetchSourcesAction:
             patch("app.agent.channel.source_manager.get_active_sources", return_value=[]),
             patch("app.agent.channel.discovery.discover_content", return_value=mock_items),
         ):
-            # Enable discovery for this test
             agent_settings.discovery_enabled = True
 
             state = State(
                 {
                     "channel_id": "test_channel",
                     "config": agent_settings,
-                    "channel_config": channel_config,
+                    "channel": channel,
                     "api_key": "test-key",
                     "session_maker": mock_session_maker,
                     "content_items": [],
@@ -219,7 +214,6 @@ class TestFetchSourcesAction:
                 }
             )
 
-            # Configure the DB dedup query to return no existing IDs
             mock_result = MagicMock()
             mock_result.scalars.return_value.all.return_value = []
             mock_session_maker._mock_session.execute = AsyncMock(return_value=mock_result)
@@ -231,7 +225,7 @@ class TestFetchSourcesAction:
             assert result["error"] is None
 
     @pytest.mark.asyncio
-    async def test_fetch_handles_error(self, agent_settings, channel_config, mock_session_maker):
+    async def test_fetch_handles_error(self, agent_settings, channel, mock_session_maker):
         from app.agent.channel.workflow import fetch_sources
 
         with patch(
@@ -243,7 +237,7 @@ class TestFetchSourcesAction:
                 {
                     "channel_id": "test_channel",
                     "config": agent_settings,
-                    "channel_config": channel_config,
+                    "channel": channel,
                     "api_key": "test-key",
                     "session_maker": mock_session_maker,
                     "content_items": [],
@@ -258,16 +252,11 @@ class TestFetchSourcesAction:
 
 
 class TestScreenContentAction:
-    """Test the screen_content action."""
-
     @pytest.mark.asyncio
     async def test_screen_filters_relevant(self, agent_settings, sample_items):
         from app.agent.channel.workflow import screen_content
 
-        with patch(
-            "app.agent.channel.generator.screen_items",
-            return_value=sample_items,
-        ):
+        with patch("app.agent.channel.generator.screen_items", return_value=sample_items):
             state = State(
                 {
                     "content_items": sample_items,
@@ -277,7 +266,6 @@ class TestScreenContentAction:
                     "error": None,
                 }
             )
-
             result = await screen_content(state)
             assert len(result["relevant_items"]) == 1
             assert result["error"] is None
@@ -287,29 +275,20 @@ class TestScreenContentAction:
         from app.agent.channel.workflow import screen_content
 
         state = State(
-            {
-                "content_items": [],
-                "api_key": "test-key",
-                "config": agent_settings,
-                "relevant_items": [],
-                "error": None,
-            }
+            {"content_items": [], "api_key": "test-key", "config": agent_settings, "relevant_items": [], "error": None}
         )
-
         result = await screen_content(state)
         assert result["relevant_items"] == []
         assert result["error"] is None
 
 
 class TestGeneratePostAction:
-    """Test the generate_post action."""
-
     @pytest.mark.asyncio
-    async def test_generate_produces_post(self, agent_settings, channel_config, mock_session_maker, sample_items):
+    async def test_generate_produces_post(self, agent_settings, channel, mock_session_maker, sample_items):
         from app.agent.channel.generator import GeneratedPost
         from app.agent.channel.workflow import generate_post
 
-        mock_post = GeneratedPost(text="<b>Test Post</b>", is_sensitive=False)
+        mock_post = GeneratedPost(text="**Test Post**", is_sensitive=False)
 
         with (
             patch("app.agent.channel.generator.generate_post", return_value=mock_post),
@@ -320,39 +299,17 @@ class TestGeneratePostAction:
                     "relevant_items": sample_items,
                     "api_key": "test-key",
                     "config": agent_settings,
-                    "channel_config": channel_config,
+                    "channel": channel,
                     "channel_id": "test_channel",
                     "session_maker": mock_session_maker,
                     "generated_post": None,
                     "error": None,
                 }
             )
-
             result = await generate_post(state)
             assert result["generated_post"] is not None
-            assert result["generated_post"]["text"] == "<b>Test Post</b>"
+            assert result["generated_post"]["text"] == "**Test Post**"
             assert result["error"] is None
-
-    @pytest.mark.asyncio
-    async def test_generate_no_relevant_items(self, agent_settings, channel_config, mock_session_maker):
-        from app.agent.channel.workflow import generate_post
-
-        state = State(
-            {
-                "relevant_items": [],
-                "api_key": "test-key",
-                "config": agent_settings,
-                "channel_config": channel_config,
-                "channel_id": "test_channel",
-                "session_maker": mock_session_maker,
-                "generated_post": None,
-                "error": None,
-            }
-        )
-
-        result = await generate_post(state)
-        assert result["generated_post"] is None
-        assert result["error"] == "no_relevant_items"
 
 
 # ---------------------------------------------------------------------------
@@ -361,27 +318,25 @@ class TestGeneratePostAction:
 
 
 class TestAppFactory:
-    """Test create_pipeline_app builds correctly."""
-
-    def test_creates_app(self, channel_config, agent_settings, mock_bot, mock_session_maker):
+    def test_creates_app(self, channel, agent_settings, mock_bot, mock_session_maker):
         app = create_pipeline_app(
             channel_id="test_channel",
             session_maker=mock_session_maker,
             bot=mock_bot,
             api_key="test-key",
             config=agent_settings,
-            channel_config=channel_config,
+            channel=channel,
         )
         assert app is not None
 
-    def test_creates_app_with_resume_state(self, channel_config, agent_settings, mock_bot, mock_session_maker):
+    def test_creates_app_with_resume_state(self, channel, agent_settings, mock_bot, mock_session_maker):
         app = create_pipeline_app(
             channel_id="test_channel",
             session_maker=mock_session_maker,
             bot=mock_bot,
             api_key="test-key",
             config=agent_settings,
-            channel_config=channel_config,
+            channel=channel,
             resume_state={"review_decision": "approved", "post_id": 42},
             entrypoint="await_review",
         )
@@ -394,11 +349,8 @@ class TestAppFactory:
 
 
 class TestFullPipeline:
-    """Test end-to-end pipeline runs with mocked external calls."""
-
     @pytest.mark.asyncio
-    async def test_pipeline_no_content_stops_early(self, channel_config, agent_settings, mock_bot, mock_session_maker):
-        """Pipeline with no fetched content should halt at 'done' after fetch."""
+    async def test_pipeline_no_content_stops_early(self, channel, agent_settings, mock_bot, mock_session_maker):
         with (
             patch("app.agent.channel.source_manager.get_active_sources", return_value=[]),
             patch("app.agent.channel.discovery.discover_content", return_value=[]),
@@ -410,24 +362,18 @@ class TestFullPipeline:
                 bot=mock_bot,
                 api_key="test-key",
                 config=agent_settings,
-                channel_config=channel_config,
+                channel=channel,
             )
-
             action_obj, _result, state = await app.arun(halt_after=["await_review", "done"])
-            # Should reach done because no content was found
             assert action_obj.name == "done"
             assert state["content_items"] == []
 
     @pytest.mark.asyncio
-    async def test_pipeline_halts_at_review(
-        self, channel_config, agent_settings, mock_bot, mock_session_maker, sample_items
-    ):
-        """Pipeline should halt at await_review when review channel is configured."""
+    async def test_pipeline_halts_at_review(self, channel, agent_settings, mock_bot, mock_session_maker, sample_items):
         from app.agent.channel.generator import GeneratedPost
 
-        mock_post = GeneratedPost(text="<b>Post</b>", is_sensitive=False)
+        mock_post = GeneratedPost(text="**Post**", is_sensitive=False)
 
-        # Configure the DB dedup query to return no existing IDs
         mock_result = MagicMock()
         mock_result.scalars.return_value.all.return_value = []
         mock_session_maker._mock_session.execute = AsyncMock(return_value=mock_result)
@@ -447,16 +393,14 @@ class TestFullPipeline:
                 bot=mock_bot,
                 api_key="test-key",
                 config=agent_settings,
-                channel_config=channel_config,
+                channel=channel,
             )
-
             action_obj, _result, state = await app.arun(halt_after=["await_review", "done"])
             assert action_obj.name == "await_review"
             assert state["post_id"] == 99
 
     @pytest.mark.asyncio
-    async def test_pipeline_resume_approve(self, channel_config, agent_settings, mock_bot, mock_session_maker):
-        """Resuming a halted workflow with 'approved' should reach publish_post."""
+    async def test_pipeline_resume_approve(self, channel, agent_settings, mock_bot, mock_session_maker):
         with patch("app.agent.channel.review.handle_approve", return_value="Published! (msg #42)"):
             app = create_pipeline_app(
                 channel_id="test_channel",
@@ -464,20 +408,15 @@ class TestFullPipeline:
                 bot=mock_bot,
                 api_key="test-key",
                 config=agent_settings,
-                channel_config=channel_config,
-                resume_state={
-                    "review_decision": "approved",
-                    "post_id": 99,
-                },
+                channel=channel,
+                resume_state={"review_decision": "approved", "post_id": 99},
                 entrypoint="await_review",
             )
-
             action_obj, _result, state = await app.arun(halt_after=["done"])
             assert state["result_message"] == "Published! (msg #42)"
 
     @pytest.mark.asyncio
-    async def test_pipeline_resume_reject(self, channel_config, agent_settings, mock_bot, mock_session_maker):
-        """Resuming with 'rejected' should reach handle_rejection."""
+    async def test_pipeline_resume_reject(self, channel, agent_settings, mock_bot, mock_session_maker):
         with patch("app.agent.channel.review.handle_reject", return_value="Post rejected."):
             app = create_pipeline_app(
                 channel_id="test_channel",
@@ -485,13 +424,9 @@ class TestFullPipeline:
                 bot=mock_bot,
                 api_key="test-key",
                 config=agent_settings,
-                channel_config=channel_config,
-                resume_state={
-                    "review_decision": "rejected",
-                    "post_id": 99,
-                },
+                channel=channel,
+                resume_state={"review_decision": "rejected", "post_id": 99},
                 entrypoint="await_review",
             )
-
             action_obj, _result, state = await app.arun(halt_after=["done"])
             assert state["result_message"] == "Post rejected."

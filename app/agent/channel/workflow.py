@@ -21,7 +21,8 @@ if TYPE_CHECKING:
     from aiogram import Bot
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-    from app.agent.channel.config import ChannelAgentSettings, ChannelConfig
+    from app.agent.channel.config import ChannelAgentSettings
+    from app.infrastructure.db.models import Channel
 
 logger = get_logger("channel.workflow")
 
@@ -31,7 +32,7 @@ logger = get_logger("channel.workflow")
 # ---------------------------------------------------------------------------
 
 
-@action(reads=["channel_id", "config", "channel_config", "api_key", "session_maker"], writes=["content_items", "error"])
+@action(reads=["channel_id", "config", "channel", "api_key", "session_maker"], writes=["content_items", "error"])
 async def fetch_sources(state: State) -> State:
     """Fetch RSS content and discover fresh items from all configured sources."""
     from app.agent.channel.discovery import discover_content
@@ -44,7 +45,7 @@ async def fetch_sources(state: State) -> State:
 
     channel_id: str = str(state["channel_id"])
     config: ChannelAgentSettings = state["config"]
-    channel_config: ChannelConfig = state["channel_config"]
+    channel: Channel = state["channel"]
     api_key: str = state["api_key"]
     session_maker: async_sessionmaker[AsyncSession] = state["session_maker"]
 
@@ -65,7 +66,7 @@ async def fetch_sources(state: State) -> State:
 
         # Perplexity Sonar discovery
         if config.discovery_enabled:
-            query = channel_config.discovery_query or config.discovery_query
+            query = channel.discovery_query or config.discovery_query
             discovered = await discover_content(
                 api_key=api_key,
                 query=query,
@@ -124,7 +125,7 @@ async def screen_content(state: State) -> State:
 
 
 @action(
-    reads=["relevant_items", "api_key", "config", "channel_config", "channel_id", "session_maker"],
+    reads=["relevant_items", "api_key", "config", "channel", "channel_id", "session_maker"],
     writes=["generated_post", "error"],
 )
 async def generate_post(state: State) -> State:
@@ -138,14 +139,13 @@ async def generate_post(state: State) -> State:
 
     api_key: str = state["api_key"]
     config: ChannelAgentSettings = state["config"]
-    channel_config: ChannelConfig = state["channel_config"]
+    channel: Channel = state["channel"]
     channel_id: str = str(state["channel_id"])
     session_maker: async_sessionmaker[AsyncSession] = state["session_maker"]
 
-    # Determine language
     from app.agent.channel.config import language_name
 
-    language = language_name(channel_config.language)
+    language = language_name(channel.language)
 
     # Non-blocking feedback context
     feedback_context: str | None = None
@@ -187,7 +187,7 @@ async def generate_post(state: State) -> State:
 
 
 @action(
-    reads=["generated_post", "relevant_items", "channel_id", "channel_config", "config", "bot", "session_maker"],
+    reads=["generated_post", "relevant_items", "channel_id", "channel", "config", "bot", "session_maker"],
     writes=["post_id", "result_message", "error"],
 )
 async def send_for_review(state: State) -> State:
@@ -201,12 +201,11 @@ async def send_for_review(state: State) -> State:
 
     bot: Bot = state["bot"]
     channel_id: str = str(state["channel_id"])
-    channel_config: ChannelConfig = state["channel_config"]
-    config: ChannelAgentSettings = state["config"]
+    channel: Channel = state["channel"]
     session_maker: async_sessionmaker[AsyncSession] = state["session_maker"]
     relevant = state["relevant_items"]
 
-    review_chat_id = channel_config.review_chat_id or config.review_chat_id
+    review_chat_id = channel.review_chat_id
     post = GeneratedPost(
         text=post_dict["text"],
         is_sensitive=post_dict.get("is_sensitive", False),
@@ -236,7 +235,7 @@ async def send_for_review(state: State) -> State:
         from app.agent.channel.publisher import publish_post as _publish
 
         try:
-            msg_id = await _publish(bot, channel_config.channel_id, post)
+            msg_id = await _publish(bot, channel.telegram_id, post)
             if msg_id:
                 return state.update(post_id=None, result_message=f"published_directly:{msg_id}", error=None)
             return state.update(post_id=None, result_message="publish_failed", error="direct_publish_failed")
@@ -257,7 +256,7 @@ async def await_review(state: State) -> State:
     return state.update(review_decision=state.get("review_decision"))
 
 
-@action(reads=["post_id", "channel_id", "channel_config", "bot", "session_maker"], writes=["result_message", "error"])
+@action(reads=["post_id", "channel_id", "channel", "bot", "session_maker"], writes=["result_message", "error"])
 async def publish_post(state: State) -> State:
     """Publish an approved post to the channel."""
     from app.agent.channel.review import handle_approve
@@ -267,12 +266,12 @@ async def publish_post(state: State) -> State:
         return state.update(result_message="no_post_id", error="missing_post_id")
 
     bot: Bot = state["bot"]
-    channel_config: ChannelConfig = state["channel_config"]
+    channel: Channel = state["channel"]
     session_maker: async_sessionmaker[AsyncSession] = state["session_maker"]
 
     try:
         result = await handle_approve(
-            bot=bot, post_id=post_id, channel_id=channel_config.channel_id, session_maker=session_maker
+            bot=bot, post_id=post_id, channel_id=channel.telegram_id, session_maker=session_maker
         )
         logger.info("workflow_published", post_id=post_id, result=result)
         return state.update(result_message=result, error=None)
@@ -325,11 +324,8 @@ def _has_post(state: State) -> bool:
 
 def _has_review_channel(state: State) -> bool:
     """Transition guard: a review channel is configured (HITL path)."""
-    channel_config: ChannelConfig | None = state.get("channel_config")
-    config: ChannelAgentSettings | None = state.get("config")
-    if channel_config and channel_config.review_chat_id:
-        return True
-    return bool(config and config.review_chat_id)
+    channel: Channel | None = state.get("channel")
+    return bool(channel and channel.review_chat_id)
 
 
 def _is_approved(state: State) -> bool:
@@ -349,7 +345,7 @@ def build_content_pipeline_graph() -> Any:
     has_content = Condition.lmda(_has_content, ["content_items"])
     has_relevant = Condition.lmda(_has_relevant, ["relevant_items"])
     has_post = Condition.lmda(_has_post, ["generated_post"])
-    has_review_ch = Condition.lmda(_has_review_channel, ["channel_config", "config"])
+    has_review_ch = Condition.lmda(_has_review_channel, ["channel"])
     is_approved = Condition.lmda(_is_approved, ["review_decision"])
     is_rejected = Condition.lmda(_is_rejected, ["review_decision"])
 
@@ -407,39 +403,13 @@ def create_pipeline_app(
     bot: Bot,
     api_key: str,
     config: ChannelAgentSettings,
-    channel_config: ChannelConfig,
+    channel: Channel,
     *,
     app_id: str | None = None,
     resume_state: dict[str, Any] | None = None,
     entrypoint: str = "fetch_sources",
 ) -> Any:
-    """Create a Burr Application for a single pipeline run.
-
-    Parameters
-    ----------
-    channel_id:
-        Target channel identifier.
-    session_maker:
-        SQLAlchemy async session factory.
-    bot:
-        aiogram Bot instance.
-    api_key:
-        OpenRouter API key.
-    config:
-        Channel agent settings.
-    channel_config:
-        Per-channel configuration.
-    app_id:
-        Optional application ID for tracking/persistence.
-    resume_state:
-        If resuming a halted workflow, pass the previous state dict.
-    entrypoint:
-        Which action to start from (default ``fetch_sources``).
-
-    Returns
-    -------
-    A Burr Application ready to ``arun()``.
-    """
+    """Create a Burr Application for a single pipeline run."""
     graph = get_pipeline_graph()
 
     initial_state = {
@@ -448,7 +418,7 @@ def create_pipeline_app(
         "bot": bot,
         "api_key": api_key,
         "config": config,
-        "channel_config": channel_config,
+        "channel": channel,
         "content_items": [],
         "relevant_items": [],
         "generated_post": None,

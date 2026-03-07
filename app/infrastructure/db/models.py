@@ -1,6 +1,7 @@
 import datetime
 from typing import Any
 
+import sqlalchemy as sa
 from sqlalchemy import JSON, BigInteger, Boolean, DateTime, Float, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -246,12 +247,78 @@ class Message(Base):
         return self.spam
 
 
+class Channel(Base):
+    """A managed Telegram channel with its content pipeline configuration."""
+
+    __tablename__ = "channels"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    telegram_id: Mapped[str] = mapped_column(String, unique=True, index=True)
+    username: Mapped[str | None] = mapped_column(String, nullable=True)
+    name: Mapped[str] = mapped_column(String)
+    description: Mapped[str] = mapped_column(String, default="")
+    language: Mapped[str] = mapped_column(String(8), default="ru")
+    review_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    max_posts_per_day: Mapped[int] = mapped_column(Integer, default=3)
+    posting_schedule: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    discovery_query: Mapped[str] = mapped_column(String, default="")
+    source_discovery_query: Mapped[str] = mapped_column(String, default="")
+    daily_posts_count: Mapped[int] = mapped_column(Integer, default=0)
+    daily_count_date: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    last_source_discovery_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
+    modified_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
+
+    def __init__(
+        self,
+        telegram_id: str,
+        name: str,
+        description: str = "",
+        language: str = "ru",
+        review_chat_id: int | None = None,
+        max_posts_per_day: int = 3,
+        posting_schedule: list[str] | None = None,
+        discovery_query: str = "",
+        source_discovery_query: str = "",
+        username: str | None = None,
+        enabled: bool = True,
+    ) -> None:
+        self.telegram_id = telegram_id
+        self.name = name
+        self.description = description
+        self.language = language
+        self.review_chat_id = review_chat_id
+        self.max_posts_per_day = max_posts_per_day
+        self.posting_schedule = posting_schedule
+        self.discovery_query = discovery_query
+        self.source_discovery_query = source_discovery_query
+        self.username = username
+        self.enabled = enabled
+
+    def reset_daily_count(self, today: str) -> None:
+        """Reset daily post counter if date has changed."""
+        if self.daily_count_date != today:
+            self.daily_posts_count = 0
+            self.daily_count_date = today
+
+    def increment_daily_count(self) -> int:
+        """Increment and return the daily post count."""
+        self.daily_posts_count += 1
+        return self.daily_posts_count
+
+    @property
+    def can_post_today(self) -> bool:
+        return self.daily_posts_count < self.max_posts_per_day
+
+
 class ChannelSource(Base):
     __tablename__ = "channel_sources"
+    __table_args__ = (sa.UniqueConstraint("channel_id", "url", name="uq_channel_source_channel_url"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     channel_id: Mapped[str] = mapped_column(String, index=True)
-    url: Mapped[str] = mapped_column(String, unique=True)
+    url: Mapped[str] = mapped_column(String, index=True)
     source_type: Mapped[str] = mapped_column(String(16), default="rss")
     title: Mapped[str | None] = mapped_column(String, nullable=True)
     language: Mapped[str | None] = mapped_column(String(8), nullable=True)

@@ -25,6 +25,8 @@ from app.core.logging import get_logger
 if TYPE_CHECKING:
     from aiogram.types import CallbackQuery, Message
 
+    from app.infrastructure.db.models import Channel
+
 logger = get_logger("handler.channel_review")
 
 channel_review_router = Router(name="channel_review")
@@ -45,24 +47,29 @@ def _is_super_admin(user_id: int) -> bool:
     return user_id in settings.admin.super_admins
 
 
-def _get_config() -> tuple[Any, str]:
-    """Get channel config and API key."""
+def _get_global_config() -> tuple[str, str]:
+    """Get global settings: (generation_model, api_key)."""
     from app.agent.channel.config import ChannelAgentSettings
     from app.core.config import settings
 
-    return ChannelAgentSettings(), settings.agent.openrouter_api_key
+    channel_settings = ChannelAgentSettings()
+    return channel_settings.generation_model, settings.agent.openrouter_api_key
 
 
-async def _get_post_channel_id(post_id: int, session_maker: Any) -> str | None:
-    """Read channel_id from the ChannelPost DB record."""
+async def _get_channel_for_post(post_id: int, session_maker: Any) -> Channel | None:
+    """Read the Channel DB record for a given post."""
     from sqlalchemy import select
 
-    from app.infrastructure.db.models import ChannelPost
+    from app.infrastructure.db.models import Channel, ChannelPost
 
     async with session_maker() as session:
         result = await session.execute(select(ChannelPost.channel_id).where(ChannelPost.id == post_id))
-        row: str | None = result.scalar_one_or_none()
-        return row
+        channel_tid: str | None = result.scalar_one_or_none()
+        if not channel_tid:
+            return None
+        ch_result = await session.execute(select(Channel).where(Channel.telegram_id == channel_tid))
+        ch: Channel | None = ch_result.scalar_one_or_none()
+        return ch
 
 
 @channel_review_router.callback_query(F.data.startswith("chpost:"))
@@ -71,7 +78,6 @@ async def on_review_callback(callback: CallbackQuery) -> None:
     if not callback.data or not callback.message:
         return
 
-    # Auth: only super admins can use review buttons
     if not callback.from_user or not _is_super_admin(callback.from_user.id):
         await callback.answer("Access denied", show_alert=True)
         return
@@ -86,7 +92,7 @@ async def on_review_callback(callback: CallbackQuery) -> None:
         await callback.answer("Internal error: no DB session", show_alert=True)
         return
 
-    channel_config, api_key = _get_config()
+    generation_model, api_key = _get_global_config()
     chat_id = callback.message.chat.id
 
     if data.startswith(CB_APPROVE):
@@ -95,12 +101,11 @@ async def on_review_callback(callback: CallbackQuery) -> None:
             await callback.answer("Invalid post ID")
             return
         try:
-            # Read channel_id from the DB post record (not from config)
-            channel_id = await _get_post_channel_id(post_id, session_maker)
-            if not channel_id:
-                await callback.answer("Post not found or missing channel_id", show_alert=True)
+            channel = await _get_channel_for_post(post_id, session_maker)
+            if not channel:
+                await callback.answer("Post not found or channel not configured", show_alert=True)
                 return
-            result = await handle_approve(bot, post_id, channel_id, session_maker)
+            result = await handle_approve(bot, post_id, channel.telegram_id, session_maker)
             await callback.answer(result, show_alert=True)
 
             if callback.message and "Published" in result:
@@ -129,17 +134,11 @@ async def on_review_callback(callback: CallbackQuery) -> None:
             return
         await callback.answer("Regenerating...")
         try:
-            from app.agent.channel.config import language_name
-
-            language = language_name(channel_config.language)
+            channel = await _get_channel_for_post(post_id, session_maker)
+            language = _channel_language(channel)
+            review_chat_id = channel.review_chat_id or chat_id
             result = await handle_regen(
-                bot,
-                post_id,
-                api_key,
-                channel_config.generation_model,
-                language,
-                channel_config.review_chat_id,
-                session_maker,
+                bot, post_id, api_key, generation_model, language, review_chat_id, session_maker
             )
             await bot.send_message(chat_id, result)
         except Exception:
@@ -153,13 +152,15 @@ async def on_review_callback(callback: CallbackQuery) -> None:
             return
         await callback.answer("Making shorter...")
         try:
+            channel = await _get_channel_for_post(post_id, session_maker)
+            review_chat_id = channel.review_chat_id or chat_id
             result = await handle_edit_request(
                 bot,
                 post_id,
                 "Make this post shorter and more concise. Keep the key info.",
                 api_key,
-                channel_config.generation_model,
-                channel_config.review_chat_id,
+                generation_model,
+                review_chat_id,
                 session_maker,
             )
             await bot.send_message(chat_id, result)
@@ -174,13 +175,15 @@ async def on_review_callback(callback: CallbackQuery) -> None:
             return
         await callback.answer("Expanding...")
         try:
+            channel = await _get_channel_for_post(post_id, session_maker)
+            review_chat_id = channel.review_chat_id or chat_id
             result = await handle_edit_request(
                 bot,
                 post_id,
                 "Expand this post with more details and context.",
                 api_key,
-                channel_config.generation_model,
-                channel_config.review_chat_id,
+                generation_model,
+                review_chat_id,
                 session_maker,
             )
             await bot.send_message(chat_id, result)
@@ -195,14 +198,17 @@ async def on_review_callback(callback: CallbackQuery) -> None:
             return
         await callback.answer("Translating...")
         try:
-            target = "Czech" if channel_config.language == "ru" else "Russian"
+            channel = await _get_channel_for_post(post_id, session_maker)
+            language = _channel_language(channel)
+            target = "Czech" if language == "Russian" else "Russian"
+            review_chat_id = channel.review_chat_id or chat_id
             result = await handle_edit_request(
                 bot,
                 post_id,
                 f"Translate this post to {target}. Keep the same Markdown formatting. No hashtags.",
                 api_key,
-                channel_config.generation_model,
-                channel_config.review_chat_id,
+                generation_model,
+                review_chat_id,
                 session_maker,
             )
             await bot.send_message(chat_id, result)
@@ -211,13 +217,19 @@ async def on_review_callback(callback: CallbackQuery) -> None:
             await bot.send_message(chat_id, "Translation failed.")
 
 
+def _channel_language(channel: Channel | None) -> str:
+    """Get the full language name for a channel, defaulting to Russian."""
+    from app.agent.channel.config import language_name
+
+    return language_name(channel.language if channel else "ru")
+
+
 @channel_review_router.message(F.reply_to_message)
 async def on_review_reply(message: Message) -> None:
     """Handle replies in the discussion chat — admin editing posts via conversation."""
     if not message.text or not message.reply_to_message:
         return
 
-    # Auth: only super admins can edit via replies
     if not message.from_user or not _is_super_admin(message.from_user.id):
         return
 
@@ -225,7 +237,6 @@ async def on_review_reply(message: Message) -> None:
     if not reply_msg.reply_markup:
         return
 
-    # Find the post ID from the reply markup
     post_id: int | None = None
     if hasattr(reply_msg.reply_markup, "inline_keyboard"):
         for row in reply_msg.reply_markup.inline_keyboard:
@@ -247,15 +258,17 @@ async def on_review_reply(message: Message) -> None:
     if not session_maker:
         return
 
-    channel_config, api_key = _get_config()
+    generation_model, api_key = _get_global_config()
+    channel = await _get_channel_for_post(post_id, session_maker)
+    review_chat_id: int | str = channel.review_chat_id or message.chat.id
 
     result = await handle_edit_request(
         bot,
         post_id,
         message.text,
         api_key,
-        channel_config.generation_model,
-        channel_config.review_chat_id,
+        generation_model,
+        review_chat_id,
         session_maker,
     )
 

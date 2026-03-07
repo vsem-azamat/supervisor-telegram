@@ -128,12 +128,12 @@ def _init_channel_orchestrator(
     bot: Bot,
     session_maker: async_sessionmaker[AsyncSession],
 ) -> ChannelOrchestrator | None:
-    """Initialize the channel content orchestrator if configured."""
+    """Initialize the channel content orchestrator if enabled."""
     try:
         from app.agent.channel.config import ChannelAgentSettings
 
         config = ChannelAgentSettings()
-        if config.enabled and (config.channel_id or config.channels):
+        if config.enabled:
             from app.agent.channel.orchestrator import ChannelOrchestrator
 
             orchestrator = ChannelOrchestrator(
@@ -143,7 +143,7 @@ def _init_channel_orchestrator(
                 session_maker=session_maker,
             )
             orchestrator.start()
-            logger.info("channel_agent_enabled", sources=len(config.rss_source_list))
+            logger.info("channel_agent_enabled")
             return orchestrator
     except Exception:
         logger.exception("channel_agent_init_failed")

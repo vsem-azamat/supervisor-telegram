@@ -137,7 +137,7 @@ def create_assistant_agent(model_name: str = "") -> Agent[AssistantDeps, str]:
             task_alive = o._task is not None and not o._task.done()
             status = "running" if task_alive else "stopped"
             lines.append(
-                f"- {o.channel_id}: {status}, {o._posts_today} posts today, {len(o._pending_reviews)} pending reviews"
+                f"- {o.channel_id}: {status}, {o.channel.daily_posts_count} posts today, {len(o._pending_reviews)} pending reviews"
             )
         return "\n".join(lines)
 
@@ -304,7 +304,7 @@ def create_assistant_agent(model_name: str = "") -> Agent[AssistantDeps, str]:
             targets = [o for o in targets if str(o.channel_id) == channel_id]
 
         for o in targets:
-            o.channel_config.posting_schedule = times
+            o.channel.posting_schedule = times
         return f"Schedule updated to {times} for {len(targets)} channel(s)."
 
     # ------------------------------------------------------------------
