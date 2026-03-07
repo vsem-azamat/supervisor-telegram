@@ -126,6 +126,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
             "source_discovery_query": str,
             "enabled": bool,
             "username": str,
+            "footer_template": str,
         }
         bad = set(fields) - set(field_types)
         if bad:
@@ -290,7 +291,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
 
     @agent.tool
     async def publish_text(ctx: RunContext[AssistantDeps], channel_id: str, text: str) -> str:
-        """Publish text directly to a channel, skipping review. You can compose the text yourself. Supports Markdown."""
+        """Publish text directly to a channel, skipping review. You compose the text yourself. Supports Markdown. IMPORTANT: This is a destructive action — ALWAYS ask the user for explicit confirmation before calling this tool. Explain what will be published and to which channel, and wait for a clear 'yes' or confirmation."""
         error = await _validate_channel_id(ctx, channel_id)
         if error:
             return error
@@ -388,6 +389,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
                 api_key=api_key,
                 model=gen_model,
                 language=lang,
+                footer=channel.footer,
             )
         except GenerationError:
             logger.exception("generate_and_review_failed", channel_id=channel_id)
@@ -413,6 +415,8 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
                     session_maker=ctx.deps.session_maker,
                     api_key=api_key,
                     embedding_model=settings.channel.embedding_model,
+                    channel_name=channel.name,
+                    channel_username=channel.username,
                 )
             except Exception:
                 logger.exception("generate_and_review_send_failed", channel_id=channel_id)

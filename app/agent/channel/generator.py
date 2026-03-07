@@ -21,8 +21,33 @@ logger = get_logger("channel.generator")
 
 _XML_HTML_TAG_RE = re.compile(r"<[^>]+>")
 
-# Canonical footer — must appear at the end of every post.
-KONNEKT_FOOTER = "——\n🔗 **Konnekt** | @konnekt_channel"
+# Deprecated: use per-channel footer parameter instead.
+DEFAULT_FOOTER = "——\n🔗 **Konnekt** | @konnekt_channel"
+KONNEKT_FOOTER = DEFAULT_FOOTER  # backward-compat alias
+
+
+def enforce_footer_and_length(text: str, footer: str = "", *, max_length: int = 900) -> str:
+    """Ensure *footer* is present and total length stays under *max_length*.
+
+    If *footer* is empty / blank, ``DEFAULT_FOOTER`` is used.
+    """
+    footer = footer.strip() or DEFAULT_FOOTER
+
+    if footer not in text:
+        text = text.rstrip() + "\n\n" + footer
+
+    if len(text) > max_length:
+        max_body = max_length - len("\n\n") - len(footer)
+        body = text.replace(footer, "").rstrip()
+        if len(body) > max_body:
+            truncated = body[:max_body]
+            last_period = max(truncated.rfind("."), truncated.rfind("!"), truncated.rfind("?"))
+            if last_period > max_body // 2:
+                truncated = truncated[: last_period + 1]
+            body = truncated
+        text = body.rstrip() + "\n\n" + footer
+
+    return text
 
 
 def _sanitize_content(text: str) -> str:
@@ -79,9 +104,8 @@ FORMATTING RULES:
 - Always leave a blank line between the headline, each paragraph, and the footer. \
 The post must have clear visual breathing room.
 - If there's a source URL, include it as: [Подробнее](URL)
-- ALWAYS end with our footer (mandatory, on every post):
-  ——
-  🔗 **Konnekt** | @konnekt_channel
+- ALWAYS end with this channel's footer (mandatory, on every post):
+  {footer}
 - Use standard Markdown: **bold**, *italic*, [link](url), `code`
 - Do NOT use HTML tags
 - Do NOT use hashtags
@@ -114,11 +138,16 @@ def _create_screening_agent(api_key: str, model: str) -> Agent[None, str]:
     return Agent(llm, system_prompt=SCREENING_PROMPT, output_type=str)
 
 
-def _create_generation_agent(api_key: str, model: str, language: str) -> Agent[None, GeneratedPost]:
+def _create_generation_agent(
+    api_key: str,
+    model: str,
+    language: str,
+    footer: str,
+) -> Agent[None, GeneratedPost]:
     """Create a post generation agent."""
     provider = OpenAIProvider(base_url=settings.agent.openrouter_base_url, api_key=api_key)
     llm = OpenAIModel(model_name=model, provider=provider)
-    prompt = GENERATION_PROMPT.format(language=language)
+    prompt = GENERATION_PROMPT.format(language=language, footer=footer)
     return Agent(llm, system_prompt=prompt, output_type=GeneratedPost)
 
 
@@ -231,12 +260,16 @@ async def generate_post(
     model: str,
     language: str = "Russian",
     feedback_context: str | None = None,
+    footer: str = "",
 ) -> GeneratedPost | None:
     """Generate a post from one or more content items."""
     if not items:
         return None
 
-    agent = _create_generation_agent(api_key, model, language)
+    if not footer:
+        footer = DEFAULT_FOOTER
+
+    agent = _create_generation_agent(api_key, model, language, footer=footer)
 
     # Use only the first item — one news = one post
     item = items[0]
@@ -261,9 +294,8 @@ async def generate_post(
 
         # --- Post-generation validation ---
 
-        # Ensure the canonical footer is present
-        if KONNEKT_FOOTER not in post.text:
-            post.text = post.text.rstrip() + "\n\n" + KONNEKT_FOOTER
+        # Ensure the footer is present
+        post.text = enforce_footer_and_length(post.text, footer, max_length=900)
 
         # If too long, ask the LLM to shorten (one retry)
         if len(post.text) > 900:
@@ -277,35 +309,23 @@ async def generate_post(
                 shortened_usage = extract_usage_from_pydanticai_result(shorten_result, model, "generation_shorten")
                 if shortened_usage:
                     await log_usage(shortened_usage)
-                shortened = shorten_result.output
+                post = shorten_result.output
                 # Re-ensure footer after shortening
-                if KONNEKT_FOOTER not in shortened.text:
-                    shortened.text = shortened.text.rstrip() + "\n\n" + KONNEKT_FOOTER
-                post = shortened
+                post.text = enforce_footer_and_length(post.text, footer, max_length=900)
             except Exception:
                 logger.exception("shorten_retry_failed")
 
             # If still over 900 after retry, hard-truncate at last complete sentence
             if len(post.text) > 900:
                 logger.warning("post_still_too_long", length=len(post.text), action="truncate")
-                # Strip footer, truncate body, re-append footer
-                body = post.text.replace(KONNEKT_FOOTER, "").rstrip()
-                max_body = 900 - len("\n\n") - len(KONNEKT_FOOTER)
-                if len(body) > max_body:
-                    truncated = body[:max_body]
-                    # Cut at the last sentence boundary (. ! ?)
-                    last_period = max(truncated.rfind("."), truncated.rfind("!"), truncated.rfind("?"))
-                    if last_period > max_body // 2:
-                        truncated = truncated[: last_period + 1]
-                    body = truncated
-                post.text = body.rstrip() + "\n\n" + KONNEKT_FOOTER
+                post.text = enforce_footer_and_length(post.text, footer, max_length=900)
 
         # Ensure source link is present before footer
         if item.url and f"]({item.url})" not in post.text:
             # Insert [Подробнее](url) before the footer
             post.text = post.text.replace(
-                KONNEKT_FOOTER,
-                f"[Подробнее]({item.url})\n\n{KONNEKT_FOOTER}",
+                footer,
+                f"[Подробнее]({item.url})\n\n{footer}",
             )
 
         # Resolve images: find multiple high-quality images from the source article

@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from hashlib import sha256
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, URLInputFile
 
 from app.agent.channel.embeddings import EMBEDDING_MODEL
-from app.agent.channel.generator import KONNEKT_FOOTER
+from app.agent.channel.generator import DEFAULT_FOOTER, enforce_footer_and_length
 from app.agent.channel.llm_client import openrouter_chat_completion
 from app.core.logging import get_logger
 from app.core.markdown import md_to_entities
@@ -32,36 +32,63 @@ CB_LONGER = "chpost:longer:"
 CB_TRANSLATE = "chpost:translate:"
 
 
-def _build_review_keyboard(post_id: int) -> InlineKeyboardMarkup:
+def _build_review_keyboard(
+    post_id: int,
+    source_items: list[dict[str, str]] | None = None,
+    channel_name: str = "",
+    channel_username: str | None = None,
+) -> InlineKeyboardMarkup:
     """Build inline keyboard for post review."""
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(text="Approve", callback_data=f"{CB_APPROVE}{post_id}"),
-                InlineKeyboardButton(text="Reject", callback_data=f"{CB_REJECT}{post_id}"),
-                InlineKeyboardButton(text="Regen", callback_data=f"{CB_REGEN}{post_id}"),
-            ],
-            [
-                InlineKeyboardButton(text="Shorter", callback_data=f"{CB_SHORTER}{post_id}"),
-                InlineKeyboardButton(text="Longer", callback_data=f"{CB_LONGER}{post_id}"),
-                InlineKeyboardButton(text="Translate", callback_data=f"{CB_TRANSLATE}{post_id}"),
-            ],
+    rows: list[list[InlineKeyboardButton]] = [
+        [
+            InlineKeyboardButton(text="✅ Approve", callback_data=f"{CB_APPROVE}{post_id}"),
+            InlineKeyboardButton(text="❌ Reject", callback_data=f"{CB_REJECT}{post_id}"),
+            InlineKeyboardButton(text="🔄 Regen", callback_data=f"{CB_REGEN}{post_id}"),
+        ],
+        [
+            InlineKeyboardButton(text="✂️ Shorter", callback_data=f"{CB_SHORTER}{post_id}"),
+            InlineKeyboardButton(text="📝 Longer", callback_data=f"{CB_LONGER}{post_id}"),
+            InlineKeyboardButton(text="🌐 Translate", callback_data=f"{CB_TRANSLATE}{post_id}"),
+        ],
+    ]
+
+    # Source URL buttons (max 2)
+    if source_items:
+        source_buttons = [
+            InlineKeyboardButton(text=f"📰 {item['title'][:25]}", url=item["url"])
+            for item in source_items[:2]
+            if item.get("url")
         ]
-    )
+        if source_buttons:
+            rows.append(source_buttons)
+
+    # Channel info row
+    if channel_name:
+        if channel_username:
+            rows.append(
+                [
+                    InlineKeyboardButton(
+                        text=f"📢 {channel_name}",
+                        url=f"https://t.me/{channel_username}",
+                    ),
+                ]
+            )
+        else:
+            rows.append(
+                [
+                    InlineKeyboardButton(
+                        text=f"📢 {channel_name}",
+                        callback_data=f"chpost:noop:{post_id}",
+                    ),
+                ]
+            )
+
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def _format_review_message(post_text: str, sources: list[ContentItem] | None = None) -> str:
+def _format_review_message(post_text: str) -> str:
     """Format the review message with metadata."""
-    parts = [post_text, "\n\n---"]
-
-    if sources:
-        source_lines = []
-        for s in sources[:3]:
-            source_lines.append(f"  {s.title[:50]}")
-        parts.append("*Sources:*\n" + "\n".join(source_lines))
-
-    parts.append("*Reply to this message to edit via conversation.*")
-    return "\n".join(parts)
+    return f"{post_text}\n\n---\n*Reply to edit via conversation.*"
 
 
 async def _send_review_message(
@@ -96,6 +123,40 @@ async def _send_review_message(
     )
 
 
+async def _edit_review_message(
+    bot: Bot,
+    chat_id: int | str,
+    message_id: int,
+    text: str,
+    entities: list[Any],
+    keyboard: InlineKeyboardMarkup,
+) -> None:
+    """Edit a review message — handles both text messages and photo captions."""
+    try:
+        await bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=message_id,
+            text=text,
+            entities=entities,
+            reply_markup=keyboard,
+        )
+    except Exception as exc:
+        # If edit_message_text fails, the message is likely a photo — try edit_message_caption
+        if "message can't be edited" in str(exc).lower() or "there is no text" in str(exc).lower():
+            caption = text[:1024]
+            # Trim entities to fit caption length
+            cap_entities = [e for e in entities if e.offset + e.length <= len(caption.encode("utf-16-le")) // 2]
+            await bot.edit_message_caption(
+                chat_id=chat_id,
+                message_id=message_id,
+                caption=caption,
+                caption_entities=cap_entities,
+                reply_markup=keyboard,
+            )
+        else:
+            raise
+
+
 async def send_for_review(
     bot: Bot,
     review_chat_id: int | str,
@@ -106,6 +167,8 @@ async def send_for_review(
     *,
     api_key: str = "",
     embedding_model: str = "",
+    channel_name: str = "",
+    channel_username: str | None = None,
 ) -> int | None:
     """Send a generated post to the review channel with inline buttons.
 
@@ -138,8 +201,20 @@ async def send_for_review(
         post_id = db_post.id
 
         # Send to review channel (photo + caption or text)
-        review_text = _format_review_message(post.text, source_items)
-        keyboard = _build_review_keyboard(post_id)
+        review_text = _format_review_message(post.text)
+
+        # Extract source info for keyboard
+        source_btn_data: list[dict[str, str]] = []
+        for s in source_items[:2]:
+            if s.url:
+                source_btn_data.append({"title": s.title[:25], "url": s.url})
+
+        keyboard = _build_review_keyboard(
+            post_id,
+            source_items=source_btn_data,
+            channel_name=channel_name,
+            channel_username=channel_username,
+        )
 
         try:
             msg = await _send_review_message(bot, review_chat_id, review_text, keyboard, post.image_url)
@@ -274,6 +349,7 @@ async def handle_edit_request(
     *,
     http_timeout: int = 30,
     temperature: float = 0.3,
+    footer: str = "",
 ) -> str:
     """Edit a post based on admin instruction. Updates the review message."""
     from sqlalchemy import select
@@ -287,6 +363,9 @@ async def handle_edit_request(
             return "Already published — cannot edit."
         if post.status == "rejected":
             return "Post was rejected — cannot edit."
+
+        # Resolve effective footer
+        effective_footer = footer.strip() or DEFAULT_FOOTER
 
         # Ask LLM to edit
         try:
@@ -314,7 +393,7 @@ async def handle_edit_request(
                             "- Max 1 emoji (at headline start), max 1 exclamation mark per post.\n"
                             "- Use standard Markdown: **bold**, *italic*, [link](url). "
                             "No HTML tags, no hashtags.\n"
-                            f"- ALWAYS end with the Konnekt footer:\n  {KONNEKT_FOOTER}"
+                            f"- ALWAYS end with the channel footer:\n  {effective_footer}"
                         ),
                     },
                     {
@@ -329,16 +408,7 @@ async def handle_edit_request(
             if not new_text:
                 return "Edit failed."
 
-            # Ensure footer is present
-            if KONNEKT_FOOTER not in new_text:
-                new_text = new_text.rstrip() + "\n\n" + KONNEKT_FOOTER
-
-            # Hard-truncate if still over 900
-            if len(new_text) > 900:
-                max_body = 900 - len("\n\n") - len(KONNEKT_FOOTER)
-                body = new_text.replace(KONNEKT_FOOTER, "").rstrip()
-                body = body[:max_body].rstrip()
-                new_text = body + "\n\n" + KONNEKT_FOOTER
+            new_text = enforce_footer_and_length(new_text, effective_footer)
 
             post.update_text(new_text)
 
@@ -349,12 +419,13 @@ async def handle_edit_request(
                     review_plain, review_entities = md_to_entities(
                         _format_review_message(new_text),
                     )
-                    await bot.edit_message_text(
-                        chat_id=review_chat_id,
-                        message_id=post.review_message_id,
-                        text=review_plain,
-                        entities=review_entities,
-                        reply_markup=keyboard,
+                    await _edit_review_message(
+                        bot,
+                        review_chat_id,
+                        post.review_message_id,
+                        review_plain,
+                        review_entities,
+                        keyboard,
                     )
                 except Exception:
                     logger.exception("review_update_error")
@@ -376,6 +447,8 @@ async def handle_regen(
     language: str,
     review_chat_id: int | str,
     session_maker: async_sessionmaker[AsyncSession],
+    *,
+    footer: str = "",
 ) -> str:
     """Regenerate a post from its original sources."""
     from sqlalchemy import select
@@ -410,7 +483,7 @@ async def handle_regen(
         if not items:
             return "No source data to regenerate from."
 
-        new_post = await generate_post(items, api_key=api_key, model=model, language=language)
+        new_post = await generate_post(items, api_key=api_key, model=model, language=language, footer=footer)
         if not new_post:
             return "Regeneration failed."
 
@@ -423,12 +496,13 @@ async def handle_regen(
                 regen_plain, regen_entities = md_to_entities(
                     _format_review_message(new_post.text),
                 )
-                await bot.edit_message_text(
-                    chat_id=review_chat_id,
-                    message_id=post.review_message_id,
-                    text=regen_plain,
-                    entities=regen_entities,
-                    reply_markup=keyboard,
+                await _edit_review_message(
+                    bot,
+                    review_chat_id,
+                    post.review_message_id,
+                    regen_plain,
+                    regen_entities,
+                    keyboard,
                 )
             except Exception:
                 logger.exception("review_update_error")

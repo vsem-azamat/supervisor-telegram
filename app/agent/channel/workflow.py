@@ -201,6 +201,7 @@ async def generate_post(state: State) -> State:
     from app.agent.channel.config import language_name
 
     language = language_name(channel.language)
+    footer = channel.footer
 
     # Non-blocking feedback context
     feedback_context: str | None = None
@@ -223,6 +224,7 @@ async def generate_post(state: State) -> State:
             model=config.generation_model,
             language=language,
             feedback_context=feedback_context,
+            footer=footer,
         )
         if post is None:
             return state.update(generated_post=None, error="generation_failed")
@@ -284,6 +286,8 @@ async def send_for_review(state: State) -> State:
                 session_maker=session_maker,
                 api_key=api_key,
                 embedding_model=config.embedding_model,
+                channel_name=channel.name,
+                channel_username=channel.username,
             )
             if post_id:
                 logger.info("workflow_review_sent", post_id=post_id)

@@ -312,19 +312,12 @@ class TestReviewFlow:
         assert kb.inline_keyboard[0][0].callback_data == "chpost:approve:42"
         assert kb.inline_keyboard[0][1].callback_data == "chpost:reject:42"
 
-    async def test_format_review_message_without_sources(self) -> None:
+    async def test_format_review_message(self) -> None:
         from app.agent.channel.review import _format_review_message
 
         msg = _format_review_message("<b>Hello</b>")
         assert "<b>Hello</b>" in msg
-        assert "Reply to this message" in msg
-
-    async def test_format_review_message_with_sources(self, sample_content_items: list[ContentItem]) -> None:
-        from app.agent.channel.review import _format_review_message
-
-        msg = _format_review_message("<b>Hello</b>", sample_content_items)
-        assert "Sources:" in msg
-        assert "Test Article One" in msg
+        assert "Reply to edit via conversation." in msg
 
     async def test_send_for_review(
         self,

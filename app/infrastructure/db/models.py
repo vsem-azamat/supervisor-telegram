@@ -267,9 +267,12 @@ class Channel(Base):
     daily_posts_count: Mapped[int] = mapped_column(Integer, default=0)
     daily_count_date: Mapped[str | None] = mapped_column(String(10), nullable=True)
     last_source_discovery_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    footer_template: Mapped[str | None] = mapped_column(String, nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
     modified_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
+
+    _DEFAULT_FOOTER = "——\n🔗 **{name}** | @{username}"
 
     def __init__(
         self,
@@ -283,6 +286,7 @@ class Channel(Base):
         discovery_query: str = "",
         source_discovery_query: str = "",
         username: str | None = None,
+        footer_template: str | None = None,
         enabled: bool = True,
     ) -> None:
         self.telegram_id = telegram_id
@@ -295,7 +299,16 @@ class Channel(Base):
         self.discovery_query = discovery_query
         self.source_discovery_query = source_discovery_query
         self.username = username
+        self.footer_template = footer_template
         self.enabled = enabled
+
+    @property
+    def footer(self) -> str:
+        """Resolved footer text. Uses template if set, otherwise builds from name/username."""
+        if self.footer_template:
+            return self.footer_template
+        username = self.username or self.telegram_id.lstrip("@").lstrip("-")
+        return self._DEFAULT_FOOTER.format(name=self.name, username=username)
 
     def reset_daily_count(self, today: str) -> None:
         """Reset daily post counter if date has changed."""
