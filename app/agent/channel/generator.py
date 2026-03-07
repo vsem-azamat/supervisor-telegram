@@ -235,6 +235,14 @@ async def generate_post(
                     body = truncated
                 post.text = body.rstrip() + "\n\n" + KONNEKT_FOOTER
 
+        # Ensure source link is present before footer
+        if item.url and f"]({item.url})" not in post.text:
+            # Insert [Подробнее](url) before the footer
+            post.text = post.text.replace(
+                KONNEKT_FOOTER,
+                f"[Подробнее]({item.url})\n\n{KONNEKT_FOOTER}",
+            )
+
         # Resolve images: find multiple high-quality images from the source article
         from app.agent.channel.images import find_images_for_post
 
