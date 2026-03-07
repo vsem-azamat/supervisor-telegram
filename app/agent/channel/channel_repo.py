@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 
 from app.core.logging import get_logger
+from app.core.time import utc_now
 from app.infrastructure.db.models import Channel
 
 if TYPE_CHECKING:
@@ -149,5 +150,5 @@ async def update_source_discovery_time(
         result = await session.execute(select(Channel).where(Channel.telegram_id == telegram_id))
         channel = result.scalar_one_or_none()
         if channel:
-            channel.last_source_discovery_at = datetime.now(UTC)
+            channel.last_source_discovery_at = utc_now()
             await session.commit()

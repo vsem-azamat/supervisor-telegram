@@ -6,14 +6,18 @@ import asyncio
 import hashlib
 import re
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from functools import partial
+from typing import TYPE_CHECKING
 
 import feedparser
 import httpx
 
 from app.agent.channel.http import get_http_client
 from app.core.logging import get_logger
+from app.core.time import utc_now
+
+if TYPE_CHECKING:
+    from datetime import datetime
 
 logger = get_logger("channel.sources")
 
@@ -30,7 +34,7 @@ class ContentItem:
     body: str
     url: str | None = None
     image_url: str | None = None
-    discovered_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    discovered_at: datetime = field(default_factory=utc_now)
 
     @property
     def summary(self) -> str:

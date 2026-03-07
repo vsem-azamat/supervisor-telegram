@@ -41,10 +41,10 @@ async def discover_content(
 
     Uses raw HTTP to avoid PydanticAI's tool-use requirement (Sonar doesn't support tools).
     """
-    from datetime import UTC, datetime
     from hashlib import sha256
 
     from app.agent.channel.sources import ContentItem
+    from app.core.time import utc_now
 
     try:
         content = await openrouter_chat_completion(
@@ -80,7 +80,7 @@ async def discover_content(
                     title=title,
                     body=summary,
                     url=url,
-                    discovered_at=datetime.now(UTC),
+                    discovered_at=utc_now(),
                 )
             )
 

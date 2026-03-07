@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 from app.agent.channel.channel_repo import (
@@ -22,6 +22,7 @@ from app.agent.channel.channel_repo import (
 from app.agent.channel.source_discovery import discover_and_add_sources
 from app.agent.channel.source_manager import seed_sources_from_env
 from app.core.logging import get_logger
+from app.core.time import utc_now
 
 if TYPE_CHECKING:
     from aiogram import Bot
@@ -39,7 +40,7 @@ def _next_scheduled_time(schedule: list[str], now: datetime | None = None) -> da
         raise ValueError("schedule must not be empty")
 
     if now is None:
-        now = datetime.now(UTC)
+        now = utc_now()
 
     parsed: list[tuple[int, int]] = []
     for entry in schedule:
@@ -133,7 +134,7 @@ class SingleChannelOrchestrator:
         """Sleep until the next posting time (schedule or interval)."""
         schedule = self.channel.posting_schedule
         if schedule:
-            now = datetime.now(UTC)
+            now = utc_now()
             next_time = _next_scheduled_time(schedule, now)
             delay = (next_time - now).total_seconds()
             logger.info(
@@ -153,7 +154,7 @@ class SingleChannelOrchestrator:
 
         interval = self.config.source_discovery_interval_hours * 3600
         last = self.channel.last_source_discovery_at
-        if last and (datetime.now(UTC) - last).total_seconds() < interval:
+        if last and (utc_now() - last).total_seconds() < interval:
             return
 
         query = self.channel.source_discovery_query or self.config.source_discovery_query
@@ -169,7 +170,7 @@ class SingleChannelOrchestrator:
         )
         await update_source_discovery_time(self.session_maker, self.channel.telegram_id)
         # Refresh in-memory reference
-        self.channel.last_source_discovery_at = datetime.now(UTC)
+        self.channel.last_source_discovery_at = utc_now()
         logger.info("source_discovery_done", added=added)
 
     async def _run_cycle(self) -> None:

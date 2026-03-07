@@ -201,7 +201,9 @@ class TestSingleChannelOrchestrator:
     async def test_maybe_discover_sources_respects_cooldown(self, single_orch: SingleChannelOrchestrator):
         single_orch.config.source_discovery_enabled = True
         single_orch.config.source_discovery_interval_hours = 24
-        single_orch.channel.last_source_discovery_at = datetime.now(UTC)
+        from app.core.time import utc_now
+
+        single_orch.channel.last_source_discovery_at = utc_now()
         with patch("app.agent.channel.orchestrator.discover_and_add_sources", new_callable=AsyncMock) as mock_disc:
             await single_orch._maybe_discover_sources()
             mock_disc.assert_not_called()

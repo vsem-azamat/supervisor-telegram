@@ -465,6 +465,109 @@ class TestReviewFlow:
             saved = (await session.execute(select(ChannelPost))).scalar_one()
             assert saved.admin_feedback is None
 
+    async def test_handle_delete(
+        self,
+        mock_bot: AsyncMock,
+        session_maker: async_sessionmaker[AsyncSession],
+    ) -> None:
+        from app.agent.channel.review import handle_delete
+
+        async with session_maker() as session:
+            post = ChannelPost(
+                channel_id="@test",
+                external_id="ext1",
+                title="T",
+                post_text="text",
+                review_chat_id=123,
+            )
+            session.add(post)
+            await session.commit()
+            post_id = post.id
+
+        result = await handle_delete(mock_bot, post_id, 123, 456, session_maker)
+        assert result == "Post deleted."
+
+        # Post should be gone from DB
+        async with session_maker() as session:
+            saved = (await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))).scalar_one_or_none()
+            assert saved is None
+
+        # Review message should have been deleted
+        mock_bot.delete_message.assert_awaited_once_with(chat_id=123, message_id=456)
+
+    async def test_handle_delete_not_found(
+        self,
+        mock_bot: AsyncMock,
+        session_maker: async_sessionmaker[AsyncSession],
+    ) -> None:
+        from app.agent.channel.review import handle_delete
+
+        result = await handle_delete(mock_bot, 999, 123, None, session_maker)
+        assert result == "Post not found."
+
+    async def test_handle_delete_already_published(
+        self,
+        mock_bot: AsyncMock,
+        session_maker: async_sessionmaker[AsyncSession],
+    ) -> None:
+        from app.agent.channel.review import handle_delete
+
+        async with session_maker() as session:
+            post = ChannelPost(channel_id="@test", external_id="ext1", title="T", post_text="text")
+            post.approve(100)
+            session.add(post)
+            await session.commit()
+            post_id = post.id
+
+        result = await handle_delete(mock_bot, post_id, 123, 456, session_maker)
+        assert result == "Already published — cannot delete."
+
+        # Post should still exist
+        async with session_maker() as session:
+            saved = (await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))).scalar_one_or_none()
+            assert saved is not None
+
+    async def test_handle_delete_no_review_message(
+        self,
+        mock_bot: AsyncMock,
+        session_maker: async_sessionmaker[AsyncSession],
+    ) -> None:
+        from app.agent.channel.review import handle_delete
+
+        async with session_maker() as session:
+            post = ChannelPost(channel_id="@test", external_id="ext1", title="T", post_text="text")
+            session.add(post)
+            await session.commit()
+            post_id = post.id
+
+        result = await handle_delete(mock_bot, post_id, 123, None, session_maker)
+        assert result == "Post deleted."
+        mock_bot.delete_message.assert_not_awaited()
+
+    async def test_handle_delete_message_delete_fails_gracefully(
+        self,
+        mock_bot: AsyncMock,
+        session_maker: async_sessionmaker[AsyncSession],
+    ) -> None:
+        from app.agent.channel.review import handle_delete
+
+        mock_bot.delete_message.side_effect = Exception("Telegram error")
+
+        async with session_maker() as session:
+            post = ChannelPost(channel_id="@test", external_id="ext1", title="T", post_text="text")
+            session.add(post)
+            await session.commit()
+            post_id = post.id
+
+        # Should still succeed even if message deletion fails
+        result = await handle_delete(mock_bot, post_id, 123, 789, session_maker)
+        assert result == "Post deleted."
+
+        # Post should be gone
+        async with session_maker() as session:
+            saved = (await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))).scalar_one_or_none()
+            assert saved is None
+
     async def test_handle_approve_publish_fails(
         self,
         mock_bot: AsyncMock,
