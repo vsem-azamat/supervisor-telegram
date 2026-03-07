@@ -173,12 +173,13 @@ class TestFindImagesForPost:
         assert result == []
 
     async def test_http_error_returns_empty(self) -> None:
-        with patch("app.agent.channel.images.httpx.AsyncClient") as mock_client:
-            mock_ctx = AsyncMock()
-            mock_ctx.get = AsyncMock(side_effect=Exception("Network error"))
-            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
-            mock_client.return_value.__aexit__ = AsyncMock(return_value=False)
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(side_effect=Exception("Network error"))
 
+        with (
+            patch("app.agent.channel.images.get_http_client", return_value=mock_client),
+            patch("app.agent.channel.images._is_safe_url", return_value=True),
+        ):
             result = await find_images_for_post(keywords="test", source_urls=["https://example.com/article"])
             assert result == []
 
@@ -188,12 +189,13 @@ class TestFindImagesForPost:
         mock_resp.text = html
         mock_resp.raise_for_status = MagicMock()
 
-        with patch("app.agent.channel.images.httpx.AsyncClient") as mock_client:
-            mock_ctx = AsyncMock()
-            mock_ctx.get = AsyncMock(return_value=mock_resp)
-            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
-            mock_client.return_value.__aexit__ = AsyncMock(return_value=False)
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
 
+        with (
+            patch("app.agent.channel.images.get_http_client", return_value=mock_client),
+            patch("app.agent.channel.images._is_safe_url", return_value=True),
+        ):
             result = await find_images_for_post(keywords="test", source_urls=["https://example.com/article"])
             assert len(result) >= 1
             assert "og.jpg" in result[0]
@@ -211,12 +213,13 @@ class TestFindImagesForPost:
         mock_resp.text = html
         mock_resp.raise_for_status = MagicMock()
 
-        with patch("app.agent.channel.images.httpx.AsyncClient") as mock_client:
-            mock_ctx = AsyncMock()
-            mock_ctx.get = AsyncMock(return_value=mock_resp)
-            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_ctx)
-            mock_client.return_value.__aexit__ = AsyncMock(return_value=False)
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
 
+        with (
+            patch("app.agent.channel.images.get_http_client", return_value=mock_client),
+            patch("app.agent.channel.images._is_safe_url", return_value=True),
+        ):
             result = await find_images_for_post(
                 keywords="test",
                 source_urls=["https://example.com/article"],
