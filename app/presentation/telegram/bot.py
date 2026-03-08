@@ -120,7 +120,7 @@ def _init_agent(session_maker: async_sessionmaker[AsyncSession]) -> AgentCore | 
 
     agent_core = AgentCore()
     EscalationService.set_session_maker(session_maker)
-    logger.info("agent_enabled", model=settings.agent.model)
+    logger.info("agent_enabled", model=settings.agent.moderation_model)
     return agent_core
 
 

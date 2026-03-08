@@ -140,7 +140,7 @@ async def _validate_channel_id(ctx: RunContext[AssistantDeps], channel_id: str) 
 
 def create_assistant_agent(model_name: str = "") -> Agent[AssistantDeps, str]:
     """Create the PydanticAI assistant agent with all tools."""
-    model_name = model_name or "anthropic/claude-sonnet-4-6"
+    model_name = model_name or settings.agent.assistant_model
 
     provider = OpenAIProvider(
         base_url=settings.agent.openrouter_base_url,

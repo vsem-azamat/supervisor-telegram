@@ -143,16 +143,26 @@ class WebAppSettings(BaseSettings):
 
 
 class AgentSettings(BaseSettings):
-    """AI agent configuration."""
+    """AI agent configuration (shared OpenRouter credentials + per-role models)."""
 
     openrouter_api_key: str = Field(default="", description="OpenRouter API key")
-    model: str = Field(default="google/gemini-3.1-pro-preview", description="LLM model to use via OpenRouter")
+    openrouter_base_url: str = Field(default="https://openrouter.ai/api/v1", description="OpenRouter API base URL")
+
+    # Per-role models
+    moderation_model: str = Field(
+        default="google/gemini-3.1-flash-lite-preview",
+        description="Model for spam/moderation agent in chats",
+    )
+    assistant_model: str = Field(
+        default="deepseek/deepseek-v3.2",
+        description="Model for the assistant bot (channel/chat management)",
+    )
+
     temperature: float = Field(default=0.3, description="LLM temperature")
     escalation_timeout_minutes: int = Field(default=30, description="Minutes before escalation times out")
     default_timeout_action: str = Field(default="ignore", description="Default action on escalation timeout")
-    openrouter_base_url: str = Field(default="https://openrouter.ai/api/v1", description="OpenRouter API base URL")
     brave_api_key: str = Field(default="", description="Brave Search API key for web search")
-    enabled: bool = Field(default=False, description="Whether the agent is enabled")
+    enabled: bool = Field(default=False, description="Whether the moderation agent is enabled")
 
     model_config = SettingsConfigDict(
         env_prefix="AGENT_",

@@ -31,7 +31,7 @@ def _create_pydantic_agent() -> Agent[AgentDeps, ModerationResult]:
         base_url=settings.agent.openrouter_base_url,
         api_key=settings.agent.openrouter_api_key,
     )
-    model = OpenAIChatModel(settings.agent.model, provider=provider)
+    model = OpenAIChatModel(settings.agent.moderation_model, provider=provider)
 
     agent: Agent[AgentDeps, ModerationResult] = Agent(
         model,
