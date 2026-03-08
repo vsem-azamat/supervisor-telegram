@@ -38,12 +38,13 @@ async def record_fetch_success(
     session_maker: async_sessionmaker[AsyncSession],
     source_url: str,
 ) -> None:
-    """Record a successful fetch for a source."""
+    """Record a successful fetch for all sources with this URL (may span channels)."""
     async with session_maker() as session:
         result = await session.execute(select(ChannelSource).where(ChannelSource.url == source_url))
-        source = result.scalar_one_or_none()
-        if source:
+        sources = list(result.scalars().all())
+        for source in sources:
             source.record_success()
+        if sources:
             await session.commit()
 
 
@@ -52,11 +53,11 @@ async def record_fetch_error(
     source_url: str,
     error: str,
 ) -> None:
-    """Record a fetch error. Auto-disables after repeated failures."""
+    """Record a fetch error for all sources with this URL. Auto-disables after repeated failures."""
     async with session_maker() as session:
         result = await session.execute(select(ChannelSource).where(ChannelSource.url == source_url))
-        source = result.scalar_one_or_none()
-        if source:
+        sources = list(result.scalars().all())
+        for source in sources:
             source.record_error(error)
             if not source.enabled:
                 logger.warning(
@@ -64,6 +65,7 @@ async def record_fetch_error(
                     url=source_url,
                     error_count=source.error_count,
                 )
+        if sources:
             await session.commit()
 
 
@@ -96,16 +98,21 @@ async def add_source(
 async def remove_source(
     session_maker: async_sessionmaker[AsyncSession],
     url: str,
+    channel_id: str | None = None,
 ) -> bool:
-    """Remove a source by URL. Returns True if found and deleted."""
+    """Remove a source by URL (optionally scoped to channel). Returns True if found and deleted."""
     async with session_maker() as session:
-        result = await session.execute(select(ChannelSource).where(ChannelSource.url == url))
-        source = result.scalar_one_or_none()
-        if not source:
+        query = select(ChannelSource).where(ChannelSource.url == url)
+        if channel_id:
+            query = query.where(ChannelSource.channel_id == channel_id)
+        result = await session.execute(query)
+        sources = list(result.scalars().all())
+        if not sources:
             return False
-        await session.delete(source)
+        for source in sources:
+            await session.delete(source)
         await session.commit()
-        logger.info("source_removed", url=url)
+        logger.info("source_removed", url=url, count=len(sources))
         return True
 
 
