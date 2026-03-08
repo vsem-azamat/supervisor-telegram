@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime  # noqa: TC003 - needed at runtime for dataclass field type
 from typing import Any
 
 from app.core.logging import get_logger
+from app.core.time import utc_now
 
 logger = get_logger("channel.cost_tracker")
 
@@ -49,7 +50,7 @@ class LLMUsage:
     cache_write_tokens: int = 0
     cache_savings_usd: float = 0.0
     channel_id: str | None = None
-    created_at: datetime = field(default_factory=datetime.now)
+    created_at: datetime = field(default_factory=utc_now)
 
 
 def _estimate_cost(

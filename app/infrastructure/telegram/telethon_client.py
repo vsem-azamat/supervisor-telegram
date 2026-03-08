@@ -186,10 +186,15 @@ class TelethonClient:
                 await asyncio.sleep(wait_time)
                 last_exception = e
             except Exception as e:
+                # Don't retry on non-transient errors (entity not found, auth, etc.)
+                err_str = str(e)
+                non_transient = ("Could not find the input entity", "No user has", "AuthKey", "not found")
+                if any(marker in err_str for marker in non_transient):
+                    raise
                 delay = base_delay * (2**attempt)
                 logger.warning(
                     "Telethon request failed, retrying",
-                    error=str(e),
+                    error=err_str,
                     attempt=attempt + 1,
                     delay=delay,
                 )

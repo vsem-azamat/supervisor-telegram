@@ -77,7 +77,6 @@ class SingleChannelOrchestrator:
         self.channel = channel
         self.api_key = api_key
         self.session_maker = session_maker
-        self._seen_ids: dict[str, None] = {}
         self._task: asyncio.Task[None] | None = None
         self._pending_reviews: dict[int, dict[str, object]] = {}
 

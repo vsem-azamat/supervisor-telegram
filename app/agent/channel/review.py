@@ -127,11 +127,6 @@ def build_schedule_picker_keyboard(
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def _format_review_message(post_text: str) -> str:
-    """Format the review message — show exactly as it will be published."""
-    return post_text
-
-
 async def _send_review_message(
     bot: Bot,
     chat_id: int | str,
@@ -245,16 +240,14 @@ async def send_for_review(
             image_url=post.image_url,
             image_urls=post.image_urls or None,
             source_items=source_data,
-            review_chat_id=int(review_chat_id)
-            if isinstance(review_chat_id, str) and review_chat_id.lstrip("-").isdigit()
-            else 0,
+            review_chat_id=int(review_chat_id) if review_chat_id else 0,
         )
         session.add(db_post)
         await session.flush()
         post_id = db_post.id
 
         # Send to review channel (photo + caption or text)
-        review_text = _format_review_message(post.text)
+        review_text = post.text
 
         # Extract source info for keyboard
         source_btn_data: list[dict[str, str]] = []
@@ -314,7 +307,7 @@ def _extract_source_btn_data(post: ChannelPost) -> list[dict[str, str]]:
     return items
 
 
-async def _extract_source_urls(post: ChannelPost) -> list[str]:
+def _extract_source_urls(post: ChannelPost) -> list[str]:
     """Extract unique source URLs from a post's source_items."""
     if not post.source_items:
         return []
@@ -347,7 +340,7 @@ async def handle_approve(
         if post.status == PostStatus.SCHEDULED:
             return "Post is scheduled. Use 'Publish now' to send immediately."
 
-        source_urls = await _extract_source_urls(post)
+        source_urls = _extract_source_urls(post)
 
         try:
             from app.agent.channel.generator import GeneratedPost
@@ -395,7 +388,7 @@ async def handle_reject(
         if post.status == PostStatus.APPROVED:
             return "Already published — cannot reject."
 
-        source_urls = await _extract_source_urls(post)
+        source_urls = _extract_source_urls(post)
         post.reject(reason)
         await session.commit()
         logger.info("post_rejected", post_id=post_id)
@@ -525,9 +518,7 @@ async def handle_edit_request(
                     channel_username=channel_username,
                 )
                 try:
-                    review_plain, review_entities = md_to_entities(
-                        _format_review_message(new_text),
-                    )
+                    review_plain, review_entities = md_to_entities(new_text)
                     await _edit_review_message(
                         bot,
                         review_chat_id,
@@ -630,9 +621,7 @@ async def handle_regen(
                 channel_username=channel_username,
             )
             try:
-                regen_plain, regen_entities = md_to_entities(
-                    _format_review_message(new_post.text),
-                )
+                regen_plain, regen_entities = md_to_entities(new_post.text)
                 await _edit_review_message(
                     bot,
                     review_chat_id,

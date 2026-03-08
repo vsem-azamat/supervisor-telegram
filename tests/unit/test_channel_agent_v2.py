@@ -329,12 +329,6 @@ class TestReviewFlow:
         # Row 4: sources
         assert kb.inline_keyboard[3][0].url == "https://example.com/1"
 
-    async def test_format_review_message(self) -> None:
-        from app.agent.channel.review import _format_review_message
-
-        msg = _format_review_message("<b>Hello</b>")
-        assert msg == "<b>Hello</b>"
-
     async def test_send_for_review(
         self,
         mock_bot: AsyncMock,
@@ -1407,9 +1401,11 @@ class TestChannelConfigGetChannels:
         assert ch.discovery_query == "test query"
         assert ch.source_discovery_query == "rss query"
 
-    def test_get_channels_empty_when_no_channel_id(self) -> None:
+    def test_get_channels_empty_when_no_channel_id(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from app.agent.channel.config import ChannelAgentSettings
 
+        monkeypatch.delenv("CHANNEL_CHANNEL_ID", raising=False)
+        monkeypatch.delenv("CHANNEL_CHANNELS", raising=False)
         cfg = ChannelAgentSettings(enabled=True, _env_file=None)  # type: ignore[call-arg]
         assert cfg.get_channels() == []
 

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 import pytest_asyncio  # noqa: F401
@@ -289,3 +290,222 @@ class TestChat:
             bot._deps = saved_deps
             bot._conversations.clear()
             bot._conversation_last_access.clear()
+
+
+# ---------------------------------------------------------------------------
+# 7. _chat_stream() tests
+# ---------------------------------------------------------------------------
+
+
+class TestChatStream:
+    def setup_method(self) -> None:
+        from app.assistant import bot
+
+        bot._conversations.clear()
+        bot._conversation_last_access.clear()
+
+    @pytest.mark.asyncio
+    async def test_returns_error_when_agent_not_initialized(self) -> None:
+        from app.assistant import bot
+
+        saved_agent, saved_deps = bot._agent, bot._deps
+        bot._agent = None
+        bot._deps = None
+
+        try:
+            text, draft_id = await bot._chat_stream(MagicMock(), 123, 456, "hello")
+            assert text == "Агент не инициализирован."
+            assert draft_id == 0
+        finally:
+            bot._agent = saved_agent
+            bot._deps = saved_deps
+
+    @pytest.mark.asyncio
+    async def test_returns_timeout_message_on_timeout(self) -> None:
+        from app.assistant import bot
+
+        saved_agent, saved_deps = bot._agent, bot._deps
+        saved_timeout = bot._AGENT_TIMEOUT_SECONDS
+
+        # Mock agent with a stream that hangs
+        mock_stream_result = MagicMock()
+
+        async def slow_stream(*_args, **_kwargs):
+            await asyncio.sleep(999)
+            yield "text"  # pragma: no cover
+
+        mock_stream_result.stream_text = slow_stream
+        mock_stream_ctx = MagicMock()
+        mock_stream_ctx.__aenter__ = AsyncMock(return_value=mock_stream_result)
+        mock_stream_ctx.__aexit__ = AsyncMock(return_value=False)
+
+        mock_agent = MagicMock()
+        mock_agent.run_stream = MagicMock(return_value=mock_stream_ctx)
+
+        bot._agent = mock_agent
+        bot._deps = MagicMock()
+        bot._AGENT_TIMEOUT_SECONDS = 0.01  # type: ignore[assignment]
+
+        try:
+            text, draft_id = await bot._chat_stream(MagicMock(), 123, 456, "hello")
+            assert "Превышено время ожидания" in text
+            assert draft_id > 0  # draft_id is assigned before timeout
+        finally:
+            bot._agent = saved_agent
+            bot._deps = saved_deps
+            bot._AGENT_TIMEOUT_SECONDS = saved_timeout
+
+    @pytest.mark.asyncio
+    async def test_draft_throttling(self) -> None:
+        """Drafts should only be sent when enough chars accumulated and enough time passed."""
+        from app.assistant import bot
+
+        saved_agent, saved_deps = bot._agent, bot._deps
+
+        draft_calls: list[str] = []
+
+        async def fake_send_draft(_bot, _chat_id, _draft_id, text, **_kw):
+            draft_calls.append(text)
+
+        # Mock streaming that yields progressively
+        chunks = ["Hi", "Hi, this is a longer response that keeps growing with more content"]
+
+        async def fake_stream_text(debounce_by=0):
+            for chunk in chunks:
+                yield chunk
+
+        mock_stream_result = MagicMock()
+        mock_stream_result.stream_text = fake_stream_text
+        mock_stream_result.get_output = AsyncMock(return_value="final output")
+        mock_stream_result.all_messages.return_value = [MagicMock()]
+        mock_stream_result.usage.return_value = None
+
+        mock_stream_ctx = MagicMock()
+        mock_stream_ctx.__aenter__ = AsyncMock(return_value=mock_stream_result)
+        mock_stream_ctx.__aexit__ = AsyncMock(return_value=False)
+
+        mock_agent = MagicMock()
+        mock_agent.run_stream = MagicMock(return_value=mock_stream_ctx)
+
+        bot._agent = mock_agent
+        bot._deps = MagicMock()
+
+        try:
+            with patch("app.assistant.bot._send_draft", side_effect=fake_send_draft):
+                with patch("app.assistant.bot.extract_usage_from_pydanticai_result", return_value=None):
+                    text, draft_id = await bot._chat_stream(MagicMock(), 123, 456, "hello")
+            assert text == "final output"
+            # First chunk "Hi" is only 2 chars — below _DRAFT_MIN_CHARS (20), should NOT be sent as draft
+            # Second chunk is long enough — should be sent
+            # Final draft without cursor should also be sent
+            assert len(draft_calls) >= 1
+            # No draft should contain just "Hi" (too short)
+            assert not any(d.strip() == "Hi" for d in draft_calls)
+        finally:
+            bot._agent = saved_agent
+            bot._deps = saved_deps
+            bot._conversations.clear()
+            bot._conversation_last_access.clear()
+
+
+# ---------------------------------------------------------------------------
+# 8. Conversation lock concurrency test
+# ---------------------------------------------------------------------------
+
+
+class TestConversationLock:
+    @pytest.mark.asyncio
+    async def test_concurrent_access_doesnt_lose_data(self) -> None:
+        """Two concurrent _chat calls for different users should not corrupt state."""
+        from app.assistant import bot
+
+        saved_agent, saved_deps = bot._agent, bot._deps
+        bot._conversations.clear()
+        bot._conversation_last_access.clear()
+
+        call_count = 0
+
+        async def fake_run(msg, deps=None, message_history=None):
+            nonlocal call_count
+            call_count += 1
+            # Simulate some async work
+            await asyncio.sleep(0.01)
+            mock_result = MagicMock()
+            mock_result.output = f"response_{call_count}"
+            mock_result.all_messages.return_value = [MagicMock()]
+            mock_result.usage.return_value = None
+            return mock_result
+
+        mock_agent = MagicMock()
+        mock_agent.run = fake_run
+        bot._agent = mock_agent
+        bot._deps = MagicMock()
+
+        try:
+            with patch("app.assistant.bot.extract_usage_from_pydanticai_result", return_value=None):
+                results = await asyncio.gather(
+                    bot._chat(100, "hello"),
+                    bot._chat(200, "world"),
+                )
+            # Both users should have conversation history
+            assert 100 in bot._conversations
+            assert 200 in bot._conversations
+            assert len(results) == 2
+        finally:
+            bot._agent = saved_agent
+            bot._deps = saved_deps
+            bot._conversations.clear()
+            bot._conversation_last_access.clear()
+
+
+# ---------------------------------------------------------------------------
+# 9. md_to_entities_chunked boundary tests
+# ---------------------------------------------------------------------------
+
+
+class TestMdToEntitiesChunkedBoundary:
+    def test_exactly_at_max_len_is_single_chunk(self) -> None:
+        text = "a" * 4096
+        chunks = md_to_entities_chunked(text)
+        assert len(chunks) == 1
+        assert len(chunks[0][0]) <= 4096
+
+    def test_one_over_max_len_splits(self) -> None:
+        text = "a" * 4097
+        chunks = md_to_entities_chunked(text)
+        assert len(chunks) >= 2
+        for chunk_text, _ in chunks:
+            assert len(chunk_text) <= 4096
+
+    def test_custom_max_len_respected(self) -> None:
+        text = "word " * 100  # 500 chars
+        chunks = md_to_entities_chunked(text, max_len=100)
+        assert len(chunks) >= 5
+        for chunk_text, _ in chunks:
+            assert len(chunk_text) <= 100
+
+
+# ---------------------------------------------------------------------------
+# 10. Cost tracker timestamp test
+# ---------------------------------------------------------------------------
+
+
+class TestCostTrackerTimestamp:
+    def test_usage_created_at_is_utc(self) -> None:
+        from app.agent.channel.cost_tracker import LLMUsage
+
+        usage = LLMUsage(
+            model="test",
+            operation="test",
+            prompt_tokens=10,
+            completion_tokens=5,
+            total_tokens=15,
+            estimated_cost_usd=0.001,
+        )
+        # Should use utc_now(), not datetime.now() — verify it has no timezone info (naive UTC)
+        assert usage.created_at.tzinfo is None
+        # Should be recent (within last 5 seconds)
+        from datetime import UTC, datetime
+
+        now_utc = datetime.now(UTC).replace(tzinfo=None)
+        assert abs((now_utc - usage.created_at).total_seconds()) < 5

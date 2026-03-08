@@ -219,7 +219,6 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
             _build_review_keyboard,
             _edit_review_message,
             _extract_source_btn_data,
-            _format_review_message,
         )
         from app.core.markdown import md_to_entities
         from app.infrastructure.db.models import ChannelPost
@@ -249,9 +248,7 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
                     channel_username=ctx.deps.channel_username,
                 )
                 try:
-                    review_plain, review_entities = md_to_entities(
-                        _format_review_message(new_text),
-                    )
+                    review_plain, review_entities = md_to_entities(new_text)
                     await _edit_review_message(
                         ctx.deps.bot,
                         ctx.deps.review_chat_id,
