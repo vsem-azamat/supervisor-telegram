@@ -115,7 +115,10 @@ async def handle_channel_posts(request: web.Request) -> web.Response:
         return auth
 
     channel_id = request.match_info["channel_id"]
-    limit = min(int(request.query.get("limit", "20")), _MAX_API_PAGE_SIZE)
+    try:
+        limit = min(int(request.query.get("limit", "20")), _MAX_API_PAGE_SIZE)
+    except ValueError:
+        limit = 20
     data = await get_recent_posts(_session_maker(request), channel_id, limit=limit)
     return _json_response(data)
 

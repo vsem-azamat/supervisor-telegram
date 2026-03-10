@@ -211,7 +211,7 @@ async def screen_items(
         logger.info("batch_screening_done", total=len(items), relevant=len(relevant))
         return relevant
 
-    except (ScreeningError, Exception) as exc:
+    except Exception as exc:
         # Fall back to per-item screening if batch fails
         if not isinstance(exc, ScreeningError):
             logger.warning("batch_screening_failed_fallback", error=str(exc))

@@ -72,9 +72,10 @@ def _evict_review_conversations() -> None:
 
 
 def clear_review_conversation(post_id: int) -> None:
-    """Clear conversation for a post (call on approve/reject)."""
+    """Clear conversation and lock for a post (call on approve/reject)."""
     _review_conversations.pop(post_id, None)
     _review_last_access.pop(post_id, None)
+    _post_locks.pop(post_id, None)
     logger.debug("review_conversation_cleared", post_id=post_id)
 
 

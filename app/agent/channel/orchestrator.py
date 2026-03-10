@@ -272,6 +272,7 @@ class ChannelOrchestrator:
         self.api_key = api_key
         self.session_maker = session_maker
         self._orchestrators: dict[str, SingleChannelOrchestrator] = {}
+        self._refresh_task: asyncio.Task[None] | None = None
 
     @property
     def orchestrators(self) -> list[SingleChannelOrchestrator]:
@@ -373,7 +374,7 @@ class ChannelOrchestrator:
 
     async def stop(self) -> None:
         """Stop all sub-orchestrators."""
-        if hasattr(self, "_refresh_task") and not self._refresh_task.done():
+        if self._refresh_task is not None and not self._refresh_task.done():
             self._refresh_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await self._refresh_task

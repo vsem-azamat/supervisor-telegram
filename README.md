@@ -42,7 +42,7 @@ The project now follows a layered Domain-Driven approach:
 Run the bot with:
 
 ```bash
-python -m app.presentation.telegram
+uv run -m app.presentation.telegram
 ```
 
 
@@ -55,7 +55,6 @@ cp .env.example .env
 ```bash
 uv venv .venv
 uv sync --dev
-source .venv/bin/activate
 ```
 3) Fill in the `.env` file with your bot token.
 

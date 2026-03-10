@@ -10,12 +10,12 @@ from __future__ import annotations
 import asyncio
 import random
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from aiogram import Bot, Dispatcher, F, Router
+from aiogram import BaseMiddleware, Bot, Dispatcher, F, Router
 from aiogram.filters import CommandStart
 from aiogram.methods import SendMessageDraft
-from aiogram.types import Message, MessageEntity  # noqa: TC002
+from aiogram.types import Message, MessageEntity, TelegramObject  # noqa: TC002
 
 from app.agent.channel.cost_tracker import extract_usage_from_pydanticai_result, log_usage
 from app.assistant.agent import AssistantDeps, create_assistant_agent
@@ -25,6 +25,8 @@ from app.core.logging import get_logger
 from app.core.markdown import md_to_entities_chunked
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
     from pydantic_ai import Agent
     from pydantic_ai.messages import ModelMessage
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -35,6 +37,24 @@ if TYPE_CHECKING:
 logger = get_logger("assistant.bot")
 
 router = Router(name="assistant")
+
+
+class _SuperAdminOnlyMiddleware(BaseMiddleware):
+    """Reject messages from non-super-admins with a polite reply."""
+
+    async def __call__(
+        self,
+        handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
+        event: TelegramObject,
+        data: dict[str, Any],
+    ) -> Any:
+        if isinstance(event, Message) and (not event.from_user or event.from_user.id not in _super_admins):
+            await event.answer("Этот бот доступен только для администраторов.")
+            return None
+        return await handler(event, data)
+
+
+router.message.middleware(_SuperAdminOnlyMiddleware())
 
 # Module-level references set during startup
 _agent: Agent[AssistantDeps, str] | None = None
@@ -209,9 +229,6 @@ async def _chat(user_id: int, user_message: str) -> str:
 
 @router.message(CommandStart())
 async def cmd_start(message: Message) -> None:
-    if message.from_user and message.from_user.id not in _super_admins:
-        return
-
     await message.answer(
         "Привет! Я Konnekt Assistant — управляю всей экосистемой.\n\n"
         "Я могу:\n"
@@ -227,9 +244,7 @@ async def cmd_start(message: Message) -> None:
 
 @router.message(F.text)
 async def handle_message(message: Message) -> None:
-    if not message.from_user or message.from_user.id not in _super_admins:
-        return
-    if not message.text or not message.bot:
+    if not message.from_user or not message.text or not message.bot:
         return
 
     bot = message.bot
@@ -240,12 +255,7 @@ async def handle_message(message: Message) -> None:
         response, draft_id = await _chat_stream(bot, chat_id, message.from_user.id, message.text)
     except Exception:
         logger.exception("assistant_chat_error", user_id=message.from_user.id)
-        # Fallback to non-streaming on any streaming error
-        try:
-            response = await _chat(message.from_user.id, message.text)
-        except Exception:
-            logger.exception("assistant_chat_fallback_error", user_id=message.from_user.id)
-            response = "Произошла ошибка. Попробуй ещё раз."
+        response = "Произошла ошибка. Попробуй ещё раз."
 
     # Convert markdown → plain text + entities, split into Telegram-safe chunks
     chunks = md_to_entities_chunked(response)

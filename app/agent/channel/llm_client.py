@@ -6,7 +6,7 @@ import re
 from typing import Any
 
 import httpx
-from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_exponential
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from app.agent.channel.cost_tracker import extract_usage_from_openrouter_response, log_usage
 from app.agent.channel.http import close_http_client, get_http_client
@@ -15,9 +15,19 @@ from app.core.logging import get_logger
 
 logger = get_logger("channel.llm_client")
 
-# Retry transient HTTP errors (502, 503, 504, timeouts) with exponential backoff
+
+def _is_transient_error(exc: BaseException) -> bool:
+    """Only retry on timeouts and transient HTTP status codes (429, 5xx)."""
+    if isinstance(exc, httpx.TimeoutException):
+        return True
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code in (429, 502, 503, 504)
+    return False
+
+
+# Retry transient HTTP errors (429, 502, 503, 504, timeouts) with exponential backoff
 _TRANSIENT_RETRY = retry(
-    retry=retry_if_exception_type((httpx.TimeoutException, httpx.HTTPStatusError)),
+    retry=retry_if_exception(_is_transient_error),
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=1, min=1, max=10),
     reraise=True,

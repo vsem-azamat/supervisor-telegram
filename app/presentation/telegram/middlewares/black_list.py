@@ -38,7 +38,7 @@ class BlacklistMiddleware(BaseMiddleware):
             blacklisted_ids = {user.id for user in blacklisted_users}
             _blacklist_cache = (blacklisted_ids, now + _CACHE_TTL)
 
-        if isinstance(event, types.Message) and event.from_user.id in blacklisted_ids:
+        if isinstance(event, types.Message) and event.from_user and event.from_user.id in blacklisted_ids:
             try:
                 await bot.ban_chat_member(event.chat.id, event.from_user.id)
                 await event.delete()

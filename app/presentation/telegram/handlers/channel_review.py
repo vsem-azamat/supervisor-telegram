@@ -156,7 +156,7 @@ async def on_review_callback(callback: CallbackQuery) -> None:
                 from app.agent.channel.review_agent import clear_review_conversation
 
                 clear_review_conversation(post_id)
-                # Message already deleted by handle_delete, no need to answer
+                await callback.answer("Post deleted")
         except Exception:
             logger.exception("delete_callback_error", post_id=post_id)
             await callback.answer("Delete failed", show_alert=True)

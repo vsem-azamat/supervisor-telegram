@@ -16,7 +16,7 @@ from app.agent.prompts import MODERATION_PROMPT
 from app.agent.schemas import ActionType, AgentDeps, AgentEvent, ModerationResult
 from app.core.config import settings
 from app.core.logging import get_logger
-from app.presentation.telegram.utils.other import escape_html
+from app.core.text import escape_html
 
 if TYPE_CHECKING:
     from pydantic_ai.agent import AgentRunResult

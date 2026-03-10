@@ -1,8 +1,8 @@
 from aiogram import Bot, types
 
 from app.core.config import settings
+from app.core.text import escape_html
 from app.presentation.telegram.utils import other
-from app.presentation.telegram.utils.other import escape_html
 
 
 async def report_to_moderators(

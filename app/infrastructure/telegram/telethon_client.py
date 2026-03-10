@@ -566,6 +566,8 @@ class TelethonClient:
         chat_id: int,
         message_id: int,
         text: str,
+        *,
+        parse_mode: str = "md",
     ) -> bool:
         """Edit a scheduled (not yet delivered) message."""
         if not self.is_available or self._client is None:
@@ -576,11 +578,15 @@ class TelethonClient:
             entity = await self._client.get_input_entity(chat_id)
             from telethon.tl.functions.messages import EditMessageRequest
 
+            # Parse formatting entities from text
+            parsed_text, entities = await self._client._parse_message_text(text, parse_mode)
+
             return await self._client(
                 EditMessageRequest(
                     peer=entity,
                     id=message_id,
-                    message=text,
+                    message=parsed_text,
+                    entities=entities,
                     schedule_date=None,  # keep existing schedule
                 )
             )

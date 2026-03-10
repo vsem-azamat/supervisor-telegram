@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 from app.core.logging import get_logger
-from app.core.markdown import md_to_entities
 from app.core.time import utc_now
 from app.domain.value_objects import PostStatus
 
@@ -135,22 +134,21 @@ async def schedule_post(
         except ValueError:
             return f"Cannot schedule: channel {channel.telegram_id} needs a numeric ID."
 
-        # Convert post text to HTML for Telethon
-        plain, entities = md_to_entities(post.post_text)
-
-        # Send as scheduled message via Telethon
+        # Send as scheduled message via Telethon (Markdown for formatting)
         if post.image_url:
             msg_info = await telethon_client.send_scheduled_photo(
                 chat_id=chat_id,
                 photo=post.image_url,
-                caption=plain[:1024],
+                caption=post.post_text[:1024],
                 schedule_date=publish_time,
+                parse_mode="md",
             )
         else:
             msg_info = await telethon_client.send_scheduled_message(
                 chat_id=chat_id,
-                text=plain,
+                text=post.post_text,
                 schedule_date=publish_time,
+                parse_mode="md",
             )
 
         if not msg_info:
@@ -237,21 +235,21 @@ async def reschedule_post(
                 [post.scheduled_telegram_id],
             )
 
-        # Create new scheduled message
-        plain, entities = md_to_entities(post.post_text)
-
+        # Create new scheduled message (Markdown for formatting)
         if post.image_url:
             msg_info = await telethon_client.send_scheduled_photo(
                 chat_id=chat_id,
                 photo=post.image_url,
-                caption=plain[:1024],
+                caption=post.post_text[:1024],
                 schedule_date=new_time,
+                parse_mode="md",
             )
         else:
             msg_info = await telethon_client.send_scheduled_message(
                 chat_id=chat_id,
-                text=plain,
+                text=post.post_text,
                 schedule_date=new_time,
+                parse_mode="md",
             )
 
         if not msg_info:

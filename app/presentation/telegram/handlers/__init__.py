@@ -12,6 +12,7 @@ from . import admin, agent_handler, channel_review, events, groups, moderation, 
 router = Router()
 
 moderation.moderation_router.message.middleware(admin_middlewares.AdminMiddleware())
+moderation.moderation_router.callback_query.middleware(admin_middlewares.AdminMiddleware())
 admin.admin_router.message.middleware(chat_type_middlewares.ChatTypeMiddleware(["group", "supergroup"]))
 admin.admin_router.message.middleware(admin_middlewares.SuperAdminMiddleware())
 groups.groups_router.message.middleware(chat_type_middlewares.ChatTypeMiddleware(["group", "supergroup"]))
