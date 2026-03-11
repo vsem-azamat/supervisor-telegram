@@ -8,7 +8,15 @@ _XML_HTML_TAG_RE = re.compile(r"<[^>]+>")
 
 
 def sanitize_external_text(text: str) -> str:
-    """Strip XML/HTML tags from external content to prevent prompt injection."""
+    """Sanitize external content to prevent prompt injection.
+
+    1. Escape ``<content_item>`` / ``</content_item>`` boundary markers so external
+       text cannot break out of the data sandbox in prompts.
+    2. Strip remaining XML/HTML tags.
+    """
+    # Neutralise the specific boundary markers used in prompts
+    text = text.replace("</content_item>", "[/content_item]")
+    text = text.replace("<content_item>", "[content_item]")
     return _XML_HTML_TAG_RE.sub("", text)
 
 

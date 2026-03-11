@@ -448,7 +448,8 @@ class TestHistoryTrimming:
                 await bot._chat(800, f"Message {i}")
 
             history = bot._conversations[800]
-            assert len(history) <= bot._MAX_HISTORY
+            # trim_history may keep slightly more than MAX to avoid orphaning tool calls
+            assert len(history) <= bot._MAX_HISTORY + 2
         finally:
             bot._agent, bot._deps = saved
 

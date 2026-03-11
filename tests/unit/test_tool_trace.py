@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from app.agent.tool_trace import format_response_with_trace, format_tool_trace
+from app.agent.tool_trace import format_response_with_trace, format_tool_trace, trim_history
 from pydantic_ai.messages import (
     ModelMessage,
     ModelRequest,
@@ -152,3 +152,59 @@ class TestFormatResponseWithTrace:
 
     def test_empty_messages_returns_text(self) -> None:
         assert format_response_with_trace([], "hello") == "hello"
+
+
+class TestTrimHistory:
+    def test_no_trim_when_under_limit(self) -> None:
+        msgs: list[ModelMessage] = [
+            ModelRequest(parts=[UserPromptPart(content="hi")]),
+            ModelResponse(parts=[TextPart(content="hello")], usage=_usage(), timestamp=_ts()),
+        ]
+        result = trim_history(msgs, max_messages=10)
+        assert len(result) == 2
+
+    def test_trim_preserves_first_message(self) -> None:
+        msgs: list[ModelMessage] = [
+            ModelRequest(parts=[UserPromptPart(content="system")]),  # first msg — keep
+        ]
+        # Add enough messages to exceed limit
+        for i in range(10):
+            msgs.append(ModelRequest(parts=[UserPromptPart(content=f"user_{i}")]))
+            msgs.append(ModelResponse(parts=[TextPart(content=f"resp_{i}")], usage=_usage(), timestamp=_ts()))
+
+        result = trim_history(msgs, max_messages=6)
+        assert len(result) <= 7  # first + up to 6
+        # First message preserved
+        first = result[0]
+        assert isinstance(first, ModelRequest)
+        assert any(isinstance(p, UserPromptPart) and p.content == "system" for p in first.parts)
+
+    def test_trim_skips_orphaned_tool_returns(self) -> None:
+        """Trimming should not start at a ToolReturnPart — skip to next user message."""
+        msgs: list[ModelMessage] = [
+            ModelRequest(parts=[UserPromptPart(content="system")]),  # [0] keep
+            ModelRequest(parts=[UserPromptPart(content="old user msg")]),  # [1]
+            ModelResponse(parts=[TextPart(content="old resp")], usage=_usage(), timestamp=_ts()),  # [2]
+            # Tool call pair — must not be split
+            ModelRequest(parts=[UserPromptPart(content="edit this")]),  # [3]
+            ModelResponse(
+                parts=[ToolCallPart(tool_name="get_current_post", args={}, tool_call_id="tc1")],
+                usage=_usage(),
+                timestamp=_ts(),
+            ),  # [4]
+            ModelRequest(
+                parts=[ToolReturnPart(tool_name="get_current_post", content="post text", tool_call_id="tc1")]
+            ),  # [5] — orphan danger!
+            ModelResponse(parts=[TextPart(content="done")], usage=_usage(), timestamp=_ts()),  # [6]
+        ]
+        # With max_messages=4, naive slice would be [0] + msgs[-3:] = [0, 4, 5, 6]
+        # msg[4] is a ToolCallPart response, msg[5] is its ToolReturnPart — but
+        # msg[3] (the user prompt that initiated the call) would be missing.
+        # trim_history should walk back to include msg[3].
+        result = trim_history(msgs, max_messages=4)
+        # The first message after system must be a user prompt, not mid-tool-call
+        first_after_system = result[1]
+        assert isinstance(first_after_system, ModelRequest)
+        assert any(isinstance(p, UserPromptPart) for p in first_after_system.parts), (
+            "First message after system should be a user prompt, not an orphaned tool return"
+        )

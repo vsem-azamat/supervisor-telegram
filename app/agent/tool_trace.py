@@ -6,7 +6,14 @@ a single response message — giving the user visibility into what happened.
 
 from __future__ import annotations
 
-from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, ToolCallPart, ToolReturnPart
+from pydantic_ai.messages import (
+    ModelMessage,
+    ModelRequest,
+    ModelResponse,
+    ToolCallPart,
+    ToolReturnPart,
+    UserPromptPart,
+)
 
 # Human-readable labels for known tools (Russian).
 # Tools not in this map fall back to their raw function name.
@@ -131,3 +138,27 @@ def format_response_with_trace(
     if not trace:
         return final_text
     return f"{trace}\n\n{final_text}"
+
+
+def trim_history(messages: list[ModelMessage], max_messages: int = 40) -> list[ModelMessage]:
+    """Trim conversation history to *max_messages*, respecting tool call boundaries.
+
+    Naive slicing can orphan a ToolCallPart (in a ModelResponse) from its
+    ToolReturnPart (in the following ModelRequest), causing LLM errors.
+    This function finds the nearest user-message boundary at or before the
+    target cut point, so tool call pairs are never split.  May return
+    slightly more than *max_messages* to preserve integrity.
+    """
+    if len(messages) <= max_messages:
+        return messages
+
+    # Target: keep messages[0] (system) + tail starting near this index
+    target_start = len(messages) - (max_messages - 1)
+
+    # Walk backward from target_start to find a ModelRequest with a UserPromptPart
+    for i in range(target_start, 0, -1):
+        if isinstance(messages[i], ModelRequest) and any(isinstance(p, UserPromptPart) for p in messages[i].parts):
+            return [messages[0]] + messages[i:]
+
+    # Fallback: keep everything (shouldn't happen in practice)
+    return messages

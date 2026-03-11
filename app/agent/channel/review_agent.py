@@ -566,9 +566,11 @@ async def _review_agent_turn_inner(
     _review_conversations[post_id] = all_msgs
     _review_last_access[post_id] = time.monotonic()
 
-    # Trim long history — keep last N messages
+    # Trim long history — respect tool call boundaries
     if len(all_msgs) > _MAX_HISTORY:
-        _review_conversations[post_id] = all_msgs[-_MAX_HISTORY:]
+        from app.agent.tool_trace import trim_history
+
+        _review_conversations[post_id] = trim_history(all_msgs, _MAX_HISTORY)
 
     logger.info(
         "review_agent_turn_done",

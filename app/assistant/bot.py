@@ -176,7 +176,9 @@ async def _chat_stream(bot: Bot, chat_id: int, user_id: int, user_message: str) 
                     _conversation_last_access[user_id] = time.monotonic()
 
                     if len(all_msgs) > _MAX_HISTORY:
-                        _conversations[user_id] = [all_msgs[0]] + all_msgs[-(_MAX_HISTORY - 1) :]
+                        from app.agent.tool_trace import trim_history
+
+                        _conversations[user_id] = trim_history(all_msgs, _MAX_HISTORY)
 
                 # Prepend tool call trace so the user sees what happened
                 from app.agent.tool_trace import format_response_with_trace
@@ -223,7 +225,9 @@ async def _chat(user_id: int, user_message: str) -> str:
         _conversation_last_access[user_id] = time.monotonic()
 
         if len(all_msgs) > _MAX_HISTORY:
-            _conversations[user_id] = [all_msgs[0]] + all_msgs[-(_MAX_HISTORY - 1) :]
+            from app.agent.tool_trace import trim_history
+
+            _conversations[user_id] = trim_history(all_msgs, _MAX_HISTORY)
 
     from app.agent.tool_trace import format_response_with_trace
 

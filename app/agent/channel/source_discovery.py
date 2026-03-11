@@ -98,6 +98,13 @@ async def discover_and_add_sources(
         if not url:
             continue
 
+        # SSRF check: LLM-returned URLs are untrusted
+        from app.agent.channel.http import is_safe_url
+
+        if not await is_safe_url(url):
+            logger.warning("discovery_ssrf_blocked", url=url)
+            continue
+
         # Validate: actually fetch the feed and check it returns items
         if await validate_feed(url):
             if await add_source(session_maker, channel_id, url, title=title, added_by="discovery"):

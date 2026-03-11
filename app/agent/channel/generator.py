@@ -167,7 +167,7 @@ def _create_screening_agent(
     provider = OpenAIProvider(base_url=settings.agent.openrouter_base_url, api_key=api_key)
     llm = OpenAIChatModel(model_name=model, provider=provider)
     prompt = build_screening_prompt(channel_name or "Konnekt", discovery_query)
-    return Agent(llm, system_prompt=prompt, output_type=str)
+    return Agent(llm, system_prompt=prompt, output_type=str, model_settings={"temperature": 0.1})
 
 
 def _create_generation_agent(
@@ -189,7 +189,7 @@ def _create_generation_agent(
         channel_name=channel_name or "Konnekt",
         channel_context=channel_context or _DEFAULT_GENERATION_CONTEXT,
     )
-    return Agent(llm, system_prompt=prompt, output_type=GeneratedPost)
+    return Agent(llm, system_prompt=prompt, output_type=GeneratedPost, model_settings={"temperature": 0.3})
 
 
 async def screen_items(
@@ -333,7 +333,8 @@ async def generate_post(
     item = items[0]
     title = _sanitize_content(item.title)
     body = _sanitize_content(item.body[:800])
-    source_text = f"<content_item>\nTitle: {title}\nURL: {item.url or 'N/A'}\nContent: {body}\n</content_item>"
+    safe_url = _sanitize_content(item.url or "N/A")
+    source_text = f"<content_item>\nTitle: {title}\nURL: {safe_url}\nContent: {body}\n</content_item>"
 
     prompt = f"Generate a post based on this news:\n\n{source_text}"
 
@@ -379,15 +380,19 @@ async def generate_post(
                 post.text = enforce_footer_and_length(post.text, footer, max_length=900)
 
         # Resolve images: find multiple high-quality images from the source article
-        from app.agent.channel.images import find_images_for_post
+        # Images are optional — failures must not break post generation
+        try:
+            from app.agent.channel.images import find_images_for_post
 
-        source_urls = [item.url] if item.url else []
-        image_urls = await find_images_for_post(
-            keywords=item.title,
-            source_urls=source_urls,
-        )
-        post.image_urls = image_urls
-        post.image_url = image_urls[0] if image_urls else None
+            source_urls = [item.url] if item.url else []
+            image_urls = await find_images_for_post(
+                keywords=item.title,
+                source_urls=source_urls,
+            )
+            post.image_urls = image_urls
+            post.image_url = image_urls[0] if image_urls else None
+        except Exception:
+            logger.warning("image_search_failed", title=item.title[:60], exc_info=True)
 
         logger.info("post_generated", length=len(post.text), images=len(image_urls))
         return post
