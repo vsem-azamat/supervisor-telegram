@@ -19,19 +19,6 @@ services:
       uv run watchfiles 'uv run -m app.presentation.telegram' app/
       "
 
-  webapp:
-    build:
-      context: ./webapp
-      target: development
-    ports:
-      - "${WEBAPP_PORT:-3000}:80"
-    volumes:
-      - ./webapp:/app
-      - /app/node_modules
-    environment:
-      - NODE_ENV=development
-    command: sh -c "npm run dev -- --host 0.0.0.0 --port 80"
-
   db:
     image: postgres:17.6
     restart: always

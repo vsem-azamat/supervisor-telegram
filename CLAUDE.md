@@ -6,8 +6,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a modern Telegram bot for moderating educational chats in the Czech Republic. The bot provides comprehensive moderation features including muting, banning, blacklisting users, welcome messages, and message history tracking. Built with Python using aiogram for Telegram integration and follows a clean Domain-Driven Design (DDD) architecture with modern best practices.
 
-The project now includes a **React TypeScript web application** that provides an admin panel accessible via Telegram's WebApp API, offering a modern web interface for bot management and analytics.
-
 ## Technology Stack
 
 ### Backend
@@ -21,19 +19,10 @@ The project now includes a **React TypeScript web application** that provides an
 - **ruff** - Fast Python linter and formatter
 - **uv 0.8.11** - Modern Python package manager
 
-### Frontend
-- **React 19+** - Latest React with concurrent features
-- **TypeScript 5.9** - Type-safe JavaScript development
-- **Vite 7+** - Ultra-fast build tool and development server
-- **@telegram-apps/sdk-react** - Official Telegram WebApp integration
-- **@tanstack/react-query** - Powerful data fetching and caching
-- **Node.js 24** - Latest LTS runtime environment
-
 ### Infrastructure
 - **Docker** - Containerized development and deployment
 - **PostgreSQL 17.6** - Latest stable database version
 - **Adminer 5.3.0** - Modern database administration interface
-- **nginx** - Production web server and reverse proxy
 
 ## Development Setup
 
@@ -54,14 +43,13 @@ cp .env.example .env
 ## Running the Application
 
 ### Development Mode
-Run with Docker Compose (includes PostgreSQL, React webapp, hot reload, and Adminer):
+Run with Docker Compose (includes PostgreSQL, hot reload, and Adminer):
 ```bash
 docker-compose -f docker-compose.dev.yaml up --build
 ```
 
 This will start:
 - **Bot service** - Telegram bot with hot reload
-- **WebApp service** - React development server on port 3000
 - **PostgreSQL** - Database server
 - **Adminer** - Database administration UI on port 8080
 
@@ -191,10 +179,6 @@ user_service = UserService(user_repo)
 - `/chats` - Show educational chat links
 - `/start` - Bot introduction
 
-### WebApp Commands (Admins only)
-- `/webapp` - Open React-based admin panel via Telegram WebApp
-- `/help_webapp` - Show help for webapp functionality
-
 ## Testing Strategy
 
 ### Framework
@@ -278,118 +262,17 @@ LOG_FILE_PATH=logs/bot.log
 LOG_MAX_BYTES=10485760
 LOG_BACKUP_COUNT=5
 
-# Web App Configuration
-WEBAPP_URL=http://localhost:3000
-WEBAPP_API_SECRET=your_webapp_secret_key_here
-
 # Docker Configuration (for development)
-WEBAPP_PORT=3000
 ADMINER_PORT=8080
 ```
-
-## Web Application (React Admin Panel)
-
-### Overview
-The project includes a modern React TypeScript web application that provides a comprehensive admin interface accessible through Telegram's WebApp API. This allows administrators to manage the bot through a native web interface within Telegram, offering a more intuitive and feature-rich experience than traditional chat commands.
-
-### Purpose and Use Cases
-
-The frontend is designed to provide administrators with:
-
-#### **Chat and Channel Management**
-- **Real-time overview** of all managed chats and channels
-- **Detailed chat statistics** including member count, activity levels, message volume
-- **Chat configuration management** - welcome messages, auto-moderation settings, captcha configuration
-- **Bulk operations** across multiple chats simultaneously
-- **Chat health monitoring** with alerts for unusual activity patterns
-
-#### **Advanced User Management**
-- **Comprehensive user profiles** with moderation history, join dates, activity patterns
-- **Global blacklist management** with search, filtering, and bulk operations
-- **User behavior analytics** to identify potential troublemakers before they act
-- **Cross-chat user tracking** to see user behavior across different communities
-- **Appeal system management** for banned users
-
-#### **Analytics and Reporting**
-- **Interactive dashboards** with charts and graphs showing moderation trends
-- **Custom date range reports** for specific time periods
-- **Moderator performance metrics** to track admin activity and effectiveness
-- **Automated report generation** for community oversight
-- **Export functionality** for data analysis in external tools
-
-#### **Bot Configuration and Settings**
-- **Visual configuration interface** for bot settings without editing config files
-- **Real-time bot status monitoring** and health checks
-- **Log viewing and filtering** for troubleshooting and auditing
-- **Feature toggles** for enabling/disabling specific bot functionality
-- **Integration management** with external services and APIs
-
-#### **Emergency Response Tools**
-- **Mass action capabilities** for crisis situations (mass bans, lockdowns)
-- **Real-time alerts and notifications** for urgent moderation needs
-- **Quick response templates** for common moderation scenarios
-- **Incident tracking and management** for serious violations
-
-### Technology Stack
-- **React 19+** with TypeScript - Latest React features with full type safety
-- **Vite 7+** - Ultra-fast build tool and development server
-- **@telegram-apps/sdk-react 3.3+** - Official Telegram WebApp integration
-- **@tanstack/react-query 5.85+** - Powerful data fetching and caching
-- **Axios** - HTTP client for API communication
-- **Node.js 24** - Latest LTS runtime environment
-- **ESLint & TypeScript 5.9** - Code quality and type checking
-
-### Current Features (v1.0)
-- **Telegram Integration** - Native Telegram WebApp experience with theme support
-- **User Authentication** - Secure admin verification via Telegram initData
-- **Theme Adaptation** - Automatically adapts to user's Telegram theme (dark/light)
-- **User Information Display** - Shows detailed user info from Telegram
-- **Debug Interface** - Development tools for debugging Telegram integration
-- **Responsive Design** - Optimized for both mobile and desktop usage
-- **Real-time Updates** - Live data synchronization with the bot backend
-
-### Planned Features (Roadmap)
-- **Dashboard Analytics** - Charts and graphs for moderation statistics
-- **Chat Management Interface** - Visual chat configuration and monitoring
-- **Advanced User Search** - Find users across all managed chats
-- **Bulk Actions** - Perform operations on multiple users/chats
-- **Report Generation** - Automated and custom reporting tools
-- **Notification Center** - Real-time alerts for moderation events
-- **Mobile Optimization** - Enhanced mobile experience within Telegram
-- **Multi-language Support** - Localization for Czech and English interfaces
-
-### Development
-```bash
-# Navigate to webapp directory
-cd webapp
-
-# Install dependencies
-npm install
-
-# Start development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Lint code
-npm run lint
-```
-
-### Access
-Administrators can access the webapp by:
-1. Sending `/webapp` command to the bot
-2. Clicking the "🎛️ Открыть админ панель" button
-3. The webapp opens within Telegram's native WebApp interface
 
 ## Docker Development
 
 The development setup includes:
 - **Bot service** - Python bot with hot reload
-- **WebApp service** - React development server (http://localhost:3000)
 - **PostgreSQL** - Database
 - **Adminer** - Database administration UI (http://localhost:8080)
-- **Hot reload** - Automatic restart on code changes for both bot and webapp
+- **Hot reload** - Automatic restart on code changes
 - **Volume mounts** - Live code editing
 
 ## Migration Guide
@@ -402,18 +285,6 @@ When migrating from older versions:
 4. **Update imports**: Domain entities are now in `app/domain/entities.py`
 5. **Update tests**: Use new fixtures from `conftest.py`
 
-## WebApp Security
-
-### Authentication
-- **Super Admin Only** - WebApp access restricted to configured super admins
-- **Telegram Validation** - Uses Telegram's built-in user validation
-- **API Secret** - Configurable secret for webapp-bot communication
-
-### Development vs Production
-- **Development** - Runs on localhost with hot reload
-- **Production** - Served through nginx with proper security headers
-- **HTTPS Required** - Telegram WebApps require HTTPS in production
-
 ## Performance Considerations
 
 ### Backend Optimization
@@ -424,17 +295,8 @@ When migrating from older versions:
 - **Type hints** - Full mypy compliance for better IDE support and runtime performance
 - **Database indexing** - Optimized queries for large-scale chat management
 
-### Frontend Optimization
-- **WebApp Optimization** - React app built with Vite for ultra-fast loading
-- **Code splitting** - Lazy loading for different admin panel sections
-- **Theme Integration** - Native Telegram theme support for seamless UX
-- **Caching strategy** - Smart data caching with React Query for offline capability
-- **Bundle optimization** - Tree shaking and minification for production builds
-- **Progressive loading** - Skeleton screens and loading states for better perceived performance
-
 ### Development Experience
-- **Hot reload** - Instant updates during development for both backend and frontend
+- **Hot reload** - Instant updates during development
 - **Modern tooling** - Latest versions of all dependencies for best performance
-- **Type safety** - Full TypeScript coverage prevents runtime errors
 - **Pre-commit hooks** - Automated code quality checks and formatting
 - **Docker optimization** - Multi-stage builds and layer caching for faster deployments

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Any
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 if TYPE_CHECKING:
@@ -124,42 +124,6 @@ class LoggingSettings(BaseSettings):
     )
 
 
-class WebAppSettings(BaseSettings):
-    """Web application configuration."""
-
-    url: str = Field(default="http://localhost:3000", description="Web app URL")
-    api_secret: str = Field(default="", description="API secret for webapp communication")
-    api_enabled: bool = Field(default=False, description="Enable the stats/auth HTTP API")
-    api_port: int = Field(default=8081, description="Port for the stats/auth HTTP API")
-    allowed_emails: list[str] = Field(default_factory=list, description="Emails allowed to request magic links")
-
-    model_config = SettingsConfigDict(
-        env_prefix="WEBAPP_",
-        case_sensitive=False,
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
-
-    @field_validator("allowed_emails", mode="before")
-    @classmethod
-    def parse_email_list(cls, v: Any) -> list[str]:
-        """Parse comma-separated email list."""
-        if isinstance(v, str):
-            return [e.strip() for e in v.split(",") if e.strip()]
-        if isinstance(v, list):
-            return [str(e) for e in v]
-        return []
-
-    @model_validator(mode="after")
-    def validate_api_secret(self) -> Self:
-        """Ensure a real secret is set when the API is enabled."""
-        _placeholders = {"", "your-secret-key", "changeme", "secret"}
-        if self.api_enabled and self.api_secret in _placeholders:
-            raise ValueError("WEBAPP_API_SECRET must be set to a non-placeholder value when WEBAPP_API_ENABLED=true")
-        return self
-
-
 class AgentSettings(BaseSettings):
     """AI agent configuration (shared OpenRouter credentials + per-role models)."""
 
@@ -220,7 +184,6 @@ class AppSettings(BaseSettings):
     telegram: TelegramSettings = Field(default_factory=TelegramSettings)
     admin: AdminSettings = Field(default_factory=AdminSettings)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
-    webapp: WebAppSettings = Field(default_factory=WebAppSettings)
     agent: AgentSettings = Field(default_factory=AgentSettings)
     telethon: TelethonSettings = Field(default_factory=TelethonSettings)
 

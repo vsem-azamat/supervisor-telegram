@@ -17,14 +17,6 @@ services:
       uv run -m app.presentation.telegram
       "
 
-  webapp:
-    build:
-      context: ./webapp
-      target: production
-    ports:
-      - "${WEBAPP_PORT:-80}:80"
-    restart: unless-stopped
-
   db:
     image: postgres:17.6
     restart: always

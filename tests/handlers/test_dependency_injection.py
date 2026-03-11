@@ -23,7 +23,6 @@ from app.presentation.telegram.handlers import (
     moderation,
     service,
     start,
-    webapp,
 )
 from app.presentation.telegram.middlewares.dependencies import DependenciesMiddleware
 
@@ -116,7 +115,7 @@ class TestDependencyInjection:
         # expected_types = {...}
 
         # Get all handler modules
-        handler_modules = [admin, moderation, start, service, webapp]
+        handler_modules = [admin, moderation, start, service]
 
         handler_functions = []
         for module in handler_modules:

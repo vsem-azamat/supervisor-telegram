@@ -51,7 +51,6 @@ def _build_router() -> Any:
         moderation,
         service,
         start,
-        webapp,
     )
     from app.presentation.telegram.middlewares import chat_type as chat_type_mw
 
@@ -69,7 +68,6 @@ def _build_router() -> Any:
         admin.admin_router,
         groups.groups_router,
         service.router,
-        webapp.router,
         events.router,
     ]
     for sr in sub_routers:
@@ -84,7 +82,6 @@ def _build_router() -> Any:
     r.include_router(admin.admin_router)
     r.include_router(groups.groups_router)
     r.include_router(service.router)
-    r.include_router(webapp.router)
     r.include_router(events.router)
     return r
 

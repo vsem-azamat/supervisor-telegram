@@ -32,17 +32,3 @@ repos:
         types: [python]
         pass_filenames: false
         stages: [pre-push]
-
-      - id: eslint
-        name: ESLint (TypeScript/React)
-        entry: bash -c 'cd webapp && [ -d node_modules ] && npx eslint . || true'
-        language: system
-        files: ^webapp/.*\.(ts|tsx|js|jsx)$
-        pass_filenames: false
-
-      - id: typescript-check
-        name: TypeScript Check
-        entry: bash -c 'cd webapp && [ -d node_modules ] && npx tsc --noEmit || true'
-        language: system
-        files: ^webapp/.*\.(ts|tsx)$
-        pass_filenames: false
