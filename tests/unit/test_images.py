@@ -178,7 +178,7 @@ class TestFindImagesForPost:
 
         with (
             patch("app.agent.channel.images.get_http_client", return_value=mock_client),
-            patch("app.agent.channel.images._is_safe_url", return_value=True),
+            patch("app.agent.channel.images.is_safe_url", new=AsyncMock(return_value=True)),
         ):
             result = await find_images_for_post(keywords="test", source_urls=["https://example.com/article"])
             assert result == []
@@ -194,7 +194,7 @@ class TestFindImagesForPost:
 
         with (
             patch("app.agent.channel.images.get_http_client", return_value=mock_client),
-            patch("app.agent.channel.images._is_safe_url", return_value=True),
+            patch("app.agent.channel.images.is_safe_url", new=AsyncMock(return_value=True)),
         ):
             result = await find_images_for_post(keywords="test", source_urls=["https://example.com/article"])
             assert len(result) >= 1
@@ -218,7 +218,7 @@ class TestFindImagesForPost:
 
         with (
             patch("app.agent.channel.images.get_http_client", return_value=mock_client),
-            patch("app.agent.channel.images._is_safe_url", return_value=True),
+            patch("app.agent.channel.images.is_safe_url", new=AsyncMock(return_value=True)),
         ):
             result = await find_images_for_post(
                 keywords="test",

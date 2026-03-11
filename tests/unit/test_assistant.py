@@ -182,7 +182,7 @@ class TestCreateAssistantAgent:
 
         agent = create_assistant_agent()
         tool_count = len(agent._function_toolset.tools)
-        assert tool_count == 38, f"Expected 38 tools, got {tool_count}: {list(agent._function_toolset.tools.keys())}"
+        assert tool_count == 40, f"Expected 40 tools, got {tool_count}: {list(agent._function_toolset.tools.keys())}"
 
 
 # ---------------------------------------------------------------------------
@@ -509,3 +509,147 @@ class TestCostTrackerTimestamp:
 
         now_utc = datetime.now(UTC).replace(tzinfo=None)
         assert abs((now_utc - usage.created_at).total_seconds()) < 5
+
+
+# ---------------------------------------------------------------------------
+# 11. SuperAdminOnly middleware and handler tests
+# ---------------------------------------------------------------------------
+
+
+class TestSuperAdminMiddleware:
+    """Test that non-admin users are rejected by _SuperAdminOnlyMiddleware."""
+
+    @staticmethod
+    def _make_message_mock(user_id: int) -> MagicMock:
+        """Create a MagicMock that passes isinstance(event, Message) check."""
+        from aiogram.types import Message
+
+        mock = MagicMock(spec=Message)
+        mock.from_user = MagicMock()
+        mock.from_user.id = user_id
+        mock.answer = AsyncMock()
+        return mock
+
+    @pytest.mark.asyncio
+    async def test_handle_message_non_admin_rejected(self) -> None:
+        """Non-admin user should receive a rejection message from the middleware."""
+        from app.assistant.bot import _SuperAdminOnlyMiddleware
+
+        middleware = _SuperAdminOnlyMiddleware()
+        msg = self._make_message_mock(user_id=999999)
+        mock_handler = AsyncMock()
+
+        from app.assistant import bot
+
+        saved_admins = bot._super_admins
+        bot._super_admins = {111111}
+
+        try:
+            result = await middleware(mock_handler, msg, {})
+        finally:
+            bot._super_admins = saved_admins
+
+        assert result is None
+        msg.answer.assert_awaited_once_with("Этот бот доступен только для администраторов.")
+        mock_handler.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_handle_message_admin_allowed(self) -> None:
+        """Admin user should pass through the middleware to the handler."""
+        from app.assistant.bot import _SuperAdminOnlyMiddleware
+
+        middleware = _SuperAdminOnlyMiddleware()
+        msg = self._make_message_mock(user_id=111111)
+        mock_handler = AsyncMock(return_value="handler_result")
+
+        from app.assistant import bot
+
+        saved_admins = bot._super_admins
+        bot._super_admins = {111111}
+
+        try:
+            result = await middleware(mock_handler, msg, {})
+        finally:
+            bot._super_admins = saved_admins
+
+        assert result == "handler_result"
+        mock_handler.assert_awaited_once()
+
+
+class TestCmdStart:
+    @pytest.mark.asyncio
+    async def test_cmd_start_responds(self) -> None:
+        """The /start command should respond with the introduction message."""
+        from app.assistant.bot import cmd_start
+
+        mock_message = MagicMock()
+        mock_message.answer = AsyncMock()
+
+        await cmd_start(mock_message)
+
+        mock_message.answer.assert_awaited_once()
+        response_text = mock_message.answer.call_args[0][0]
+        assert "Konnekt Assistant" in response_text
+        assert "Управлять каналами" in response_text
+
+
+class TestHandleMessageParseMode:
+    @pytest.mark.asyncio
+    async def test_handle_message_uses_parse_mode_none(self) -> None:
+        """handle_message must pass parse_mode=None when sending entities."""
+        from app.assistant import bot
+        from app.assistant.bot import handle_message
+
+        saved_agent, saved_deps = bot._agent, bot._deps
+
+        # Mock agent that returns a simple response
+        mock_result = MagicMock()
+        mock_result.stream_text = None
+        mock_result.get_output = AsyncMock(return_value="**bold response**")
+        mock_result.all_messages.return_value = [MagicMock()]
+        mock_result.usage.return_value = None
+
+        mock_stream_result = MagicMock()
+
+        async def fake_stream_text(debounce_by=0):
+            yield "**bold response**"
+
+        mock_stream_result.stream_text = fake_stream_text
+        mock_stream_result.get_output = AsyncMock(return_value="**bold response**")
+        mock_stream_result.all_messages.return_value = [MagicMock()]
+        mock_stream_result.usage.return_value = None
+
+        mock_stream_ctx = MagicMock()
+        mock_stream_ctx.__aenter__ = AsyncMock(return_value=mock_stream_result)
+        mock_stream_ctx.__aexit__ = AsyncMock(return_value=False)
+
+        mock_agent = MagicMock()
+        mock_agent.run_stream = MagicMock(return_value=mock_stream_ctx)
+
+        bot._agent = mock_agent
+        bot._deps = MagicMock()
+
+        mock_message = MagicMock()
+        mock_message.from_user = MagicMock()
+        mock_message.from_user.id = 42
+        mock_message.text = "hello"
+        mock_message.chat = MagicMock()
+        mock_message.chat.id = 42
+        mock_message.bot = MagicMock()
+        mock_message.answer = AsyncMock()
+
+        try:
+            with patch("app.assistant.bot._send_draft", new_callable=AsyncMock):
+                with patch("app.assistant.bot.extract_usage_from_pydanticai_result", return_value=None):
+                    await handle_message(mock_message)
+        finally:
+            bot._agent = saved_agent
+            bot._deps = saved_deps
+            bot._conversations.clear()
+            bot._conversation_last_access.clear()
+
+        # Verify parse_mode=None was passed in the answer call
+        mock_message.answer.assert_awaited()
+        for call in mock_message.answer.call_args_list:
+            kwargs = call[1] if call[1] else {}
+            assert kwargs.get("parse_mode") is None, "parse_mode must be None when using entities"

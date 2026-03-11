@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 import feedparser
 import httpx
 
-from app.agent.channel.http import get_http_client
+from app.agent.channel.http import get_http_client, is_safe_url
 from app.core.logging import get_logger
 from app.core.time import utc_now
 
@@ -72,6 +72,9 @@ def _parse_feed_entries(feed: object, source_url: str, max_items: int = 10) -> l
 async def fetch_rss(feed_url: str, max_items: int = 10, *, http_timeout: int = 30) -> list[ContentItem]:
     """Fetch items from an RSS feed."""
     try:
+        if not await is_safe_url(feed_url):
+            logger.warning("ssrf_blocked", feed_url=feed_url)
+            return []
         client = get_http_client(timeout=http_timeout)
         resp = await client.get(feed_url, timeout=httpx.Timeout(http_timeout))
         resp.raise_for_status()
@@ -108,6 +111,10 @@ async def fetch_all_sources(rss_urls: list[str], max_concurrent: int = 5, *, htt
     async def _fetch(url: str) -> list[ContentItem]:
         async with sem:
             try:
+                if not await is_safe_url(url):
+                    logger.warning("ssrf_blocked", feed_url=url)
+                    errored_urls.add(url)
+                    return []
                 client = get_http_client(timeout=http_timeout)
                 resp = await client.get(url, timeout=httpx.Timeout(http_timeout))
                 resp.raise_for_status()

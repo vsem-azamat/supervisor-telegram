@@ -1,16 +1,17 @@
-"""End-to-end tests for AI moderation: /report, /spam, escalation callbacks.
+"""End-to-end tests for moderation: /report, /spam (mechanical), escalation callbacks.
 
 Uses:
 - FakeTelegramServer to simulate Telegram Bot API
 - SQLite in-memory for DB (fast, no docker needed)
-- Mocked PydanticAI agent to avoid real LLM calls
+- /report and /spam are now mechanical (no LLM) — they forward to admin chat
+- Escalation callbacks use AgentCore.execute_action directly (no injected agent_core)
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 import pytest_asyncio
@@ -229,22 +230,6 @@ async def bot(fake_tg: FakeTelegramServer):
     await b.session.close()
 
 
-def _make_mock_agent_core(decision_action: str = "escalate", reason: str = "Test reason") -> MagicMock:
-    """Create a mock AgentCore that returns a fixed decision."""
-    from app.agent.schemas import ModerationResult
-
-    mock_core = MagicMock()
-    mock_core.process_report = AsyncMock(
-        return_value=ModerationResult(
-            action=decision_action,  # type: ignore[arg-type]
-            reason=reason,
-            suggested_action="mute" if decision_action == "escalate" else None,
-        )
-    )
-    mock_core.execute_action = AsyncMock()
-    return mock_core
-
-
 @pytest_asyncio.fixture()
 async def dispatcher(
     bot: Bot,
@@ -254,15 +239,11 @@ async def dispatcher(
     """Fully wired dispatcher with middlewares and handlers."""
     dp = Dispatcher()
 
-    agent_core = _make_mock_agent_core(decision_action="escalate")
-
-    dp.update.middleware(DependenciesMiddleware(session_pool=db_session_maker, bot=bot, agent_core=agent_core))
+    dp.update.middleware(DependenciesMiddleware(session_pool=db_session_maker, bot=bot))
     dp.update.middleware(ManagedChatsMiddleware())
     dp.update.middleware(HistoryMiddleware())
     dp.callback_query.middleware(CallbackAnswerMiddleware())
     dp.include_router(_build_router())
-
-    dp["_agent_core"] = agent_core  # stash for test access
 
     yield dp
 
@@ -272,7 +253,7 @@ async def dispatcher(
 
 @pytest.mark.e2e
 class TestReportCommand:
-    """Tests for /report and /spam commands."""
+    """Tests for /report and /spam commands (mechanical forwarding)."""
 
     async def test_report_without_reply_shows_hint(self, dispatcher: Dispatcher, bot: Bot, fake_tg: FakeTelegramServer):
         """Sending /report without replying to a message should show a hint."""
@@ -296,8 +277,8 @@ class TestReportCommand:
         sent_text = send_calls[0].params.get("text", "")
         assert "Ответьте" in sent_text or "reply" in sent_text.lower()
 
-    async def test_report_triggers_agent_analysis(self, dispatcher: Dispatcher, bot: Bot, fake_tg: FakeTelegramServer):
-        """Sending /report as reply should trigger agent and show result."""
+    async def test_report_forwards_to_admin(self, dispatcher: Dispatcher, bot: Bot, fake_tg: FakeTelegramServer):
+        """Sending /report as reply should forward a summary to admin chat."""
         target_msg = Message(
             message_id=30,
             date=datetime.now(UTC),
@@ -312,7 +293,7 @@ class TestReportCommand:
                 message_id=50,
                 date=datetime.now(UTC),
                 chat=Chat(id=CHAT_ID, type="supergroup", title="Test Chat"),
-                from_user=User(id=REPORTER_ID, is_bot=False, first_name="Reporter"),
+                from_user=User(id=REPORTER_ID, is_bot=False, first_name="Reporter", username="reporter_user"),
                 text="/report",
                 entities=[MessageEntity(type="bot_command", offset=0, length=7)],
                 reply_to_message=target_msg,
@@ -321,17 +302,31 @@ class TestReportCommand:
 
         await dispatcher.feed_update(bot, update)
 
-        agent_core = dispatcher["_agent_core"]
-        agent_core.process_report.assert_called_once()
-
-        # Should have sent "analyzing" then edited with result
+        # Should have sent summary to admin and acknowledgment in chat
         send_calls = fake_tg.get_calls("sendMessage")
-        assert any("Анализирую" in c.params.get("text", "") for c in send_calls)
+        # At least: admin summary + chat acknowledgment
+        assert len(send_calls) >= 2
 
-    async def test_spam_command_works_same_as_report(
-        self, dispatcher: Dispatcher, bot: Bot, fake_tg: FakeTelegramServer
-    ):
-        """The /spam command should also trigger agent analysis."""
+        # Admin summary should contain report details
+        admin_msg = next(
+            (c for c in send_calls if str(c.params.get("chat_id", "")) == str(SUPER_ADMIN_ID)),
+            None,
+        )
+        assert admin_msg is not None
+        admin_text = admin_msg.params.get("text", "")
+        assert "Report" in admin_text
+        assert "Target" in admin_text or str(TARGET_USER_ID) in admin_text
+
+        # Chat acknowledgment
+        chat_msg = next(
+            (c for c in send_calls if str(c.params.get("chat_id", "")) == str(CHAT_ID)),
+            None,
+        )
+        assert chat_msg is not None
+        assert "Жалоба" in chat_msg.params.get("text", "")
+
+    async def test_spam_command_forwards_to_admin(self, dispatcher: Dispatcher, bot: Bot, fake_tg: FakeTelegramServer):
+        """The /spam command should also forward to admin."""
         target_msg = Message(
             message_id=31,
             date=datetime.now(UTC),
@@ -355,44 +350,14 @@ class TestReportCommand:
 
         await dispatcher.feed_update(bot, update)
 
-        agent_core = dispatcher["_agent_core"]
-        agent_core.process_report.assert_called()
-
-    async def test_report_with_agent_disabled(
-        self, bot: Bot, db_session_maker: async_sessionmaker[AsyncSession], fake_tg: FakeTelegramServer
-    ):
-        """When agent_core is None, /report should say agent is disabled."""
-        dp = Dispatcher()
-        dp.update.middleware(DependenciesMiddleware(session_pool=db_session_maker, bot=bot, agent_core=None))
-        dp.update.middleware(ManagedChatsMiddleware())
-        dp.update.middleware(HistoryMiddleware())
-        dp.include_router(_build_router())
-
-        target_msg = Message(
-            message_id=30,
-            date=datetime.now(UTC),
-            chat=Chat(id=CHAT_ID, type="supergroup", title="Test Chat"),
-            from_user=User(id=TARGET_USER_ID, is_bot=False, first_name="Target"),
-            text="Some message",
-        )
-
-        update = Update(
-            update_id=4,
-            message=Message(
-                message_id=52,
-                date=datetime.now(UTC),
-                chat=Chat(id=CHAT_ID, type="supergroup", title="Test Chat"),
-                from_user=User(id=REPORTER_ID, is_bot=False, first_name="Reporter"),
-                text="/report",
-                entities=[MessageEntity(type="bot_command", offset=0, length=7)],
-                reply_to_message=target_msg,
-            ),
-        )
-
-        await dp.feed_update(bot, update)
-
         send_calls = fake_tg.get_calls("sendMessage")
-        assert any("отключ" in c.params.get("text", "").lower() for c in send_calls)
+        # Admin summary should say SPAM
+        admin_msg = next(
+            (c for c in send_calls if str(c.params.get("chat_id", "")) == str(SUPER_ADMIN_ID)),
+            None,
+        )
+        assert admin_msg is not None
+        assert "SPAM" in admin_msg.params.get("text", "")
 
 
 @pytest.mark.e2e
@@ -446,7 +411,16 @@ class TestEscalationCallback:
             ),
         )
 
-        await dispatcher.feed_update(bot, update)
+        # Mock AgentCore.execute_action to avoid real Telegram API calls
+        with patch("app.agent.core.AgentCore") as MockAgentCore:
+            mock_instance = MockAgentCore.return_value
+            mock_instance.execute_action = AsyncMock()
+            await dispatcher.feed_update(bot, update)
+
+            # Verify action was executed
+            mock_instance.execute_action.assert_called_once()
+            call_args = mock_instance.execute_action.call_args
+            assert call_args[0][0] == "ban"  # action
 
         # Verify DB was updated (fresh session to see committed data)
         async with db_session_maker() as verify_session:
@@ -458,12 +432,6 @@ class TestEscalationCallback:
             assert resolved.status == "resolved"
             assert resolved.resolved_action == "ban"
             assert resolved.resolved_by == SUPER_ADMIN_ID
-
-        # Verify action was executed via agent_core
-        agent_core = dispatcher["_agent_core"]
-        agent_core.execute_action.assert_called_once()
-        call_args = agent_core.execute_action.call_args
-        assert call_args[0][0] == "ban"  # action
 
     async def test_non_admin_cannot_resolve_escalation(
         self,
@@ -560,11 +528,14 @@ class TestEscalationCallback:
             ),
         )
 
-        # Reset mock to track this specific test
-        agent_core = dispatcher["_agent_core"]
-        agent_core.execute_action.reset_mock()
+        # Mock AgentCore to verify it's NOT called for ignore
+        with patch("app.agent.core.AgentCore") as MockAgentCore:
+            mock_instance = MockAgentCore.return_value
+            mock_instance.execute_action = AsyncMock()
+            await dispatcher.feed_update(bot, update)
 
-        await dispatcher.feed_update(bot, update)
+            # execute_action should NOT have been called for ignore
+            mock_instance.execute_action.assert_not_called()
 
         # Should be resolved
         async with db_session_maker() as verify_session:
@@ -573,9 +544,6 @@ class TestEscalationCallback:
             esc = result.scalar_one()
             assert esc.status == "resolved"
             assert esc.resolved_action == "ignore"
-
-        # execute_action should NOT have been called for ignore
-        agent_core.execute_action.assert_not_called()
 
     async def test_already_resolved_escalation_shows_error(
         self,
@@ -640,7 +608,7 @@ class TestManagedChatsMiddleware:
         fake_tg.set_chat_admins(UNMANAGED_CHAT_ID, [777777777])  # no super admin
 
         dp = Dispatcher()
-        dp.update.middleware(DependenciesMiddleware(session_pool=db_session_maker, bot=bot, agent_core=None))
+        dp.update.middleware(DependenciesMiddleware(session_pool=db_session_maker, bot=bot))
         dp.update.middleware(ManagedChatsMiddleware())
         dp.include_router(_build_router())
 

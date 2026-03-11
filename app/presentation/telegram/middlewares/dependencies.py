@@ -20,12 +20,10 @@ class DependenciesMiddleware(BaseMiddleware):
         self,
         session_pool: async_sessionmaker[AsyncSession],
         bot: Bot,
-        agent_core: Any = None,
     ):
         super().__init__()
         self.session_pool = session_pool
         self.bot = bot
-        self.agent_core = agent_core
 
     async def __call__(
         self,
@@ -42,6 +40,4 @@ class DependenciesMiddleware(BaseMiddleware):
             data["chat_link_repo"] = get_chat_link_repository(session)
             data["message_repo"] = get_message_repository(session)
             data["user_service"] = UserService(get_user_repository(session))
-            if self.agent_core:
-                data["agent_core"] = self.agent_core
             return await handler(event, data)

@@ -1,4 +1,10 @@
-"""Handlers for agent-powered moderation (/report, /spam, escalation callbacks)."""
+"""Handlers for moderation reports (/report, /spam) and escalation callbacks.
+
+/report and /spam are mechanical — they forward a summary to the admin chat.
+LLM-based moderation analysis lives in the assistant bot (analyze_message tool).
+Escalation callbacks (esc: prefix) remain here since escalation messages are
+sent to admin via the moderator bot.
+"""
 
 from __future__ import annotations
 
@@ -15,22 +21,9 @@ from app.presentation.telegram.utils.other import escape_html, sleep_and_delete
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
-    from app.agent.core import AgentCore
-    from app.infrastructure.db.repositories import MessageRepository
-
 logger = get_logger("handlers.agent")
 
 agent_router = Router()
-
-ACTION_LABELS = {
-    "mute": "🔇 Пользователь замучен",
-    "ban": "🚫 Пользователь забанен",
-    "delete": "🗑 Сообщение удалено",
-    "warn": "⚠️ Предупреждение отправлено",
-    "blacklist": "☠️ Пользователь в чёрном списке",
-    "escalate": "⏳ Передано администратору",
-    "ignore": "✅ Нарушений не обнаружено",
-}
 
 ESCALATION_LABELS = {
     "mute": "🔇 Замучен",
@@ -42,42 +35,12 @@ ESCALATION_LABELS = {
 }
 
 
-def _get_event_type(command_text: str) -> EventType:
-    if command_text and "spam" in command_text.lower():
-        return EventType.SPAM
-    return EventType.REPORT
-
-
-async def _collect_context(
-    message_repo: MessageRepository,
-    target_user_id: int,
-    chat_id: int,
-) -> list[dict[str, str]]:
-    """Collect recent messages from the target user for LLM context."""
-    try:
-        messages = await message_repo.get_user_messages(target_user_id, chat_id=chat_id)
-        return [{"text": msg.content or "[no text]", "chat_id": str(msg.chat_id)} for msg in messages if msg.content][
-            :5
-        ]
-    except Exception:
-        return []
-
-
 @agent_router.message(Command("report", "spam"))
 async def handle_report(
     message: types.Message,
     bot: Bot,
-    db: AsyncSession,
-    message_repo: MessageRepository,
-    agent_core: AgentCore | None = None,
 ) -> None:
-    """Handle /report and /spam — trigger agent analysis."""
-    if not settings.agent.enabled or agent_core is None:
-        answer = await message.answer("🤖 Агент отключён.")
-        await message.delete()
-        await sleep_and_delete(answer, 10)
-        return
-
+    """Handle /report and /spam — forward report to admin chat mechanically (no LLM)."""
     if not message.reply_to_message:
         answer = await message.answer(
             "Ответьте на сообщение, которое хотите отправить на проверку, командой /report или /spam."
@@ -99,35 +62,45 @@ async def handle_report(
     if not display_name:
         display_name = target_user.username or f"User {target_user.id}"
 
-    context_messages = await _collect_context(message_repo, target_user.id, message.chat.id)
+    reporter = message.from_user
+    reporter_name = ""
+    if reporter:
+        reporter_name = reporter.first_name or ""
+        if reporter.username:
+            reporter_name = f"@{reporter.username}"
 
-    event = AgentEvent(
-        event_type=_get_event_type(message.text or ""),
-        chat_id=message.chat.id,
-        chat_title=message.chat.title,
-        message_id=target.message_id,
-        reporter_id=message.from_user.id if message.from_user else 0,
-        target_user_id=target_user.id,
-        target_username=target_user.username,
-        target_display_name=display_name,
-        target_message_text=target.text or target.caption,
-        context_messages=context_messages,
+    command = (message.text or "").split()[0].lstrip("/").lower()
+    event_label = "SPAM" if "spam" in command else "Report"
+
+    # Truncate message text for the summary
+    msg_text = target.text or target.caption or "[нет текста]"
+    if len(msg_text) > 500:
+        msg_text = msg_text[:500] + "..."
+
+    chat_label = escape_html(message.chat.title) if message.chat.title else str(message.chat.id)
+    username_part = f" (@{escape_html(target_user.username)})" if target_user.username else ""
+
+    summary = (
+        f"📢 <b>{event_label}</b>\n\n"
+        f"💬 Чат: {chat_label}\n"
+        f"👤 Пользователь: {escape_html(display_name)}{username_part}\n"
+        f"🆔 ID: <code>{target_user.id}</code>\n"
+        f"📝 Отправил: {escape_html(reporter_name)}\n\n"
+        f"📄 Сообщение:\n<blockquote>{escape_html(msg_text)}</blockquote>"
     )
 
-    # Acknowledge
-    status_msg = await message.answer("🤖 Анализирую сообщение...")
+    # Send to first super admin
+    if settings.admin.super_admins:
+        admin_chat_id = settings.admin.super_admins[0]
+        try:
+            await bot.send_message(admin_chat_id, summary)
+        except Exception as e:
+            logger.error("Failed to forward report to admin", error=str(e))
+
+    # Acknowledge in chat
+    answer = await message.answer("📢 Жалоба отправлена администратору.")
     await message.delete()
-
-    # Run agent
-    try:
-        decision = await agent_core.process_report(event, bot, db)
-    except Exception as e:
-        logger.error("Agent processing failed", error=str(e))
-        await status_msg.edit_text("❌ Ошибка обработки. Попробуйте позже.")
-        return
-
-    result_text = ACTION_LABELS.get(decision.action, decision.action)
-    await status_msg.edit_text(f"{result_text}\n\n💬 {decision.reason}")
+    await sleep_and_delete(answer, 10)
 
 
 @agent_router.callback_query(lambda c: c.data and c.data.startswith("esc:"))
@@ -135,15 +108,10 @@ async def handle_escalation_action(
     callback: types.CallbackQuery,
     bot: Bot,
     db: AsyncSession,
-    agent_core: AgentCore | None = None,
 ) -> None:
     """Handle admin's response to an escalation."""
     if not callback.data or not callback.from_user:
         await callback.answer("Ошибка")
-        return
-
-    if agent_core is None:
-        await callback.answer("Агент отключён", show_alert=True)
         return
 
     parts = callback.data.split(":")
@@ -183,10 +151,12 @@ async def handle_escalation_action(
         memory = AgentMemory(db)
         await memory.set_admin_override(escalation.decision_id, chosen_action)
 
-    # Execute admin's chosen action
+    # Execute admin's chosen action directly (no AgentCore dependency needed)
     action_type = ActionType(chosen_action) if chosen_action in ActionType.__members__.values() else ActionType.IGNORE
 
     if action_type != ActionType.IGNORE:
+        from app.agent.core import AgentCore
+
         event = AgentEvent(
             event_type=EventType.REPORT,
             chat_id=escalation.chat_id,
@@ -198,6 +168,8 @@ async def handle_escalation_action(
             target_display_name=str(escalation.target_user_id),
             target_message_text=escalation.message_text,
         )
+        # Use AgentCore directly for action execution (no LLM call, just mechanical action)
+        agent_core = AgentCore()
         await agent_core.execute_action(chosen_action, event, bot, db)
 
     # Update escalation message

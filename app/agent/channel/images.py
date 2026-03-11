@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import ipaddress
 import re
-import socket
 from urllib.parse import urlparse
 
 import httpx
 
-from app.agent.channel.http import get_http_client
+from app.agent.channel.http import SSRFError, get_http_client, is_safe_url
 from app.core.logging import get_logger
 
 logger = get_logger("channel.images")
@@ -103,7 +101,7 @@ async def _extract_article_images(
     1. OG/Twitter image meta tags (always full resolution)
     2. Large <img> tags from article body (width >= 400px or likely content images)
     """
-    if not _is_safe_url(url):
+    if not await is_safe_url(url):
         logger.warning("ssrf_blocked", url=url[:80])
         return []
 
@@ -115,6 +113,9 @@ async def _extract_article_images(
             timeout=httpx.Timeout(http_timeout),
         )
         resp.raise_for_status()
+    except SSRFError:
+        logger.warning("ssrf_blocked", url=url[:80])
+        return []
     except Exception:
         logger.debug("article_fetch_failed", url=url[:80])
         return []
@@ -244,20 +245,6 @@ def extract_rss_media_url(entry: object) -> str | None:
     return None
 
 
-def _is_safe_url(url: str) -> bool:
-    """Check that URL is safe to fetch — reject internal/private IPs (SSRF protection)."""
-    try:
-        parsed = urlparse(url)
-        if parsed.scheme not in ("http", "https"):
-            return False
-        hostname = parsed.hostname
-        if not hostname:
-            return False
-        # Resolve hostname and check all IPs
-        for info in socket.getaddrinfo(hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM):
-            ip = ipaddress.ip_address(info[4][0])
-            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
-                return False
-        return True
-    except (ValueError, socket.gaierror):
-        return False
+# _is_safe_url has been moved to app.agent.channel.http.is_safe_url (async).
+# Re-export for backward compatibility with external callers / tests.
+_is_safe_url = is_safe_url

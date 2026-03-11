@@ -22,7 +22,6 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
     from app.agent.channel.orchestrator import ChannelOrchestrator
-    from app.agent.core import AgentCore
     from app.infrastructure.telegram.telethon_client import TelethonClient
 from app.infrastructure.db.session import close_db, create_session_maker, insert_chat_link
 from app.presentation.telegram.handlers import router
@@ -90,13 +89,12 @@ async def on_shutdown(bot: Bot) -> None:
 
 def _setup_main_bot(
     session_maker: async_sessionmaker[AsyncSession],
-    agent_core: AgentCore | None,
 ) -> tuple[Bot, Dispatcher]:
     """Create and configure the main moderation bot."""
     bot = Bot(token=settings.telegram.token, default=DefaultBotProperties(parse_mode="HTML"))
     dp = Dispatcher()
 
-    dp.update.middleware(DependenciesMiddleware(session_pool=session_maker, bot=bot, agent_core=agent_core))
+    dp.update.middleware(DependenciesMiddleware(session_pool=session_maker, bot=bot))
     dp.update.middleware(ManagedChatsMiddleware())
     dp.update.middleware(HistoryMiddleware())
     dp.message.middleware(BlacklistMiddleware())
@@ -109,19 +107,16 @@ def _setup_main_bot(
     return bot, dp
 
 
-def _init_agent(session_maker: async_sessionmaker[AsyncSession]) -> AgentCore | None:
-    """Initialize the moderation AI agent if configured."""
+def _init_escalation_recovery(session_maker: async_sessionmaker[AsyncSession]) -> None:
+    """Set up EscalationService session maker for timeout handlers."""
     if not (settings.agent.enabled and settings.agent.openrouter_api_key):
         logger.info("agent_disabled")
-        return None
+        return
 
-    from app.agent.core import AgentCore
     from app.agent.escalation import EscalationService
 
-    agent_core = AgentCore()
     EscalationService.set_session_maker(session_maker)
-    logger.info("agent_enabled", model=settings.agent.moderation_model)
-    return agent_core
+    logger.info("escalation_service_configured")
 
 
 def _init_channel_orchestrator(
@@ -186,8 +181,8 @@ async def main() -> None:
     session_maker = create_session_maker()
 
     # Phase 1: Initialize shared services
-    agent_core = _init_agent(session_maker)
-    if agent_core:
+    _init_escalation_recovery(session_maker)
+    if settings.agent.enabled and settings.agent.openrouter_api_key:
         from app.agent.escalation import EscalationService
 
         await EscalationService.recover_stale_escalations(session_maker)
@@ -195,7 +190,7 @@ async def main() -> None:
     telethon_client = _init_telethon()
 
     # Phase 2: Setup main bot
-    main_bot, main_dp = _setup_main_bot(session_maker, agent_core)
+    main_bot, main_dp = _setup_main_bot(session_maker)
     setup_container(session_maker, main_bot)
 
     channel_orchestrator = _init_channel_orchestrator(main_bot, session_maker)

@@ -353,7 +353,12 @@ class TestReviewFlow:
         mock_bot.send_message.assert_called_once()
         call_kwargs = mock_bot.send_message.call_args[1]
         assert call_kwargs["chat_id"] == -1001234
-        assert "entities" in call_kwargs  # entities-based formatting, no parse_mode
+        assert "entities" in call_kwargs  # entities-based formatting
+        # CRITICAL: parse_mode=None must override bot's default parse_mode="HTML"
+        # Without this, entities are silently ignored by Telegram
+        assert call_kwargs.get("parse_mode") is None, (
+            "parse_mode must be explicitly None to override bot default HTML parse_mode"
+        )
 
         # Verify DB record
         async with session_maker() as session:
@@ -620,6 +625,10 @@ class TestReviewFlow:
         )
         assert post_id is not None
 
+        # parse_mode=None must be explicitly passed
+        call_kwargs = mock_bot.send_message.call_args[1]
+        assert call_kwargs.get("parse_mode") is None
+
         async with session_maker() as session:
             saved = (await session.execute(select(ChannelPost))).scalar_one()
             assert saved.title == "Generated post"
@@ -791,6 +800,199 @@ class TestReviewFlow:
             result = await handle_regen(mock_bot, post_id, "key", "model", "Russian", -100, session_maker)
 
         assert result == "Regeneration failed."
+
+    # ── Priority 2: Guard condition tests ──
+
+    async def test_handle_approve_post_is_scheduled(
+        self,
+        mock_bot: AsyncMock,
+        session_maker: async_sessionmaker[AsyncSession],
+    ) -> None:
+        """Approving a SCHEDULED post should return a specific message instead of publishing."""
+        from app.agent.channel.review import handle_approve
+
+        async with session_maker() as session:
+            post = ChannelPost(
+                channel_id="@test",
+                external_id="ext1",
+                title="T",
+                post_text="text",
+                status="scheduled",
+            )
+            session.add(post)
+            await session.commit()
+            post_id = post.id
+
+        result = await handle_approve(mock_bot, post_id, "@ch", session_maker)
+        assert result == "Post is scheduled. Use 'Publish now' to send immediately."
+        mock_bot.send_message.assert_not_called()
+
+    async def test_handle_edit_request_already_approved(
+        self,
+        mock_bot: AsyncMock,
+        session_maker: async_sessionmaker[AsyncSession],
+    ) -> None:
+        """Editing an APPROVED post should return an error."""
+        from app.agent.channel.review import handle_edit_request
+
+        async with session_maker() as session:
+            post = ChannelPost(
+                channel_id="@test",
+                external_id="ext1",
+                title="T",
+                post_text="text",
+                status="approved",
+            )
+            session.add(post)
+            await session.commit()
+            post_id = post.id
+
+        result = await handle_edit_request(mock_bot, post_id, "edit", "key", "model", -100, session_maker)
+        assert result == "Already published — cannot edit."
+
+    async def test_handle_edit_request_already_rejected(
+        self,
+        mock_bot: AsyncMock,
+        session_maker: async_sessionmaker[AsyncSession],
+    ) -> None:
+        """Editing a REJECTED post should return an error."""
+        from app.agent.channel.review import handle_edit_request
+
+        async with session_maker() as session:
+            post = ChannelPost(
+                channel_id="@test",
+                external_id="ext1",
+                title="T",
+                post_text="text",
+                status="rejected",
+            )
+            session.add(post)
+            await session.commit()
+            post_id = post.id
+
+        result = await handle_edit_request(mock_bot, post_id, "edit", "key", "model", -100, session_maker)
+        assert result == "Post was rejected — cannot edit."
+
+    async def test_handle_regen_already_approved(
+        self,
+        mock_bot: AsyncMock,
+        session_maker: async_sessionmaker[AsyncSession],
+    ) -> None:
+        """Regen on APPROVED post should return an error."""
+        from app.agent.channel.review import handle_regen
+
+        async with session_maker() as session:
+            post = ChannelPost(
+                channel_id="@test",
+                external_id="ext1",
+                title="T",
+                post_text="text",
+                status="approved",
+                source_items=[{"title": "Art", "url": "https://x.com", "source_url": "https://x.com/feed"}],
+            )
+            session.add(post)
+            await session.commit()
+            post_id = post.id
+
+        result = await handle_regen(mock_bot, post_id, "key", "model", "Russian", -100, session_maker)
+        assert result == "Already published — cannot regenerate."
+
+    async def test_handle_regen_already_rejected(
+        self,
+        mock_bot: AsyncMock,
+        session_maker: async_sessionmaker[AsyncSession],
+    ) -> None:
+        """Regen on REJECTED post should return an error."""
+        from app.agent.channel.review import handle_regen
+
+        async with session_maker() as session:
+            post = ChannelPost(
+                channel_id="@test",
+                external_id="ext1",
+                title="T",
+                post_text="text",
+                status="rejected",
+                source_items=[{"title": "Art", "url": "https://x.com", "source_url": "https://x.com/feed"}],
+            )
+            session.add(post)
+            await session.commit()
+            post_id = post.id
+
+        result = await handle_regen(mock_bot, post_id, "key", "model", "Russian", -100, session_maker)
+        assert result == "Post was rejected — cannot regenerate."
+
+    # ── Priority 3: Review message update assertion ──
+
+    async def test_handle_edit_request_updates_review_message(
+        self,
+        mock_bot: AsyncMock,
+        mock_httpx_client: object,
+        session_maker: async_sessionmaker[AsyncSession],
+    ) -> None:
+        """When review_message_id is set, edit should update the review message via _edit_review_message."""
+        from app.agent.channel.review import handle_edit_request
+
+        async with session_maker() as session:
+            post = ChannelPost(
+                channel_id="@test",
+                external_id="ext1",
+                title="T",
+                post_text="<b>Original</b>",
+                review_message_id=50,
+                review_chat_id=-100,
+            )
+            session.add(post)
+            await session.commit()
+            post_id = post.id
+
+        with patch("httpx.AsyncClient") as mock_cls:
+            mock_cls.return_value = mock_httpx_client("<b>Edited</b>")  # type: ignore[operator]
+            result = await handle_edit_request(
+                mock_bot, post_id, "Make it shorter", "key", "model", -100, session_maker
+            )
+
+        assert result == "Post updated."
+        # Verify the review message was updated via edit_message_text
+        mock_bot.edit_message_text.assert_called_once()
+        edit_kwargs = mock_bot.edit_message_text.call_args[1]
+        assert edit_kwargs["chat_id"] == -100
+        assert edit_kwargs["message_id"] == 50
+        # parse_mode=None must be passed for entities to work
+        assert edit_kwargs.get("parse_mode") is None
+        assert "entities" in edit_kwargs
+
+    async def test_handle_regen_updates_review_message(
+        self,
+        mock_bot: AsyncMock,
+        session_maker: async_sessionmaker[AsyncSession],
+    ) -> None:
+        """When review_message_id is set, regen should update the review message."""
+        from app.agent.channel.review import handle_regen
+
+        async with session_maker() as session:
+            post = ChannelPost(
+                channel_id="@test",
+                external_id="ext1",
+                title="T",
+                post_text="old",
+                source_items=[{"title": "Article", "url": "https://x.com/a", "source_url": "https://x.com/feed"}],
+                review_message_id=50,
+                review_chat_id=-100,
+            )
+            session.add(post)
+            await session.commit()
+            post_id = post.id
+
+        with patch("app.agent.channel.generator.generate_post", new_callable=AsyncMock) as mock_gen:
+            mock_gen.return_value = GeneratedPost(text="<b>Regenerated</b>", is_sensitive=False)
+            result = await handle_regen(mock_bot, post_id, "key", "model", "Russian", -100, session_maker)
+
+        assert result == "Post regenerated."
+        # Review message should be updated
+        mock_bot.edit_message_text.assert_called_once()
+        edit_kwargs = mock_bot.edit_message_text.call_args[1]
+        assert edit_kwargs["message_id"] == 50
+        assert edit_kwargs.get("parse_mode") is None
 
 
 # ── ChannelSource enable/disable tests ───────────────────────────────

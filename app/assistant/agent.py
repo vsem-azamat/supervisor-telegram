@@ -47,6 +47,10 @@ If the admin wants to publish immediately without review, use `publish_text` ins
 - `mute_user`, `unmute_user`, `ban_user`, `unban_user`
 - `blacklist_user`, `unblacklist_user`, `get_blacklist`
 
+## AI Moderation Analysis
+- `analyze_message` — run LLM-based moderation analysis on a reported message (auto-executes the decided action)
+- `get_moderation_history` — get a user's moderation profile: past reports, actions, admin overrides
+
 ## Chat & User Info
 - `list_chats`, `get_chat_info`, `get_user_info`, `set_welcome`, `send_message`
 

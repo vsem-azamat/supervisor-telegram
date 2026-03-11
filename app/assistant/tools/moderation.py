@@ -141,40 +141,26 @@ def register_moderation_tools(agent: Agent[AssistantDeps, str]) -> None:
 
     @agent.tool
     async def blacklist_user(ctx: RunContext[AssistantDeps], user_id: int) -> str:
-        """Add user to global blacklist."""
-        from sqlalchemy import select
-
-        from app.infrastructure.db.models import User
+        """Add user to global blacklist and ban from all managed chats."""
+        from app.application.services.moderation import add_to_blacklist
 
         try:
             async with ctx.deps.session_maker() as session:
-                result = await session.execute(select(User).where(User.id == user_id))
-                user = result.scalar_one_or_none()
-                if not user:
-                    return f"User {user_id} not found in DB."
-                user.blocked = True
-                await session.commit()
-            return f"User {user_id} added to blacklist."
+                await add_to_blacklist(session, ctx.deps.main_bot, user_id)
+            return f"User {user_id} added to blacklist and banned from all managed chats."
         except Exception:
             logger.exception("blacklist_user_failed", user_id=user_id)
             return "Не удалось добавить в чёрный список. Проверьте логи бота."
 
     @agent.tool
     async def unblacklist_user(ctx: RunContext[AssistantDeps], user_id: int) -> str:
-        """Remove user from global blacklist."""
-        from sqlalchemy import select
-
-        from app.infrastructure.db.models import User
+        """Remove user from global blacklist and unban from all managed chats."""
+        from app.application.services.moderation import remove_from_blacklist
 
         try:
             async with ctx.deps.session_maker() as session:
-                result = await session.execute(select(User).where(User.id == user_id))
-                user = result.scalar_one_or_none()
-                if not user:
-                    return f"User {user_id} not found in DB."
-                user.blocked = False
-                await session.commit()
-            return f"User {user_id} removed from blacklist."
+                await remove_from_blacklist(session, ctx.deps.main_bot, user_id)
+            return f"User {user_id} removed from blacklist and unbanned from all managed chats."
         except Exception:
             logger.exception("unblacklist_user_failed", user_id=user_id)
             return "Не удалось убрать из чёрного списка. Проверьте логи бота."
