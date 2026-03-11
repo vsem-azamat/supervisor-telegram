@@ -138,9 +138,9 @@ async def on_review_callback(callback: CallbackQuery) -> None:
 
             clear_review_conversation(post_id)
 
-        if callback.message:
-            with contextlib.suppress(Exception):
-                await callback.message.edit_reply_markup(reply_markup=None)
+            if callback.message:
+                with contextlib.suppress(Exception):
+                    await bot.delete_message(chat_id=chat_id, message_id=callback.message.message_id)
 
     elif data.startswith(CB_DELETE):
         post_id = _extract_post_id(data, CB_DELETE)
@@ -310,13 +310,13 @@ async def on_review_callback(callback: CallbackQuery) -> None:
                 channel_name=channel.name,
                 channel_username=channel.username,
             )
-            await bot.send_message(chat_id, result)
+            logger.info("regen_result", post_id=post_id, result=result)
             from app.agent.channel.review_agent import clear_review_conversation
 
             clear_review_conversation(post_id)
         except Exception:
             logger.exception("regen_callback_error", post_id=post_id)
-            await bot.send_message(chat_id, "Regeneration failed.")
+            await callback.answer("Regeneration failed.", show_alert=True)
 
     elif data.startswith(CB_SHORTER):
         post_id = _extract_post_id(data, CB_SHORTER)
@@ -342,13 +342,13 @@ async def on_review_callback(callback: CallbackQuery) -> None:
                 channel_name=channel.name,
                 channel_username=channel.username,
             )
-            await bot.send_message(chat_id, result)
+            logger.info("shorter_result", post_id=post_id, result=result)
             from app.agent.channel.review_agent import clear_review_conversation
 
             clear_review_conversation(post_id)
         except Exception:
             logger.exception("shorter_callback_error", post_id=post_id)
-            await bot.send_message(chat_id, "Edit failed.")
+            await callback.answer("Edit failed.", show_alert=True)
 
     elif data.startswith(CB_LONGER):
         post_id = _extract_post_id(data, CB_LONGER)
@@ -374,13 +374,13 @@ async def on_review_callback(callback: CallbackQuery) -> None:
                 channel_name=channel.name,
                 channel_username=channel.username,
             )
-            await bot.send_message(chat_id, result)
+            logger.info("longer_result", post_id=post_id, result=result)
             from app.agent.channel.review_agent import clear_review_conversation
 
             clear_review_conversation(post_id)
         except Exception:
             logger.exception("longer_callback_error", post_id=post_id)
-            await bot.send_message(chat_id, "Edit failed.")
+            await callback.answer("Edit failed.", show_alert=True)
 
     elif data.startswith(CB_TRANSLATE):
         post_id = _extract_post_id(data, CB_TRANSLATE)
@@ -408,13 +408,13 @@ async def on_review_callback(callback: CallbackQuery) -> None:
                 channel_name=channel.name,
                 channel_username=channel.username,
             )
-            await bot.send_message(chat_id, result)
+            logger.info("translate_result", post_id=post_id, result=result)
             from app.agent.channel.review_agent import clear_review_conversation
 
             clear_review_conversation(post_id)
         except Exception:
             logger.exception("translate_callback_error", post_id=post_id)
-            await bot.send_message(chat_id, "Translation failed.")
+            await callback.answer("Translation failed.", show_alert=True)
 
     elif data.startswith("chpost:noop:"):
         await callback.answer()
