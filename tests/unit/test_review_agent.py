@@ -24,7 +24,14 @@ class TestCreateReviewAgent:
         """Verify the agent has the right tools registered."""
         agent = create_review_agent()
         tool_names = set(agent._function_toolset.tools.keys())
-        expected = {"get_current_post", "web_search", "update_post", "find_new_images", "replace_images"}
+        expected = {
+            "get_current_post",
+            "web_search",
+            "update_post",
+            "find_new_images",
+            "replace_images",
+            "remove_images",
+        }
         assert expected == tool_names, f"Expected {expected}, got {tool_names}"
 
     def test_agent_is_pydantic_agent(self) -> None:

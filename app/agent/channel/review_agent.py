@@ -5,6 +5,7 @@ that has tools and memory, enabling multi-turn editing sessions per post.
 """
 
 import asyncio
+import contextlib
 import functools
 import time
 from dataclasses import dataclass
@@ -134,11 +135,12 @@ CORRECT:
   ✅ RIGHT — tools were called, changes saved.
 
 ## Tools available
-- `get_current_post` — read the current post text from DB (ALWAYS call first)
+- `get_current_post` — read the current post text and images from DB (ALWAYS call first)
 - `web_search` — search the web for facts or context
 - `update_post` — save the edited text (MUST call to apply any changes)
 - `find_new_images` — search for images by keywords
-- `replace_images` — replace the post's images with new URLs
+- `replace_images` — replace the post's images with new URLs (refreshes the review message)
+- `remove_images` — remove all images from the post
 
 Respond in Russian. Be concise — the admin is in a chat, not reading an essay.
 """
@@ -182,17 +184,26 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
 
     @agent.tool
     async def get_current_post(ctx: RunContext[ReviewAgentDeps]) -> str:
-        """Get the current post text from DB."""
+        """Get the current post text and images from DB."""
         from sqlalchemy import select
 
         from app.infrastructure.db.models import ChannelPost
 
         async with ctx.deps.session_maker() as session:
-            result = await session.execute(select(ChannelPost.post_text).where(ChannelPost.id == ctx.deps.post_id))
-            row = result.scalar_one_or_none()
-            if row is None:
+            result = await session.execute(select(ChannelPost).where(ChannelPost.id == ctx.deps.post_id))
+            post = result.scalar_one_or_none()
+            if post is None:
                 return "Post not found in DB."
-            return str(row)
+            parts = [post.post_text]
+            if post.image_urls:
+                parts.append(f"\n\nImages ({len(post.image_urls)}):")
+                for i, url in enumerate(post.image_urls, 1):
+                    parts.append(f"  {i}. {url}")
+            elif post.image_url:
+                parts.append(f"\n\nImage: {post.image_url}")
+            else:
+                parts.append("\n\nNo images attached.")
+            return "\n".join(parts)
 
     @agent.tool
     async def web_search(ctx: RunContext[ReviewAgentDeps], query: str, count: int = 5) -> str:  # noqa: ARG001
@@ -289,9 +300,64 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
             lines.append(f"{i}. {url}")
         return "\n".join(lines)
 
+    async def _refresh_review_message(ctx: RunContext[ReviewAgentDeps], post: Any) -> str | None:
+        """Delete old review message and send a new one with updated image/text.
+
+        Returns a warning string if refresh failed, None on success.
+        """
+        from app.agent.channel.review import (
+            _build_review_keyboard,
+            _extract_source_btn_data,
+            _send_review_message,
+        )
+
+        if not post.review_message_id:
+            return None
+
+        bot = ctx.deps.bot
+        review_chat_id = ctx.deps.review_chat_id
+
+        try:
+            # Delete old message
+            with contextlib.suppress(Exception):
+                await bot.delete_message(chat_id=review_chat_id, message_id=post.review_message_id)
+
+            # Send new message with current image
+            source_btn_data = _extract_source_btn_data(post)
+            keyboard = _build_review_keyboard(
+                ctx.deps.post_id,
+                source_items=source_btn_data,
+                channel_name=ctx.deps.channel_name,
+                channel_username=ctx.deps.channel_username,
+            )
+            new_msg = await _send_review_message(
+                bot,
+                review_chat_id,
+                post.post_text,
+                keyboard,
+                post.image_url,
+            )
+
+            # Update review_message_id in DB
+            async with ctx.deps.session_maker() as session:
+                from sqlalchemy import select as sa_select
+
+                from app.infrastructure.db.models import ChannelPost
+
+                r = await session.execute(sa_select(ChannelPost).where(ChannelPost.id == ctx.deps.post_id))
+                db_post = r.scalar_one_or_none()
+                if db_post:
+                    db_post.review_message_id = new_msg.message_id
+                    await session.commit()
+
+            return None
+        except Exception:
+            logger.exception("review_message_refresh_failed", post_id=ctx.deps.post_id)
+            return "Warning: review message could not be refreshed."
+
     @agent.tool
     async def replace_images(ctx: RunContext[ReviewAgentDeps], image_urls: list[str]) -> str:
-        """Replace the post's images with new ones. Max 3 images."""
+        """Replace the post's images with new ones. Max 3 images. Refreshes the review message."""
         from sqlalchemy import select
 
         from app.infrastructure.db.models import ChannelPost
@@ -312,7 +378,50 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
             await session.commit()
 
         logger.info("images_replaced_by_agent", post_id=ctx.deps.post_id, count=len(image_urls))
-        return f"Images replaced: {len(image_urls)} image(s) set."
+
+        # Refresh review message to show the new image
+        async with ctx.deps.session_maker() as session:
+            result = await session.execute(select(ChannelPost).where(ChannelPost.id == ctx.deps.post_id))
+            post = result.scalar_one_or_none()
+
+        warning = await _refresh_review_message(ctx, post) if post else None
+        msg = f"Images replaced: {len(image_urls)} image(s) set."
+        if warning:
+            msg += f" {warning}"
+        return msg
+
+    @agent.tool
+    async def remove_images(ctx: RunContext[ReviewAgentDeps]) -> str:
+        """Remove all images from the post. Refreshes the review message."""
+        from sqlalchemy import select
+
+        from app.infrastructure.db.models import ChannelPost
+
+        async with ctx.deps.session_maker() as session:
+            result = await session.execute(select(ChannelPost).where(ChannelPost.id == ctx.deps.post_id))
+            post = result.scalar_one_or_none()
+            if not post:
+                return "Post not found in DB."
+
+            if post.status != PostStatus.DRAFT:
+                return f"Cannot edit: post is already {post.status}."
+
+            post.image_url = None
+            post.image_urls = None
+            await session.commit()
+
+        logger.info("images_removed_by_agent", post_id=ctx.deps.post_id)
+
+        # Refresh review message (now text-only)
+        async with ctx.deps.session_maker() as session:
+            result = await session.execute(select(ChannelPost).where(ChannelPost.id == ctx.deps.post_id))
+            post = result.scalar_one_or_none()
+
+        warning = await _refresh_review_message(ctx, post) if post else None
+        msg = "All images removed."
+        if warning:
+            msg += f" {warning}"
+        return msg
 
     return agent
 
