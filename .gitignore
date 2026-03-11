@@ -167,4 +167,8 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 moderator_userbot.session
+moderator_userbot.session-journal
 PROJECT_TRACKING.md
+logs/
+scripts/
+!scripts/wait_for_postgres.sh
