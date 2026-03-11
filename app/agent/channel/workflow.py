@@ -329,7 +329,6 @@ async def send_for_review(state: State) -> State:
                 embedding_model=config.embedding_model,
                 channel_name=channel.name,
                 channel_username=channel.username,
-                has_publish_schedule=bool(channel.publish_schedule),
             )
             if post_id:
                 logger.info("workflow_review_sent", post_id=post_id)

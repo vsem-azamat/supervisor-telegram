@@ -13,6 +13,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, U
 
 from app.agent.channel.review_service import (
     CB_APPROVE,
+    CB_BACK,
     CB_DELETE,
     CB_LONGER,
     CB_PUBLISH_NOW,
@@ -46,6 +47,7 @@ logger = get_logger("channel.review")
 # Re-export callback constants so existing importers don't break
 __all__ = [
     "CB_APPROVE",
+    "CB_BACK",
     "CB_DELETE",
     "CB_LONGER",
     "CB_PUBLISH_NOW",
@@ -83,46 +85,37 @@ def _build_review_keyboard(
     source_items: list[dict[str, str]] | None = None,
     channel_name: str = "",
     channel_username: str | None = None,
-    has_publish_schedule: bool = False,
 ) -> InlineKeyboardMarkup:
     """Build inline keyboard for post review."""
+    from app.presentation.telegram.utils.callback_data import ReviewAction
+
     main_row = [
-        InlineKeyboardButton(text="✅ Approve", callback_data=f"{CB_APPROVE}{post_id}"),
+        InlineKeyboardButton(text="✅ Approve", callback_data=ReviewAction(action="approve", post_id=post_id).pack()),
+        InlineKeyboardButton(text="⏰ Schedule", callback_data=ReviewAction(action="schedule", post_id=post_id).pack()),
+        InlineKeyboardButton(text="❌ Reject", callback_data=ReviewAction(action="reject", post_id=post_id).pack()),
+        InlineKeyboardButton(text="🗑 Delete", callback_data=ReviewAction(action="delete", post_id=post_id).pack()),
     ]
-    if has_publish_schedule:
-        main_row.append(InlineKeyboardButton(text="⏰ Schedule", callback_data=f"{CB_SCHEDULE}{post_id}"))
-    main_row.extend(
-        [
-            InlineKeyboardButton(text="❌ Reject", callback_data=f"{CB_REJECT}{post_id}"),
-            InlineKeyboardButton(text="🗑 Delete", callback_data=f"{CB_DELETE}{post_id}"),
-        ]
-    )
     rows: list[list[InlineKeyboardButton]] = [
         main_row,
         [
-            InlineKeyboardButton(text="✂️ Shorter", callback_data=f"{CB_SHORTER}{post_id}"),
-            InlineKeyboardButton(text="📝 Longer", callback_data=f"{CB_LONGER}{post_id}"),
-            InlineKeyboardButton(text="🔄 Regen", callback_data=f"{CB_REGEN}{post_id}"),
+            InlineKeyboardButton(
+                text="✂️ Shorter", callback_data=ReviewAction(action="shorter", post_id=post_id).pack()
+            ),
+            InlineKeyboardButton(text="📝 Longer", callback_data=ReviewAction(action="longer", post_id=post_id).pack()),
+            InlineKeyboardButton(text="🔄 Regen", callback_data=ReviewAction(action="regen", post_id=post_id).pack()),
         ],
     ]
 
     if channel_name:
         if channel_username:
-            rows.append(
-                [
-                    InlineKeyboardButton(
-                        text=f"📢 {channel_name}",
-                        url=f"https://t.me/{channel_username}",
-                    ),
-                ]
-            )
+            rows.append([InlineKeyboardButton(text=f"📢 {channel_name}", url=f"https://t.me/{channel_username}")])
         else:
             rows.append(
                 [
                     InlineKeyboardButton(
                         text=f"📢 {channel_name}",
-                        callback_data=f"chpost:noop:{post_id}",
-                    ),
+                        callback_data=ReviewAction(action="noop", post_id=post_id).pack(),
+                    )
                 ]
             )
 
@@ -143,6 +136,8 @@ def build_schedule_picker_keyboard(
     available_slots: list[Any],
 ) -> InlineKeyboardMarkup:
     """Build time picker for scheduling. Shows next 5 available slots."""
+    from app.presentation.telegram.utils.callback_data import PublishNow, ReviewAction, SchedulePick
+
     rows: list[list[InlineKeyboardButton]] = []
     for slot in available_slots[:5]:
         label = slot.strftime("%d %b %H:%M UTC")
@@ -151,14 +146,14 @@ def build_schedule_picker_keyboard(
             [
                 InlineKeyboardButton(
                     text=f"📅 {label}",
-                    callback_data=f"{CB_SCHEDULE_PICK}{post_id}:{ts}",
+                    callback_data=SchedulePick(post_id=post_id, ts=ts).pack(),
                 ),
             ]
         )
     rows.append(
         [
-            InlineKeyboardButton(text="🚀 Publish now", callback_data=f"{CB_PUBLISH_NOW}{post_id}"),
-            InlineKeyboardButton(text="⬅️ Back", callback_data=f"chpost:noop:{post_id}"),
+            InlineKeyboardButton(text="🚀 Publish now", callback_data=PublishNow(post_id=post_id).pack()),
+            InlineKeyboardButton(text="⬅️ Back", callback_data=ReviewAction(action="back", post_id=post_id).pack()),
         ]
     )
     return InlineKeyboardMarkup(inline_keyboard=rows)
@@ -257,7 +252,6 @@ async def send_for_review(
     embedding_model: str = "",
     channel_name: str = "",
     channel_username: str | None = None,
-    has_publish_schedule: bool = False,
 ) -> int | None:
     """Send a generated post to the review channel with inline buttons.
 
@@ -287,7 +281,6 @@ async def send_for_review(
                 source_items=source_btn_data,
                 channel_name=channel_name,
                 channel_username=channel_username,
-                has_publish_schedule=has_publish_schedule,
             )
 
             msg = await _send_review_message(bot, review_chat_id, post.text, keyboard, post.image_url)

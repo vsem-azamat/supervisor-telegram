@@ -304,14 +304,16 @@ class TestSourceManager:
 class TestReviewFlow:
     async def test_build_review_keyboard(self) -> None:
         from app.agent.channel.review import _build_review_keyboard
+        from app.presentation.telegram.utils.callback_data import ReviewAction
 
         kb = _build_review_keyboard(42)
         assert len(kb.inline_keyboard) == 2
-        assert len(kb.inline_keyboard[0]) == 3  # Approve, Reject, Delete
+        assert len(kb.inline_keyboard[0]) == 4  # Approve, Schedule, Reject, Delete
         assert len(kb.inline_keyboard[1]) == 3  # Shorter, Longer, Regen
-        assert kb.inline_keyboard[0][0].callback_data == "chpost:approve:42"
-        assert kb.inline_keyboard[0][1].callback_data == "chpost:reject:42"
-        assert kb.inline_keyboard[0][2].callback_data == "chpost:delete:42"
+        assert kb.inline_keyboard[0][0].callback_data == ReviewAction(action="approve", post_id=42).pack()
+        assert kb.inline_keyboard[0][1].callback_data == ReviewAction(action="schedule", post_id=42).pack()
+        assert kb.inline_keyboard[0][2].callback_data == ReviewAction(action="reject", post_id=42).pack()
+        assert kb.inline_keyboard[0][3].callback_data == ReviewAction(action="delete", post_id=42).pack()
 
     async def test_build_review_keyboard_with_channel_and_sources(self) -> None:
         from app.agent.channel.review import _build_review_keyboard
@@ -1175,13 +1177,26 @@ class TestFeedbackSummary:
 
 
 class TestHandlerHelpers:
-    def test_extract_post_id(self) -> None:
-        from app.presentation.telegram.handlers.channel_review import _extract_post_id
+    def test_callback_data_factories(self) -> None:
+        from app.presentation.telegram.utils.callback_data import PublishNow, ReviewAction, SchedulePick
 
-        assert _extract_post_id("chpost:approve:42", "chpost:approve:") == 42
-        assert _extract_post_id("chpost:reject:100", "chpost:reject:") == 100
-        assert _extract_post_id("chpost:approve:abc", "chpost:approve:") is None
-        assert _extract_post_id("chpost:approve:", "chpost:approve:") is None
+        # ReviewAction pack/unpack
+        packed = ReviewAction(action="approve", post_id=42).pack()
+        assert "rv:" in packed
+        unpacked = ReviewAction.unpack(packed)
+        assert unpacked.action == "approve"
+        assert unpacked.post_id == 42
+
+        # SchedulePick
+        sp = SchedulePick(post_id=42, ts=1234567890).pack()
+        assert "rvsp:" in sp
+        unpacked_sp = SchedulePick.unpack(sp)
+        assert unpacked_sp.post_id == 42
+        assert unpacked_sp.ts == 1234567890
+
+        # PublishNow
+        pn = PublishNow(post_id=42).pack()
+        assert "rvpub:" in pn
 
 
 # ── ContentItem tests ────────────────────────────────────────────────

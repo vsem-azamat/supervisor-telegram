@@ -122,7 +122,12 @@ according to admin instructions while maintaining the channel's style.
 Not too formal, not too casual.
   BAD: 'Уважаемые студенты! Администрация сообщает...'
   BAD: 'ааа братцы дедлайн продлили!!!'
+  BAD (too pompous): 'Это отличная возможность лично расспросить экспертов!'
   GOOD: 'Если вы ещё не подали заявку — есть хорошая новость.'
+  GOOD: 'На выставке будут стенды факультета — можно задать вопросы.'
+- BANNED PHRASES (never use): "это отличная/уникальная/прекрасная возможность", \
+"лично можете расспросить/узнать", "не упустите шанс", "спешите", "успейте", \
+"рады сообщить", "с гордостью представляем". No ad/press-release/marketing tone.
 - Use standard Markdown: **bold**, *italic*, [link](url). No HTML tags, no hashtags.
 - Max 1 emoji (at headline start), max 1 exclamation mark per post.
 - Always leave blank lines between headline, paragraphs, and footer.

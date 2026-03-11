@@ -36,6 +36,7 @@ CB_SCHEDULE = "chpost:sched:"
 CB_SCHEDULE_PICK = "chpost:sp:"
 CB_PUBLISH_NOW = "chpost:pubnow:"
 CB_TRANSLATE = "chpost:translate:"
+CB_BACK = "chpost:back:"
 
 # ── Pure data helpers ──
 

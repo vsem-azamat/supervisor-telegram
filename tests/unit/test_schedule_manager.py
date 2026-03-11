@@ -480,8 +480,8 @@ class TestBuildSchedulePickerKeyboard:
         # 2 slot rows + 1 action row (publish now + back)
         assert len(kb.inline_keyboard) == 3
         assert "📅" in kb.inline_keyboard[0][0].text
-        assert (kb.inline_keyboard[0][0].callback_data or "").startswith("chpost:sp:42:")
-        assert kb.inline_keyboard[2][0].callback_data == "chpost:pubnow:42"
+        assert (kb.inline_keyboard[0][0].callback_data or "").startswith("rvsp:42:")
+        assert (kb.inline_keyboard[2][0].callback_data or "").startswith("rvpub:42")
 
     def test_limits_to_5_slots(self) -> None:
         from app.agent.channel.review import build_schedule_picker_keyboard

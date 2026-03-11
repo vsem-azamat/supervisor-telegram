@@ -129,16 +129,25 @@ Sometimes a mid-text link is better, sometimes at the end is fine. Be natural.
 - Do NOT use HTML tags or hashtags
 
 STYLE:
-- Friendly, slightly witty tone — like a smart friend sharing news
+- Simple, natural tone — like telling a friend about news. Not pompous, not overly excited.
 - Keep Czech official terms (Nejvyšší soud, ČVUT) with Russian context when needed
 - No emoji spam — only 1 emoji at start of headline
 - No exclamation mark overload — max 1 per post
 
+BANNED PHRASES (never use these):
+- "это отличная/уникальная/прекрасная возможность" → just state the fact
+- "лично можете расспросить/узнать" → rephrase neutrally
+- "не упустите шанс", "спешите", "успейте" → no urgency pressure
+- "рады сообщить", "с гордостью представляем" → no corporate clichés
+- Any phrasing that sounds like an ad, press release, or marketing copy
+
 TONE EXAMPLES:
 BAD (too formal): "Уважаемые студенты! Администрация сообщает..."
 BAD (too casual): "ааа братцы дедлайн продлили!!!"
+BAD (too pompous): "Это отличная возможность лично расспросить экспертов!"
 GOOD: "Если вы ещё не подали заявку — есть хорошая новость."
 GOOD: "Новые правила для студентов — коротко о главном."
+GOOD: "На выставке будут стенды факультета — можно задать вопросы."
 
 IMPORTANT: Write about ONLY ONE news story. Do NOT combine multiple news items into one post.
 

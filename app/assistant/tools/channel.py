@@ -451,7 +451,6 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
                     embedding_model=settings.channel.embedding_model,
                     channel_name=channel.name,
                     channel_username=channel.username,
-                    has_publish_schedule=bool(channel.publish_schedule),
                 )
             except Exception:
                 logger.exception("generate_and_review_send_failed", channel_id=channel_id)
