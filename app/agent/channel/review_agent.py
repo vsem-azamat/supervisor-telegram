@@ -287,17 +287,46 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
         return msg
 
     @agent.tool
-    async def find_new_images(ctx: RunContext[ReviewAgentDeps], query: str) -> str:
-        """Search for new images by keywords. Returns found image URLs."""
+    async def find_new_images(ctx: RunContext[ReviewAgentDeps], query: str) -> str:  # noqa: ARG001
+        """Search for images by keywords using Brave Image Search.
+
+        Falls back to extracting images from web search result pages if image search
+        returns nothing.
+        """
+        from app.agent.channel.brave_search import brave_image_search, brave_web_search
         from app.agent.channel.images import find_images_for_post
 
-        _ = ctx  # deps not needed for image search itself
-        images = await find_images_for_post(keywords=query, source_urls=[])
+        brave_api_key = settings.agent.brave_api_key
+        images: list[str] = []
+
+        # Strategy 1: Brave Image Search API
+        if brave_api_key:
+            results = await brave_image_search(brave_api_key, query, count=6)
+            for r in results:
+                url = r.get("url", "")
+                if url and url not in images:
+                    images.append(url)
+                if len(images) >= 5:
+                    break
+
+        # Strategy 2: Extract OG/article images from web search result pages
+        if len(images) < 3 and brave_api_key:
+            web_results = await brave_web_search(brave_api_key, query, count=5, freshness="pm")
+            source_urls = [r["url"] for r in web_results if r.get("url")]
+            if source_urls:
+                article_images = await find_images_for_post(keywords=query, source_urls=source_urls)
+                for url in article_images:
+                    if url not in images:
+                        images.append(url)
+                    if len(images) >= 5:
+                        break
+
         if not images:
-            return "No images found for the given query."
+            return "No images found for the given query. Try a different search query."
         lines = [f"Found {len(images)} image(s):"]
         for i, url in enumerate(images, 1):
             lines.append(f"{i}. {url}")
+        lines.append("\nUse `replace_images` with the URLs you want to set.")
         return "\n".join(lines)
 
     async def _refresh_review_message(ctx: RunContext[ReviewAgentDeps], post: Any) -> str | None:

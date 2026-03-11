@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 logger = get_logger("channel.brave_search")
 
 BRAVE_SEARCH_URL = "https://api.search.brave.com/res/v1/web/search"
+BRAVE_IMAGE_SEARCH_URL = "https://api.search.brave.com/res/v1/images/search"
 VALID_FRESHNESS = {"pd", "pw", "pm", "py"}
 
 
@@ -126,6 +127,63 @@ async def discover_content_brave(
 
     except Exception:
         logger.exception("brave_discovery_error", query=query[:60])
+        return []
+
+
+async def brave_image_search(
+    api_key: str,
+    query: str,
+    *,
+    count: int = 5,
+    timeout: int = 15,
+) -> list[dict[str, str]]:
+    """Search for images via Brave Image Search API.
+
+    Returns list of dicts with keys: url, title, source_url, width, height.
+    """
+    if not api_key:
+        return []
+
+    count = max(1, min(count, 10))
+
+    try:
+        client = get_http_client(timeout=timeout)
+        resp = await client.get(
+            BRAVE_IMAGE_SEARCH_URL,
+            headers={
+                "Accept": "application/json",
+                "Accept-Encoding": "gzip",
+                "X-Subscription-Token": api_key,
+            },
+            params={
+                "q": query,
+                "count": count,
+            },
+            timeout=httpx.Timeout(timeout),
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+        results: list[dict[str, str]] = []
+        for item in data.get("results", []):
+            img_url = item.get("properties", {}).get("url", "")
+            if not img_url:
+                continue
+            results.append(
+                {
+                    "url": img_url,
+                    "title": item.get("title", ""),
+                    "source_url": item.get("url", ""),
+                    "width": str(item.get("properties", {}).get("width", "")),
+                    "height": str(item.get("properties", {}).get("height", "")),
+                }
+            )
+
+        logger.info("brave_image_search_done", query=query[:60], results=len(results))
+        return results
+
+    except Exception:
+        logger.exception("brave_image_search_error", query=query[:60])
         return []
 
 
