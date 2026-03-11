@@ -47,6 +47,8 @@ class ReviewAgentDeps:
 
 _review_conversations: dict[int, list[ModelMessage]] = {}  # post_id -> message history
 _review_last_access: dict[int, float] = {}
+# Maps Telegram message_id -> post_id so reply chains can resolve the post
+_message_to_post: dict[int, int] = {}  # message_id -> post_id
 _MAX_REVIEW_CONVERSATIONS = 200
 _REVIEW_CONVERSATION_TTL = 14400  # 4 hours
 _MAX_HISTORY = 40
@@ -62,6 +64,10 @@ def _evict_review_conversations() -> None:
     for pid in expired:
         _review_conversations.pop(pid, None)
         _review_last_access.pop(pid, None)
+        # Clean up message mappings
+        stale = [mid for mid, p in _message_to_post.items() if p == pid]
+        for mid in stale:
+            _message_to_post.pop(mid, None)
 
     # 2. Enforce max cap — evict least recently used
     if len(_review_conversations) > _MAX_REVIEW_CONVERSATIONS:
@@ -70,14 +76,31 @@ def _evict_review_conversations() -> None:
         for pid, _ in sorted_by_access[:to_remove]:
             _review_conversations.pop(pid, None)
             _review_last_access.pop(pid, None)
+            stale = [mid for mid, p in _message_to_post.items() if p == pid]
+            for mid in stale:
+                _message_to_post.pop(mid, None)
 
 
 def clear_review_conversation(post_id: int) -> None:
-    """Clear conversation and lock for a post (call on approve/reject)."""
+    """Clear conversation, lock, and message mappings for a post (call on approve/reject)."""
     _review_conversations.pop(post_id, None)
     _review_last_access.pop(post_id, None)
     _post_locks.pop(post_id, None)
+    # Clean up message_id -> post_id mappings for this post
+    stale = [mid for mid, pid in _message_to_post.items() if pid == post_id]
+    for mid in stale:
+        _message_to_post.pop(mid, None)
     logger.debug("review_conversation_cleared", post_id=post_id)
+
+
+def register_message(message_id: int, post_id: int) -> None:
+    """Register a Telegram message_id as belonging to a post's conversation."""
+    _message_to_post[message_id] = post_id
+
+
+def resolve_post_id(message_id: int) -> int | None:
+    """Look up which post_id a Telegram message belongs to."""
+    return _message_to_post.get(message_id)
 
 
 # ---------------------------------------------------------------------------

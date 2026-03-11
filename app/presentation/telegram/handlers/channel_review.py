@@ -427,29 +427,38 @@ def _channel_language(channel: Channel | None) -> str:
     return language_name(channel.language if channel else "ru")
 
 
+def _resolve_post_id_from_reply(reply_msg: Message) -> int | None:
+    """Resolve post_id from a reply target — checks inline keyboard first, then message mapping."""
+    # 1. Try inline keyboard (reply to the original review post)
+    if reply_msg.reply_markup and hasattr(reply_msg.reply_markup, "inline_keyboard"):
+        for row in reply_msg.reply_markup.inline_keyboard:
+            for btn in row:
+                if btn.callback_data and btn.callback_data.startswith(CB_APPROVE):
+                    post_id = _extract_post_id(btn.callback_data, CB_APPROVE)
+                    if post_id:
+                        return post_id
+
+    # 2. Try message_id mapping (reply to an agent response in the conversation chain)
+    from app.agent.channel.review_agent import resolve_post_id
+
+    return resolve_post_id(reply_msg.message_id)
+
+
 @channel_review_router.message(F.reply_to_message)
 async def on_review_reply(message: Message) -> None:
-    """Handle replies in the discussion chat — admin editing posts via conversation."""
+    """Handle replies in the discussion chat — admin editing posts via conversation.
+
+    Supports reply chains: the user can reply to the original review post OR to any
+    agent response in the conversation. The post_id is resolved by following the
+    message_id mapping.
+    """
     if not message.text or not message.reply_to_message:
         return
 
     if not message.from_user or not _is_super_admin(message.from_user.id):
         return
 
-    reply_msg = message.reply_to_message
-    if not reply_msg.reply_markup:
-        return
-
-    post_id: int | None = None
-    if hasattr(reply_msg.reply_markup, "inline_keyboard"):
-        for row in reply_msg.reply_markup.inline_keyboard:
-            for btn in row:
-                if btn.callback_data and btn.callback_data.startswith(CB_APPROVE):
-                    post_id = _extract_post_id(btn.callback_data, CB_APPROVE)
-                    break
-            if post_id:
-                break
-
+    post_id = _resolve_post_id_from_reply(message.reply_to_message)
     if not post_id:
         return
 
@@ -467,9 +476,12 @@ async def on_review_reply(message: Message) -> None:
         return
     review_chat_id: int | str = channel.review_chat_id or message.chat.id
 
-    try:
-        from app.agent.channel.review_agent import ReviewAgentDeps, review_agent_turn
+    # Register the user's message in the chain so future replies to it also work
+    from app.agent.channel.review_agent import ReviewAgentDeps, register_message, review_agent_turn
 
+    register_message(message.message_id, post_id)
+
+    try:
         deps = ReviewAgentDeps(
             session_maker=session_maker,
             bot=bot,
@@ -488,4 +500,7 @@ async def on_review_reply(message: Message) -> None:
     from app.core.markdown import md_to_entities
 
     plain, entities = md_to_entities(result)
-    await message.reply(plain, entities=entities, parse_mode=None)
+    reply = await message.reply(plain, entities=entities, parse_mode=None)
+
+    # Register the agent's response so the user can reply to it and continue the chain
+    register_message(reply.message_id, post_id)
