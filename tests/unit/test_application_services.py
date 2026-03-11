@@ -113,63 +113,48 @@ class TestReportService:
         return message
 
     async def test_report_to_moderators(self, mock_bot, mock_reporter, mock_reported, mock_message):
-        """Test reporting to moderators."""
-        with (
-            patch("app.application.services.report.other.get_chat_mention") as mock_chat_mention,
-            patch("app.application.services.report.other.get_message_mention") as mock_msg_mention,
-            patch("app.application.services.report.other.get_user_mention") as mock_user_mention,
-            patch("app.application.services.report.settings") as mock_settings,
-        ):
-            # Configure mocks
-            mock_chat_mention.return_value = "Chat Name"
-            mock_msg_mention.return_value = "Message Link"
-            mock_user_mention.side_effect = lambda user: f"@{user.username}"
+        """Test reporting to moderators uses markdown+entities (no HTML)."""
+        # Setup chat attributes needed by the new implementation
+        mock_message.chat.title = "Test Chat"
+        mock_message.chat.username = "testchat"
+        mock_message.chat.id = -1001234567890
+
+        mock_reporter.full_name = "John Reporter"
+        mock_reported.full_name = "Jane Reported"
+
+        with patch("app.application.services.report.settings") as mock_settings:
             mock_settings.admin.default_report_chat_id = -1001234567890
 
-            # Act
             await report.report_to_moderators(mock_bot, mock_reporter, mock_reported, mock_message)
 
-            # Assert
             mock_bot.send_message.assert_called_once()
             call_args = mock_bot.send_message.call_args
 
-            # Check chat_id
             assert call_args[1]["chat_id"] == -1001234567890
+            assert call_args[1]["parse_mode"] is None
+            assert call_args[1].get("entities") is not None
 
-            # Check message content
             message_text = call_args[1]["text"]
-            assert "🚨" in message_text
-            assert "@reporter" in message_text
-            assert "@reported" in message_text
-            assert "Chat Name" in message_text
-            assert "Message Link" in message_text
             assert "This is a reported message" in message_text
 
-    async def test_report_to_moderators_calls_utility_functions(
+    async def test_report_to_moderators_uses_entities_not_html(
         self, mock_bot, mock_reporter, mock_reported, mock_message
     ):
-        """Test that report function calls all required utility functions."""
-        with (
-            patch("app.application.services.report.other.get_chat_mention") as mock_chat_mention,
-            patch("app.application.services.report.other.get_message_mention") as mock_msg_mention,
-            patch("app.application.services.report.other.get_user_mention") as mock_user_mention,
-            patch("app.application.services.report.settings") as mock_settings,
-        ):
-            # Configure mocks
-            mock_chat_mention.return_value = "Chat"
-            mock_msg_mention.return_value = "Message"
-            mock_user_mention.return_value = "User"
+        """Test that report uses entities (not HTML parse_mode)."""
+        mock_message.chat.title = "Chat"
+        mock_message.chat.username = "chat"
+        mock_message.chat.id = -100123
+        mock_reporter.full_name = "Reporter"
+        mock_reported.full_name = "Reported"
+
+        with patch("app.application.services.report.settings") as mock_settings:
             mock_settings.admin.default_report_chat_id = -1001234567890
 
-            # Act
             await report.report_to_moderators(mock_bot, mock_reporter, mock_reported, mock_message)
 
-            # Assert all utility functions were called
-            mock_chat_mention.assert_called_once_with(mock_message)
-            mock_msg_mention.assert_called_once_with(mock_message)
-            assert mock_user_mention.call_count == 2  # Called for both reporter and reported
-            mock_user_mention.assert_any_call(mock_reporter)
-            mock_user_mention.assert_any_call(mock_reported)
+            call_args = mock_bot.send_message.call_args
+            # Must use parse_mode=None with entities
+            assert call_args[1]["parse_mode"] is None
 
 
 @pytest.mark.unit
@@ -178,8 +163,6 @@ class TestApplicationServiceIntegration:
 
     async def test_buttons_and_report_services_independent(self):
         """Test that buttons and report services work independently."""
-        # Test that we can use both services without interference
-
         # Test buttons service
         contacts_builder = await buttons.get_contacts_buttons()
         assert contacts_builder is not None
@@ -187,22 +170,17 @@ class TestApplicationServiceIntegration:
         # Test report service with mocks
         mock_bot = AsyncMock()
         mock_reporter = AsyncMock()
+        mock_reporter.full_name = "Reporter"
         mock_reported = AsyncMock()
+        mock_reported.full_name = "Reported"
         mock_message = AsyncMock()
         mock_message.text = "Test message"
+        mock_message.chat.title = "Chat"
+        mock_message.chat.username = "chat"
+        mock_message.chat.id = -100123
 
-        with (
-            patch("app.application.services.report.other.get_chat_mention") as mock_chat_mention,
-            patch("app.application.services.report.other.get_message_mention") as mock_msg_mention,
-            patch("app.application.services.report.other.get_user_mention") as mock_user_mention,
-            patch("app.application.services.report.settings") as mock_settings,
-        ):
-            mock_chat_mention.return_value = "Chat"
-            mock_msg_mention.return_value = "Message"
-            mock_user_mention.return_value = "User"
+        with patch("app.application.services.report.settings") as mock_settings:
             mock_settings.admin.default_report_chat_id = -1001234567890
-
-            # This should not raise any exceptions
             await report.report_to_moderators(mock_bot, mock_reporter, mock_reported, mock_message)
 
         # Both services should work without interference

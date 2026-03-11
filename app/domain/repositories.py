@@ -125,9 +125,13 @@ class IMessageRepository(ABC):
         pass
 
     @abstractmethod
-    async def is_first_message(self, chat_id: int, user_id: int) -> bool:
-        """Check if this is the user's first message in chat."""
+    async def has_previous_messages(self, chat_id: int, user_id: int) -> bool:
+        """Check if user has any previous messages in this chat."""
         pass
+
+    async def is_first_message(self, chat_id: int, user_id: int) -> bool:
+        """Check if this is the user's first message in the chat."""
+        return not await self.has_previous_messages(chat_id, user_id)
 
     @abstractmethod
     async def is_similar_spam_message(self, message: str) -> bool:

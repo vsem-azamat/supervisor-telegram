@@ -6,6 +6,7 @@ Business logic and DB operations are delegated to review_service.py.
 
 from __future__ import annotations
 
+import calendar
 from typing import TYPE_CHECKING, Any
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, URLInputFile
@@ -145,7 +146,7 @@ def build_schedule_picker_keyboard(
     rows: list[list[InlineKeyboardButton]] = []
     for slot in available_slots[:5]:
         label = slot.strftime("%d %b %H:%M UTC")
-        ts = int(slot.timestamp())
+        ts = int(calendar.timegm(slot.timetuple()))
         rows.append(
             [
                 InlineKeyboardButton(

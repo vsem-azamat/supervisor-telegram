@@ -31,12 +31,30 @@ class DatabaseSettings(BaseSettings):
     @property
     def url(self) -> str:
         """Get async database URL."""
-        return f"postgresql+asyncpg://{self.user}:{self.password}@{self.host}:{self.port}/{self.name}"
+        from sqlalchemy.engine import URL
+
+        return URL.create(
+            "postgresql+asyncpg",
+            username=self.user,
+            password=self.password,
+            host=self.host,
+            port=self.port,
+            database=self.name,
+        ).render_as_string(hide_password=False)
 
     @property
     def sync_url(self) -> str:
         """Get sync database URL for Alembic."""
-        return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.name}"
+        from sqlalchemy.engine import URL
+
+        return URL.create(
+            "postgresql",
+            username=self.user,
+            password=self.password,
+            host=self.host,
+            port=self.port,
+            database=self.name,
+        ).render_as_string(hide_password=False)
 
 
 class TelegramSettings(BaseSettings):

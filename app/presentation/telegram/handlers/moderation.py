@@ -66,7 +66,7 @@ async def mute_user(message: types.Message, bot: Bot) -> None:
     except Exception:
         answer = await message.answer(f"Мне не удалось распознать время мута!\n\n{mute_guide}")
         await message.delete()
-        await other.sleep_and_delete(answer, 10)
+        other.sleep_and_delete(answer, 10)
         return
 
     # Set permissions to mute the user
@@ -159,7 +159,7 @@ async def ban_user(message: types.Message, bot: Bot) -> None:
             message.reply_to_message.from_user.id,
             message.chat.id,
         )
-        await other.sleep_and_delete(error_msg, 10)
+        other.sleep_and_delete(error_msg, 10)
 
     await message.delete()
 
@@ -186,7 +186,7 @@ async def unban_user(message: types.Message, bot: Bot) -> None:
             message.reply_to_message.from_user.id,
             message.chat.id,
         )
-        await other.sleep_and_delete(error_msg, 10)
+        other.sleep_and_delete(error_msg, 10)
 
     await message.delete()
 
@@ -238,7 +238,7 @@ async def label_spam(message: types.Message, message_repo: MessageRepository, db
     if not message.reply_to_message:
         answer = await message.answer(reply_required_error("пометить как спам"))
         await message.delete()
-        await other.sleep_and_delete(answer, 10)
+        other.sleep_and_delete(answer, 10)
         return
 
     target = message.reply_to_message
@@ -316,6 +316,9 @@ async def process_blacklist_confirm(
         member = await bot.get_chat_member(callback.message.chat.id, user_id)
         mention = other.get_user_mention(member.user)
         await moderation_services.add_to_blacklist(db, bot, user_id, revoke_messages=revoke)
+        from app.presentation.telegram.middlewares.black_list import invalidate_blacklist_cache
+
+        invalidate_blacklist_cache()
         await callback.message.edit_text(f"{mention} добавлен в черный список.")
     except Exception as err:
         if callback.message and isinstance(callback.message, types.Message):
@@ -419,6 +422,9 @@ async def unblock_user_callback(
 ) -> None:
     user_id = callback_data.user_id
     await moderation_services.remove_from_blacklist(db, bot, user_id)
+    from app.presentation.telegram.middlewares.black_list import invalidate_blacklist_cache
+
+    invalidate_blacklist_cache()
     try:
         if not callback.message or not isinstance(callback.message, types.Message):
             await callback.answer("Не удалось получить сообщение.")

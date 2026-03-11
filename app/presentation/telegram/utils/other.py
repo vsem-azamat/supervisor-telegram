@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import datetime
 import html
 import re
@@ -18,10 +19,16 @@ def escape_html(text: str) -> str:
     return html.escape(text, quote=False)
 
 
-async def sleep_and_delete(message: types.Message, seconds: int = 60) -> None:
-    """Delete a message after a short delay."""
+async def _delete_later(message: types.Message, seconds: int) -> None:
+    """Delete a message after a delay (background task)."""
     await asyncio.sleep(seconds)
-    await message.delete()
+    with contextlib.suppress(Exception):
+        await message.delete()
+
+
+def sleep_and_delete(message: types.Message, seconds: int = 60) -> None:
+    """Schedule a message for deletion after a delay (non-blocking)."""
+    asyncio.create_task(_delete_later(message, seconds))
 
 
 def get_user_mention(user: types.User) -> str:
@@ -33,13 +40,21 @@ def get_chat_mention(tg_object: types.Message | types.Chat) -> str:
     """Return HTML link to a chat or its message."""
     chat_link = get_chat_link(tg_object)
     if isinstance(tg_object, types.Message):
-        return f'<a href="{chat_link}">{tg_object.chat.title}</a>'
-    return f'<a href="{chat_link}">{tg_object.title}</a>'
+        return f'<a href="{chat_link}">{escape_html(tg_object.chat.title or "")}</a>'
+    return f'<a href="{chat_link}">{escape_html(tg_object.title or "")}</a>'
 
 
 def get_message_mention(message: types.Message) -> str:
     chat_link = get_message_link(message)
     return f'<a href="{chat_link}">Cообщение</a>'
+
+
+def _strip_chat_id_prefix(chat_id: int) -> str:
+    """Strip the -100 prefix from supergroup/channel IDs for t.me/c/ links."""
+    s = str(chat_id)
+    if s.startswith("-100"):
+        return s[4:]
+    return s.lstrip("-")
 
 
 def get_message_link(tg_object: types.Message | types.Chat) -> str:
@@ -50,7 +65,7 @@ def get_message_link(tg_object: types.Message | types.Chat) -> str:
         return f"https://t.me/{chat.username}/{tg_object.message_id}"
 
     if chat.type in ["group", "supergroup"]:  # Private group without username
-        return f"https://t.me/c/{str(chat.id)[4:]}/{tg_object.message_id}"
+        return f"https://t.me/c/{_strip_chat_id_prefix(chat.id)}/{tg_object.message_id}"
 
     # Private 1-on-1 chat
     return f"https://t.me/{chat.id}/{tg_object.message_id}"
@@ -62,7 +77,7 @@ def get_chat_link(tg_object: types.Message | types.Chat) -> str:
 
     if chat.username:
         return f"https://t.me/{chat.username}"
-    return f"https://t.me/c/{str(chat.id)[4:]}"
+    return f"https://t.me/c/{_strip_chat_id_prefix(chat.id)}"
 
 
 class MuteDuration:
@@ -79,6 +94,8 @@ def calculate_mute_duration(message: str) -> MuteDuration:
     """Parse /mute command and calculate mute duration."""
     command_parse = re.compile(r"(!mute|/mute) ?(\d+)? ?(m|h|d|w)?")
     parsed = command_parse.match(message)
+    if not parsed:
+        raise ValueError(f"Invalid mute command format: {message!r}")
 
     time = int(parsed.group(2) or 5)
     unit = parsed.group(3) or "m"

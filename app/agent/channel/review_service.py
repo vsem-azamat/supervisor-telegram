@@ -135,7 +135,7 @@ async def approve_post(
     from app.agent.channel.source_manager import update_source_relevance
 
     async with session_maker() as session:
-        result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))
+        result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id).with_for_update())
         post = result.scalar_one_or_none()
         if not post:
             return "Post not found.", None
@@ -161,6 +161,14 @@ async def approve_post(
             await session.commit()
             logger.info("post_approved", post_id=post_id, msg_id=msg_id)
 
+            # Increment daily post counter
+            try:
+                from app.agent.channel.channel_repo import increment_daily_count
+
+                await increment_daily_count(session_maker, post.channel_id)
+            except Exception:
+                logger.warning("daily_count_increment_failed", post_id=post_id, exc_info=True)
+
             if source_urls:
                 await update_source_relevance(session_maker, source_urls, approved=True)
 
@@ -181,7 +189,7 @@ async def reject_post(
     from app.agent.channel.source_manager import update_source_relevance
 
     async with session_maker() as session:
-        result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))
+        result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id).with_for_update())
         post = result.scalar_one_or_none()
         if not post:
             return "Post not found."
@@ -190,10 +198,31 @@ async def reject_post(
         if post.status == PostStatus.APPROVED:
             return "Already published — cannot reject."
 
+        was_scheduled = post.status == PostStatus.SCHEDULED
+        scheduled_tg_id = post.scheduled_telegram_id if was_scheduled else None
+
         source_urls = extract_source_urls(post)
         post.reject(reason)
         await session.commit()
         logger.info("post_rejected", post_id=post_id)
+
+        # Delete Telegram scheduled message if it was scheduled
+        if was_scheduled and scheduled_tg_id:
+            try:
+                from app.core.container import container
+                from app.infrastructure.db.models import Channel
+
+                tc = container.get_telethon_client()
+                if tc:
+                    ch_result = await session.execute(select(Channel).where(Channel.telegram_id == post.channel_id))
+                    ch = ch_result.scalar_one_or_none()
+                    if ch:
+                        from app.agent.channel.schedule_manager import _resolve_chat_id
+
+                        chat_id = _resolve_chat_id(ch)
+                        await tc.delete_scheduled_messages(chat_id, [scheduled_tg_id])
+            except Exception:
+                logger.warning("cancel_scheduled_on_reject_failed", post_id=post_id, exc_info=True)
 
         if source_urls:
             await update_source_relevance(session_maker, source_urls, approved=False)
@@ -212,7 +241,7 @@ async def delete_post(
     from sqlalchemy import select
 
     async with session_maker() as session:
-        result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))
+        result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id).with_for_update())
         post = result.scalar_one_or_none()
         if not post:
             return "Post not found.", None
@@ -248,7 +277,7 @@ async def edit_post_text(
     from sqlalchemy import select
 
     async with session_maker() as session:
-        result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))
+        result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id).with_for_update())
         post = result.scalar_one_or_none()
         if not post:
             return "Post not found.", None
@@ -350,7 +379,7 @@ async def regen_post_text(
     from app.agent.channel.sources import ContentItem
 
     async with session_maker() as session:
-        result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))
+        result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id).with_for_update())
         post = result.scalar_one_or_none()
         if not post:
             return "Post not found.", None

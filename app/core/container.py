@@ -73,6 +73,8 @@ class Container:
         """Get service instance by type or string key."""
         if isinstance(interface, str):
             if interface == "session_maker":
+                if self._session_maker is None:
+                    raise ValueError("Session maker not initialized")
                 return self._session_maker
             raise ValueError(f"Unknown string key: {interface}")
 

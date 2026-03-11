@@ -14,4 +14,4 @@ async def json_message(message: types.Message) -> None:
     text = f"```json\n{json_text}\n```"
     answer = await message.answer(text, parse_mode="MarkdownV2")
     await message.delete()
-    await other.sleep_and_delete(answer, 30)
+    other.sleep_and_delete(answer, 30)

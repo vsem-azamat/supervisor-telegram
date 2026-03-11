@@ -124,6 +124,7 @@ async def safe_fetch(
         url,
         headers=headers,
         timeout=httpx.Timeout(timeout),
+        follow_redirects=False,
     )
     resp.raise_for_status()
     return resp

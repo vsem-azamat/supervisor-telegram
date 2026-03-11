@@ -127,11 +127,16 @@ class MessageRepository(IMessageRepository):
         count = result.scalar()
         return count or 0
 
-    async def is_first_message(self, chat_id: int, user_id: int) -> bool:
+    async def has_previous_messages(self, chat_id: int, user_id: int) -> bool:
+        """Check if user has any previous messages in this chat."""
         query = select(func.count()).where(Message.user_id == user_id, Message.chat_id == chat_id)
         result = await self.db.execute(query)
         count = result.scalar()
         return count is not None and count > 0
+
+    async def is_first_message(self, chat_id: int, user_id: int) -> bool:
+        """Check if this is the user's first message in the chat."""
+        return not await self.has_previous_messages(chat_id, user_id)
 
     async def is_similar_spam_message(self, message: str) -> bool:
         query = select(func.count()).where(Message.message == message, Message.spam)

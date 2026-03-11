@@ -46,7 +46,7 @@ async def handle_report(
             "Ответьте на сообщение, которое хотите отправить на проверку, командой /report или /spam."
         )
         await message.delete()
-        await sleep_and_delete(answer, 10)
+        sleep_and_delete(answer, 10)
         return
 
     target = message.reply_to_message
@@ -100,7 +100,7 @@ async def handle_report(
     # Acknowledge in chat
     answer = await message.answer("📢 Жалоба отправлена администратору.")
     await message.delete()
-    await sleep_and_delete(answer, 10)
+    sleep_and_delete(answer, 10)
 
 
 @agent_router.callback_query(lambda c: c.data and c.data.startswith("esc:"))

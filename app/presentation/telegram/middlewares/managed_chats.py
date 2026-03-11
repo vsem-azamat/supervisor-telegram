@@ -14,10 +14,21 @@ if TYPE_CHECKING:
 # TTL cache for chat admin checks (chat_id -> (admin_ids, expire_time))
 _admin_cache: dict[int, tuple[set[int], float]] = {}
 _CACHE_TTL = 300  # 5 minutes
+_MAX_CACHE_SIZE = 200
+
+
+def _evict_expired_cache() -> None:
+    """Remove expired entries from the admin cache."""
+    now = time.monotonic()
+    expired = [k for k, (_, ttl) in _admin_cache.items() if ttl < now]
+    for k in expired:
+        del _admin_cache[k]
 
 
 async def _is_managed_chat(bot: Bot, chat_id: int) -> bool:
     """Check if bot's super admin is an admin in the chat (cached)."""
+    if len(_admin_cache) > _MAX_CACHE_SIZE:
+        _evict_expired_cache()
     now = time.monotonic()
     cached = _admin_cache.get(chat_id)
     if cached and cached[1] > now:

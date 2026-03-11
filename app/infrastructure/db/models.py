@@ -483,7 +483,8 @@ class ChannelPost(Base):
 
     def update_text(self, new_text: str) -> None:
         self.post_text = new_text
-        self.status = PostStatus.DRAFT
+        if self.status != PostStatus.SCHEDULED:
+            self.status = PostStatus.DRAFT
 
 
 class AgentDecision(Base):

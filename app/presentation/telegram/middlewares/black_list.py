@@ -15,6 +15,12 @@ _blacklist_cache: tuple[set[int], float] | None = None
 _CACHE_TTL = 300  # 5 minutes
 
 
+def invalidate_blacklist_cache() -> None:
+    """Invalidate the blacklist cache so next check re-fetches from DB."""
+    global _blacklist_cache  # noqa: PLW0603
+    _blacklist_cache = None
+
+
 class BlacklistMiddleware(BaseMiddleware):
     def __init__(self) -> None:
         super().__init__()
