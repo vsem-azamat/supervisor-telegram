@@ -88,6 +88,40 @@ _SKIP_PATTERNS = re.compile(
 _IMG_SIZE_RE = re.compile(r'<img\s[^>]*(?:width|data-width)=["\']?(\d+)[^>]*src=["\']([^"\']+)["\']', re.I)
 _IMG_SIZE_RE_ALT = re.compile(r'<img\s[^>]*src=["\']([^"\']+)["\'][^>]*(?:width|data-width)=["\']?(\d+)', re.I)
 
+# Paths that indicate index/category pages (not individual articles)
+_INDEX_SEGMENTS = {
+    "/news",
+    "/en",
+    "/ru",
+    "/cs",
+    "/de",
+    "/blog",
+    "/articles",
+    "/archive",
+    "/feed",
+    "/category",
+    "/tag",
+    "/search",
+    "/latest",
+    "/aktuality",
+    "/novinky",
+    "/aktualne",
+}
+
+
+def _is_index_page(url: str) -> bool:
+    """Detect URLs that are likely index/main pages rather than article pages.
+
+    Index pages contain images from multiple unrelated articles,
+    so extracting images from them produces irrelevant results.
+    """
+    parsed = urlparse(url)
+    path = parsed.path.rstrip("/").lower()
+    # Very short paths are almost always index/category pages
+    if len(path) <= 3:  # e.g. "/", "/en", "/ru", "/cs"
+        return True
+    return path in _INDEX_SEGMENTS
+
 
 async def _extract_article_images(
     url: str,
@@ -100,7 +134,13 @@ async def _extract_article_images(
     Priority:
     1. OG/Twitter image meta tags (always full resolution)
     2. Large <img> tags from article body (width >= 400px or likely content images)
+
+    Skips index/main pages which contain unrelated article images.
     """
+    if _is_index_page(url):
+        logger.debug("skipping_index_page", url=url[:80])
+        return []
+
     if not await is_safe_url(url):
         logger.warning("ssrf_blocked", url=url[:80])
         return []
