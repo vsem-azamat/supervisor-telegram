@@ -411,6 +411,10 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
         gen_model = settings.channel.generation_model
         lang = language_name(channel.language)
 
+        channel_context = ""
+        if channel.discovery_query:
+            channel_context = f"Channel focus: {channel.discovery_query}"
+
         try:
             post = await _generate(
                 [item],
@@ -418,6 +422,8 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
                 model=gen_model,
                 language=lang,
                 footer=channel.footer,
+                channel_name=channel.name,
+                channel_context=channel_context,
             )
         except GenerationError:
             logger.exception("generate_and_review_failed", channel_id=channel_id)

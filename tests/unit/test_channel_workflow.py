@@ -253,7 +253,7 @@ class TestFetchSourcesAction:
 
 class TestScreenContentAction:
     @pytest.mark.asyncio
-    async def test_screen_filters_relevant(self, agent_settings, sample_items):
+    async def test_screen_filters_relevant(self, agent_settings, channel, sample_items):
         from app.agent.channel.workflow import screen_content
 
         with patch("app.agent.channel.generator.screen_items", return_value=sample_items):
@@ -262,6 +262,7 @@ class TestScreenContentAction:
                     "content_items": sample_items,
                     "api_key": "test-key",
                     "config": agent_settings,
+                    "channel": channel,
                     "relevant_items": [],
                     "error": None,
                 }
@@ -271,11 +272,18 @@ class TestScreenContentAction:
             assert result["error"] is None
 
     @pytest.mark.asyncio
-    async def test_screen_empty_input(self, agent_settings):
+    async def test_screen_empty_input(self, agent_settings, channel):
         from app.agent.channel.workflow import screen_content
 
         state = State(
-            {"content_items": [], "api_key": "test-key", "config": agent_settings, "relevant_items": [], "error": None}
+            {
+                "content_items": [],
+                "api_key": "test-key",
+                "config": agent_settings,
+                "channel": channel,
+                "relevant_items": [],
+                "error": None,
+            }
         )
         result = await screen_content(state)
         assert result["relevant_items"] == []

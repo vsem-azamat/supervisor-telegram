@@ -309,7 +309,7 @@ class Channel(Base):
         """Resolved footer text. Uses template if set, otherwise builds from name/username."""
         if self.footer_template:
             return self.footer_template
-        username = self.username or self.telegram_id.lstrip("@")
+        username = (self.username or self.telegram_id).lstrip("@")
         # For numeric IDs (e.g. -1001234567890), skip the @ mention
         if username.lstrip("-").isdigit():
             return f"——\n🔗 **{self.name}**"

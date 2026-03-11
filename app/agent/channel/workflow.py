@@ -153,7 +153,39 @@ async def fetch_sources(state: State) -> State:
         return state.update(content_items=[], error=str(exc))
 
 
-@action(reads=["content_items", "api_key", "config"], writes=["relevant_items", "error"])
+@action(
+    reads=["content_items", "api_key", "brave_api_key", "config"],
+    writes=["content_items", "error"],
+)
+async def split_and_enrich_topics(state: State) -> State:
+    """Split multi-topic items (Sonar syntheses) into individual topics and enrich with Brave."""
+    from app.agent.channel.topic_splitter import split_and_enrich
+
+    items = state["content_items"]
+    if not items:
+        return state.update(content_items=[], error=None)
+
+    api_key: str = state["api_key"]
+    config: ChannelAgentSettings = state["config"]
+    brave_key: str = state.get("brave_api_key", "") or settings.agent.brave_api_key
+
+    try:
+        enriched = await split_and_enrich(
+            items,
+            api_key=api_key,
+            model=config.screening_model,
+            brave_api_key=brave_key,
+            temperature=config.temperature,
+            timeout=config.http_timeout,
+        )
+        logger.info("workflow_split_enrich_done", before=len(items), after=len(enriched))
+        return state.update(content_items=enriched, error=None)
+    except Exception as exc:
+        logger.exception("workflow_split_enrich_error")
+        return state.update(error=str(exc))
+
+
+@action(reads=["content_items", "api_key", "config", "channel"], writes=["relevant_items", "error"])
 async def screen_content(state: State) -> State:
     """Screen fetched items for relevance using an LLM."""
     from app.agent.channel.generator import screen_items
@@ -164,10 +196,16 @@ async def screen_content(state: State) -> State:
 
     api_key: str = state["api_key"]
     config: ChannelAgentSettings = state["config"]
+    channel: Channel = state["channel"]
 
     try:
         relevant = await screen_items(
-            items, api_key=api_key, model=config.screening_model, threshold=config.screening_threshold
+            items,
+            api_key=api_key,
+            model=config.screening_model,
+            threshold=config.screening_threshold,
+            channel_name=channel.name,
+            discovery_query=channel.discovery_query,
         )
         logger.info("workflow_screen_done", relevant=len(relevant), total=len(items))
         return state.update(relevant_items=relevant, error=None)
@@ -217,6 +255,11 @@ async def generate_post(state: State) -> State:
     except Exception:
         logger.exception("workflow_feedback_error")
 
+    # Build channel context for generation prompt
+    channel_context = ""
+    if channel.discovery_query:
+        channel_context = f"Channel focus: {channel.discovery_query}"
+
     try:
         post = await _generate(
             relevant[:1],  # 1 news = 1 post
@@ -225,6 +268,8 @@ async def generate_post(state: State) -> State:
             language=language,
             feedback_context=feedback_context,
             footer=footer,
+            channel_name=channel.name,
+            channel_context=channel_context,
         )
         if post is None:
             return state.update(generated_post=None, error="generation_failed")
@@ -423,6 +468,7 @@ def build_content_pipeline_graph() -> Any:
         GraphBuilder()  # type: ignore[no-untyped-call]
         .with_actions(
             fetch_sources=fetch_sources,
+            split_and_enrich_topics=split_and_enrich_topics,
             screen_content=screen_content,
             generate_post=generate_post,
             send_for_review=send_for_review,
@@ -432,9 +478,12 @@ def build_content_pipeline_graph() -> Any:
             done=Result("result_message", "error"),
         )
         .with_transitions(
-            # fetch -> screen (if content found) or done
-            ("fetch_sources", "screen_content", has_content),
+            # fetch -> split_and_enrich (if content found) or done
+            ("fetch_sources", "split_and_enrich_topics", has_content),
             ("fetch_sources", "done", default),
+            # split_and_enrich -> screen (if content remains) or done
+            ("split_and_enrich_topics", "screen_content", has_content),
+            ("split_and_enrich_topics", "done", default),
             # screen -> generate (if relevant) or done
             ("screen_content", "generate_post", has_relevant),
             ("screen_content", "done", default),
