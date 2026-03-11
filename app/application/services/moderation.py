@@ -3,12 +3,14 @@ import asyncio
 from aiogram import Bot
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.logging import get_logger
 from app.infrastructure.db.repositories import (
     ChatRepository,
     MessageRepository,
     UserRepository,
 )
-from app.presentation.telegram.logger import logger
+
+logger = get_logger("moderation")
 
 
 async def add_to_blacklist(

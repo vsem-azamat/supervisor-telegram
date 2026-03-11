@@ -19,8 +19,11 @@ from app.presentation.telegram.utils.blacklist import (
     build_user_details_keyboard,
     build_user_details_text,
 )
+from app.presentation.telegram.utils.other import escape_html
 
 moderation_router = Router()
+
+_BLACKLIST_PAGE_SIZE = 10
 
 
 def reply_required_error(action: str) -> str:
@@ -63,7 +66,7 @@ async def mute_user(message: types.Message, bot: Bot) -> None:
     except Exception:
         answer = await message.answer(f"Мне не удалось распознать время мута!\n\n{mute_guide}")
         await message.delete()
-        await other.sleep_and_delete(answer, 10)
+        other.sleep_and_delete(answer, 10)
         return
 
     # Set permissions to mute the user
@@ -81,7 +84,7 @@ async def mute_user(message: types.Message, bot: Bot) -> None:
             permissions=read_only_permissions,
             until_date=mute_duration.until_date,
         )
-        mention = await other.get_user_mention(message.reply_to_message.from_user)
+        mention = other.get_user_mention(message.reply_to_message.from_user)
         text_mute = (
             f"{mention} в муте на {mute_duration.time} {mute_duration.unit}!\n\n"
             f"Дата размута: {mute_duration.formatted_until_date()}"
@@ -90,8 +93,13 @@ async def mute_user(message: types.Message, bot: Bot) -> None:
         await message.delete()
 
     except Exception as err:
-        await message.answer(f"Произошла ошибка:\n\n{err}")
-        logger.error(f"Error while muting user: {err}")
+        await message.answer("Произошла ошибка. Попробуйте позже.")
+        logger.error(
+            "mute_failed: error=%s user_id=%s chat_id=%s",
+            err,
+            message.reply_to_message.from_user.id,
+            message.chat.id,
+        )
 
 
 @moderation_router.message(Command("unmute", prefix="!/"))
@@ -117,10 +125,16 @@ async def unmute_user(message: types.Message) -> None:
             permissions=default_permissions,
             until_date=0,
         )
-        mention = await other.get_user_mention(message.reply_to_message.from_user)
+        mention = other.get_user_mention(message.reply_to_message.from_user)
         await message.answer(f"Пользователь {mention} размучен!")
     except Exception as err:
-        await message.answer(f"Произошла ошибка:\n\n{err}")
+        await message.answer("Произошла ошибка. Попробуйте позже.")
+        logger.error(
+            "unmute_failed: error=%s user_id=%s chat_id=%s",
+            err,
+            message.reply_to_message.from_user.id,
+            message.chat.id,
+        )
 
 
 @moderation_router.message(Command("ban", prefix="!/"))
@@ -135,11 +149,17 @@ async def ban_user(message: types.Message, bot: Bot) -> None:
 
     try:
         await bot.ban_chat_member(message.chat.id, message.reply_to_message.from_user.id)
-        mention = await other.get_user_mention(message.reply_to_message.from_user)
+        mention = other.get_user_mention(message.reply_to_message.from_user)
         await message.answer(f"Пользователь {mention} забанен")
     except Exception as err:
-        error_msg = await message.answer(f"Что-то пошло не так:\n\n{err}")
-        await other.sleep_and_delete(error_msg, 10)
+        error_msg = await message.answer("Что-то пошло не так. Попробуйте позже.")
+        logger.error(
+            "ban_failed: error=%s user_id=%s chat_id=%s",
+            err,
+            message.reply_to_message.from_user.id,
+            message.chat.id,
+        )
+        other.sleep_and_delete(error_msg, 10)
 
     await message.delete()
 
@@ -156,11 +176,17 @@ async def unban_user(message: types.Message, bot: Bot) -> None:
 
     try:
         await bot.unban_chat_member(message.chat.id, message.reply_to_message.from_user.id)
-        mention = await other.get_user_mention(message.reply_to_message.from_user)
+        mention = other.get_user_mention(message.reply_to_message.from_user)
         await message.answer(f"Пользователь {mention} разбанен")
     except Exception as err:
-        error_msg = await message.answer(f"Что-то пошло не так:\n\n{err}")
-        await other.sleep_and_delete(error_msg, 10)
+        error_msg = await message.answer("Что-то пошло не так. Попробуйте позже.")
+        logger.error(
+            "unban_failed: error=%s user_id=%s chat_id=%s",
+            err,
+            message.reply_to_message.from_user.id,
+            message.chat.id,
+        )
+        other.sleep_and_delete(error_msg, 10)
 
     await message.delete()
 
@@ -173,7 +199,7 @@ async def full_ban(message: types.Message, message_repo: MessageRepository, db: 
 
     if not message.reply_to_message.from_user:
         await message.answer(is_user_check_error())
-        logger.warning(f"User {message.reply_to_message.from_user} is not a user.")
+        logger.warning("blacklist_target_not_user: chat_id=%s", message.chat.id)
         return
 
     target = message.reply_to_message
@@ -207,12 +233,12 @@ async def full_ban(message: types.Message, message_repo: MessageRepository, db: 
     await message.delete()
 
 
-@moderation_router.message(Command("spam", prefix="!/"))
+@moderation_router.message(Command("spam", prefix="!"))
 async def label_spam(message: types.Message, message_repo: MessageRepository, db: AsyncSession) -> None:
     if not message.reply_to_message:
         answer = await message.answer(reply_required_error("пометить как спам"))
         await message.delete()
-        await other.sleep_and_delete(answer, 10)
+        other.sleep_and_delete(answer, 10)
         return
 
     target = message.reply_to_message
@@ -280,7 +306,7 @@ async def process_blacklist_confirm(
     try:
         await bot.delete_message(chat_id=chat_id, message_id=message_id)
     except Exception as err:
-        logger.warning(f"Failed to delete message {message_id}: {err}")
+        logger.warning("message_delete_failed: error=%s message_id=%s chat_id=%s", err, message_id, chat_id)
 
     try:
         if not callback.message or not isinstance(callback.message, types.Message):
@@ -288,13 +314,16 @@ async def process_blacklist_confirm(
             return
         await bot.ban_chat_member(callback.message.chat.id, user_id)
         member = await bot.get_chat_member(callback.message.chat.id, user_id)
-        mention = await other.get_user_mention(member.user)
+        mention = other.get_user_mention(member.user)
         await moderation_services.add_to_blacklist(db, bot, user_id, revoke_messages=revoke)
+        from app.presentation.telegram.middlewares.black_list import invalidate_blacklist_cache
+
+        invalidate_blacklist_cache()
         await callback.message.edit_text(f"{mention} добавлен в черный список.")
     except Exception as err:
         if callback.message and isinstance(callback.message, types.Message):
-            await callback.message.edit_text(f"Произошла ошибка:\n\n{err}")
-        logger.error(f"Error while adding user {user_id} to blacklist: {err}")
+            await callback.message.edit_text("Произошла ошибка. Попробуйте позже.")
+        logger.error("blacklist_add_failed: error=%s user_id=%s chat_id=%s", err, user_id, chat_id)
 
     await callback.answer()
 
@@ -317,7 +346,7 @@ async def show_blacklist(message: types.Message, user_service: UserService) -> N
         user = await user_service.find_blocked_user(identifier)
 
         if not user:
-            await message.answer(f"User <code>{identifier}</code> not found in blacklist")
+            await message.answer(f"User <code>{escape_html(identifier)}</code> not found in blacklist")
             await message.delete()
             return
 
@@ -344,14 +373,13 @@ async def _show_blacklist_page(
         await message.delete()
         return
 
-    page_size = 10
-    total_pages = (len(blocked_users) + page_size - 1) // page_size
+    total_pages = (len(blocked_users) + _BLACKLIST_PAGE_SIZE - 1) // _BLACKLIST_PAGE_SIZE
 
     # Ensure page is within bounds
     page = max(0, min(page, total_pages - 1))
 
-    text = build_blacklist_text(len(blocked_users), page, total_pages, page_size, query)
-    keyboard = build_blacklist_keyboard(blocked_users, page, total_pages, page_size, query)
+    text = build_blacklist_text(len(blocked_users), page, total_pages, _BLACKLIST_PAGE_SIZE, query)
+    keyboard = build_blacklist_keyboard(blocked_users, page, total_pages, _BLACKLIST_PAGE_SIZE, query)
 
     await message.answer(text, reply_markup=keyboard.as_markup())
     await message.delete()
@@ -370,14 +398,13 @@ async def handle_blacklist_pagination(
         return
 
     blocked_users = await user_service.get_blocked_users()
-    page_size = 10
-    total_pages = (len(blocked_users) + page_size - 1) // page_size
+    total_pages = (len(blocked_users) + _BLACKLIST_PAGE_SIZE - 1) // _BLACKLIST_PAGE_SIZE
 
     # Ensure page is within bounds
     page = max(0, min(callback_data.page, total_pages - 1))
 
-    text = build_blacklist_text(len(blocked_users), page, total_pages, page_size, callback_data.query)
-    keyboard = build_blacklist_keyboard(blocked_users, page, total_pages, page_size, callback_data.query)
+    text = build_blacklist_text(len(blocked_users), page, total_pages, _BLACKLIST_PAGE_SIZE, callback_data.query)
+    keyboard = build_blacklist_keyboard(blocked_users, page, total_pages, _BLACKLIST_PAGE_SIZE, callback_data.query)
 
     try:
         await callback.message.edit_text(text, reply_markup=keyboard.as_markup())
@@ -395,6 +422,9 @@ async def unblock_user_callback(
 ) -> None:
     user_id = callback_data.user_id
     await moderation_services.remove_from_blacklist(db, bot, user_id)
+    from app.presentation.telegram.middlewares.black_list import invalidate_blacklist_cache
+
+    invalidate_blacklist_cache()
     try:
         if not callback.message or not isinstance(callback.message, types.Message):
             await callback.answer("Не удалось получить сообщение.")
@@ -407,5 +437,5 @@ async def unblock_user_callback(
         user_identifier = str(user_id)
 
     if callback.message and isinstance(callback.message, types.Message):
-        await callback.message.edit_text(f"Пользователь {user_identifier} разблокирован")
+        await callback.message.edit_text(f"Пользователь {escape_html(user_identifier)} разблокирован")
     await callback.answer()

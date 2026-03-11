@@ -1,6 +1,6 @@
 """Telegram testing helpers for simulating bot events and messages."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -96,7 +96,7 @@ class TelegramObjectFactory:
         if chat is None:
             chat = TelegramObjectFactory.create_chat()
         if date is None:
-            date = datetime.now()
+            date = datetime.now(UTC)
 
         # Create message data
         message_data = {
@@ -199,7 +199,7 @@ class TelegramObjectFactory:
         if user is None:
             user = TelegramObjectFactory.create_user()
         if date is None:
-            date = datetime.now()
+            date = datetime.now(UTC)
 
         # Create default chat members if not provided
         if old_chat_member is None:

@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from aiogram.types import TelegramObject
+from app.presentation.telegram.middlewares import black_list
 from app.presentation.telegram.middlewares.black_list import BlacklistMiddleware
 
 from tests.telegram_helpers import MockBot, TelegramObjectFactory, create_normal_user, create_test_chat
@@ -37,6 +38,11 @@ class TestBlacklistMiddleware:
     @pytest.fixture
     def mock_bot(self):
         return MockBot()
+
+    @pytest.fixture(autouse=True)
+    def _clear_blacklist_cache(self):
+        """Reset the blacklist cache before each test."""
+        black_list._blacklist_cache = None
 
     @pytest.fixture
     def blacklist_middleware(self):
@@ -223,13 +229,18 @@ class TestBlacklistMiddleware:
         for handler in mock_handlers:
             assert handler.called is True
 
-        # Should call get_blocked_users once per message
-        assert mock_user_repo.get_blocked_users.call_count == len(messages)
+        # With TTL cache, get_blocked_users is called only once (cache serves subsequent calls)
+        assert mock_user_repo.get_blocked_users.call_count == 1
 
 
 @pytest.mark.middleware
 class TestBlacklistMiddlewareEdgeCases:
     """Test edge cases for BlacklistMiddleware."""
+
+    @pytest.fixture(autouse=True)
+    def _clear_blacklist_cache(self):
+        """Reset the blacklist cache before each test."""
+        black_list._blacklist_cache = None
 
     @pytest.fixture
     def telegram_factory(self):
@@ -333,8 +344,8 @@ class TestBlacklistMiddlewareEdgeCases:
         for handler in mock_handlers:
             assert handler.called is True
 
-        # Should fetch blocked users for each message
-        assert mock_user_repo.get_blocked_users.call_count == 5
+        # With TTL cache, get_blocked_users is called only once (cache serves subsequent calls)
+        assert mock_user_repo.get_blocked_users.call_count == 1
 
     async def test_blacklist_middleware_exception_handling(
         self,

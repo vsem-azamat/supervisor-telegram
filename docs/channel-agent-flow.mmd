@@ -1,0 +1,81 @@
+flowchart TD
+    START["Bot Startup<br/><i>bot.py</i>"] --> INIT["ChannelOrchestrator.start()"]
+    INIT --> SEED{"RSS URLs in .env?"}
+    SEED -- Yes --> SEED_DB["Seed into DB<br/><i>channel_sources table</i>"]
+    SEED -- No --> LOOP
+    SEED_DB --> LOOP
+
+    LOOP["Sleep <i>FETCH_INTERVAL_MINUTES</i>"] --> CHECK_LIMIT{"posts_today >= <br/>MAX_POSTS_PER_DAY?"}
+    CHECK_LIMIT -- Yes --> LOOP
+    CHECK_LIMIT -- No --> GATHER
+
+    subgraph GATHER ["1. Gather Content"]
+        direction TB
+        DB_SOURCES["Get active sources from DB<br/><i>channel_sources WHERE enabled=true</i>"]
+        RSS_FETCH["Fetch RSS feeds<br/><i>httpx + feedparser</i>"]
+        DB_SOURCES --> RSS_FETCH
+        RSS_FETCH --> HEALTH{"Items returned?"}
+        HEALTH -- Yes --> RECORD_OK["record_success()<br/><i>reset error_count</i>"]
+        HEALTH -- No --> RECORD_ERR["record_error()<br/><i>error_count += 1</i>"]
+        RECORD_ERR --> AUTO_DIS{"error_count >= 5?"}
+        AUTO_DIS -- Yes --> DISABLE["Auto-disable source"]
+    end
+
+    subgraph DISCOVER ["1b. Perplexity Discovery"]
+        direction TB
+        SONAR["Perplexity Sonar<br/><i>via OpenRouter API</i>"]
+        QUERY["Search query:<br/><i>DISCOVERY_QUERY from config</i>"]
+        QUERY --> SONAR
+        SONAR --> PARSE["Parse JSON response<br/><i>title, summary, url</i>"]
+    end
+
+    GATHER --> MERGE["Merge RSS + Discovery items"]
+    DISCOVER --> MERGE
+
+    MERGE --> DEDUP["Deduplicate<br/><i>seen_ids set</i>"]
+    DEDUP --> NEW{"New items?"}
+    NEW -- No --> LOOP
+    NEW -- Yes --> SCREEN
+
+    subgraph SCREEN ["2. Screen for Relevance"]
+        direction TB
+        SCREEN_LLM["Gemini Flash<br/><i>screening_model</i>"]
+        SCORE["Score each item 0-10"]
+        FILTER["Keep score >= 5"]
+        SCREEN_LLM --> SCORE --> FILTER
+    end
+
+    SCREEN --> RELEVANT{"Relevant items?"}
+    RELEVANT -- No --> LOOP
+    RELEVANT -- Yes --> GENERATE
+
+    subgraph GENERATE ["3. Generate Post"]
+        direction TB
+        GEN_LLM["Gemini Flash<br/><i>generation_model</i>"]
+        PROMPT["Top 3 items as context<br/>+ language setting"]
+        HTML["Output: HTML post<br/><i>GeneratedPost(text, is_sensitive)</i>"]
+        PROMPT --> GEN_LLM --> HTML
+    end
+
+    GENERATE --> APPROVE{"require_approval?"}
+
+    APPROVE -- Yes --> ADMIN["Send draft to admin DM<br/><i>/approve or /reject</i>"]
+    APPROVE -- No --> PUBLISH
+
+    subgraph PUBLISH ["4. Publish"]
+        direction TB
+        SEND["bot.send_message()<br/><i>channel_id, HTML</i>"]
+        COUNT["posts_today += 1"]
+        SEND --> COUNT
+    end
+
+    PUBLISH --> LOOP
+
+    style START fill:#2d3748,color:#fff
+    style LOOP fill:#4a5568,color:#fff
+    style GATHER fill:#2b6cb0,color:#fff
+    style DISCOVER fill:#6b46c1,color:#fff
+    style SCREEN fill:#d69e2e,color:#000
+    style GENERATE fill:#38a169,color:#fff
+    style PUBLISH fill:#e53e3e,color:#fff
+    style ADMIN fill:#ed8936,color:#000

@@ -1,9 +1,14 @@
 """Application configuration using Pydantic settings."""
 
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+if TYPE_CHECKING:
+    from app.agent.channel.config import ChannelAgentSettings
 
 
 class DatabaseSettings(BaseSettings):
@@ -26,12 +31,30 @@ class DatabaseSettings(BaseSettings):
     @property
     def url(self) -> str:
         """Get async database URL."""
-        return f"postgresql+asyncpg://{self.user}:{self.password}@{self.host}:{self.port}/{self.name}"
+        from sqlalchemy.engine import URL
+
+        return URL.create(
+            "postgresql+asyncpg",
+            username=self.user,
+            password=self.password,
+            host=self.host,
+            port=self.port,
+            database=self.name,
+        ).render_as_string(hide_password=False)
 
     @property
     def sync_url(self) -> str:
         """Get sync database URL for Alembic."""
-        return f"postgresql://{self.user}:{self.password}@{self.host}:{self.port}/{self.name}"
+        from sqlalchemy.engine import URL
+
+        return URL.create(
+            "postgresql",
+            username=self.user,
+            password=self.password,
+            host=self.host,
+            port=self.port,
+            database=self.name,
+        ).render_as_string(hide_password=False)
 
 
 class TelegramSettings(BaseSettings):
@@ -101,14 +124,48 @@ class LoggingSettings(BaseSettings):
     )
 
 
-class WebAppSettings(BaseSettings):
-    """Web application configuration."""
+class AgentSettings(BaseSettings):
+    """AI agent configuration (shared OpenRouter credentials + per-role models)."""
 
-    url: str = Field(default="http://localhost:3000", description="Web app URL")
-    api_secret: str = Field(default="your-secret-key", description="API secret for webapp communication")
+    openrouter_api_key: str = Field(default="", description="OpenRouter API key")
+    openrouter_base_url: str = Field(default="https://openrouter.ai/api/v1", description="OpenRouter API base URL")
+
+    # Per-role models
+    moderation_model: str = Field(
+        default="google/gemini-3.1-flash-lite-preview",
+        description="Model for spam/moderation agent in chats",
+    )
+    assistant_model: str = Field(
+        default="google/gemini-3-flash-preview",
+        description="Model for the assistant bot (channel/chat management)",
+    )
+
+    temperature: float = Field(default=0.3, description="LLM temperature")
+    escalation_timeout_minutes: int = Field(default=30, description="Minutes before escalation times out")
+    default_timeout_action: str = Field(default="ignore", description="Default action on escalation timeout")
+    brave_api_key: str = Field(default="", description="Brave Search API key for web search")
+    enabled: bool = Field(default=False, description="Whether the moderation agent is enabled")
 
     model_config = SettingsConfigDict(
-        env_prefix="WEBAPP_",
+        env_prefix="AGENT_",
+        case_sensitive=False,
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
+class TelethonSettings(BaseSettings):
+    """Telethon (Telegram Client API) configuration for userbot features."""
+
+    api_id: int = Field(default=0, description="API ID from https://my.telegram.org")
+    api_hash: str = Field(default="", description="API hash from https://my.telegram.org")
+    session_name: str = Field(default="moderator_userbot", description="Session file name")
+    enabled: bool = Field(default=False, description="Enable Telethon client")
+    phone: str | None = Field(default=None, description="Phone number for initial auth")
+
+    model_config = SettingsConfigDict(
+        env_prefix="TELETHON_",
         case_sensitive=False,
         env_file=".env",
         env_file_encoding="utf-8",
@@ -127,7 +184,17 @@ class AppSettings(BaseSettings):
     telegram: TelegramSettings = Field(default_factory=TelegramSettings)
     admin: AdminSettings = Field(default_factory=AdminSettings)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
-    webapp: WebAppSettings = Field(default_factory=WebAppSettings)
+    agent: AgentSettings = Field(default_factory=AgentSettings)
+    telethon: TelethonSettings = Field(default_factory=TelethonSettings)
+
+    @property
+    def channel(self) -> ChannelAgentSettings:
+        """Lazily load and cache ChannelAgentSettings singleton."""
+        if not hasattr(self, "_channel_settings"):
+            from app.agent.channel.config import ChannelAgentSettings
+
+            object.__setattr__(self, "_channel_settings", ChannelAgentSettings())
+        return self._channel_settings  # type: ignore[attr-defined]
 
     model_config = SettingsConfigDict(
         env_file=".env",

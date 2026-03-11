@@ -1,7 +1,7 @@
 """Test data factories for creating test objects."""
 
 import random
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from app.domain.entities import AdminEntity, ChatEntity, ChatLinkEntity, MessageEntity, UserEntity
@@ -33,8 +33,8 @@ class UserFactory:
             last_name=last_name if last_name is not _DEFAULT else f"User{random.randint(1, 100)}",
             is_verified=is_verified,
             is_blocked=is_blocked,
-            created_at=created_at if created_at is not None else datetime.now(),
-            modified_at=modified_at if modified_at is not None else datetime.now(),
+            created_at=created_at if created_at is not None else datetime.now(UTC),
+            modified_at=modified_at if modified_at is not None else datetime.now(UTC),
         )
 
     @staticmethod
@@ -77,8 +77,8 @@ class ChatFactory:
             welcome_delete_time=welcome_delete_time,
             is_welcome_enabled=is_welcome_enabled,
             is_captcha_enabled=is_captcha_enabled,
-            created_at=created_at or datetime.now(),
-            modified_at=modified_at or datetime.now(),
+            created_at=created_at or datetime.now(UTC),
+            modified_at=modified_at or datetime.now(UTC),
         )
 
     @staticmethod
@@ -146,7 +146,7 @@ class MessageFactory:
             message_id=message_id or random.randint(1, 100000),
             content=content or f"Test message {random.randint(1, 1000)}",
             metadata=metadata or {},
-            timestamp=timestamp or datetime.now(),
+            timestamp=timestamp or datetime.now(UTC),
             is_spam=is_spam,
         )
 

@@ -25,6 +25,13 @@ dependencies = [
     "python-dotenv",
     "structlog>=23.2",
     "pytz>=2024.1",
+    "pydantic-ai[openai]>=0.2",
+    "httpx>=0.27",
+    "feedparser>=6.0.12",
+    "telethon>=1.42.0",
+    "burr>=0.40.2",
+    "telegramify-markdown==1.0.0rc5",
+    "pgvector>=0.4.2",
 ]
 
 [build-system]
@@ -74,6 +81,10 @@ ignore = [
     "SIM117",  # nested with statements (common in test assertions)
     "E402",    # module level import not at top (pytest fixtures)
     "N815",    # mixed case variable name (test data)
+    "N802",    # camelCase method names (matching Telegram API methods in fakes)
+    "N806",    # uppercase variable names in functions (test constants)
+    "S106",    # hardcoded passwords (test tokens)
+    "S110",    # try-except-pass (docker availability check)
     "PLR2004", # magic value used in comparison
 ]
 
@@ -109,6 +120,11 @@ module = [
     "alembic.*",
     "asyncpg.*",
     "psycopg2.*",
+    "testcontainers.*",
+    "fastapi.*",
+    "telethon.*",
+    "burr.*",
+    "app.presentation.api.routers.*",
 ]
 ignore_missing_imports = true
 
@@ -145,6 +161,10 @@ disable_error_code = ["no-any-return"]  # Structlog BoundLogger typing
 [[tool.mypy.overrides]]
 module = "app.core.container"
 disable_error_code = ["return-value", "type-abstract"]  # DI container interface patterns
+
+[[tool.mypy.overrides]]
+module = "app.infrastructure.telegram.*"
+disable_error_code = ["import-untyped"]  # Telethon lacks py.typed marker
 
 # Comprehensive test configuration - tests have different typing needs
 [[tool.mypy.overrides]]
@@ -236,6 +256,16 @@ module = "app.infrastructure.db.repositories.*"
 # Allow dict without type args for now (gradual improvement)
 disallow_any_generics = false
 
+# Agent module — PydanticAI and dynamic patterns
+[[tool.mypy.overrides]]
+module = "app.agent.*"
+disable_error_code = ["union-attr", "arg-type", "no-any-return", "call-overload"]
+disallow_any_generics = false
+
+[[tool.mypy.overrides]]
+module = ["pydantic_ai.*", "openai.*", "feedparser.*"]
+ignore_missing_imports = true
+
 [dependency-groups]
 dev = [
     "pytest>=8.0",
@@ -249,6 +279,8 @@ dev = [
     "watchfiles>=0.21",
     "psutil",
     "types-pytz>=2025.2.0.20250809",
+    "testcontainers[postgres]>=4.14.1",
+    "types-docker>=7.1.0.20260109",
 ]
 
 [tool.pytest.ini_options]

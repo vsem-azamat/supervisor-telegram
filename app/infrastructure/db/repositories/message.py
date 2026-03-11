@@ -3,8 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.expression import and_
 
 from app.domain.entities import MessageEntity
-from app.domain.models import Message
 from app.domain.repositories import IMessageRepository
+from app.infrastructure.db.models import Message
 
 
 class MessageRepository(IMessageRepository):
@@ -98,9 +98,9 @@ class MessageRepository(IMessageRepository):
         if chat_id is not None:
             query = query.where(Message.chat_id == chat_id)
 
-        result = await self.db.execute(query)
+        cursor = await self.db.execute(query)
         await self.db.commit()
-        return result.rowcount or 0
+        return cursor.rowcount or 0  # type: ignore[attr-defined]
 
     def _model_to_entity(self, message_model: Message) -> MessageEntity:
         """Convert database model to domain entity."""
@@ -127,11 +127,16 @@ class MessageRepository(IMessageRepository):
         count = result.scalar()
         return count or 0
 
-    async def is_first_message(self, chat_id: int, user_id: int) -> bool:
+    async def has_previous_messages(self, chat_id: int, user_id: int) -> bool:
+        """Check if user has any previous messages in this chat."""
         query = select(func.count()).where(Message.user_id == user_id, Message.chat_id == chat_id)
         result = await self.db.execute(query)
         count = result.scalar()
         return count is not None and count > 0
+
+    async def is_first_message(self, chat_id: int, user_id: int) -> bool:
+        """Check if this is the user's first message in the chat."""
+        return not await self.has_previous_messages(chat_id, user_id)
 
     async def is_similar_spam_message(self, message: str) -> bool:
         query = select(func.count()).where(Message.message == message, Message.spam)

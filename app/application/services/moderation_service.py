@@ -34,10 +34,9 @@ class ModerationService:
     ) -> None:
         """Mute user in a specific chat."""
         try:
-            # Calculate until_date for mute
             import datetime
 
-            until_date = datetime.datetime.now() + datetime.timedelta(seconds=duration.seconds)
+            until_date = datetime.datetime.now(datetime.UTC) + datetime.timedelta(seconds=duration.seconds)
 
             await self.bot.restrict_chat_member(
                 chat_id=chat_id,

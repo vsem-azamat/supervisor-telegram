@@ -38,6 +38,6 @@ class HistoryMiddleware(BaseMiddleware):
 
             if await spam_service.detect_spam(db, message):
                 answer = await event.message.answer("🚧 Is spam message?🤔")
-                await other.sleep_and_delete(answer, 15)
+                other.sleep_and_delete(answer, 15)
 
         return await handler(event, data)

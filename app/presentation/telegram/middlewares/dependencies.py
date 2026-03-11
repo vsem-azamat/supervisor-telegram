@@ -16,7 +16,11 @@ from app.infrastructure.db.repositories import (
 
 
 class DependenciesMiddleware(BaseMiddleware):
-    def __init__(self, session_pool: async_sessionmaker[AsyncSession], bot: Bot):
+    def __init__(
+        self,
+        session_pool: async_sessionmaker[AsyncSession],
+        bot: Bot,
+    ):
         super().__init__()
         self.session_pool = session_pool
         self.bot = bot
@@ -35,6 +39,5 @@ class DependenciesMiddleware(BaseMiddleware):
             data["chat_repo"] = get_chat_repository(session)
             data["chat_link_repo"] = get_chat_link_repository(session)
             data["message_repo"] = get_message_repository(session)
-            # Add UserService with proper dependency injection
             data["user_service"] = UserService(get_user_repository(session))
             return await handler(event, data)

@@ -10,7 +10,7 @@ repos:
       - id: debug-statements
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.9
+    rev: v0.15.5
     hooks:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
@@ -20,31 +20,15 @@ repos:
     hooks:
       - id: mypy
         name: mypy
-        entry: uv run mypy
+        entry: uv run mypy app/ tests/
         language: system
         types: [python]
-        args: [app/, tests/]
         pass_filenames: false
 
       - id: pytest-check
-        name: pytest-check
-        entry: uv run pytest tests/unit tests/integration -x -q
+        name: pytest (unit + e2e)
+        entry: uv run pytest tests/unit tests/e2e -x -q
         language: system
         types: [python]
         pass_filenames: false
-        always_run: false
         stages: [pre-push]
-
-      - id: eslint
-        name: ESLint (TypeScript/React)
-        entry: bash -c 'cd webapp && npx eslint .'
-        language: system
-        files: ^webapp/.*\.(ts|tsx|js|jsx)$
-        pass_filenames: false
-
-      - id: typescript-check
-        name: TypeScript Check
-        entry: bash -c 'cd webapp && npx tsc --noEmit'
-        language: system
-        files: ^webapp/.*\.(ts|tsx)$
-        pass_filenames: false

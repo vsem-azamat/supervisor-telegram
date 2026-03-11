@@ -11,11 +11,11 @@ groups_router = Router()
 async def report_user(message: types.Message, bot: Bot) -> None:
     if not message.reply_to_message:
         answer = await message.answer("Эту команду нужно использовать в ответ на сообщение.")
-        await other.sleep_and_delete(answer, 10)
+        other.sleep_and_delete(answer, 10)
 
     elif not message.reply_to_message.from_user:
         answer = await message.answer("Это не пользователь.")
-        await other.sleep_and_delete(answer, 10)
+        other.sleep_and_delete(answer, 10)
 
     else:
         if not message.from_user:
