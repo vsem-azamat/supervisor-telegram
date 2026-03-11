@@ -178,6 +178,12 @@ async def _chat_stream(bot: Bot, chat_id: int, user_id: int, user_message: str) 
                     if len(all_msgs) > _MAX_HISTORY:
                         _conversations[user_id] = [all_msgs[0]] + all_msgs[-(_MAX_HISTORY - 1) :]
 
+                # Prepend tool call trace so the user sees what happened
+                from app.agent.tool_trace import format_response_with_trace
+
+                new_msgs = list(stream_result.new_messages())
+                final_output = format_response_with_trace(new_msgs, final_output)
+
                 return final_output, draft_id
 
     except TimeoutError:
@@ -219,7 +225,10 @@ async def _chat(user_id: int, user_message: str) -> str:
         if len(all_msgs) > _MAX_HISTORY:
             _conversations[user_id] = [all_msgs[0]] + all_msgs[-(_MAX_HISTORY - 1) :]
 
-    return result.output
+    from app.agent.tool_trace import format_response_with_trace
+
+    new_msgs = list(result.new_messages())
+    return format_response_with_trace(new_msgs, result.output)
 
 
 # ---------------------------------------------------------------------------

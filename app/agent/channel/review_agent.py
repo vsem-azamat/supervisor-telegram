@@ -511,9 +511,12 @@ async def _review_agent_turn_inner(
     deps: ReviewAgentDeps,
     model: str,
 ) -> str:
+    from app.agent.tool_trace import format_response_with_trace
+
     _evict_review_conversations()
 
     history = _review_conversations.get(post_id)
+    history_len = len(history) if history else 0
     agent = create_review_agent(model)
 
     try:
@@ -572,7 +575,10 @@ async def _review_agent_turn_inner(
         post_id=post_id,
         history_len=len(_review_conversations[post_id]),
     )
-    return result.output
+
+    # Format response with tool call trace for user visibility
+    turn_msgs = all_msgs[history_len:]
+    return format_response_with_trace(turn_msgs, result.output)
 
 
 def _has_tool_call(result: Any, tool_name: str) -> bool:
