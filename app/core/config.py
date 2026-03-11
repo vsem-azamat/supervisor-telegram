@@ -172,7 +172,7 @@ class AgentSettings(BaseSettings):
         description="Model for spam/moderation agent in chats",
     )
     assistant_model: str = Field(
-        default="deepseek/deepseek-v3.2",
+        default="google/gemini-3-flash-preview",
         description="Model for the assistant bot (channel/chat management)",
     )
 
