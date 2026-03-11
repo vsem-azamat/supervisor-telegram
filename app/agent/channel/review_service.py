@@ -147,6 +147,14 @@ async def approve_post(
         source_urls = extract_source_urls(post)
 
         try:
+            # Atomically reserve a daily slot BEFORE publishing
+            from app.agent.channel.channel_repo import try_reserve_daily_slot
+
+            slot_reserved = await try_reserve_daily_slot(session_maker, post.channel_id)
+            if not slot_reserved:
+                logger.warning("daily_limit_reached_at_approve", post_id=post_id, channel_id=post.channel_id)
+                return "Daily post limit reached. Try again tomorrow.", None
+
             from app.agent.channel.generator import GeneratedPost
 
             gen_post = GeneratedPost(
@@ -160,14 +168,6 @@ async def approve_post(
             post.approve(msg_id)
             await session.commit()
             logger.info("post_approved", post_id=post_id, msg_id=msg_id)
-
-            # Increment daily post counter
-            try:
-                from app.agent.channel.channel_repo import increment_daily_count
-
-                await increment_daily_count(session_maker, post.channel_id)
-            except Exception:
-                logger.warning("daily_count_increment_failed", post_id=post_id, exc_info=True)
 
             if source_urls:
                 await update_source_relevance(session_maker, source_urls, approved=True)

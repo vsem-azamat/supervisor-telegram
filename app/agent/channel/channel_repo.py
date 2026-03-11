@@ -121,24 +121,42 @@ async def reset_daily_count_if_needed(
             await session.commit()
 
 
-async def increment_daily_count(
+async def try_reserve_daily_slot(
     session_maker: async_sessionmaker[AsyncSession],
     telegram_id: str,
-) -> int:
-    """Atomically increment and return the daily post count using SQL to avoid race conditions."""
+) -> bool:
+    """Atomically check-and-increment the daily post count.
+
+    Returns ``True`` if a slot was reserved (count was below limit)
+    or if no channel row exists (no limit configured).
+    ``False`` only when the daily limit has actually been reached.
+    This prevents race conditions between concurrent pipeline runs / approvals.
+    """
     from sqlalchemy import text
 
     async with session_maker() as session:
         result = await session.execute(
             text(
                 "UPDATE channels SET daily_posts_count = daily_posts_count + 1 "
-                "WHERE telegram_id = :tid RETURNING daily_posts_count"
+                "WHERE telegram_id = :tid AND daily_posts_count < max_posts_per_day "
+                "RETURNING daily_posts_count"
             ),
             {"tid": telegram_id},
         )
         row = result.fetchone()
+        if row is not None:
+            await session.commit()
+            return True
+
+        # UPDATE matched no rows — either limit reached or no channel row exists.
+        # Check which case: if no channel row, there's no limit to enforce.
+        exists = await session.execute(
+            text("SELECT 1 FROM channels WHERE telegram_id = :tid"),
+            {"tid": telegram_id},
+        )
         await session.commit()
-        return row[0] if row else 0
+        # No channel config → no limit to enforce; channel exists → limit reached
+        return exists.fetchone() is None
 
 
 async def update_source_discovery_time(

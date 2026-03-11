@@ -153,3 +153,19 @@ class TestChannelFooter:
         ch = Channel(telegram_id="-1001234567890", name="NumChannel")
         assert "NumChannel" in ch.footer
         assert "@" not in ch.footer
+
+    def test_footer_username_with_at_prefix_no_double_at(self) -> None:
+        """Regression: username stored with @ prefix must not produce @@username."""
+        from app.infrastructure.db.models import Channel
+
+        ch = Channel(telegram_id="@test_chan", name="TestChan", username="@test_chan")
+        assert "@@" not in ch.footer
+        assert "@test_chan" in ch.footer
+
+    def test_footer_telegram_id_with_at_prefix(self) -> None:
+        """Regression: telegram_id starting with @ must be stripped when used as fallback."""
+        from app.infrastructure.db.models import Channel
+
+        ch = Channel(telegram_id="@mychannel", name="MyChan")
+        assert "@@" not in ch.footer
+        assert "@mychannel" in ch.footer

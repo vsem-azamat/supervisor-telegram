@@ -82,6 +82,8 @@ async def fetch_sources(state: State) -> State:
                 api_key=api_key,
                 query=query,
                 model=config.discovery_model,
+                channel_name=channel.name,
+                discovery_query=channel.discovery_query,
                 http_timeout=config.http_timeout,
                 temperature=config.temperature,
             )
@@ -92,7 +94,7 @@ async def fetch_sources(state: State) -> State:
             try:
                 from app.agent.channel.brave_search import discover_content_brave
 
-                brave_key: str = state.get("brave_api_key", "") or settings.agent.brave_api_key
+                brave_key: str = state.get("brave_api_key", "")
                 if brave_key:
                     brave_query = channel.discovery_query or config.brave_discovery_query
                     brave_items = await discover_content_brave(
@@ -123,22 +125,6 @@ async def fetch_sources(state: State) -> State:
                 existing_ids = set(existing_result.scalars().all())
             all_items = [i for i in all_items if i.external_id not in existing_ids]
 
-        # Semantic dedup — filter items similar to recent posts (cross-source)
-        if all_items:
-            try:
-                from app.agent.channel.semantic_dedup import filter_semantic_duplicates
-
-                all_items = await filter_semantic_duplicates(
-                    all_items,
-                    channel_id=channel_id,
-                    api_key=api_key,
-                    session_maker=session_maker,
-                    model=config.embedding_model,
-                    threshold=config.semantic_dedup_threshold,
-                )
-            except Exception:
-                logger.exception("semantic_dedup_error_skipping", channel_id=channel_id)
-
         logger.info("workflow_fetch_done", count=len(all_items), channel_id=channel_id)
         return state.update(content_items=all_items, error=None)
 
@@ -154,11 +140,11 @@ async def fetch_sources(state: State) -> State:
 
 
 @action(
-    reads=["content_items", "api_key", "brave_api_key", "config"],
+    reads=["content_items", "api_key", "brave_api_key", "config", "channel_id", "session_maker"],
     writes=["content_items", "error"],
 )
 async def split_and_enrich_topics(state: State) -> State:
-    """Split multi-topic items (Sonar syntheses) into individual topics and enrich with Brave."""
+    """Split multi-topic items into individual topics, enrich with Brave, then semantic dedup."""
     from app.agent.channel.topic_splitter import split_and_enrich
 
     items = state["content_items"]
@@ -167,7 +153,9 @@ async def split_and_enrich_topics(state: State) -> State:
 
     api_key: str = state["api_key"]
     config: ChannelAgentSettings = state["config"]
-    brave_key: str = state.get("brave_api_key", "") or settings.agent.brave_api_key
+    channel_id: str = str(state["channel_id"])
+    session_maker: async_sessionmaker[AsyncSession] = state["session_maker"]
+    brave_key: str = state.get("brave_api_key", "")
 
     try:
         enriched = await split_and_enrich(
@@ -179,10 +167,28 @@ async def split_and_enrich_topics(state: State) -> State:
             timeout=config.http_timeout,
         )
         logger.info("workflow_split_enrich_done", before=len(items), after=len(enriched))
-        return state.update(content_items=enriched, error=None)
-    except Exception as exc:
+    except Exception:
         logger.exception("workflow_split_enrich_error")
-        return state.update(error=str(exc))
+        # Keep original items so pipeline can continue with unsplit content
+        enriched = items
+
+    # Semantic dedup after split — catches per-topic duplicates against recent posts
+    if enriched:
+        try:
+            from app.agent.channel.semantic_dedup import filter_semantic_duplicates
+
+            enriched = await filter_semantic_duplicates(
+                enriched,
+                channel_id=channel_id,
+                api_key=api_key,
+                session_maker=session_maker,
+                model=config.embedding_model,
+                threshold=config.semantic_dedup_threshold,
+            )
+        except Exception:
+            logger.exception("semantic_dedup_error_skipping", channel_id=channel_id)
+
+    return state.update(content_items=enriched, error=None)
 
 
 @action(reads=["content_items", "api_key", "config", "channel"], writes=["relevant_items", "error"])
@@ -274,12 +280,7 @@ async def generate_post(state: State) -> State:
         if post is None:
             return state.update(generated_post=None, error="generation_failed")
 
-        post_dict = {
-            "text": post.text,
-            "is_sensitive": post.is_sensitive,
-            "image_url": post.image_url,
-            "image_urls": post.image_urls,
-        }
+        post_dict = post.model_dump()
         logger.info("workflow_generate_done", length=len(post.text), images=len(post.image_urls))
         return state.update(generated_post=post_dict, error=None)
 
@@ -311,12 +312,7 @@ async def send_for_review(state: State) -> State:
     relevant = state["relevant_items"]
 
     review_chat_id = channel.review_chat_id
-    post = GeneratedPost(
-        text=post_dict["text"],
-        is_sensitive=post_dict.get("is_sensitive", False),
-        image_url=post_dict.get("image_url"),
-        image_urls=post_dict.get("image_urls", []),
-    )
+    post = GeneratedPost.model_validate(post_dict)
 
     if review_chat_id:
         try:
@@ -343,12 +339,36 @@ async def send_for_review(state: State) -> State:
             logger.exception("workflow_review_error")
             return state.update(post_id=None, result_message="review_error", error=str(exc))
     else:
-        # Direct publish (no review channel)
+        # Direct publish (no review channel) — also create a ChannelPost record for audit trail
         from app.agent.channel.publisher import publish_post as _publish
 
         try:
             msg_id = await _publish(bot, channel.telegram_id, post)
             if msg_id:
+                # Create ChannelPost record for dedup, feedback, and audit
+                try:
+                    from hashlib import sha256
+
+                    from app.domain.value_objects import PostStatus
+                    from app.infrastructure.db.models import ChannelPost
+
+                    ext_id = sha256(post.text[:200].encode()).hexdigest()[:16]
+                    async with session_maker() as session:
+                        db_post = ChannelPost(
+                            channel_id=channel_id,
+                            external_id=f"direct:{ext_id}",
+                            title=relevant[0].title[:200] if relevant else "Direct publish",
+                            post_text=post.text,
+                            image_url=post.image_url,
+                            image_urls=post.image_urls or None,
+                            status=PostStatus.APPROVED,
+                            telegram_message_id=msg_id,
+                        )
+                        session.add(db_post)
+                        await session.commit()
+                except Exception:
+                    logger.warning("direct_publish_record_failed", msg_id=msg_id, exc_info=True)
+
                 return state.update(post_id=None, result_message=f"published_directly:{msg_id}", error=None)
             return state.update(post_id=None, result_message="publish_failed", error="direct_publish_failed")
         except Exception as exc:
@@ -532,12 +552,14 @@ def create_pipeline_app(
     """Create a Burr Application for a single pipeline run."""
     graph = get_pipeline_graph()
 
+    resolved_brave_key = brave_api_key or settings.agent.brave_api_key
+
     initial_state = {
         "channel_id": channel_id,
         "session_maker": session_maker,
         "bot": bot,
         "api_key": api_key,
-        "brave_api_key": brave_api_key,
+        "brave_api_key": resolved_brave_key,
         "config": config,
         "channel": channel,
         "content_items": [],

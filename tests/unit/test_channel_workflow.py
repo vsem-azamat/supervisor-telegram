@@ -110,6 +110,7 @@ class TestGraphDefinition:
         action_names = {a.name for a in graph.actions}
         expected = {
             "fetch_sources",
+            "split_and_enrich_topics",
             "screen_content",
             "generate_post",
             "send_for_review",
@@ -290,6 +291,157 @@ class TestScreenContentAction:
         assert result["error"] is None
 
 
+class TestSplitAndEnrichTopicsAction:
+    @pytest.mark.asyncio
+    async def test_enriches_items(self, agent_settings, channel, sample_items, mock_session_maker):
+        from app.agent.channel.workflow import split_and_enrich_topics
+
+        with (
+            patch("app.agent.channel.topic_splitter.split_and_enrich", return_value=sample_items),
+            patch("app.agent.channel.semantic_dedup.filter_semantic_duplicates", return_value=sample_items),
+        ):
+            state = State(
+                {
+                    "content_items": sample_items,
+                    "api_key": "k",
+                    "brave_api_key": "",
+                    "config": agent_settings,
+                    "channel_id": "test",
+                    "session_maker": mock_session_maker,
+                }
+            )
+            result = await split_and_enrich_topics(state)
+            assert len(result["content_items"]) == 1
+            assert result["error"] is None
+
+    @pytest.mark.asyncio
+    async def test_empty_input_passthrough(self, agent_settings, mock_session_maker):
+        from app.agent.channel.workflow import split_and_enrich_topics
+
+        state = State(
+            {
+                "content_items": [],
+                "api_key": "k",
+                "brave_api_key": "",
+                "config": agent_settings,
+                "channel_id": "test",
+                "session_maker": mock_session_maker,
+            }
+        )
+        result = await split_and_enrich_topics(state)
+        assert result["content_items"] == []
+
+    @pytest.mark.asyncio
+    async def test_split_error_falls_back_to_original(self, agent_settings, sample_items, mock_session_maker):
+        from app.agent.channel.workflow import split_and_enrich_topics
+
+        with patch(
+            "app.agent.channel.topic_splitter.split_and_enrich",
+            side_effect=RuntimeError("split failed"),
+        ):
+            state = State(
+                {
+                    "content_items": sample_items,
+                    "api_key": "k",
+                    "brave_api_key": "",
+                    "config": agent_settings,
+                    "channel_id": "test",
+                    "session_maker": mock_session_maker,
+                }
+            )
+            result = await split_and_enrich_topics(state)
+            # Original items preserved on error
+            assert len(result["content_items"]) == 1
+            assert result["content_items"][0].external_id == "item1"
+
+
+class TestScreenContentAction2:
+    @pytest.mark.asyncio
+    async def test_screen_handles_screening_error(self, agent_settings, channel, sample_items):
+        from app.agent.channel.exceptions import ScreeningError
+        from app.agent.channel.workflow import screen_content
+
+        with patch(
+            "app.agent.channel.generator.screen_items",
+            side_effect=ScreeningError("LLM down"),
+        ):
+            state = State(
+                {
+                    "content_items": sample_items,
+                    "api_key": "test-key",
+                    "config": agent_settings,
+                    "channel": channel,
+                    "relevant_items": [],
+                    "error": None,
+                }
+            )
+            result = await screen_content(state)
+            assert result["relevant_items"] == []
+            assert "LLM down" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_screen_handles_generic_error(self, agent_settings, channel, sample_items):
+        from app.agent.channel.workflow import screen_content
+
+        with patch(
+            "app.agent.channel.generator.screen_items",
+            side_effect=RuntimeError("unexpected"),
+        ):
+            state = State(
+                {
+                    "content_items": sample_items,
+                    "api_key": "test-key",
+                    "config": agent_settings,
+                    "channel": channel,
+                    "relevant_items": [],
+                    "error": None,
+                }
+            )
+            result = await screen_content(state)
+            assert result["relevant_items"] == []
+            assert result["error"] is not None
+
+
+class TestPublishPostAction:
+    @pytest.mark.asyncio
+    async def test_publish_post_missing_post_id(self, channel, mock_bot, mock_session_maker):
+        from app.agent.channel.workflow import publish_post
+
+        state = State(
+            {
+                "post_id": None,
+                "channel_id": "test",
+                "channel": channel,
+                "bot": mock_bot,
+                "session_maker": mock_session_maker,
+            }
+        )
+        result = await publish_post(state)
+        assert result["error"] == "missing_post_id"
+
+    @pytest.mark.asyncio
+    async def test_publish_post_publish_error(self, channel, mock_bot, mock_session_maker):
+        from app.agent.channel.exceptions import PublishError
+        from app.agent.channel.workflow import publish_post
+
+        with patch(
+            "app.agent.channel.review.handle_approve",
+            side_effect=PublishError("Telegram API rejected"),
+        ):
+            state = State(
+                {
+                    "post_id": 42,
+                    "channel_id": "test",
+                    "channel": channel,
+                    "bot": mock_bot,
+                    "session_maker": mock_session_maker,
+                }
+            )
+            result = await publish_post(state)
+            assert result["result_message"] == "publish_failed"
+            assert "Telegram API rejected" in result["error"]
+
+
 class TestGeneratePostAction:
     @pytest.mark.asyncio
     async def test_generate_produces_post(self, agent_settings, channel, mock_session_maker, sample_items):
@@ -438,3 +590,39 @@ class TestFullPipeline:
             )
             action_obj, _result, state = await app.arun(halt_after=["done"])
             assert state["result_message"] == "Post rejected."
+
+    @pytest.mark.asyncio
+    async def test_pipeline_direct_publish_no_review_channel(
+        self, channel_no_review, agent_settings, mock_bot, mock_session_maker, sample_items
+    ):
+        """T3: Direct publish path (no review channel) goes straight to done."""
+        from app.agent.channel.generator import GeneratedPost
+
+        mock_post = GeneratedPost(text="**Post**", is_sensitive=False)
+
+        mock_result = MagicMock()
+        mock_result.scalars.return_value.all.return_value = []
+        mock_session_maker._mock_session.execute = AsyncMock(return_value=mock_result)
+
+        with (
+            patch("app.agent.channel.source_manager.get_active_sources", return_value=[]),
+            patch("app.agent.channel.discovery.discover_content", return_value=sample_items),
+            patch("app.agent.channel.topic_splitter.split_and_enrich", return_value=sample_items),
+            patch("app.agent.channel.semantic_dedup.filter_semantic_duplicates", return_value=sample_items),
+            patch("app.agent.channel.generator.screen_items", return_value=sample_items),
+            patch("app.agent.channel.generator.generate_post", return_value=mock_post),
+            patch("app.agent.channel.feedback.get_feedback_summary", return_value=None),
+            patch("app.agent.channel.publisher.publish_post", return_value=77),
+        ):
+            agent_settings.discovery_enabled = True
+            app = create_pipeline_app(
+                channel_id="test_channel",
+                session_maker=mock_session_maker,
+                bot=mock_bot,
+                api_key="test-key",
+                config=agent_settings,
+                channel=channel_no_review,
+            )
+            action_obj, _result, state = await app.arun(halt_after=["await_review", "done"])
+            assert action_obj.name == "done"
+            assert "published_directly:77" in state["result_message"]

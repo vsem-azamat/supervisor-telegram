@@ -15,8 +15,8 @@ from typing import TYPE_CHECKING
 
 from app.agent.channel.channel_repo import (
     get_active_channels,
-    increment_daily_count,
     reset_daily_count_if_needed,
+    try_reserve_daily_slot,
     update_source_discovery_time,
 )
 from app.agent.channel.source_discovery import discover_and_add_sources
@@ -218,7 +218,7 @@ class SingleChannelOrchestrator:
             self._pending_reviews[post_id] = state.get_all()
             logger.info("workflow_halted_for_review", post_id=post_id, channel_id=channel_id)
         elif state.get("result_message", "").startswith("published_directly:"):
-            await increment_daily_count(self.session_maker, channel_id)
+            await try_reserve_daily_slot(self.session_maker, channel_id)
 
     async def resume_review(self, post_id: int, decision: str) -> str:
         """Resume a halted Burr workflow after admin review."""
@@ -247,8 +247,7 @@ class SingleChannelOrchestrator:
         _action, _result, state = await app.arun(halt_after=["done"])
 
         result_message = state.get("result_message", "")
-        if decision == "approved" and "Published" in result_message:
-            await increment_daily_count(self.session_maker, channel_id)
+        # NOTE: do NOT increment_daily_count here — approve_post() already does it
         logger.info("workflow_review_complete", post_id=post_id, decision=decision, result=result_message)
         return result_message
 

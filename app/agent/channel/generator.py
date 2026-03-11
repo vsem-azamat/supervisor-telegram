@@ -11,6 +11,7 @@ from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
 from app.agent.channel.cost_tracker import extract_usage_from_pydanticai_result, log_usage
+from app.agent.channel.sanitize import sanitize_external_text, substitute_template
 from app.core.config import settings
 from app.core.logging import get_logger
 
@@ -18,8 +19,6 @@ if TYPE_CHECKING:
     from app.agent.channel.sources import ContentItem
 
 logger = get_logger("channel.generator")
-
-_XML_HTML_TAG_RE = re.compile(r"<[^>]+>")
 
 # Deprecated: use per-channel footer parameter instead.
 DEFAULT_FOOTER = "——\n🔗 **Konnekt** | @konnekt_channel"
@@ -54,7 +53,7 @@ def enforce_footer_and_length(text: str, footer: str = "", *, max_length: int = 
 
 def _sanitize_content(text: str) -> str:
     """Strip XML/HTML tags from external content to prevent prompt injection."""
-    return _XML_HTML_TAG_RE.sub("", text)
+    return sanitize_external_text(text)
 
 
 class GeneratedPost(BaseModel):
@@ -97,7 +96,7 @@ def build_screening_prompt(channel_name: str, discovery_query: str = "") -> str:
         context = f"Channel focus: {discovery_query}\nOnly score highly if the content directly matches this focus."
     else:
         context = _DEFAULT_CHANNEL_CONTEXT
-    return SCREENING_PROMPT_TEMPLATE.format(channel_name=channel_name, channel_context=context)
+    return substitute_template(SCREENING_PROMPT_TEMPLATE, channel_name=channel_name, channel_context=context)
 
 
 GENERATION_PROMPT = """\
@@ -174,7 +173,8 @@ def _create_generation_agent(
     """Create a post generation agent."""
     provider = OpenAIProvider(base_url=settings.agent.openrouter_base_url, api_key=api_key)
     llm = OpenAIChatModel(model_name=model, provider=provider)
-    prompt = GENERATION_PROMPT.format(
+    prompt = substitute_template(
+        GENERATION_PROMPT,
         language=language,
         footer=footer,
         channel_name=channel_name or "Konnekt",
@@ -230,7 +230,10 @@ async def screen_items(
 
         import json
 
-        scores: dict[str, int] = json.loads(content)
+        scores_raw = json.loads(content)
+        if not isinstance(scores_raw, dict):
+            raise ScreeningError(f"Expected dict, got {type(scores_raw).__name__}")
+        scores: dict[str, int] = scores_raw
 
         relevant: list[ContentItem] = []
         for i, item in enumerate(items):

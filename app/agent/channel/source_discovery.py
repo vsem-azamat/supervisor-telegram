@@ -55,6 +55,9 @@ async def discover_rss_feeds(
             return []
 
         feeds = json.loads(content)
+        if not isinstance(feeds, list):
+            logger.warning("feed_discovery_unexpected_format", type=type(feeds).__name__)
+            return []
         logger.info("feeds_discovered", count=len(feeds), query=query[:60])
         return feeds
 
