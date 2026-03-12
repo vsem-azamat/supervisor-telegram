@@ -1,7 +1,7 @@
 services:
   bot:
     image: ghcr.io/vsem-azamat/supervisor-telegram:latest
-    container_name: moderator-bot
+    container_name: supervisor-telegram
     env_file: .env
     environment:
       PYTHONUNBUFFERED: "1"
