@@ -1,15 +1,14 @@
 services:
   bot:
-    build:
-      context: .
-      target: production
-    env_file:
-      - .env
+    image: ghcr.io/vsem-azamat/supervisor-telegram:latest
+    container_name: moderator-bot
+    env_file: .env
     environment:
-      - PYTHONUNBUFFERED=1
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ./moderator_userbot.session:/app/moderator_userbot.session
+      - bot-logs:/app/logs
     restart: unless-stopped
-    command: >
-      sh -c "
-      uv run alembic upgrade head &&
-      uv run -m app.presentation.telegram
-      "
+
+volumes:
+  bot-logs:

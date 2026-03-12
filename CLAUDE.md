@@ -8,8 +8,8 @@ Instructions for Claude Code when working on this repository.
 # Run bot locally
 uv run -m app.presentation.telegram
 
-# Run with Docker (dev)
-docker compose -f docker-compose.dev.yaml up --build
+# Run with Docker (production image)
+docker compose up -d
 
 # Tests
 uv run -m pytest                          # all tests

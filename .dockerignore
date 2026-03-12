@@ -36,15 +36,24 @@ CLAUDE.md
 docs/
 AGENTS.md
 
-# Development
+# Secrets & sessions
+.env
 .env.local
 .env.development
+*.session
+*.session-journal
+
+# Tests
 tests/
 
 # Docker
 docker-compose*.yaml
 Dockerfile*
 .dockerignore
+
+# Logs & cache
+logs/
+.uv/
 
 # Frontend
 webapp/

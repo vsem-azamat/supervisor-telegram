@@ -1,6 +1,7 @@
 name: Tests
 
 on:
+  workflow_call:
   push:
     branches: [ main, master, develop ]
   pull_request:
@@ -12,7 +13,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:15
+        image: pgvector/pgvector:pg18
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_USER: postgres
@@ -128,7 +129,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:15
+        image: pgvector/pgvector:pg18
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_USER: postgres
@@ -157,7 +158,6 @@ jobs:
     - name: Install dependencies
       run: |
         uv sync --dev
-        uv add psutil  # For memory monitoring
 
     - name: Run performance tests
       run: |
