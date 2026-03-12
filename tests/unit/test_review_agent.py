@@ -21,7 +21,12 @@ from app.agent.channel.review_agent import (
 
 class TestCreateReviewAgent:
     def test_creates_agent_with_expected_tools(self) -> None:
-        """Verify the agent has the right tools registered."""
+        """Verify the agent has at least the expected set of tools registered.
+
+        Uses private _function_toolset.tools because PydanticAI does not expose
+        a public API for tool introspection. Asserting >= to avoid brittleness
+        when new tools are added.
+        """
         agent = create_review_agent()
         tool_names = set(agent._function_toolset.tools.keys())
         expected = {
@@ -32,7 +37,8 @@ class TestCreateReviewAgent:
             "replace_images",
             "remove_images",
         }
-        assert expected == tool_names, f"Expected {expected}, got {tool_names}"
+        assert expected <= tool_names, f"Missing tools: {expected - tool_names}"
+        assert len(tool_names) >= len(expected)
 
     def test_agent_is_pydantic_agent(self) -> None:
         """Verify it returns a pydantic_ai.Agent instance."""
@@ -93,9 +99,7 @@ class TestReviewConversationMemory:
         assert len(_review_conversations) <= _MAX_REVIEW_CONVERSATIONS
 
 
-# ---------------------------------------------------------------------------
-# Test enforce_footer_and_length integration
-# ---------------------------------------------------------------------------
+# --- Tests for generator.enforce_footer_and_length (co-located here) ---
 
 
 class TestEnforceFooterAndLength:
@@ -128,9 +132,7 @@ class TestEnforceFooterAndLength:
         assert DEFAULT_FOOTER in result
 
 
-# ---------------------------------------------------------------------------
-# Test Channel.footer property
-# ---------------------------------------------------------------------------
+# --- Tests for Channel.footer property (co-located here) ---
 
 
 class TestChannelFooter:

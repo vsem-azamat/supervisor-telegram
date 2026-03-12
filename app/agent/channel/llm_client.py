@@ -17,15 +17,20 @@ logger = get_logger("channel.llm_client")
 
 
 def _is_transient_error(exc: BaseException) -> bool:
-    """Only retry on timeouts and transient HTTP status codes (429, 5xx)."""
+    """Only retry on timeouts and transient HTTP status codes (401, 429, 5xx).
+
+    401 is included because OpenRouter intermittently returns it under load
+    instead of 429 — confirmed by logs showing ~45% 401 failure rate with
+    the same valid API key.
+    """
     if isinstance(exc, httpx.TimeoutException):
         return True
     if isinstance(exc, httpx.HTTPStatusError):
-        return exc.response.status_code in (429, 502, 503, 504)
+        return exc.response.status_code in (401, 429, 502, 503, 504)
     return False
 
 
-# Retry transient HTTP errors (429, 502, 503, 504, timeouts) with exponential backoff
+# Retry transient HTTP errors (401, 429, 502, 503, 504, timeouts) with exponential backoff
 _TRANSIENT_RETRY = retry(
     retry=retry_if_exception(_is_transient_error),
     stop=stop_after_attempt(3),

@@ -10,7 +10,7 @@ Uses:
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -27,7 +27,6 @@ from aiogram.types import (
     User,
 )
 from aiogram.utils.callback_answer import CallbackAnswerMiddleware
-from app.infrastructure.db.base import Base
 from app.infrastructure.db.models import AgentEscalation
 from app.presentation.telegram.middlewares import (
     DependenciesMiddleware,
@@ -35,9 +34,11 @@ from app.presentation.telegram.middlewares import (
     ManagedChatsMiddleware,
 )
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
-from tests.fake_telegram import FakeTelegramServer
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+    from tests.fake_telegram import FakeTelegramServer
 
 
 def _build_router() -> Any:
@@ -174,37 +175,16 @@ def _make_callback_query(
 
 
 @pytest_asyncio.fixture()
-async def db_engine():
-    """In-memory SQLite engine with all tables."""
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield engine
-    await engine.dispose()
-
-
-@pytest_asyncio.fixture()
-async def db_session_maker(db_engine: AsyncEngine):
-    return async_sessionmaker(
-        bind=db_engine,
-        class_=AsyncSession,
-        autoflush=False,
-        expire_on_commit=False,
-    )
-
-
-@pytest_asyncio.fixture()
 async def db_session(db_session_maker):
     async with db_session_maker() as session:
         yield session
 
 
 @pytest_asyncio.fixture()
-async def fake_tg():
-    """Start fake Telegram server."""
-    async with FakeTelegramServer() as server:
-        server.set_chat_admins(CHAT_ID, [SUPER_ADMIN_ID])
-        yield server
+async def fake_tg(fake_tg: FakeTelegramServer):
+    """Wrap shared fake_tg with chat admin setup for moderation tests."""
+    fake_tg.set_chat_admins(CHAT_ID, [SUPER_ADMIN_ID])
+    yield fake_tg
 
 
 @pytest_asyncio.fixture()
@@ -484,6 +464,10 @@ class TestEscalationCallback:
         # Should have answered with rejection
         answer_calls = fake_tg.get_calls("answerCallbackQuery")
         assert len(answer_calls) >= 1
+        # Verify the answer contains a rejection message about admin-only access
+        answer_text = answer_calls[0].params.get("text", "")
+        assert "супер-админов" in answer_text or "admin" in answer_text.lower()
+        assert answer_calls[0].params.get("show_alert") in (True, "true", "True")
 
     async def test_escalation_ignore_does_not_execute_action(
         self,
@@ -588,6 +572,9 @@ class TestEscalationCallback:
 
         answer_calls = fake_tg.get_calls("answerCallbackQuery")
         assert len(answer_calls) >= 1
+        # Verify the answer contains an error message about already-resolved escalation
+        answer_text = answer_calls[0].params.get("text", "")
+        assert "уже обработана" in answer_text or "already" in answer_text.lower()
 
 
 @pytest.mark.e2e

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from app.agent.channel.http import SSRFError, is_safe_url, safe_fetch
@@ -13,20 +13,19 @@ from app.agent.channel.http import SSRFError, is_safe_url, safe_fetch
 
 
 class TestIsSafeUrlScheme:
-    async def test_rejects_ftp_scheme(self) -> None:
-        assert await is_safe_url("ftp://example.com/file") is False
-
-    async def test_rejects_file_scheme(self) -> None:
-        assert await is_safe_url("file:///etc/passwd") is False
-
-    async def test_rejects_empty_scheme(self) -> None:
-        assert await is_safe_url("://example.com") is False
-
-    async def test_rejects_no_hostname(self) -> None:
-        assert await is_safe_url("http://") is False
-
-    async def test_rejects_empty_string(self) -> None:
-        assert await is_safe_url("") is False
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "ftp://example.com/file",
+            "file:///etc/passwd",
+            "://example.com",
+            "http://",
+            "",
+        ],
+        ids=["ftp", "file", "empty_scheme", "no_hostname", "empty_string"],
+    )
+    async def test_rejects_invalid_scheme_or_url(self, url: str) -> None:
+        assert await is_safe_url(url) is False
 
     async def test_accepts_http(self) -> None:
         # Patch DNS to return a public IP so we only test scheme logic
@@ -89,6 +88,12 @@ class TestIsSafeUrlPrivateIPs:
             mock_loop.return_value.getaddrinfo = AsyncMock(return_value=[(2, 1, 0, "", ("224.0.0.1", 0))])
             assert await is_safe_url("https://multicast.example.com/") is False
 
+    async def test_blocks_direct_loopback_ip(self) -> None:
+        """Most common SSRF vector: direct IP literal in URL."""
+        with patch("asyncio.get_running_loop") as mock_loop:
+            mock_loop.return_value.getaddrinfo = AsyncMock(return_value=[(2, 1, 0, "", ("127.0.0.1", 0))])
+            assert await is_safe_url("http://127.0.0.1/admin") is False
+
 
 # ---------------------------------------------------------------------------
 # is_safe_url — DNS failure
@@ -127,7 +132,7 @@ class TestSafeFetch:
 
     async def test_delegates_to_http_client(self) -> None:
         mock_resp = AsyncMock()
-        mock_resp.raise_for_status = lambda: None
+        mock_resp.raise_for_status = MagicMock()
         mock_client = AsyncMock()
         mock_client.request = AsyncMock(return_value=mock_resp)
 
@@ -138,3 +143,4 @@ class TestSafeFetch:
             resp = await safe_fetch("https://example.com/data", headers={"X-Custom": "val"})
             assert resp is mock_resp
             mock_client.request.assert_called_once()
+            mock_resp.raise_for_status.assert_called_once()

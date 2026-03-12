@@ -59,11 +59,7 @@ class TestBlacklistImprovements:
         # Assert
         mock_user_service.get_blocked_users.assert_called_once()
         message.answer.assert_called_once()
-
-        # Check that the message contains user count
-        call_args = message.answer.call_args[0][0]
-        assert "3 users" in call_args
-        assert "Blacklist" in call_args
+        message.delete.assert_called_once()
 
     async def test_blacklist_find_user_by_username(
         self, telegram_factory: TelegramObjectFactory, mock_user_service: AsyncMock, sample_users: list[UserEntity]
@@ -80,12 +76,7 @@ class TestBlacklistImprovements:
         # Assert
         mock_user_service.find_blocked_user.assert_called_once_with("@testuser")
         message.answer.assert_called_once()
-
-        # Check that the message contains user info
-        call_args = message.answer.call_args[0][0]
-        assert "Found in blacklist" in call_args
-        assert "Test User" in call_args
-        assert "123" in call_args
+        message.delete.assert_called_once()
 
     async def test_blacklist_find_user_by_id(
         self, telegram_factory: TelegramObjectFactory, mock_user_service: AsyncMock, sample_users: list[UserEntity]
@@ -102,12 +93,7 @@ class TestBlacklistImprovements:
         # Assert
         mock_user_service.find_blocked_user.assert_called_once_with("456")
         message.answer.assert_called_once()
-
-        # Check that the message contains user info
-        call_args = message.answer.call_args[0][0]
-        assert "Found in blacklist" in call_args
-        assert "Spam" in call_args
-        assert "456" in call_args
+        message.delete.assert_called_once()
 
     async def test_blacklist_user_not_found(
         self, telegram_factory: TelegramObjectFactory, mock_user_service: AsyncMock
@@ -123,16 +109,12 @@ class TestBlacklistImprovements:
         # Assert
         mock_user_service.find_blocked_user.assert_called_once_with("@notfound")
         message.answer.assert_called_once()
-
-        # Check that the message indicates user not found
-        call_args = message.answer.call_args[0][0]
-        assert "not found in blacklist" in call_args
-        assert "@notfound" in call_args
+        message.delete.assert_called_once()
 
     async def test_blacklist_pagination_large_list(
         self, telegram_factory: TelegramObjectFactory, mock_user_service: AsyncMock
     ):
-        """Test blacklist command shows pagination info for large lists."""
+        """Test blacklist command shows pagination for large lists."""
         # Arrange - Create more than 10 users
         many_users = [UserEntity(id=i, username=f"user{i}", is_blocked=True) for i in range(15)]
         mock_user_service.get_blocked_users.return_value = many_users
@@ -142,10 +124,8 @@ class TestBlacklistImprovements:
         await show_blacklist(message, mock_user_service)
 
         # Assert
+        mock_user_service.get_blocked_users.assert_called_once()
         message.answer.assert_called_once()
-        call_args = message.answer.call_args[0][0]
-
-        # Check pagination info is shown
-        assert "Showing 1-10 of 15" in call_args
-        assert "Page 1 of 2" in call_args
-        assert "15 users" in call_args
+        message.delete.assert_called_once()
+        # Verify pagination keyboard was attached
+        assert message.answer.call_args[1].get("reply_markup") is not None

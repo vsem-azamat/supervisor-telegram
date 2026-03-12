@@ -2,12 +2,18 @@
 
 import pytest
 from app.domain.exceptions import (
+    AdminAlreadyExistsException,
     AdminNotFoundException,
     ChatNotFoundException,
+    ConfigurationException,
     DomainError,
+    InsufficientPermissionsException,
+    InvalidModerationTargetException,
+    TelegramApiException,
     UserAlreadyBlockedException,
     UserNotBlockedException,
     UserNotFoundException,
+    ValidationException,
 )
 
 
@@ -17,10 +23,8 @@ class TestDomainExceptions:
 
     def test_domain_error_base_exception(self):
         """Test DomainError base exception."""
-        # Act
         exception = DomainError("Base error message")
 
-        # Assert
         assert str(exception) == "Base error message"
         assert isinstance(exception, Exception)
 
@@ -32,6 +36,12 @@ class TestDomainExceptions:
             AdminNotFoundException(789),
             UserAlreadyBlockedException(111),
             UserNotBlockedException(222),
+            AdminAlreadyExistsException(333),
+            InsufficientPermissionsException(444, "ban"),
+            InvalidModerationTargetException("cannot moderate self"),
+            TelegramApiException("sendMessage", "timeout"),
+            ConfigurationException("missing key"),
+            ValidationException("email", "bad@", "invalid format"),
         ]
 
         for exception in exceptions:
@@ -40,147 +50,141 @@ class TestDomainExceptions:
 
     def test_user_not_found_exception(self):
         """Test UserNotFoundException."""
-        # Arrange
         user_id = 123456789
 
-        # Act
         exception = UserNotFoundException(user_id)
 
-        # Assert
         assert exception.user_id == user_id
         assert str(exception) == f"User with ID {user_id} not found"
 
     def test_chat_not_found_exception(self):
         """Test ChatNotFoundException."""
-        # Arrange
         chat_id = -1001234567890
 
-        # Act
         exception = ChatNotFoundException(chat_id)
 
-        # Assert
         assert exception.chat_id == chat_id
         assert str(exception) == f"Chat with ID {chat_id} not found"
 
     def test_admin_not_found_exception(self):
         """Test AdminNotFoundException."""
-        # Arrange
         admin_id = 987654321
 
-        # Act
         exception = AdminNotFoundException(admin_id)
 
-        # Assert
         assert exception.admin_id == admin_id
         assert str(exception) == f"Admin with ID {admin_id} not found"
 
     def test_user_already_blocked_exception(self):
         """Test UserAlreadyBlockedException."""
-        # Arrange
         user_id = 555555555
 
-        # Act
         exception = UserAlreadyBlockedException(user_id)
 
-        # Assert
         assert exception.user_id == user_id
         assert str(exception) == f"User {user_id} is already blocked"
 
     def test_user_not_blocked_exception(self):
         """Test UserNotBlockedException."""
-        # Arrange
         user_id = 777777777
 
-        # Act
         exception = UserNotBlockedException(user_id)
 
-        # Assert
         assert exception.user_id == user_id
         assert str(exception) == f"User {user_id} is not blocked"
 
+    def test_admin_already_exists_exception(self):
+        """Test AdminAlreadyExistsException."""
+        admin_id = 123
+
+        exception = AdminAlreadyExistsException(admin_id)
+
+        assert exception.admin_id == admin_id
+        assert str(exception) == "Admin 123 already exists"
+
+    def test_insufficient_permissions_exception(self):
+        """Test InsufficientPermissionsException."""
+        exception = InsufficientPermissionsException(42, "ban")
+
+        assert exception.user_id == 42
+        assert exception.action == "ban"
+        assert "42" in str(exception)
+        assert "ban" in str(exception)
+
+    def test_invalid_moderation_target_exception(self):
+        """Test InvalidModerationTargetException."""
+        exception = InvalidModerationTargetException("cannot moderate bot")
+
+        assert str(exception) == "cannot moderate bot"
+
+    def test_telegram_api_exception(self):
+        """Test TelegramApiException stores operation and error."""
+        exception = TelegramApiException("sendMessage", "Bad Request: chat not found")
+
+        assert exception.operation == "sendMessage"
+        assert exception.error == "Bad Request: chat not found"
+        assert "sendMessage" in str(exception)
+        assert "Bad Request: chat not found" in str(exception)
+
+    def test_configuration_exception(self):
+        """Test ConfigurationException."""
+        exception = ConfigurationException("missing BOT_TOKEN")
+
+        assert "missing BOT_TOKEN" in str(exception)
+
+    def test_validation_exception(self):
+        """Test ValidationException stores field and value."""
+        exception = ValidationException("email", "bad@", "invalid format")
+
+        assert exception.field == "email"
+        assert exception.value == "bad@"
+        assert "email" in str(exception)
+        assert "bad@" in str(exception)
+
     def test_exceptions_can_be_raised_and_caught(self):
         """Test that exceptions can be raised and caught properly."""
-        # Test UserNotFoundException
         with pytest.raises(UserNotFoundException) as exc_info:
             raise UserNotFoundException(123)
         assert exc_info.value.user_id == 123
 
-        # Test ChatNotFoundException
         with pytest.raises(ChatNotFoundException) as exc_info:
             raise ChatNotFoundException(-456)
         assert exc_info.value.chat_id == -456
 
-        # Test AdminNotFoundException
         with pytest.raises(AdminNotFoundException) as exc_info:
             raise AdminNotFoundException(789)
         assert exc_info.value.admin_id == 789
 
-        # Test UserAlreadyBlockedException
         with pytest.raises(UserAlreadyBlockedException) as exc_info:
             raise UserAlreadyBlockedException(111)
         assert exc_info.value.user_id == 111
 
-        # Test UserNotBlockedException
         with pytest.raises(UserNotBlockedException) as exc_info:
             raise UserNotBlockedException(222)
         assert exc_info.value.user_id == 222
 
-    def test_exceptions_can_be_caught_as_domain_error(self):
-        """Test that all domain exceptions can be caught as DomainError."""
-        exceptions = [
-            UserNotFoundException(123),
-            ChatNotFoundException(-456),
-            AdminNotFoundException(789),
-            UserAlreadyBlockedException(111),
-            UserNotBlockedException(222),
-        ]
-
-        for exception in exceptions:
-            with pytest.raises(DomainError):
-                raise exception
-
-    def test_exception_attributes_are_accessible(self):
-        """Test that exception attributes are accessible after raising."""
-        # Test with pytest.raises to verify attributes are preserved
-        with pytest.raises(UserNotFoundException) as exc_info:
-            raise UserNotFoundException(12345)
-        assert exc_info.value.user_id == 12345
-        assert "12345" in str(exc_info.value)
-
-        with pytest.raises(ChatNotFoundException) as exc_info:
-            raise ChatNotFoundException(-98765)
-        assert exc_info.value.chat_id == -98765
-        assert "-98765" in str(exc_info.value)
-
-        with pytest.raises(AdminNotFoundException) as exc_info:
-            raise AdminNotFoundException(54321)
-        assert exc_info.value.admin_id == 54321
-        assert "54321" in str(exc_info.value)
-
     def test_negative_user_ids(self):
         """Test exceptions with negative user IDs."""
-        # Some Telegram bots might use negative IDs
         negative_user_id = -123456
 
         exception = UserNotFoundException(negative_user_id)
         assert exception.user_id == negative_user_id
         assert str(negative_user_id) in str(exception)
 
-    def test_zero_ids(self):
+    @pytest.mark.parametrize(
+        ("exc_cls", "kwargs"),
+        [
+            (UserNotFoundException, {"user_id": 0}),
+            (ChatNotFoundException, {"chat_id": 0}),
+            (AdminNotFoundException, {"admin_id": 0}),
+            (UserAlreadyBlockedException, {"user_id": 0}),
+            (UserNotBlockedException, {"user_id": 0}),
+        ],
+    )
+    def test_zero_ids(self, exc_cls, kwargs):
         """Test exceptions with zero IDs."""
-        zero_id = 0
-
-        # Test all ID-based exceptions with zero
-        exceptions = [
-            UserNotFoundException(zero_id),
-            ChatNotFoundException(zero_id),
-            AdminNotFoundException(zero_id),
-            UserAlreadyBlockedException(zero_id),
-            UserNotBlockedException(zero_id),
-        ]
-
-        for exception in exceptions:
-            assert "0" in str(exception)
+        exception = exc_cls(*kwargs.values())
+        assert "0" in str(exception)
 
     def test_large_ids(self):
         """Test exceptions with large IDs."""
@@ -203,9 +207,3 @@ class TestExceptionChaining:
         assert exc_info.value.user_id == 123
         assert isinstance(exc_info.value.__cause__, ValueError)
         assert str(exc_info.value.__cause__) == "Original error"
-
-    def test_exception_context_preservation(self):
-        """Test that exception context can be suppressed."""
-        with pytest.raises(ChatNotFoundException) as exc_info:
-            raise ChatNotFoundException(-123)
-        assert exc_info.value.chat_id == -123

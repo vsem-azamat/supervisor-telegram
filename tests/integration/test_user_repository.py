@@ -3,6 +3,7 @@
 import pytest
 from app.domain.entities import UserEntity
 from app.domain.repositories import IUserRepository
+from app.infrastructure.db.repositories.user import UserRepository
 
 from tests.factories import UserFactory
 
@@ -270,3 +271,68 @@ class TestUserRepositoryEdgeCases:
         assert retrieved_user.username == "用户名_123"
         assert retrieved_user.first_name == "José"
         assert retrieved_user.last_name == "O'Connor"
+
+
+@pytest.mark.integration
+class TestUserRepositoryLegacy:
+    """Tests for legacy backward-compatible methods."""
+
+    async def test_legacy_blacklist_methods(self, session):
+        """Test legacy blacklist methods for backward compatibility."""
+        repo = UserRepository(session)
+        user_id = 123456789
+
+        # Add to blacklist
+        await repo.add_to_blacklist(user_id)
+        blocked_users = await repo.get_blocked_users()
+
+        assert len(blocked_users) == 1
+        assert blocked_users[0].id == user_id
+        assert blocked_users[0].is_blocked is True
+
+        # Remove from blacklist
+        await repo.remove_from_blacklist(user_id)
+        blocked_users_after = await repo.get_blocked_users()
+
+        assert len(blocked_users_after) == 0
+
+    async def test_find_blocked_user(self, session):
+        """Test finding blocked users by username or ID."""
+        repo = UserRepository(session)
+
+        # Create test users
+        user1 = UserEntity(id=123, username="testuser", first_name="Test", is_blocked=True)
+        user2 = UserEntity(id=456, username="spammer", first_name="Spam", is_blocked=True)
+        user3 = UserEntity(id=789, username=None, first_name="NoUsername", is_blocked=False)
+
+        await repo.save(user1)
+        await repo.save(user2)
+        await repo.save(user3)
+
+        # Find by username with @
+        found_user = await repo.find_blocked_user("@testuser")
+        assert found_user is not None
+        assert found_user.id == 123
+        assert found_user.username == "testuser"
+
+        # Find by username without @
+        found_user = await repo.find_blocked_user("spammer")
+        assert found_user is not None
+        assert found_user.id == 456
+
+        # Find by user ID
+        found_user = await repo.find_blocked_user("123")
+        assert found_user is not None
+        assert found_user.id == 123
+
+        # Find non-blocked user (should return None)
+        found_user = await repo.find_blocked_user("789")
+        assert found_user is None
+
+        # Find non-existent user
+        found_user = await repo.find_blocked_user("@nonexistent")
+        assert found_user is None
+
+        # Find non-existent ID
+        found_user = await repo.find_blocked_user("999")
+        assert found_user is None

@@ -85,7 +85,7 @@ class TestFormatToolTrace:
         assert "Post updated (300 chars)." in lines[1]
 
     def test_long_return_value_hidden(self) -> None:
-        """Tool returns >80 chars on first line should show just ✓ without summary."""
+        """Tool returns >80 chars on first line should show just check without summary."""
         long_content = "x" * 100
         msgs: list[ModelMessage] = [
             ModelResponse(

@@ -108,13 +108,48 @@ class TestAdminMiddleware:
                 handler.assert_not_called()
                 assert result is None
 
+    async def test_allows_callback_query(self, middleware, admin_repo):
+        """Test that AdminMiddleware allows a CallbackQuery from a DB admin."""
+        handler = AsyncMock()
+        cb = _make_callback(333)
+        db_admin = MagicMock()
+        db_admin.id = 333
+        admin_repo.get_db_admins = AsyncMock(return_value=[db_admin])
+        with patch("app.presentation.telegram.middlewares.admin.settings") as mock_settings:
+            mock_settings.admin.super_admins = [111]
+            await middleware(handler, cb, {"admin_repo": admin_repo})
+            handler.assert_called_once_with(cb, {"admin_repo": admin_repo})
+
+    async def test_cache_prevents_double_db_call(self, middleware, admin_repo):
+        """Second call within TTL should not call get_db_admins again."""
+        handler = AsyncMock()
+        db_admin = MagicMock()
+        db_admin.id = 333
+        admin_repo.get_db_admins = AsyncMock(return_value=[db_admin])
+
+        with patch("app.presentation.telegram.middlewares.admin.settings") as mock_settings:
+            mock_settings.admin.super_admins = [111]
+
+            # First call populates cache
+            msg1 = _make_message(333)
+            await middleware(handler, msg1, {"admin_repo": admin_repo})
+
+            # Second call should use cache
+            msg2 = _make_message(333)
+            await middleware(handler, msg2, {"admin_repo": admin_repo})
+
+            # get_db_admins should only have been called once (cache hit on second)
+            assert admin_repo.get_db_admins.call_count == 1
+
 
 class TestYouAreNotAdmin:
     async def test_sends_rejection_for_message(self):
         msg = _make_message(999)
         with patch("app.presentation.telegram.middlewares.admin.asyncio.sleep", new_callable=AsyncMock):
             await you_are_not_admin(msg)
-            msg.answer.assert_called_once_with("🚫 You are not an Admin.")
+            msg.answer.assert_called_once_with("\U0001f6ab You are not an Admin.")
+            msg.delete.assert_called_once()
+            msg.answer.return_value.delete.assert_called_once()
 
     async def test_custom_text(self):
         msg = _make_message(999)

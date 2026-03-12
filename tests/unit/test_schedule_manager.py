@@ -126,7 +126,6 @@ class TestNextPublishSlot:
 
 
 class TestGetOccupiedSlots:
-    @pytest.mark.asyncio
     async def test_returns_scheduled_times(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         scheduled_time = utc_now() + timedelta(hours=2)
         async with session_maker() as session:
@@ -139,7 +138,6 @@ class TestGetOccupiedSlots:
         assert len(slots) == 1
         assert slots[0] == scheduled_time
 
-    @pytest.mark.asyncio
     async def test_ignores_non_scheduled(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         async with session_maker() as session:
             p1 = ChannelPost(channel_id="@test", external_id="e1", title="T", post_text="text")
@@ -151,7 +149,6 @@ class TestGetOccupiedSlots:
         slots = await get_occupied_slots(session_maker, "@test")
         assert len(slots) == 0
 
-    @pytest.mark.asyncio
     async def test_filters_by_channel(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         t = utc_now() + timedelta(hours=2)
         async with session_maker() as session:
@@ -170,7 +167,6 @@ class TestGetOccupiedSlots:
 
 
 class TestSchedulePost:
-    @pytest.mark.asyncio
     async def test_schedule_text_post(
         self,
         mock_telethon: AsyncMock,
@@ -195,7 +191,6 @@ class TestSchedulePost:
             assert saved.scheduled_at == t
             assert saved.scheduled_telegram_id == 42
 
-    @pytest.mark.asyncio
     async def test_schedule_photo_post(
         self,
         mock_telethon: AsyncMock,
@@ -219,7 +214,6 @@ class TestSchedulePost:
         assert "Scheduled" in result
         mock_telethon.send_scheduled_photo.assert_awaited_once()
 
-    @pytest.mark.asyncio
     async def test_schedule_already_approved(
         self,
         mock_telethon: AsyncMock,
@@ -236,7 +230,6 @@ class TestSchedulePost:
         result = await schedule_post(mock_telethon, session_maker, post_id, mock_channel, utc_now())
         assert result == "Already published."
 
-    @pytest.mark.asyncio
     async def test_schedule_already_scheduled(
         self,
         mock_telethon: AsyncMock,
@@ -253,7 +246,6 @@ class TestSchedulePost:
         result = await schedule_post(mock_telethon, session_maker, post_id, mock_channel, utc_now())
         assert result == "Already scheduled."
 
-    @pytest.mark.asyncio
     async def test_schedule_not_found(
         self,
         mock_telethon: AsyncMock,
@@ -263,7 +255,6 @@ class TestSchedulePost:
         result = await schedule_post(mock_telethon, session_maker, 999, mock_channel, utc_now())
         assert result == "Post not found."
 
-    @pytest.mark.asyncio
     async def test_schedule_username_channel_fails(
         self,
         mock_telethon: AsyncMock,
@@ -286,7 +277,6 @@ class TestSchedulePost:
 
 
 class TestCancelScheduledPost:
-    @pytest.mark.asyncio
     async def test_cancel_success(
         self,
         mock_telethon: AsyncMock,
@@ -311,7 +301,6 @@ class TestCancelScheduledPost:
             assert saved.scheduled_at is None
             assert saved.scheduled_telegram_id is None
 
-    @pytest.mark.asyncio
     async def test_cancel_not_scheduled(
         self,
         mock_telethon: AsyncMock,
@@ -332,7 +321,6 @@ class TestCancelScheduledPost:
 
 
 class TestReschedulePost:
-    @pytest.mark.asyncio
     async def test_reschedule_success(
         self,
         mock_telethon: AsyncMock,
@@ -361,7 +349,6 @@ class TestReschedulePost:
             assert saved.scheduled_at == new_time
             assert saved.scheduled_telegram_id == 42
 
-    @pytest.mark.asyncio
     async def test_reschedule_not_scheduled(
         self,
         mock_telethon: AsyncMock,
@@ -377,7 +364,6 @@ class TestReschedulePost:
         result = await reschedule_post(mock_telethon, session_maker, post_id, mock_channel, utc_now())
         assert "not scheduled" in result.lower()
 
-    @pytest.mark.asyncio
     async def test_reschedule_telethon_fails_reverts_to_draft(
         self,
         mock_telethon: AsyncMock,
@@ -405,7 +391,6 @@ class TestReschedulePost:
 
 
 class TestUpdateScheduledText:
-    @pytest.mark.asyncio
     async def test_updates_scheduled_message(self, mock_telethon: AsyncMock, mock_channel: MagicMock) -> None:
         post = MagicMock()
         post.status = PostStatus.SCHEDULED
@@ -416,7 +401,6 @@ class TestUpdateScheduledText:
         assert result is True
         mock_telethon.edit_scheduled_message.assert_awaited_once()
 
-    @pytest.mark.asyncio
     async def test_skips_non_scheduled(self, mock_telethon: AsyncMock, mock_channel: MagicMock) -> None:
         post = MagicMock()
         post.status = PostStatus.DRAFT
@@ -427,7 +411,7 @@ class TestUpdateScheduledText:
         mock_telethon.edit_scheduled_message.assert_not_awaited()
 
 
-# ── ChannelPost domain methods tests ─────────────────────────────────
+# --- Tests for ChannelPost domain methods (co-located) ---
 
 
 class TestChannelPostScheduleMethods:
@@ -465,7 +449,7 @@ class TestChannelPostScheduleMethods:
         assert post.scheduled_telegram_id is None
 
 
-# ── build_schedule_picker_keyboard tests ─────────────────────────────
+# --- Tests for build_schedule_picker_keyboard (co-located, presentation layer) ---
 
 
 class TestBuildSchedulePickerKeyboard:

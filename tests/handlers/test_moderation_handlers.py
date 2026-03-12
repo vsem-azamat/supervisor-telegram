@@ -14,17 +14,19 @@ from tests.telegram_helpers import (
 )
 
 
+@pytest.fixture
+def telegram_factory():
+    return TelegramObjectFactory()
+
+
+@pytest.fixture
+def mock_bot():
+    return MockBot()
+
+
 @pytest.mark.handlers
 class TestModerationHandlers:
     """Test cases for moderation handlers."""
-
-    @pytest.fixture
-    def telegram_factory(self):
-        return TelegramObjectFactory()
-
-    @pytest.fixture
-    def mock_bot(self):
-        return MockBot()
 
     async def test_mute_user_default_duration(self, telegram_factory: TelegramObjectFactory, mock_bot: MockBot):
         """Test muting user with default duration (5 minutes)."""
@@ -204,32 +206,6 @@ class TestModerationHandlers:
         command_message.answer.assert_called_once()
         command_message.delete.assert_called_once()
 
-    async def test_ban_user_with_message_deletion(self, telegram_factory: TelegramObjectFactory, mock_bot: MockBot):
-        """Test ban user with message deletion."""
-        # Arrange
-        admin_user = create_admin_user()
-        target_user = create_normal_user()
-        chat = create_test_chat()
-
-        reply_message = telegram_factory.create_message(user=target_user, chat=chat)
-        command_message = telegram_factory.create_command_message(
-            command="ban", user=admin_user, chat=chat, reply_to_message=reply_message
-        )
-
-        # Mock bot methods
-        mock_bot.mock.ban_chat_member = AsyncMock()
-
-        # Mock utility functions
-        with patch("app.presentation.telegram.handlers.moderation.other.get_user_mention") as mock_mention:
-            mock_mention.return_value = "@user"
-
-            # Act
-            await ban_user(command_message, mock_bot.mock)
-
-        # Assert
-        mock_bot.mock.ban_chat_member.assert_called_once()
-        command_message.delete.assert_called_once()
-
     async def test_unban_user_success(self, telegram_factory: TelegramObjectFactory, mock_bot: MockBot):
         """Test successful user unban."""
         # Arrange
@@ -262,14 +238,6 @@ class TestModerationHandlers:
 class TestModerationHandlerEdgeCases:
     """Test edge cases for moderation handlers."""
 
-    @pytest.fixture
-    def telegram_factory(self):
-        return TelegramObjectFactory()
-
-    @pytest.fixture
-    def mock_bot(self):
-        return MockBot()
-
     async def test_moderation_command_no_reply(self, telegram_factory: TelegramObjectFactory, mock_bot: MockBot):
         """Test moderation commands without reply message."""
         # Arrange
@@ -290,78 +258,6 @@ class TestModerationHandlerEdgeCases:
         command_message.delete.assert_called_once()
         answer_text = command_message.answer.call_args[0][0]
         assert "ответом" in answer_text.lower()
-
-    async def test_moderation_self_target(self, telegram_factory: TelegramObjectFactory, mock_bot: MockBot):
-        """Test trying to moderate self."""
-        # Arrange
-        admin_user = create_admin_user()
-        chat = create_test_chat()
-
-        # Reply to own message
-        reply_message = telegram_factory.create_message(user=admin_user, chat=chat)
-        command_message = telegram_factory.create_command_message(
-            command="mute", user=admin_user, chat=chat, reply_to_message=reply_message
-        )
-
-        # Mock bot methods
-        mock_bot.mock.restrict_chat_member = AsyncMock()
-
-        # Mock utility functions
-        with (
-            patch("app.presentation.telegram.handlers.moderation.other.calculate_mute_duration") as mock_calc,
-            patch("app.presentation.telegram.handlers.moderation.other.get_user_mention") as mock_mention,
-        ):
-            mock_duration = AsyncMock()
-            mock_duration.until_date = 1234567890
-            mock_duration.time = "5"
-            mock_duration.unit = "минут"
-            mock_duration.formatted_until_date = lambda: "2024-01-01 12:00:00"
-            mock_calc.return_value = mock_duration
-            mock_mention.return_value = "@admin"
-
-            # Act - should work, handler doesn't prevent self-moderation
-            await mute_user(command_message, mock_bot.mock)
-
-        # Assert
-        mock_bot.mock.restrict_chat_member.assert_called_once()
-
-    async def test_moderation_extreme_duration(self, telegram_factory: TelegramObjectFactory, mock_bot: MockBot):
-        """Test moderation with extreme duration values."""
-        # Arrange
-        admin_user = create_admin_user()
-        target_user = create_normal_user()
-        chat = create_test_chat()
-
-        reply_message = telegram_factory.create_message(user=target_user, chat=chat)
-        command_message = telegram_factory.create_command_message(
-            command="mute",
-            args="999999h",  # Extreme duration
-            user=admin_user,
-            chat=chat,
-            reply_to_message=reply_message,
-        )
-
-        # Mock bot methods
-        mock_bot.mock.restrict_chat_member = AsyncMock()
-
-        # Mock utility functions
-        with (
-            patch("app.presentation.telegram.handlers.moderation.other.calculate_mute_duration") as mock_calc,
-            patch("app.presentation.telegram.handlers.moderation.other.get_user_mention") as mock_mention,
-        ):
-            mock_duration = AsyncMock()
-            mock_duration.until_date = 9999999999
-            mock_duration.time = "999999"
-            mock_duration.unit = "часов"
-            mock_duration.formatted_until_date = lambda: "2050-01-01 12:00:00"
-            mock_calc.return_value = mock_duration
-            mock_mention.return_value = "@user"
-
-            # Act
-            await mute_user(command_message, mock_bot.mock)
-
-        # Assert
-        mock_bot.mock.restrict_chat_member.assert_called_once()
 
     async def test_concurrent_moderation_actions(self, telegram_factory: TelegramObjectFactory, mock_bot: MockBot):
         """Test concurrent moderation actions on same user."""

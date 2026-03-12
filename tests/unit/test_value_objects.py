@@ -5,15 +5,55 @@ from app.domain.value_objects import (
     MAX_MUTE_DURATION_MINUTES,
     ChatId,
     ChatType,
+    EscalationStatus,
     MessageId,
     ModerationAction,
     MuteDuration,
+    PostStatus,
     UserId,
     UserProfile,
     WelcomeSettings,
 )
 
-from tests.factories import ValueObjectFactory
+
+class TestPostStatus:
+    """Test cases for PostStatus StrEnum."""
+
+    def test_values(self):
+        assert PostStatus.DRAFT == "draft"
+        assert PostStatus.SCHEDULED == "scheduled"
+        assert PostStatus.APPROVED == "approved"
+        assert PostStatus.REJECTED == "rejected"
+
+    def test_is_str(self):
+        assert isinstance(PostStatus.DRAFT, str)
+
+    def test_all_members(self):
+        assert set(PostStatus) == {
+            PostStatus.DRAFT,
+            PostStatus.SCHEDULED,
+            PostStatus.APPROVED,
+            PostStatus.REJECTED,
+        }
+
+
+class TestEscalationStatus:
+    """Test cases for EscalationStatus StrEnum."""
+
+    def test_values(self):
+        assert EscalationStatus.PENDING == "pending"
+        assert EscalationStatus.RESOLVED == "resolved"
+        assert EscalationStatus.TIMEOUT == "timeout"
+
+    def test_is_str(self):
+        assert isinstance(EscalationStatus.PENDING, str)
+
+    def test_all_members(self):
+        assert set(EscalationStatus) == {
+            EscalationStatus.PENDING,
+            EscalationStatus.RESOLVED,
+            EscalationStatus.TIMEOUT,
+        }
 
 
 class TestModerationAction:
@@ -133,18 +173,21 @@ class TestMessageId:
 class TestMuteDuration:
     """Test cases for MuteDuration value object."""
 
-    def test_create_valid_mute_duration(self):
-        """Test creating valid mute duration."""
-        duration = MuteDuration(minutes=5)
+    @pytest.mark.parametrize(
+        ("minutes", "expected_seconds"),
+        [
+            (5, 300),
+            (10, 600),
+            (60, 3600),
+            (1, 60),
+        ],
+    )
+    def test_create_valid_mute_duration(self, minutes, expected_seconds):
+        """Test creating valid mute duration and seconds calculation."""
+        duration = MuteDuration(minutes=minutes)
 
-        assert duration.minutes == 5
-        assert duration.seconds == 300
-
-    def test_mute_duration_seconds_calculation(self):
-        """Test seconds calculation."""
-        duration = MuteDuration(minutes=10)
-
-        assert duration.seconds == 600
+        assert duration.minutes == minutes
+        assert duration.seconds == expected_seconds
 
     def test_mute_duration_validation_zero(self):
         """Test MuteDuration validation with zero."""
@@ -268,35 +311,3 @@ class TestUserProfile:
 
         with pytest.raises(AttributeError):
             profile.username = "janedoe"
-
-
-@pytest.mark.unit
-class TestValueObjectFactories:
-    """Test value object factories."""
-
-    def test_create_mute_duration_factory(self):
-        """Test mute duration factory."""
-        duration = ValueObjectFactory.create_mute_duration(10)
-
-        assert isinstance(duration, MuteDuration)
-        assert duration.minutes == 10
-
-    def test_create_user_profile_factory(self):
-        """Test user profile factory."""
-        profile = ValueObjectFactory.create_user_profile(username="testuser", first_name="Test", last_name="User")
-
-        assert isinstance(profile, UserProfile)
-        assert profile.username == "testuser"
-        assert profile.first_name == "Test"
-        assert profile.last_name == "User"
-
-    def test_create_welcome_settings_factory(self):
-        """Test welcome settings factory."""
-        settings = ValueObjectFactory.create_welcome_settings(
-            enabled=True, message="Test welcome", delete_after_seconds=120
-        )
-
-        assert isinstance(settings, WelcomeSettings)
-        assert settings.enabled is True
-        assert settings.message == "Test welcome"
-        assert settings.delete_after_seconds == 120

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.agent.channel.generator import _sanitize_content, generate_post, screen_items
@@ -38,7 +39,7 @@ class TestSanitizeContent:
 
 
 # ---------------------------------------------------------------------------
-# screen_items
+# screen_items — batch path (openrouter_chat_completion)
 # ---------------------------------------------------------------------------
 
 
@@ -47,49 +48,87 @@ class TestScreenItems:
         result = await screen_items([], api_key="k", model="m")
         assert result == []
 
-    async def test_filters_by_threshold(self) -> None:
+    async def test_batch_filters_by_threshold(self) -> None:
+        """Primary path: openrouter_chat_completion returns JSON scores."""
         items = [MagicMock(title="Good", summary="relevant content", external_id="1")]
 
-        mock_result = MagicMock()
-        mock_result.output = "8"
-        mock_result.usage = MagicMock(return_value=None)
-
-        with (
-            patch("app.agent.channel.generator._create_screening_agent") as mock_agent_factory,
-            patch("app.agent.channel.generator.extract_usage_from_pydanticai_result", return_value=None),
+        with patch(
+            "app.agent.channel.llm_client.openrouter_chat_completion",
+            new_callable=AsyncMock,
+            return_value=json.dumps({"0": 8}),
         ):
-            mock_agent = MagicMock()
-            mock_agent.run = AsyncMock(return_value=mock_result)
-            mock_agent_factory.return_value = mock_agent
-
             result = await screen_items(items, api_key="k", model="m", threshold=5)  # type: ignore[arg-type]
             assert len(result) == 1
+            assert result[0].title == "Good"
 
-    async def test_below_threshold_filtered_out(self) -> None:
+    async def test_batch_below_threshold_filtered_out(self) -> None:
+        """Primary path: items scoring below threshold are excluded."""
         items = [MagicMock(title="Bad", summary="irrelevant", external_id="1")]
 
-        mock_result = MagicMock()
-        mock_result.output = "2"
-
-        with (
-            patch("app.agent.channel.generator._create_screening_agent") as mock_agent_factory,
-            patch("app.agent.channel.generator.extract_usage_from_pydanticai_result", return_value=None),
+        with patch(
+            "app.agent.channel.llm_client.openrouter_chat_completion",
+            new_callable=AsyncMock,
+            return_value=json.dumps({"0": 2}),
         ):
-            mock_agent = MagicMock()
-            mock_agent.run = AsyncMock(return_value=mock_result)
-            mock_agent_factory.return_value = mock_agent
-
             result = await screen_items(items, api_key="k", model="m", threshold=5)  # type: ignore[arg-type]
             assert len(result) == 0
 
-    async def test_score_parsing_fraction(self) -> None:
-        """When LLM returns '7/10', the regex extracts 7."""
+    async def test_batch_multiple_items_mixed_scores(self) -> None:
+        """Primary path: multiple items with mixed scores."""
+        items = [
+            MagicMock(title="High", summary="very relevant", external_id="1"),
+            MagicMock(title="Low", summary="irrelevant", external_id="2"),
+            MagicMock(title="Medium", summary="somewhat relevant", external_id="3"),
+        ]
+
+        with patch(
+            "app.agent.channel.llm_client.openrouter_chat_completion",
+            new_callable=AsyncMock,
+            return_value=json.dumps({"0": 9, "1": 2, "2": 6}),
+        ):
+            result = await screen_items(items, api_key="k", model="m", threshold=5)  # type: ignore[arg-type]
+            assert len(result) == 2
+            assert result[0].title == "High"
+            assert result[1].title == "Medium"
+
+    async def test_fallback_on_batch_failure(self) -> None:
+        """When batch openrouter_chat_completion fails, falls back to per-item screening."""
+        items = [MagicMock(title="Test", summary="content", external_id="1")]
+
+        mock_result = MagicMock()
+        mock_result.output = "8"
+
+        with (
+            patch(
+                "app.agent.channel.llm_client.openrouter_chat_completion",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("API error"),
+            ),
+            patch("app.agent.channel.generator._create_screening_agent") as mock_agent_factory,
+            patch("app.agent.channel.generator.extract_usage_from_pydanticai_result", return_value=None),
+        ):
+            mock_agent = MagicMock()
+            mock_agent.run = AsyncMock(return_value=mock_result)
+            mock_agent_factory.return_value = mock_agent
+
+            result = await screen_items(items, api_key="k", model="m", threshold=5)  # type: ignore[arg-type]
+            # Fallback path should still return the item
+            assert len(result) == 1
+            mock_agent_factory.assert_called_once()
+
+    async def test_fallback_score_parsing_fraction(self) -> None:
+        """Fallback path: when LLM returns '7/10', the regex extracts 7."""
         items = [MagicMock(title="Test", summary="content", external_id="1")]
 
         mock_result = MagicMock()
         mock_result.output = "7/10"
 
         with (
+            patch(
+                "app.agent.channel.llm_client.openrouter_chat_completion",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("batch failed"),
+            ),
             patch("app.agent.channel.generator._create_screening_agent") as mock_agent_factory,
             patch("app.agent.channel.generator.extract_usage_from_pydanticai_result", return_value=None),
         ):
@@ -100,7 +139,8 @@ class TestScreenItems:
             result = await screen_items(items, api_key="k", model="m", threshold=5)  # type: ignore[arg-type]
             assert len(result) == 1
 
-    async def test_exception_per_item_continues(self) -> None:
+    async def test_fallback_exception_per_item_continues(self) -> None:
+        """Fallback path: per-item errors are caught; remaining items still screened."""
         items = [
             MagicMock(title="Fail", summary="will fail", external_id="1"),
             MagicMock(title="Pass", summary="will pass", external_id="2"),
@@ -110,6 +150,11 @@ class TestScreenItems:
         mock_result_ok.output = "8"
 
         with (
+            patch(
+                "app.agent.channel.llm_client.openrouter_chat_completion",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("batch failed"),
+            ),
             patch("app.agent.channel.generator._create_screening_agent") as mock_agent_factory,
             patch("app.agent.channel.generator.extract_usage_from_pydanticai_result", return_value=None),
         ):

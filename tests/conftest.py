@@ -18,12 +18,8 @@ os.environ.update(
     }
 )
 
-from unittest.mock import AsyncMock
-
 import pytest
 import pytest_asyncio
-from aiogram import Bot
-from app.application.services.user_service import UserService
 from app.domain.repositories import IAdminRepository, IChatRepository, IUserRepository
 from app.infrastructure.db.base import Base
 from app.infrastructure.db.repositories.admin import AdminRepository
@@ -32,7 +28,7 @@ from app.infrastructure.db.repositories.user import UserRepository
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 
-@pytest_asyncio.fixture()
+@pytest_asyncio.fixture(scope="function")
 async def engine() -> AsyncGenerator[AsyncEngine, None]:
     """Create test database engine."""
     test_engine = create_async_engine(
@@ -90,18 +86,6 @@ async def admin_repository(session: AsyncSession) -> IAdminRepository:
 
 
 @pytest.fixture
-def mock_user_service() -> AsyncMock:
-    """Mock user service."""
-    return AsyncMock(spec=UserService)
-
-
-@pytest.fixture
-def mock_bot() -> AsyncMock:
-    """Mock bot."""
-    return AsyncMock(spec=Bot)
-
-
-@pytest.fixture
 def sample_user_data() -> dict[str, Any]:
     """Sample user data for tests."""
     return {
@@ -120,9 +104,3 @@ def sample_chat_data() -> dict[str, Any]:
         "title": "Test Chat",
         "is_forum": False,
     }
-
-
-# Pytest configuration
-pytest_plugins = [
-    "pytest_asyncio",
-]

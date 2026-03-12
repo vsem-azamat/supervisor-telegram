@@ -57,8 +57,12 @@ class TestDetectSpam:
 
     async def test_caption_fallback(self, db):
         msg = self._make_message(text=None)
-        msg.caption = "Some caption"
+        msg.caption = "Buy crypto now!"
         mock_repo = MagicMock()
-        mock_repo.has_previous_messages = AsyncMock(return_value=True)
+        mock_repo.has_previous_messages = AsyncMock(return_value=False)
+        mock_repo.is_similar_spam_message = AsyncMock(return_value=True)
         with patch("app.application.services.spam.get_message_repository", return_value=mock_repo):
-            assert await detect_spam(db, msg) is False
+            result = await detect_spam(db, msg)
+            # Caption should be used when text is None, and spam detection should proceed
+            mock_repo.is_similar_spam_message.assert_awaited_once_with("Buy crypto now!")
+            assert result is True

@@ -50,9 +50,7 @@ class TestPublishPost:
         assert msg_id == 42
         bot.send_photo.assert_awaited_once()
         call_kwargs = bot.send_photo.call_args
-        assert call_kwargs.kwargs.get("caption") == "Short caption" or (
-            len(call_kwargs.args) > 0 or "caption" in (call_kwargs.kwargs or {})
-        )
+        assert call_kwargs.kwargs.get("caption") == "Short caption"
 
     async def test_single_image_long_caption(self) -> None:
         from app.agent.channel.publisher import publish_post
@@ -160,5 +158,5 @@ class TestPublishPost:
 
         bot.send_media_group.assert_awaited_once()
         media_arg = bot.send_media_group.call_args.kwargs.get("media")
-        if media_arg is not None:
-            assert len(media_arg) <= 10
+        assert media_arg is not None
+        assert len(media_arg) <= 10

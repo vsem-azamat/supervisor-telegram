@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -302,7 +301,7 @@ class TestSourceManager:
 
 
 class TestReviewFlow:
-    async def testbuild_review_keyboard(self) -> None:
+    async def test_build_review_keyboard(self) -> None:
         from app.agent.channel.review import build_review_keyboard
         from app.presentation.telegram.utils.callback_data import ReviewAction
 
@@ -315,7 +314,7 @@ class TestReviewFlow:
         assert kb.inline_keyboard[0][2].callback_data == ReviewAction(action="reject", post_id=42).pack()
         assert kb.inline_keyboard[0][3].callback_data == ReviewAction(action="delete", post_id=42).pack()
 
-    async def testbuild_review_keyboard_with_channel_and_sources(self) -> None:
+    async def test_build_review_keyboard_with_channel_and_sources(self) -> None:
         from app.agent.channel.review import build_review_keyboard
 
         kb = build_review_keyboard(
@@ -1513,7 +1512,6 @@ class TestCostTracker:
         usage = extract_usage_from_pydanticai_result(mock_result, "some/model", "generation")
         assert usage is None
 
-    @pytest.mark.asyncio
     async def test_log_usage_and_session_summary(self) -> None:
         from app.agent.channel.cost_tracker import LLMUsage, get_session_summary, log_usage
 
@@ -1637,92 +1635,3 @@ class TestChannelConfigGetChannels:
 
         ch = ChannelConfig(channel_id="@ch", posting_schedule="")  # type: ignore[arg-type]
         assert ch.posting_schedule == []
-
-
-class TestNextScheduledTime:
-    """Test _next_scheduled_time() helper."""
-
-    def test_next_time_later_today(self) -> None:
-        from app.agent.channel.orchestrator import _next_scheduled_time
-
-        now = datetime(2026, 3, 6, 10, 0, 0, tzinfo=UTC)
-        result = _next_scheduled_time(["09:00", "14:00", "20:00"], now=now)
-        assert result.hour == 14
-        assert result.minute == 0
-        assert result.day == 6
-
-    def test_next_time_wraps_to_tomorrow(self) -> None:
-        from app.agent.channel.orchestrator import _next_scheduled_time
-
-        now = datetime(2026, 3, 6, 22, 0, 0, tzinfo=UTC)
-        result = _next_scheduled_time(["09:00", "18:00"], now=now)
-        assert result.day == 7
-        assert result.hour == 9
-        assert result.minute == 0
-
-    def test_next_time_single_entry(self) -> None:
-        from app.agent.channel.orchestrator import _next_scheduled_time
-
-        now = datetime(2026, 3, 6, 8, 0, 0, tzinfo=UTC)
-        result = _next_scheduled_time(["12:30"], now=now)
-        assert result.hour == 12
-        assert result.minute == 30
-        assert result.day == 6
-
-    def test_next_time_empty_schedule_raises(self) -> None:
-        from app.agent.channel.orchestrator import _next_scheduled_time
-
-        with pytest.raises(ValueError, match="schedule must not be empty"):
-            _next_scheduled_time([])
-
-    def test_next_time_invalid_entry_raises(self) -> None:
-        from app.agent.channel.orchestrator import _next_scheduled_time
-
-        with pytest.raises(ValueError, match="Invalid schedule entry"):
-            _next_scheduled_time(["bad"])
-
-
-class TestChannelOrchestratorMulti:
-    """Test ChannelOrchestrator — now reads channels from DB via _refresh_channels."""
-
-    def test_starts_empty_before_refresh(self) -> None:
-        from app.agent.channel.config import ChannelAgentSettings
-        from app.agent.channel.orchestrator import ChannelOrchestrator
-
-        cfg = ChannelAgentSettings(enabled=True, _env_file=None)  # type: ignore[call-arg]
-        orch = ChannelOrchestrator(
-            bot=MagicMock(),
-            config=cfg,
-            api_key="test-key",
-            session_maker=MagicMock(),
-        )
-        assert len(orch.orchestrators) == 0
-
-    @pytest.mark.asyncio
-    async def test_refresh_populates_from_db(self) -> None:
-        from unittest.mock import patch
-
-        from app.agent.channel.config import ChannelAgentSettings
-        from app.agent.channel.orchestrator import ChannelOrchestrator, SingleChannelOrchestrator
-        from app.infrastructure.db.models import Channel
-
-        cfg = ChannelAgentSettings(enabled=True, _env_file=None)  # type: ignore[call-arg]
-        orch = ChannelOrchestrator(
-            bot=MagicMock(),
-            config=cfg,
-            api_key="test-key",
-            session_maker=MagicMock(),
-        )
-
-        channels = [
-            Channel(telegram_id="@chan1", name="Chan1"),
-            Channel(telegram_id="@chan2", name="Chan2"),
-            Channel(telegram_id="@chan3", name="Chan3"),
-        ]
-        with patch("app.agent.channel.orchestrator.get_active_channels", new_callable=AsyncMock, return_value=channels):
-            with patch.object(SingleChannelOrchestrator, "start"):
-                await orch._refresh_channels()
-
-        assert len(orch.orchestrators) == 3
-        ids = sorted(o.channel_id for o in orch.orchestrators)
-        assert ids == ["@chan1", "@chan2", "@chan3"]
