@@ -39,7 +39,7 @@ def get_http_client(*, timeout: int = 30) -> httpx.AsyncClient:
         _client = httpx.AsyncClient(
             timeout=timeout,
             limits=_POOL_LIMITS,
-            follow_redirects=True,
+            follow_redirects=False,
         )
     return _client
 

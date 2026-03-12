@@ -238,6 +238,33 @@ class EscalationService:
                 memory = AgentMemory(db)
                 await memory.set_admin_override(escalation.decision_id, f"timeout:{default_action}")
 
+            # Actually execute the timeout action (unless it's "ignore")
+            if default_action != "ignore":
+                try:
+                    from app.agent.core import AgentCore
+                    from app.agent.schemas import AgentEvent
+
+                    event = AgentEvent(
+                        event_type="timeout",
+                        chat_id=escalation.chat_id,
+                        chat_title=None,
+                        message_id=0,
+                        reporter_id=0,
+                        target_user_id=escalation.target_user_id,
+                        target_username=None,
+                        target_display_name=str(escalation.target_user_id),
+                        target_message_text=escalation.message_text,
+                    )
+                    agent_core = AgentCore()
+                    await agent_core.execute_action(default_action, event, self.bot, db)
+                    logger.info(
+                        "Timeout action executed",
+                        escalation_id=escalation_id,
+                        action=default_action,
+                    )
+                except Exception as e:
+                    logger.error("Failed to execute timeout action", error=str(e))
+
         _timeout_tasks.pop(escalation_id, None)
 
         # Notify admin

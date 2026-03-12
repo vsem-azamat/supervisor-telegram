@@ -8,11 +8,15 @@ from app.infrastructure.db.repositories import get_admin_repository
 
 class SuperAdminFilter(BaseFilter):
     async def __call__(self, msg: types.Message) -> bool:
+        if not msg.from_user:
+            return False
         return msg.from_user.id in settings.admin.super_admins
 
 
 class AdminFilter(BaseFilter):
     async def __call__(self, msg: types.Message, db: AsyncSession) -> bool:
+        if not msg.from_user:
+            return False
         admin_repo = get_admin_repository(db)
         admins_id = [admin.id for admin in await admin_repo.get_db_admins()]
         return msg.from_user.id in admins_id

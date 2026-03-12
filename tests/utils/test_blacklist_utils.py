@@ -90,6 +90,25 @@ class TestBlacklistUtils:
         assert "1/2" in pagination_row[0].text
         assert "Next ▶️" in pagination_row[1].text
 
+    def test_build_blacklist_keyboard_middle_page_pagination(self, sample_users):
+        """Test building keyboard for middle page with both Prev and Next buttons."""
+        many_users = sample_users * 5  # 15 users total
+
+        keyboard = build_blacklist_keyboard(
+            users=many_users,
+            current_page=1,  # Middle page (page 2 of 3)
+            total_pages=3,
+            page_size=5,
+        )
+
+        buttons = keyboard.as_markup().inline_keyboard
+        # Check pagination row (last row) - should have Prev, Page indicator, and Next
+        pagination_row = buttons[-1]
+        assert len(pagination_row) == 3  # Prev, Page indicator, Next
+        assert "◀️ Prev" in pagination_row[0].text
+        assert "2/3" in pagination_row[1].text
+        assert "Next ▶️" in pagination_row[2].text
+
     def test_build_user_details_text(self, sample_users):
         """Test building user details text."""
         user = sample_users[0]  # Test User

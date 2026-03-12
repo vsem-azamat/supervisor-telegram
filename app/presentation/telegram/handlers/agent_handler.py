@@ -16,7 +16,8 @@ from aiogram.filters import Command
 from app.agent.schemas import ActionType, AgentEvent, EventType
 from app.core.config import settings
 from app.core.logging import get_logger
-from app.presentation.telegram.utils.other import escape_html, sleep_and_delete
+from app.core.text import escape_html
+from app.presentation.telegram.utils.other import sleep_and_delete
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession

@@ -8,6 +8,8 @@ Uses:
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 import pytest_asyncio
 from aiogram import Bot
@@ -19,12 +21,13 @@ from app.agent.channel.review import (
     send_for_review,
 )
 from app.agent.channel.sources import ContentItem
-from app.infrastructure.db.base import Base
 from app.infrastructure.db.models import ChannelPost, ChannelSource
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
-from tests.fake_telegram import FakeTelegramServer
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+    from tests.fake_telegram import FakeTelegramServer
 
 # ---- Constants ----
 
@@ -59,33 +62,6 @@ class _FakeGeneratedPost:
 
 
 # ---- Fixtures ----
-
-
-@pytest_asyncio.fixture()
-async def db_engine():
-    """In-memory SQLite engine with all tables."""
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield engine
-    await engine.dispose()
-
-
-@pytest_asyncio.fixture()
-async def db_session_maker(db_engine: AsyncEngine):
-    return async_sessionmaker(
-        bind=db_engine,
-        class_=AsyncSession,
-        autoflush=False,
-        expire_on_commit=False,
-    )
-
-
-@pytest_asyncio.fixture()
-async def fake_tg():
-    """Start fake Telegram server."""
-    async with FakeTelegramServer() as server:
-        yield server
 
 
 @pytest_asyncio.fixture()

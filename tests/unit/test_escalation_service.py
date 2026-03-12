@@ -94,20 +94,19 @@ def _make_service(bot: AsyncMock, session: AsyncSession) -> EscalationService:
 
 @pytest.mark.unit
 class TestEscalationCreate:
-    @patch("app.agent.escalation.settings")
     async def test_create_stores_escalation_in_db(
         self,
-        mock_settings: object,
         mock_bot: AsyncMock,
         db_session: AsyncSession,
         sample_event: AgentEvent,
     ):
-        mock_settings.agent.escalation_timeout_minutes = 30  # type: ignore[attr-defined]
-        mock_settings.agent.default_timeout_action = "ignore"  # type: ignore[attr-defined]
-        mock_settings.admin.super_admins = [123456789]  # type: ignore[attr-defined]
+        with patch("app.agent.escalation.settings") as mock_settings:
+            mock_settings.agent.escalation_timeout_minutes = 30
+            mock_settings.agent.default_timeout_action = "ignore"
+            mock_settings.admin.super_admins = [123456789]
 
-        svc = _make_service(mock_bot, db_session)
-        esc = await svc.create(sample_event, reason="spam", suggested_action="mute")
+            svc = _make_service(mock_bot, db_session)
+            esc = await svc.create(sample_event, reason="spam", suggested_action="mute")
 
         assert esc.id is not None
         assert esc.chat_id == sample_event.chat_id
@@ -122,59 +121,56 @@ class TestEscalationCreate:
         row = result.scalar_one()
         assert row.reason == "spam"
 
-    @patch("app.agent.escalation.settings")
     async def test_create_sends_message_to_super_admin(
         self,
-        mock_settings: object,
         mock_bot: AsyncMock,
         db_session: AsyncSession,
         sample_event: AgentEvent,
     ):
-        mock_settings.agent.escalation_timeout_minutes = 30  # type: ignore[attr-defined]
-        mock_settings.agent.default_timeout_action = "ignore"  # type: ignore[attr-defined]
-        mock_settings.admin.super_admins = [123456789]  # type: ignore[attr-defined]
+        with patch("app.agent.escalation.settings") as mock_settings:
+            mock_settings.agent.escalation_timeout_minutes = 30
+            mock_settings.agent.default_timeout_action = "ignore"
+            mock_settings.admin.super_admins = [123456789]
 
-        svc = _make_service(mock_bot, db_session)
-        await svc.create(sample_event, reason="spam", suggested_action="mute")
+            svc = _make_service(mock_bot, db_session)
+            await svc.create(sample_event, reason="spam", suggested_action="mute")
 
         mock_bot.send_message.assert_called_once()
         call_args = mock_bot.send_message.call_args
         assert call_args[0][0] == 123456789  # admin_chat_id
 
-    @patch("app.agent.escalation.settings")
     async def test_create_starts_timeout_task(
         self,
-        mock_settings: object,
         mock_bot: AsyncMock,
         db_session: AsyncSession,
         sample_event: AgentEvent,
     ):
-        mock_settings.agent.escalation_timeout_minutes = 30  # type: ignore[attr-defined]
-        mock_settings.agent.default_timeout_action = "ignore"  # type: ignore[attr-defined]
-        mock_settings.admin.super_admins = [123456789]  # type: ignore[attr-defined]
+        with patch("app.agent.escalation.settings") as mock_settings:
+            mock_settings.agent.escalation_timeout_minutes = 30
+            mock_settings.agent.default_timeout_action = "ignore"
+            mock_settings.admin.super_admins = [123456789]
 
-        svc = _make_service(mock_bot, db_session)
-        esc = await svc.create(sample_event, reason="spam", suggested_action="mute")
+            svc = _make_service(mock_bot, db_session)
+            esc = await svc.create(sample_event, reason="spam", suggested_action="mute")
 
         assert esc.id in _timeout_tasks
         task = _timeout_tasks[esc.id]
         assert isinstance(task, asyncio.Task)
         assert not task.done()
 
-    @patch("app.agent.escalation.settings")
     async def test_create_no_super_admins_returns_early(
         self,
-        mock_settings: object,
         mock_bot: AsyncMock,
         db_session: AsyncSession,
         sample_event: AgentEvent,
     ):
-        mock_settings.agent.escalation_timeout_minutes = 30  # type: ignore[attr-defined]
-        mock_settings.agent.default_timeout_action = "ignore"  # type: ignore[attr-defined]
-        mock_settings.admin.super_admins = []  # type: ignore[attr-defined]
+        with patch("app.agent.escalation.settings") as mock_settings:
+            mock_settings.agent.escalation_timeout_minutes = 30
+            mock_settings.agent.default_timeout_action = "ignore"
+            mock_settings.admin.super_admins = []
 
-        svc = _make_service(mock_bot, db_session)
-        esc = await svc.create(sample_event, reason="spam", suggested_action="mute")
+            svc = _make_service(mock_bot, db_session)
+            esc = await svc.create(sample_event, reason="spam", suggested_action="mute")
 
         # Escalation is stored in DB but no message sent, no timeout task
         assert esc.id is not None

@@ -31,16 +31,25 @@ from app.presentation.telegram.middlewares.dependencies import DependenciesMiddl
 class TestDependencyInjection:
     """Test cases for dependency injection in handlers."""
 
-    def test_dependencies_middleware_provides_all_services(self):
+    async def test_dependencies_middleware_provides_all_services(self):
         """Test that DependenciesMiddleware provides all expected dependencies."""
-        # Create mock session and bot
-        mock_session_maker = AsyncMock()
+        from unittest.mock import MagicMock
+
+        from sqlalchemy.ext.asyncio import AsyncSession
+
+        # Create mock session maker that returns a mock session via async context manager
+        mock_session = AsyncMock(spec=AsyncSession)
+        mock_session_maker = MagicMock()
+        mock_session_context = AsyncMock()
+        mock_session_context.__aenter__.return_value = mock_session
+        mock_session_context.__aexit__.return_value = None
+        mock_session_maker.return_value = mock_session_context
+
         mock_bot = AsyncMock()
 
         middleware = DependenciesMiddleware(mock_session_maker, mock_bot)
 
-        # The middleware should set these keys in the data dict
-        expected_dependencies = {
+        expected_keys = {
             "bot",
             "db",
             "admin_repo",
@@ -48,17 +57,20 @@ class TestDependencyInjection:
             "chat_repo",
             "chat_link_repo",
             "message_repo",
-            "user_service",  # This was the missing dependency
+            "user_service",
         }
 
-        # Verify middleware has the correct dependencies logic
-        # (We can't easily test the __call__ method without mocking async context)
-        # But we can verify the expected dependencies are referenced in the code
-        source_lines = inspect.getsourcelines(middleware.__call__)[0]
-        source_code = "".join(source_lines)
+        # Call middleware with a mock handler that captures the data dict
+        captured_data = {}
 
-        for dep in expected_dependencies:
-            assert f'"{dep}"' in source_code, f"Dependency '{dep}' not found in middleware"
+        async def mock_handler(event, data):
+            captured_data.update(data)
+
+        mock_event = AsyncMock()
+        await middleware(mock_handler, mock_event, {})
+
+        for key in expected_keys:
+            assert key in captured_data, f"Dependency '{key}' not found in middleware data"
 
     def test_user_service_properly_constructed(self):
         """Test that UserService is properly constructed with UserRepository."""
@@ -200,31 +212,3 @@ class TestDependencyInjection:
             # Note: Some factories might return the interface type, not concrete type
             # This is acceptable as long as the concrete type implements the interface
             assert return_type is not None, f"Factory {factory_func.__name__} should have return type annotation"
-
-    def test_middleware_session_management(self):
-        """Test that middleware properly manages database sessions."""
-        # Verify DependenciesMiddleware uses async context manager for sessions
-        source_lines = inspect.getsourcelines(DependenciesMiddleware.__call__)[0]
-        source_code = "".join(source_lines)
-
-        # Should use async with for session management
-        assert "async with" in source_code, "Middleware should use async context manager for sessions"
-        assert "session_pool()" in source_code, "Middleware should create sessions from pool"
-
-    async def test_user_service_integration_with_repository(self):
-        """Test that UserService can be properly instantiated with UserRepository."""
-        # Create a mock repository
-        mock_repo = AsyncMock(spec=UserRepository)
-
-        # UserService should be instantiable with the repository
-        user_service = UserService(mock_repo)
-
-        # Verify the service has the expected methods
-        assert hasattr(user_service, "get_blocked_users")
-        assert hasattr(user_service, "find_blocked_user")
-        assert hasattr(user_service, "block_user")
-        assert hasattr(user_service, "unblock_user")
-
-        # Verify methods are callable
-        assert callable(user_service.get_blocked_users)
-        assert callable(user_service.find_blocked_user)

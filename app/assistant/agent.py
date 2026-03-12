@@ -172,6 +172,7 @@ def create_assistant_agent(model_name: str = "") -> Agent[AssistantDeps, str]:
         system_prompt=SYSTEM_PROMPT,
         deps_type=AssistantDeps,
         output_type=str,
+        retries=3,
     )
 
     from app.assistant.tools import register_all_tools

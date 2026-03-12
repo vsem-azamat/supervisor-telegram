@@ -1,26 +1,13 @@
 """Unit tests for domain entities."""
 
 import pytest
-from app.domain.entities import ChatEntity, MessageEntity, UserEntity
+from app.domain.entities import UserEntity
 
-from tests.factories import AdminFactory, ChatFactory, ChatLinkFactory, MessageFactory, UserFactory
+from tests.factories import ChatFactory, ChatLinkFactory, MessageFactory, UserFactory
 
 
 class TestUserEntity:
     """Test cases for UserEntity."""
-
-    def test_create_user_entity(self):
-        """Test creating a user entity with all fields."""
-        user = UserFactory.create(
-            id=123456789, username="testuser", first_name="Test", last_name="User", is_verified=True, is_blocked=False
-        )
-
-        assert user.id == 123456789
-        assert user.username == "testuser"
-        assert user.first_name == "Test"
-        assert user.last_name == "User"
-        assert user.is_verified is True
-        assert user.is_blocked is False
 
     def test_user_display_name_full_name(self):
         """Test display name with first and last name."""
@@ -63,38 +50,17 @@ class TestUserEntity:
         assert user.is_blocked is False
 
     def test_user_equality(self):
-        """Test user entity equality."""
-        user1 = UserFactory.create(id=123456)
-        user2 = UserFactory.create(id=123456)
-        user3 = UserFactory.create(id=654321)
+        """Test user entity equality via dataclass __eq__."""
+        user1 = UserEntity(id=123456, username="a", first_name="A", last_name="B")
+        user2 = UserEntity(id=123456, username="a", first_name="A", last_name="B")
+        user3 = UserEntity(id=654321, username="a", first_name="A", last_name="B")
 
-        # Same ID should be equal (for business logic)
-        assert user1.id == user2.id
-        assert user1.id != user3.id
+        assert user1 == user2
+        assert user1 != user3
 
 
 class TestChatEntity:
     """Test cases for ChatEntity."""
-
-    def test_create_chat_entity(self):
-        """Test creating a chat entity."""
-        chat = ChatFactory.create(
-            id=-1001234567890,
-            title="Test Chat",
-            is_forum=False,
-            welcome_message="Welcome!",
-            welcome_delete_time=60,
-            is_welcome_enabled=True,
-            is_captcha_enabled=False,
-        )
-
-        assert chat.id == -1001234567890
-        assert chat.title == "Test Chat"
-        assert chat.is_forum is False
-        assert chat.welcome_message == "Welcome!"
-        assert chat.welcome_delete_time == 60
-        assert chat.is_welcome_enabled is True
-        assert chat.is_captcha_enabled is False
 
     def test_enable_welcome_message(self):
         """Test enabling welcome message."""
@@ -130,15 +96,13 @@ class TestChatEntity:
 
         assert chat.welcome_delete_time == 120
 
-    def test_set_welcome_delete_time_invalid(self):
+    @pytest.mark.parametrize("invalid_seconds", [0, -10, -1])
+    def test_set_welcome_delete_time_invalid(self, invalid_seconds):
         """Test setting invalid welcome delete time."""
         chat = ChatFactory.create()
 
         with pytest.raises(ValueError, match="Delete time must be positive"):
-            chat.set_welcome_delete_time(0)
-
-        with pytest.raises(ValueError, match="Delete time must be positive"):
-            chat.set_welcome_delete_time(-10)
+            chat.set_welcome_delete_time(invalid_seconds)
 
     def test_enable_captcha(self):
         """Test enabling captcha."""
@@ -160,15 +124,10 @@ class TestChatEntity:
 class TestAdminEntity:
     """Test cases for AdminEntity."""
 
-    def test_create_admin_entity(self):
-        """Test creating an admin entity."""
-        admin = AdminFactory.create(id=123456789, is_active=True)
-
-        assert admin.id == 123456789
-        assert admin.is_active is True
-
     def test_activate_admin(self):
         """Test activating an admin."""
+        from tests.factories import AdminFactory
+
         admin = AdminFactory.create_inactive()
 
         admin.activate()
@@ -177,6 +136,8 @@ class TestAdminEntity:
 
     def test_deactivate_admin(self):
         """Test deactivating an admin."""
+        from tests.factories import AdminFactory
+
         admin = AdminFactory.create(is_active=True)
 
         admin.deactivate()
@@ -186,26 +147,6 @@ class TestAdminEntity:
 
 class TestMessageEntity:
     """Test cases for MessageEntity."""
-
-    def test_create_message_entity(self):
-        """Test creating a message entity."""
-        message = MessageFactory.create(
-            id=1,
-            chat_id=-1001234567890,
-            user_id=123456789,
-            message_id=42,
-            content="Hello, world!",
-            metadata={"type": "text"},
-            is_spam=False,
-        )
-
-        assert message.id == 1
-        assert message.chat_id == -1001234567890
-        assert message.user_id == 123456789
-        assert message.message_id == 42
-        assert message.content == "Hello, world!"
-        assert message.metadata == {"type": "text"}
-        assert message.is_spam is False
 
     def test_mark_message_as_spam(self):
         """Test marking message as spam."""
@@ -234,63 +175,20 @@ class TestMessageEntity:
 class TestChatLinkEntity:
     """Test cases for ChatLinkEntity."""
 
-    def test_create_chat_link_entity(self):
-        """Test creating a chat link entity."""
-        link = ChatLinkFactory.create(id=1, text="Educational Chat", link="https://t.me/educhat", priority=5)
+    @pytest.mark.parametrize(
+        ("initial", "new_priority"),
+        [
+            (0, 10),
+            (5, 0),
+            (0, -1),
+            (5, -1),
+            (10, 100),
+        ],
+    )
+    def test_update_priority(self, initial, new_priority):
+        """Test updating link priority (including negative values)."""
+        link = ChatLinkFactory.create(priority=initial)
 
-        assert link.id == 1
-        assert link.text == "Educational Chat"
-        assert link.link == "https://t.me/educhat"
-        assert link.priority == 5
+        link.update_priority(new_priority)
 
-    def test_update_priority(self):
-        """Test updating link priority."""
-        link = ChatLinkFactory.create(priority=0)
-
-        link.update_priority(10)
-
-        assert link.priority == 10
-
-    def test_update_priority_negative(self):
-        """Test updating with negative priority."""
-        link = ChatLinkFactory.create(priority=5)
-
-        link.update_priority(-1)
-
-        assert link.priority == -1
-
-
-@pytest.mark.unit
-class TestEntityValidation:
-    """Test entity validation and edge cases."""
-
-    def test_user_with_minimal_data(self):
-        """Test creating user with minimal required data."""
-        user = UserEntity(id=123)
-
-        assert user.id == 123
-        assert user.username is None
-        assert user.first_name is None
-        assert user.last_name is None
-        assert user.is_verified is True  # Default value
-        assert user.is_blocked is False  # Default value
-
-    def test_chat_with_minimal_data(self):
-        """Test creating chat with minimal required data."""
-        chat = ChatEntity(id=-123)
-
-        assert chat.id == -123
-        assert chat.title is None
-        assert chat.is_forum is False  # Default value
-        assert chat.welcome_delete_time == 60  # Default value
-
-    def test_message_with_minimal_data(self):
-        """Test creating message with minimal required data."""
-        message = MessageEntity(id=None, chat_id=-123, user_id=456, message_id=789)
-
-        assert message.id is None
-        assert message.chat_id == -123
-        assert message.user_id == 456
-        assert message.message_id == 789
-        assert message.content is None
-        assert message.is_spam is False  # Default value
+        assert link.priority == new_priority

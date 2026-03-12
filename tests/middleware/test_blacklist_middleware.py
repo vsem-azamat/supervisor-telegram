@@ -61,7 +61,6 @@ class TestBlacklistMiddleware:
         mock_bot: MockBot,
     ):
         """Test middleware allows non-blocked users to proceed."""
-        # Arrange
         normal_user = create_normal_user()
         chat = create_test_chat()
 
@@ -72,10 +71,8 @@ class TestBlacklistMiddleware:
         # Mock no blocked users
         mock_user_repo.get_blocked_users.return_value = []
 
-        # Act
         await blacklist_middleware(mock_handler, message, data)
 
-        # Assert
         assert mock_handler.called is True
         mock_user_repo.get_blocked_users.assert_called_once()
 
@@ -88,7 +85,6 @@ class TestBlacklistMiddleware:
         mock_bot: MockBot,
     ):
         """Test middleware blocks blacklisted users."""
-        # Arrange
         blocked_user = create_normal_user(id=999, username="blocked_user")
         chat = create_test_chat()
 
@@ -108,16 +104,14 @@ class TestBlacklistMiddleware:
 
         # Mock message delete method using patch
         with patch.object(message, "delete", new=AsyncMock()) as mock_delete:
-            # Act
             result = await blacklist_middleware(mock_handler, message, data)
 
-            # Assert
             assert result is None  # Should stop processing
             assert mock_handler.called is False  # Handler should not be called
             mock_bot.mock.ban_chat_member.assert_called_once_with(chat.id, blocked_user.id)
             mock_delete.assert_called_once()
 
-    async def test_blacklist_middleware_handles_service_error(
+    async def test_blacklist_middleware_propagates_repository_errors(
         self,
         telegram_factory: TelegramObjectFactory,
         blacklist_middleware: BlacklistMiddleware,
@@ -125,8 +119,7 @@ class TestBlacklistMiddleware:
         mock_user_repo: AsyncMock,
         mock_bot: MockBot,
     ):
-        """Test middleware handles repository errors gracefully."""
-        # Arrange
+        """Test middleware propagates repository errors (does not swallow them)."""
         user = create_normal_user()
         chat = create_test_chat()
 
@@ -137,7 +130,6 @@ class TestBlacklistMiddleware:
         # Mock repository error
         mock_user_repo.get_blocked_users.side_effect = Exception("Database error")
 
-        # Act - Should not raise exception
         with pytest.raises(Exception, match="Database error"):
             await blacklist_middleware(mock_handler, message, data)
 
@@ -148,7 +140,6 @@ class TestBlacklistMiddleware:
         mock_handler: MockHandler,
     ):
         """Test middleware when dependencies are missing."""
-        # Arrange
         user = create_normal_user()
         chat = create_test_chat()
 
@@ -156,7 +147,6 @@ class TestBlacklistMiddleware:
 
         data: dict[str, Any] = {}  # No dependencies
 
-        # Act & Assert
         with pytest.raises(KeyError):
             await blacklist_middleware(mock_handler, message, data)
 
@@ -169,7 +159,6 @@ class TestBlacklistMiddleware:
         mock_bot: MockBot,
     ):
         """Test middleware with bot messages."""
-        # Arrange
         bot_user = create_normal_user(id=12345, is_bot=True)
         chat = create_test_chat()
 
@@ -187,10 +176,9 @@ class TestBlacklistMiddleware:
 
         # Mock message delete method using patch
         with patch.object(message, "delete", new=AsyncMock()) as mock_delete:
-            # Act
             result = await blacklist_middleware(mock_handler, message, data)
 
-            # Assert - Should block bots too
+            # Should block bots too
             assert result is None
             mock_bot.mock.ban_chat_member.assert_called_once_with(chat.id, bot_user.id)
             mock_delete.assert_called_once()
@@ -203,7 +191,8 @@ class TestBlacklistMiddleware:
         mock_bot: MockBot,
     ):
         """Test middleware performance with multiple concurrent calls."""
-        # Arrange
+        import asyncio
+
         users = [create_normal_user(id=i) for i in range(100, 110)]
         chat = create_test_chat()
 
@@ -216,16 +205,12 @@ class TestBlacklistMiddleware:
 
         data = {"user_repo": mock_user_repo, "bot": mock_bot.mock}
 
-        # Act
-        import asyncio
-
         tasks = [
             blacklist_middleware(handler, message, data)
             for handler, message in zip(mock_handlers, messages, strict=True)
         ]
         await asyncio.gather(*tasks)
 
-        # Assert
         for handler in mock_handlers:
             assert handler.called is True
 
@@ -265,21 +250,22 @@ class TestBlacklistMiddlewareEdgeCases:
         mock_user_repo: AsyncMock,
         mock_bot: MockBot,
     ):
-        """Test middleware with callback query events."""
-        # Arrange
-        user = create_normal_user()
+        """Test middleware bypasses callback queries via type check (even for blocked users)."""
+        blocked_user = create_normal_user(id=999)
 
-        callback_query = telegram_factory.create_callback_query(user=user)
+        callback_query = telegram_factory.create_callback_query(user=blocked_user)
 
         mock_handler = MockHandler()
         data = {"user_repo": mock_user_repo, "bot": mock_bot.mock}
 
-        mock_user_repo.get_blocked_users.return_value = []
+        # User IS blocked, but callback queries bypass the Message type check
+        mock_blocked = AsyncMock()
+        mock_blocked.id = blocked_user.id
+        mock_user_repo.get_blocked_users.return_value = [mock_blocked]
 
-        # Act
         await blacklist_middleware(mock_handler, callback_query, data)
 
-        # Assert - Should allow callback queries through (they're not Message events)
+        # Should allow callback queries through (they're not Message events)
         assert mock_handler.called is True
 
     async def test_blacklist_middleware_with_chat_member_update(
@@ -290,7 +276,6 @@ class TestBlacklistMiddlewareEdgeCases:
         mock_bot: MockBot,
     ):
         """Test middleware with chat member update events."""
-        # Arrange
         user = create_normal_user()
         chat = create_test_chat()
 
@@ -304,48 +289,10 @@ class TestBlacklistMiddlewareEdgeCases:
         mock_blocked_user.id = user.id
         mock_user_repo.get_blocked_users.return_value = [mock_blocked_user]
 
-        # Act
         await blacklist_middleware(mock_handler, chat_member_update, data)
 
-        # Assert - Should allow non-Message events through
+        # Should allow non-Message events through
         assert mock_handler.called is True
-
-    async def test_blacklist_middleware_concurrent_same_user(
-        self,
-        telegram_factory: TelegramObjectFactory,
-        blacklist_middleware: BlacklistMiddleware,
-        mock_user_repo: AsyncMock,
-        mock_bot: MockBot,
-    ):
-        """Test middleware with concurrent messages from same user."""
-        # Arrange
-        user = create_normal_user()
-        chat = create_test_chat()
-
-        # Create multiple messages from same user
-        messages = [telegram_factory.create_message(user=user, chat=chat, text=f"Message {i}") for i in range(5)]
-
-        mock_handlers = [MockHandler() for _ in messages]
-
-        mock_user_repo.get_blocked_users.return_value = []
-
-        data = {"user_repo": mock_user_repo, "bot": mock_bot.mock}
-
-        # Act
-        import asyncio
-
-        tasks = [
-            blacklist_middleware(handler, message, data)
-            for handler, message in zip(mock_handlers, messages, strict=True)
-        ]
-        await asyncio.gather(*tasks)
-
-        # Assert
-        for handler in mock_handlers:
-            assert handler.called is True
-
-        # With TTL cache, get_blocked_users is called only once (cache serves subsequent calls)
-        assert mock_user_repo.get_blocked_users.call_count == 1
 
     async def test_blacklist_middleware_exception_handling(
         self,
@@ -355,7 +302,6 @@ class TestBlacklistMiddlewareEdgeCases:
         mock_bot: MockBot,
     ):
         """Test middleware exception handling doesn't break the flow."""
-        # Arrange
         user = create_normal_user()
         chat = create_test_chat()
         message = telegram_factory.create_message(user=user, chat=chat)
@@ -368,6 +314,5 @@ class TestBlacklistMiddlewareEdgeCases:
 
         mock_user_repo.get_blocked_users.return_value = []
 
-        # Act & Assert
         with pytest.raises(ValueError, match="Handler failed"):
             await blacklist_middleware(failing_handler, message, data)

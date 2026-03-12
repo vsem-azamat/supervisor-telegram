@@ -172,3 +172,4 @@ PROJECT_TRACKING.md
 logs/
 scripts/
 !scripts/wait_for_postgres.sh
+!scripts/entrypoint.sh

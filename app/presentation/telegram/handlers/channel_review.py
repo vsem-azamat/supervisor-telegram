@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 from aiogram import F, Router
 
 from app.agent.channel.review import (
-    _build_review_keyboard,
+    build_review_keyboard,
     build_schedule_picker_keyboard,
     handle_approve,
     handle_delete,
@@ -305,15 +305,15 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
                 return
             from sqlalchemy import select
 
-            from app.agent.channel.review import _extract_source_btn_data
+            from app.agent.channel.review import extract_source_btn_data
             from app.infrastructure.db.models import ChannelPost
 
             async with session_maker() as session:
                 r = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))
                 post = r.scalar_one_or_none()
 
-            source_btn_data = _extract_source_btn_data(post) if post else []
-            keyboard = _build_review_keyboard(
+            source_btn_data = extract_source_btn_data(post) if post else []
+            keyboard = build_review_keyboard(
                 post_id,
                 source_items=source_btn_data,
                 channel_name=channel.name,

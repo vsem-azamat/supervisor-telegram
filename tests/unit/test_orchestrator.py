@@ -106,6 +106,11 @@ class TestNextScheduledTime:
         result = _next_scheduled_time(["09:00", "12:00", "18:00"], now)
         assert result == datetime(2025, 1, 2, 9, 0, tzinfo=UTC)
 
+    def test_next_time_single_entry(self):
+        now = datetime(2025, 1, 1, 8, 0, tzinfo=UTC)
+        result = _next_scheduled_time(["12:30"], now)
+        assert result == datetime(2025, 1, 1, 12, 30, tzinfo=UTC)
+
     def test_empty_schedule_raises(self):
         with pytest.raises(ValueError, match="schedule must not be empty"):
             _next_scheduled_time([])
@@ -121,7 +126,6 @@ class TestNextScheduledTime:
 
 
 class TestSingleChannelOrchestrator:
-    @pytest.mark.asyncio
     async def test_start_creates_task(self, single_orch: SingleChannelOrchestrator):
         with patch.object(single_orch, "_run_loop", new_callable=AsyncMock) as mock_loop:
             mock_loop.return_value = None
@@ -148,7 +152,6 @@ class TestSingleChannelOrchestrator:
         orch.start()
         assert orch._task is None
 
-    @pytest.mark.asyncio
     async def test_stop_cancels_running_task(self, single_orch: SingleChannelOrchestrator):
         async def forever() -> None:
             await asyncio.sleep(3600)
@@ -159,45 +162,20 @@ class TestSingleChannelOrchestrator:
         await single_orch.stop()
         assert single_orch._task.done()
 
-    @pytest.mark.asyncio
     async def test_stop_when_not_started_is_safe(self, single_orch: SingleChannelOrchestrator):
         assert single_orch._task is None
         await single_orch.stop()
 
-    def test_channel_daily_count_reset(self, single_orch: SingleChannelOrchestrator):
-        single_orch.channel.daily_posts_count = 5
-        single_orch.channel.daily_count_date = "2020-01-01"
-        single_orch.channel.reset_daily_count("2020-01-02")
-        assert single_orch.channel.daily_posts_count == 0
-
-    def test_channel_daily_count_no_reset_same_day(self, single_orch: SingleChannelOrchestrator):
-        single_orch.channel.daily_posts_count = 2
-        single_orch.channel.daily_count_date = "2020-01-01"
-        single_orch.channel.reset_daily_count("2020-01-01")
-        assert single_orch.channel.daily_posts_count == 2
-
-    def test_language_via_channel(self, single_orch: SingleChannelOrchestrator):
-        from app.agent.channel.config import language_name
-
-        single_orch.channel.language = "ru"
-        assert language_name(single_orch.channel.language) == "Russian"
-
-        single_orch.channel.language = "cs"
-        assert language_name(single_orch.channel.language) == "Czech"
-
-    @pytest.mark.asyncio
     async def test_resume_review_no_pending_returns_message(self, single_orch: SingleChannelOrchestrator):
         result = await single_orch.resume_review(post_id=999, decision="approved")
         assert result == "No pending review found for this post."
 
-    @pytest.mark.asyncio
     async def test_maybe_discover_sources_disabled_is_noop(self, single_orch: SingleChannelOrchestrator):
         single_orch.config.source_discovery_enabled = False
         with patch("app.agent.channel.orchestrator.discover_and_add_sources", new_callable=AsyncMock) as mock_disc:
             await single_orch._maybe_discover_sources()
             mock_disc.assert_not_called()
 
-    @pytest.mark.asyncio
     async def test_maybe_discover_sources_respects_cooldown(self, single_orch: SingleChannelOrchestrator):
         single_orch.config.source_discovery_enabled = True
         single_orch.config.source_discovery_interval_hours = 24
@@ -207,6 +185,34 @@ class TestSingleChannelOrchestrator:
         with patch("app.agent.channel.orchestrator.discover_and_add_sources", new_callable=AsyncMock) as mock_disc:
             await single_orch._maybe_discover_sources()
             mock_disc.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Channel model tests (not orchestrator logic, but Channel method behavior)
+# ---------------------------------------------------------------------------
+
+
+class TestChannelModel:
+    def test_daily_count_reset(self, channel: Channel):
+        channel.daily_posts_count = 5
+        channel.daily_count_date = "2020-01-01"
+        channel.reset_daily_count("2020-01-02")
+        assert channel.daily_posts_count == 0
+
+    def test_daily_count_no_reset_same_day(self, channel: Channel):
+        channel.daily_posts_count = 2
+        channel.daily_count_date = "2020-01-01"
+        channel.reset_daily_count("2020-01-01")
+        assert channel.daily_posts_count == 2
+
+    def test_language_name(self, channel: Channel):
+        from app.agent.channel.config import language_name
+
+        channel.language = "ru"
+        assert language_name(channel.language) == "Russian"
+
+        channel.language = "cs"
+        assert language_name(channel.language) == "Czech"
 
 
 # ---------------------------------------------------------------------------
@@ -225,7 +231,6 @@ class TestChannelOrchestrator:
         orch.start()
         assert len(orch.orchestrators) == 0
 
-    @pytest.mark.asyncio
     async def test_refresh_starts_new_channels(
         self,
         mock_bot: AsyncMock,
@@ -247,7 +252,6 @@ class TestChannelOrchestrator:
         ids = sorted(o.channel_id for o in orch.orchestrators)
         assert ids == ["@chan1", "@chan2"]
 
-    @pytest.mark.asyncio
     async def test_refresh_stops_removed_channels(
         self,
         mock_bot: AsyncMock,
@@ -277,7 +281,6 @@ class TestChannelOrchestrator:
         assert len(orch.orchestrators) == 1
         assert orch.orchestrators[0].channel_id == "@chan1"
 
-    @pytest.mark.asyncio
     async def test_stop_stops_all(
         self,
         mock_bot: AsyncMock,

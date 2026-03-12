@@ -54,7 +54,7 @@ RUN chmod +x scripts/*.sh
 FROM python:3.12-alpine AS production
 
 # Install runtime dependencies only
-RUN apk add --no-cache postgresql-client
+RUN apk add --no-cache postgresql-client procps
 
 WORKDIR /app
 
@@ -70,12 +70,16 @@ COPY scripts/ ./scripts/
 # Make sure we use venv
 ENV PATH="/app/.venv/bin:$PATH"
 
-# Create non-root user for security and set permissions
+# Create non-root user, logs dir, and set permissions
 RUN addgroup -g 1001 -S appgroup && \
     adduser -S appuser -u 1001 -G appgroup && \
     chmod +x scripts/*.sh && \
+    mkdir -p /app/logs && \
     chown -R appuser:appgroup /app
 
 USER appuser
 
-CMD ["python", "-m", "app.presentation.telegram"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD pgrep -f "python -m app.presentation.telegram" > /dev/null || exit 1
+
+ENTRYPOINT ["scripts/entrypoint.sh"]

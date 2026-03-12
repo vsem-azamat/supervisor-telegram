@@ -3,6 +3,7 @@
 import pytest
 from app.domain.entities import ChatEntity
 from app.domain.repositories import IChatRepository
+from app.infrastructure.db.repositories.chat import ChatRepository
 
 from tests.factories import ChatFactory
 
@@ -316,3 +317,17 @@ class TestChatRepositoryEdgeCases:
 
         assert retrieved_positive is not None
         assert retrieved_negative is not None
+
+
+@pytest.mark.integration
+class TestChatRepositoryLegacy:
+    """Tests for legacy backward-compatible methods."""
+
+    async def test_legacy_merge_and_get_chat(self, session):
+        """Test legacy merge_chat and get_chat methods."""
+        repo = ChatRepository(session)
+        await repo.merge_chat(1, title="Test", is_forum=True)
+        chat = await repo.get_chat(1)
+        assert chat is not None
+        assert chat.title == "Test"
+        assert chat.is_forum is True

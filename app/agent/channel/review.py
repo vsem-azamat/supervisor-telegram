@@ -64,23 +64,22 @@ __all__ = [
     "handle_regen",
     "handle_reject",
     "send_for_review",
-    # Private helpers re-exported for review_agent.py
-    "_build_review_keyboard",
+    # Helpers used by review_agent.py
+    "build_review_keyboard",
     "_edit_review_message",
-    "_extract_source_btn_data",
+    "extract_source_btn_data",
     "_extract_source_urls",
 ]
 
-# ── Backward-compatible aliases for private helpers used by review_agent.py ──
+# ── Backward-compatible aliases for helpers used by review_agent.py ──
 
-_extract_source_btn_data = extract_source_btn_data
 _extract_source_urls = extract_source_urls
 
 
 # ── Telegram keyboard builders ──
 
 
-def _build_review_keyboard(
+def build_review_keyboard(
     post_id: int,
     source_items: list[dict[str, str]] | None = None,
     channel_name: str = "",
@@ -276,7 +275,7 @@ async def send_for_review(
                 if s.url:
                     source_btn_data.append({"title": s.title[:25], "url": s.url})
 
-            keyboard = _build_review_keyboard(
+            keyboard = build_review_keyboard(
                 post_id,
                 source_items=source_btn_data,
                 channel_name=channel_name,
@@ -369,7 +368,7 @@ async def handle_edit_request(
     # Update Telegram review message if edit succeeded
     if updated_post and updated_post.review_message_id:
         source_btn_data = extract_source_btn_data(updated_post)
-        keyboard = _build_review_keyboard(
+        keyboard = build_review_keyboard(
             post_id,
             source_items=source_btn_data,
             channel_name=channel_name,
@@ -417,7 +416,7 @@ async def handle_regen(
     # Update Telegram review message if regen succeeded
     if updated_post and updated_post.review_message_id:
         source_btn_data = extract_source_btn_data(updated_post)
-        keyboard = _build_review_keyboard(
+        keyboard = build_review_keyboard(
             post_id,
             source_items=source_btn_data,
             channel_name=channel_name,

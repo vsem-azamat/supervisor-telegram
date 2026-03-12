@@ -1,4 +1,4 @@
-"""End-to-end tests for user management workflows."""
+"""Integration tests for user management service workflows."""
 
 import pytest
 from app.application.services.user_service import UserService
@@ -8,9 +8,9 @@ from app.domain.repositories import IUserRepository
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-@pytest.mark.e2e
-class TestUserWorkflowE2E:
-    """End-to-end tests for complete user workflows."""
+@pytest.mark.integration
+class TestUserWorkflowIntegration:
+    """Integration tests for complete user workflows."""
 
     async def test_complete_user_lifecycle(self, user_repository: IUserRepository, session: AsyncSession):
         """Test complete user lifecycle from creation to deletion."""
@@ -222,8 +222,8 @@ class TestUserWorkflowE2E:
         assert retrieved_user.last_name is None
 
 
-@pytest.mark.e2e
-class TestUserErrorScenariosE2E:
+@pytest.mark.integration
+class TestUserErrorScenariosIntegration:
     """Test error scenarios in user workflows."""
 
     async def test_nonexistent_user_operations(self, user_repository: IUserRepository, session: AsyncSession):

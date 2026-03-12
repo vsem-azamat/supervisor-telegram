@@ -1,9 +1,9 @@
 """Telegram testing helpers for simulating bot events and messages."""
 
 from datetime import UTC, datetime
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from aiogram import Bot
 from aiogram.types import (
     CallbackQuery,
@@ -12,8 +12,6 @@ from aiogram.types import (
     ChatMemberLeft,
     ChatMemberMember,
     ChatMemberUpdated,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
     Message,
     MessageEntity,
     Update,
@@ -192,8 +190,6 @@ class TelegramObjectFactory:
         **kwargs,
     ) -> ChatMemberUpdated:
         """Create a ChatMemberUpdated event."""
-        from aiogram.types import ChatMemberLeft, ChatMemberMember
-
         if chat is None:
             chat = TelegramObjectFactory.create_chat()
         if user is None:
@@ -231,7 +227,14 @@ class TelegramObjectFactory:
 
 
 class MockBot:
-    """Mock Bot for testing handlers."""
+    """Mock Bot for testing handlers.
+
+    Tech debt: Tests access methods via `mock_bot.mock.restrict_chat_member` etc.
+    This two-level indirection (MockBot wrapping AsyncMock(spec=Bot)) exists because
+    handler tests pass `mock_bot.mock` as the Bot argument. Ideally this would be a
+    single AsyncMock(spec=Bot), but changing it requires updating all handler tests
+    that depend on the `.mock` attribute pattern.
+    """
 
     def __init__(self):
         self.mock = AsyncMock(spec=Bot)
@@ -253,35 +256,11 @@ class MockBot:
         return getattr(self.mock, name)
 
 
-class HandlerTestContext:
-    """Context manager for testing handlers with proper setup."""
-
-    def __init__(self):
-        self.bot = MockBot()
-        self.session = AsyncMock()
-        self.repositories = {}
-        self.services = {}
-
-    def add_repository(self, name: str, repository: Any):
-        """Add a mock repository to the context."""
-        self.repositories[name] = repository
-
-    def add_service(self, name: str, service: Any):
-        """Add a mock service to the context."""
-        self.services[name] = service
-
-    async def __aenter__(self):
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        pass
-
-
 class TelegramEventSimulator:
     """Simulator for complex Telegram events and workflows."""
 
-    def __init__(self, context: HandlerTestContext):
-        self.context = context
+    def __init__(self, bot: MockBot):
+        self.bot = bot
         self.factory = TelegramObjectFactory()
 
     async def simulate_user_join(
@@ -300,17 +279,6 @@ class TelegramEventSimulator:
             user=inviter,
             old_chat_member=ChatMemberLeft(user=user),
             new_chat_member=ChatMemberMember(user=user),
-        )
-
-    async def simulate_user_leave(self, user: User | None = None, chat: Chat | None = None) -> ChatMemberUpdated:
-        """Simulate a user leaving a chat."""
-        if user is None:
-            user = self.factory.create_user()
-        if chat is None:
-            chat = self.factory.create_chat()
-
-        return self.factory.create_chat_member_updated(
-            chat=chat, user=user, old_chat_member=ChatMemberMember(user=user), new_chat_member=ChatMemberLeft(user=user)
         )
 
     async def simulate_moderation_action(
@@ -332,15 +300,6 @@ class TelegramEventSimulator:
         return self.factory.create_reply_message(
             text=f"/{action} {args}".strip(), replied_user=target_user, replying_user=admin, chat=chat
         )
-
-    async def simulate_button_click(
-        self, callback_data: str, user: User | None = None, message: Message | None = None
-    ) -> CallbackQuery:
-        """Simulate clicking an inline keyboard button."""
-        if user is None:
-            user = self.factory.create_user()
-
-        return self.factory.create_callback_query(data=callback_data, user=user, message=message)
 
 
 # Utility functions for common test scenarios
@@ -371,20 +330,7 @@ def create_test_chat(id: int = -1001234567890) -> Chat:
     return TelegramObjectFactory.create_chat(id=id, title="Test Supergroup", type="supergroup")
 
 
-def create_inline_keyboard(buttons: list[list[dict[str, str]]]) -> InlineKeyboardMarkup:
-    """Create an inline keyboard markup."""
-    keyboard = []
-    for row in buttons:
-        keyboard_row = []
-        for button in row:
-            keyboard_row.append(InlineKeyboardButton(text=button["text"], callback_data=button.get("callback_data")))
-        keyboard.append(keyboard_row)
-
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
-
-
 # Pytest fixtures for easy use
-import pytest
 
 
 @pytest.fixture
@@ -397,33 +343,3 @@ def telegram_factory():
 def mock_bot():
     """Provide MockBot for tests."""
     return MockBot()
-
-
-@pytest.fixture
-def handler_context():
-    """Provide HandlerTestContext for tests."""
-    return HandlerTestContext()
-
-
-@pytest.fixture
-async def event_simulator(handler_context):
-    """Provide TelegramEventSimulator for tests."""
-    return TelegramEventSimulator(handler_context)
-
-
-@pytest.fixture
-def admin_user():
-    """Provide an admin user for tests."""
-    return create_admin_user()
-
-
-@pytest.fixture
-def normal_user():
-    """Provide a normal user for tests."""
-    return create_normal_user()
-
-
-@pytest.fixture
-def test_chat():
-    """Provide a test chat for tests."""
-    return create_test_chat()

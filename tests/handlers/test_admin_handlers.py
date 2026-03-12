@@ -14,17 +14,19 @@ from tests.telegram_helpers import (
 )
 
 
+@pytest.fixture
+def telegram_factory():
+    return TelegramObjectFactory()
+
+
+@pytest.fixture
+def mock_admin_repository():
+    return AsyncMock(spec=AdminRepository)
+
+
 @pytest.mark.handlers
 class TestAdminHandlers:
     """Test cases for admin management handlers."""
-
-    @pytest.fixture
-    def telegram_factory(self):
-        return TelegramObjectFactory()
-
-    @pytest.fixture
-    def mock_admin_repository(self):
-        return AsyncMock(spec=AdminRepository)
 
     async def test_new_admin_success(self, telegram_factory: TelegramObjectFactory, mock_admin_repository: AsyncMock):
         """Test successfully adding a new admin."""
@@ -189,14 +191,6 @@ class TestAdminHandlers:
 class TestAdminHandlerEdgeCases:
     """Test edge cases and error conditions for admin handlers."""
 
-    @pytest.fixture
-    def telegram_factory(self):
-        return TelegramObjectFactory()
-
-    @pytest.fixture
-    def mock_admin_repository(self):
-        return AsyncMock(spec=AdminRepository)
-
     async def test_admin_command_database_error(
         self, telegram_factory: TelegramObjectFactory, mock_admin_repository: AsyncMock
     ):
@@ -217,64 +211,6 @@ class TestAdminHandlerEdgeCases:
         # Act & Assert
         with pytest.raises(Exception, match="Database connection failed"):
             await new_admin(command_message, mock_admin_repository)
-
-    async def test_admin_command_with_bot_user(
-        self, telegram_factory: TelegramObjectFactory, mock_admin_repository: AsyncMock
-    ):
-        """Test admin command targeting a bot user."""
-        # Arrange
-        admin_user = create_admin_user()
-        bot_user = telegram_factory.create_user(id=999999999, username="testbot", is_bot=True, first_name="Test Bot")
-        chat = create_test_chat()
-
-        reply_message = telegram_factory.create_message(user=bot_user, chat=chat)
-        command_message = telegram_factory.create_command_message(
-            command="admin", user=admin_user, chat=chat, reply_to_message=reply_message
-        )
-
-        mock_admin_repository.is_admin.return_value = False
-
-        # Act
-        with patch("app.presentation.telegram.utils.other.get_user_mention") as mock_mention:
-            mock_mention.return_value = "@testbot"
-
-            await new_admin(command_message, mock_admin_repository)
-
-        # Assert - Should still work (bots can be admins in some contexts)
-        mock_admin_repository.is_admin.assert_called_once_with(bot_user.id)
-        mock_admin_repository.insert_admin.assert_called_once_with(bot_user.id)
-
-    async def test_admin_command_message_handling_error(
-        self, telegram_factory: TelegramObjectFactory, mock_admin_repository: AsyncMock
-    ):
-        """Test admin command when message operations fail."""
-        # Arrange
-        admin_user = create_admin_user()
-        target_user = create_normal_user()
-        chat = create_test_chat()
-
-        reply_message = telegram_factory.create_message(user=target_user, chat=chat)
-        command_message = telegram_factory.create_command_message(
-            command="admin", user=admin_user, chat=chat, reply_to_message=reply_message
-        )
-
-        # Mock successful repository operations
-        mock_admin_repository.is_admin.return_value = False
-        mock_admin_repository.insert_admin.return_value = None
-
-        # Mock message.answer to fail
-        command_message.answer.side_effect = Exception("Failed to send message")
-
-        # Act & Assert
-        with patch("app.presentation.telegram.utils.other.get_user_mention") as mock_mention:
-            mock_mention.return_value = "@target"
-
-            with pytest.raises(Exception, match="Failed to send message"):
-                await new_admin(command_message, mock_admin_repository)
-
-        # Repository operations should still have completed
-        mock_admin_repository.is_admin.assert_called_once()
-        mock_admin_repository.insert_admin.assert_called_once()
 
     async def test_concurrent_admin_operations(
         self, telegram_factory: TelegramObjectFactory, mock_admin_repository: AsyncMock

@@ -12,6 +12,9 @@ router = Router()
 
 @router.message(Command("start", "help", prefix="/!"))
 async def start_private(message: types.Message, admin_repo: AdminRepository) -> None:
+    if not message.from_user:
+        return
+
     text = (
         "<b>🤖 Привет!</b>\n"
         "Я модерирую чаты по Чехии!\n\n"

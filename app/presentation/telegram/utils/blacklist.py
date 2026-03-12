@@ -2,9 +2,9 @@
 
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from app.core.text import escape_html
 from app.domain.entities import UserEntity
 from app.presentation.telegram.utils import BlacklistPagination, UnblockUser
-from app.presentation.telegram.utils.other import escape_html
 
 
 def build_blacklist_keyboard(

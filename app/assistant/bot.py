@@ -126,6 +126,12 @@ async def _chat_stream(bot: Bot, chat_id: int, user_id: int, user_message: str) 
     async with _conv_lock:
         _evict_conversations()
         history = _conversations.get(user_id)
+        # Trim history BEFORE sending to LLM to respect context window limits
+        if history and len(history) > _MAX_HISTORY:
+            from app.agent.tool_trace import trim_history
+
+            history = trim_history(history, _MAX_HISTORY)
+            _conversations[user_id] = history
 
     # Unique draft_id for this response (same id = animated updates)
     draft_id = random.randint(1, 2**31 - 1)  # noqa: S311
@@ -175,11 +181,6 @@ async def _chat_stream(bot: Bot, chat_id: int, user_id: int, user_message: str) 
                     _conversations[user_id] = all_msgs
                     _conversation_last_access[user_id] = time.monotonic()
 
-                    if len(all_msgs) > _MAX_HISTORY:
-                        from app.agent.tool_trace import trim_history
-
-                        _conversations[user_id] = trim_history(all_msgs, _MAX_HISTORY)
-
                 # Prepend tool call trace so the user sees what happened
                 from app.agent.tool_trace import format_response_with_trace
 
@@ -201,6 +202,11 @@ async def _chat(user_id: int, user_message: str) -> str:
     async with _conv_lock:
         _evict_conversations()
         history = _conversations.get(user_id)
+        if history and len(history) > _MAX_HISTORY:
+            from app.agent.tool_trace import trim_history
+
+            history = trim_history(history, _MAX_HISTORY)
+            _conversations[user_id] = history
 
     try:
         result = await asyncio.wait_for(
@@ -223,11 +229,6 @@ async def _chat(user_id: int, user_message: str) -> str:
     async with _conv_lock:
         _conversations[user_id] = all_msgs
         _conversation_last_access[user_id] = time.monotonic()
-
-        if len(all_msgs) > _MAX_HISTORY:
-            from app.agent.tool_trace import trim_history
-
-            _conversations[user_id] = trim_history(all_msgs, _MAX_HISTORY)
 
     from app.agent.tool_trace import format_response_with_trace
 

@@ -84,13 +84,11 @@ class TestInitialization:
 
 
 class TestLifecycle:
-    @pytest.mark.asyncio
     async def test_start_disabled_is_noop(self, telethon_client_disabled):
         await telethon_client_disabled.start()
         assert not telethon_client_disabled._connected
         assert telethon_client_disabled._client is None
 
-    @pytest.mark.asyncio
     async def test_start_enabled_connects(self, enabled_settings, mock_telegram_client):
         tc = TelethonClient(settings=enabled_settings)
         with patch.object(tc, "_create_client", return_value=mock_telegram_client):
@@ -99,7 +97,6 @@ class TestLifecycle:
         assert tc._client is mock_telegram_client
         mock_telegram_client.start.assert_awaited_once_with(phone="+1234567890")
 
-    @pytest.mark.asyncio
     async def test_start_failure_sets_not_connected(self, enabled_settings, mock_telegram_client):
         mock_telegram_client.start.side_effect = ConnectionError("network down")
         tc = TelethonClient(settings=enabled_settings)
@@ -108,19 +105,16 @@ class TestLifecycle:
                 await tc.start()
         assert not tc._connected
 
-    @pytest.mark.asyncio
     async def test_stop_disconnects(self, telethon_client_enabled, mock_telegram_client):
         await telethon_client_enabled.stop()
         mock_telegram_client.disconnect.assert_awaited_once()
         assert not telethon_client_enabled._connected
         assert telethon_client_enabled._client is None
 
-    @pytest.mark.asyncio
     async def test_stop_when_not_started_is_safe(self, telethon_client_disabled):
         # Should not raise
         await telethon_client_disabled.stop()
 
-    @pytest.mark.asyncio
     async def test_stop_handles_disconnect_error(self, telethon_client_enabled, mock_telegram_client):
         mock_telegram_client.disconnect.side_effect = RuntimeError("disconnect failed")
         await telethon_client_enabled.stop()
@@ -135,62 +129,30 @@ class TestLifecycle:
 class TestDisabledNoOp:
     """All data methods should return empty results when disabled."""
 
-    @pytest.mark.asyncio
-    async def test_get_chat_history_returns_empty(self, telethon_client_disabled):
-        result = await telethon_client_disabled.get_chat_history(123)
-        assert result == []
-
-    @pytest.mark.asyncio
-    async def test_get_user_info_returns_none(self, telethon_client_disabled):
-        result = await telethon_client_disabled.get_user_info(123)
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_get_chat_members_returns_empty(self, telethon_client_disabled):
-        result = await telethon_client_disabled.get_chat_members(123)
-        assert result == []
-
-    @pytest.mark.asyncio
-    async def test_get_chat_info_returns_none(self, telethon_client_disabled):
-        result = await telethon_client_disabled.get_chat_info(123)
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_search_messages_returns_empty(self, telethon_client_disabled):
-        result = await telethon_client_disabled.search_messages(123, "test")
-        assert result == []
-
-    @pytest.mark.asyncio
-    async def test_forward_messages_returns_empty(self, telethon_client_disabled):
-        result = await telethon_client_disabled.forward_messages(123, 456, [1, 2])
-        assert result == []
-
-    @pytest.mark.asyncio
-    async def test_create_supergroup_returns_none(self, telethon_client_disabled):
-        result = await telethon_client_disabled.create_supergroup("Test Group")
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_add_chat_admin_returns_false(self, telethon_client_disabled):
-        result = await telethon_client_disabled.add_chat_admin(123, 456)
-        assert result is False
-
-    @pytest.mark.asyncio
-    async def test_invite_to_chat_returns_false(self, telethon_client_disabled):
-        result = await telethon_client_disabled.invite_to_chat(123, 456)
-        assert result is False
-
-    @pytest.mark.asyncio
-    async def test_send_message_returns_none(self, telethon_client_disabled):
-        result = await telethon_client_disabled.send_message(123, "hello")
-        assert result is None
+    @pytest.mark.parametrize(
+        ("method", "args", "expected"),
+        [
+            ("get_chat_history", (123,), []),
+            ("get_user_info", (123,), None),
+            ("get_chat_members", (123,), []),
+            ("get_chat_info", (123,), None),
+            ("search_messages", (123, "test"), []),
+            ("forward_messages", (123, 456, [1, 2]), []),
+            ("create_supergroup", ("Test Group",), None),
+            ("add_chat_admin", (123, 456), False),
+            ("invite_to_chat", (123, 456), False),
+            ("send_message", (123, "hello"), None),
+        ],
+    )
+    async def test_disabled_returns_empty(self, telethon_client_disabled, method, args, expected):
+        result = await getattr(telethon_client_disabled, method)(*args)
+        assert result == expected
 
 
 # --- FloodWait retry logic tests ---
 
 
 class TestFloodWaitRetry:
-    @pytest.mark.asyncio
     async def test_flood_wait_retries_and_succeeds(self, telethon_client_enabled):
         """FloodWaitError should trigger a wait and retry."""
         # Create a mock FloodWaitError
@@ -219,7 +181,6 @@ class TestFloodWaitRetry:
                 result = await telethon_client_enabled._execute_with_flood_wait(_factory, max_retries=3, base_delay=0.0)
         assert result == "success"
 
-    @pytest.mark.asyncio
     async def test_retries_exhausted_raises(self, telethon_client_enabled):
         """When all retries are exhausted, the last exception should be raised."""
         error = ValueError("persistent error")
@@ -235,7 +196,6 @@ class TestFloodWaitRetry:
                 with pytest.raises(ValueError, match="persistent error"):
                     await telethon_client_enabled._execute_with_flood_wait(_factory, max_retries=2, base_delay=0.0)
 
-    @pytest.mark.asyncio
     async def test_succeeds_on_first_try(self, telethon_client_enabled):
         """No retries needed when operation succeeds immediately."""
 
@@ -251,7 +211,6 @@ class TestFloodWaitRetry:
 
 
 class TestGetChatHistory:
-    @pytest.mark.asyncio
     async def test_returns_message_info_list(self, telethon_client_enabled, mock_telegram_client):
         mock_msg = MagicMock()
         mock_msg.id = 1
@@ -277,7 +236,6 @@ class TestGetChatHistory:
 
 
 class TestGetUserInfo:
-    @pytest.mark.asyncio
     async def test_returns_user_info(self, telethon_client_enabled, mock_telegram_client):
         mock_user = MagicMock()
         mock_user.id = 100
@@ -324,7 +282,6 @@ class TestGetUserInfo:
 
 
 class TestGetChatMembers:
-    @pytest.mark.asyncio
     async def test_returns_member_list(self, telethon_client_enabled, mock_telegram_client):
         mock_participant = MagicMock()
         mock_participant.id = 200
@@ -347,7 +304,6 @@ class TestGetChatMembers:
 
 
 class TestSearchMessages:
-    @pytest.mark.asyncio
     async def test_returns_matching_messages(self, telethon_client_enabled, mock_telegram_client):
         mock_msg = MagicMock()
         mock_msg.id = 5
@@ -369,7 +325,6 @@ class TestSearchMessages:
 
 
 class TestForwardMessages:
-    @pytest.mark.asyncio
     async def test_forwards_and_returns_info(self, telethon_client_enabled, mock_telegram_client):
         mock_msg = MagicMock()
         mock_msg.id = 10
@@ -391,33 +346,22 @@ class TestForwardMessages:
 class TestNotConnectedNoOp:
     """Methods should return empty results when enabled but not connected."""
 
-    @pytest.mark.asyncio
-    async def test_create_supergroup_not_connected(self, enabled_settings):
+    @pytest.mark.parametrize(
+        ("method", "args", "expected"),
+        [
+            ("create_supergroup", ("Test",), None),
+            ("add_chat_admin", (123, 456), False),
+            ("invite_to_chat", (123, 456), False),
+            ("send_message", (123, "hello"), None),
+        ],
+    )
+    async def test_not_connected_returns_empty(self, enabled_settings, method, args, expected):
         tc = TelethonClient(settings=enabled_settings)
-        result = await tc.create_supergroup("Test")
-        assert result is None
-
-    @pytest.mark.asyncio
-    async def test_add_chat_admin_not_connected(self, enabled_settings):
-        tc = TelethonClient(settings=enabled_settings)
-        result = await tc.add_chat_admin(123, 456)
-        assert result is False
-
-    @pytest.mark.asyncio
-    async def test_invite_to_chat_not_connected(self, enabled_settings):
-        tc = TelethonClient(settings=enabled_settings)
-        result = await tc.invite_to_chat(123, 456)
-        assert result is False
-
-    @pytest.mark.asyncio
-    async def test_send_message_not_connected(self, enabled_settings):
-        tc = TelethonClient(settings=enabled_settings)
-        result = await tc.send_message(123, "hello")
-        assert result is None
+        result = await getattr(tc, method)(*args)
+        assert result == expected
 
 
 class TestCreateSupergroup:
-    @pytest.mark.asyncio
     async def test_creates_and_returns_chat_info(self, telethon_client_enabled, mock_telegram_client):
         mock_chat = MagicMock()
         mock_chat.id = 999
@@ -443,7 +387,6 @@ class TestCreateSupergroup:
 
 
 class TestAddChatAdmin:
-    @pytest.mark.asyncio
     async def test_success_returns_true(self, telethon_client_enabled, mock_telegram_client):
         mock_telegram_client.side_effect = AsyncMock(return_value=MagicMock())
 
@@ -456,7 +399,6 @@ class TestAddChatAdmin:
 
         assert result is True
 
-    @pytest.mark.asyncio
     async def test_failure_returns_false(self, telethon_client_enabled, mock_telegram_client):
         mock_telegram_client.side_effect = RuntimeError("permission denied")
 
@@ -475,7 +417,6 @@ class TestAddChatAdmin:
 
 
 class TestInviteToChat:
-    @pytest.mark.asyncio
     async def test_success_returns_true(self, telethon_client_enabled, mock_telegram_client):
         mock_telegram_client.side_effect = AsyncMock(return_value=MagicMock())
 
@@ -487,7 +428,6 @@ class TestInviteToChat:
 
         assert result is True
 
-    @pytest.mark.asyncio
     async def test_failure_returns_false(self, telethon_client_enabled, mock_telegram_client):
         mock_telegram_client.side_effect = RuntimeError("user not found")
 
@@ -505,7 +445,6 @@ class TestInviteToChat:
 
 
 class TestSendMessage:
-    @pytest.mark.asyncio
     async def test_sends_and_returns_message_info(self, telethon_client_enabled, mock_telegram_client):
         mock_msg = MagicMock()
         mock_msg.id = 42

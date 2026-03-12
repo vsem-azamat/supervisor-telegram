@@ -43,11 +43,6 @@ class UserFactory:
         return UserFactory.create(id=id, is_blocked=True, **kwargs)
 
     @staticmethod
-    def create_unverified(id: int | None = None, **kwargs) -> UserEntity:
-        """Create an unverified test user."""
-        return UserFactory.create(id=id, is_verified=False, **kwargs)
-
-    @staticmethod
     def create_batch(count: int, **kwargs) -> list[UserEntity]:
         """Create multiple test users."""
         return [UserFactory.create(**kwargs) for _ in range(count)]
@@ -181,11 +176,6 @@ class ChatLinkFactory:
         )
 
     @staticmethod
-    def create_high_priority(**kwargs) -> ChatLinkEntity:
-        """Create a high priority chat link."""
-        return ChatLinkFactory.create(priority=10, **kwargs)
-
-    @staticmethod
     def create_batch(count: int, **kwargs) -> list[ChatLinkEntity]:
         """Create multiple test chat links."""
         return [ChatLinkFactory.create(**kwargs) for _ in range(count)]
@@ -226,45 +216,3 @@ class ValueObjectFactory:
             delete_after_seconds=delete_after_seconds,
             captcha_enabled=captcha_enabled,
         )
-
-
-class TestDataBuilder:
-    """Builder pattern for creating complex test scenarios."""
-
-    @staticmethod
-    def create_chat_with_users_and_messages(
-        user_count: int = 3,
-        message_count_per_user: int = 2,
-    ) -> tuple[ChatEntity, list[UserEntity], list[MessageEntity]]:
-        """Create a chat with users and their messages."""
-        chat = ChatFactory.create()
-        users = UserFactory.create_batch(user_count)
-        messages = []
-
-        for user in users:
-            for _ in range(message_count_per_user):
-                message = MessageFactory.create(
-                    chat_id=chat.id,
-                    user_id=user.id,
-                )
-                messages.append(message)
-
-        return chat, users, messages
-
-    @staticmethod
-    def create_moderation_scenario(
-        admin_count: int = 2,
-        user_count: int = 5,
-        chat_count: int = 3,
-    ) -> tuple[list[AdminEntity], list[UserEntity], list[ChatEntity]]:
-        """Create a complete moderation scenario."""
-        admins = AdminFactory.create_batch(admin_count)
-        users = UserFactory.create_batch(user_count)
-        chats = ChatFactory.create_batch(chat_count)
-
-        # Block some users
-        if len(users) >= 2:
-            users[0].block()
-            users[1].block()
-
-        return admins, users, chats

@@ -122,7 +122,8 @@ class TestGraphDefinition:
 
     def test_graph_has_transitions(self):
         graph = build_content_pipeline_graph()
-        assert len(graph.transitions) > 0
+        # The pipeline defines exactly 14 transitions (verified against workflow.py)
+        assert len(graph.transitions) == 14
 
 
 # ---------------------------------------------------------------------------
@@ -183,7 +184,6 @@ class TestTransitionGuards:
 
 
 class TestFetchSourcesAction:
-    @pytest.mark.asyncio
     async def test_fetch_returns_items(self, agent_settings, channel, mock_session_maker):
         from app.agent.channel.workflow import fetch_sources
 
@@ -225,7 +225,6 @@ class TestFetchSourcesAction:
             assert items[0].external_id == "ext1"
             assert result["error"] is None
 
-    @pytest.mark.asyncio
     async def test_fetch_handles_error(self, agent_settings, channel, mock_session_maker):
         from app.agent.channel.workflow import fetch_sources
 
@@ -253,7 +252,6 @@ class TestFetchSourcesAction:
 
 
 class TestScreenContentAction:
-    @pytest.mark.asyncio
     async def test_screen_filters_relevant(self, agent_settings, channel, sample_items):
         from app.agent.channel.workflow import screen_content
 
@@ -272,7 +270,6 @@ class TestScreenContentAction:
             assert len(result["relevant_items"]) == 1
             assert result["error"] is None
 
-    @pytest.mark.asyncio
     async def test_screen_empty_input(self, agent_settings, channel):
         from app.agent.channel.workflow import screen_content
 
@@ -290,9 +287,51 @@ class TestScreenContentAction:
         assert result["relevant_items"] == []
         assert result["error"] is None
 
+    async def test_screen_handles_screening_error(self, agent_settings, channel, sample_items):
+        from app.agent.channel.exceptions import ScreeningError
+        from app.agent.channel.workflow import screen_content
+
+        with patch(
+            "app.agent.channel.generator.screen_items",
+            side_effect=ScreeningError("LLM down"),
+        ):
+            state = State(
+                {
+                    "content_items": sample_items,
+                    "api_key": "test-key",
+                    "config": agent_settings,
+                    "channel": channel,
+                    "relevant_items": [],
+                    "error": None,
+                }
+            )
+            result = await screen_content(state)
+            assert result["relevant_items"] == []
+            assert "LLM down" in result["error"]
+
+    async def test_screen_handles_generic_error(self, agent_settings, channel, sample_items):
+        from app.agent.channel.workflow import screen_content
+
+        with patch(
+            "app.agent.channel.generator.screen_items",
+            side_effect=RuntimeError("unexpected"),
+        ):
+            state = State(
+                {
+                    "content_items": sample_items,
+                    "api_key": "test-key",
+                    "config": agent_settings,
+                    "channel": channel,
+                    "relevant_items": [],
+                    "error": None,
+                }
+            )
+            result = await screen_content(state)
+            assert result["relevant_items"] == []
+            assert result["error"] is not None
+
 
 class TestSplitAndEnrichTopicsAction:
-    @pytest.mark.asyncio
     async def test_enriches_items(self, agent_settings, channel, sample_items, mock_session_maker):
         from app.agent.channel.workflow import split_and_enrich_topics
 
@@ -314,7 +353,6 @@ class TestSplitAndEnrichTopicsAction:
             assert len(result["content_items"]) == 1
             assert result["error"] is None
 
-    @pytest.mark.asyncio
     async def test_empty_input_passthrough(self, agent_settings, mock_session_maker):
         from app.agent.channel.workflow import split_and_enrich_topics
 
@@ -331,7 +369,6 @@ class TestSplitAndEnrichTopicsAction:
         result = await split_and_enrich_topics(state)
         assert result["content_items"] == []
 
-    @pytest.mark.asyncio
     async def test_split_error_falls_back_to_original(self, agent_settings, sample_items, mock_session_maker):
         from app.agent.channel.workflow import split_and_enrich_topics
 
@@ -355,55 +392,7 @@ class TestSplitAndEnrichTopicsAction:
             assert result["content_items"][0].external_id == "item1"
 
 
-class TestScreenContentAction2:
-    @pytest.mark.asyncio
-    async def test_screen_handles_screening_error(self, agent_settings, channel, sample_items):
-        from app.agent.channel.exceptions import ScreeningError
-        from app.agent.channel.workflow import screen_content
-
-        with patch(
-            "app.agent.channel.generator.screen_items",
-            side_effect=ScreeningError("LLM down"),
-        ):
-            state = State(
-                {
-                    "content_items": sample_items,
-                    "api_key": "test-key",
-                    "config": agent_settings,
-                    "channel": channel,
-                    "relevant_items": [],
-                    "error": None,
-                }
-            )
-            result = await screen_content(state)
-            assert result["relevant_items"] == []
-            assert "LLM down" in result["error"]
-
-    @pytest.mark.asyncio
-    async def test_screen_handles_generic_error(self, agent_settings, channel, sample_items):
-        from app.agent.channel.workflow import screen_content
-
-        with patch(
-            "app.agent.channel.generator.screen_items",
-            side_effect=RuntimeError("unexpected"),
-        ):
-            state = State(
-                {
-                    "content_items": sample_items,
-                    "api_key": "test-key",
-                    "config": agent_settings,
-                    "channel": channel,
-                    "relevant_items": [],
-                    "error": None,
-                }
-            )
-            result = await screen_content(state)
-            assert result["relevant_items"] == []
-            assert result["error"] is not None
-
-
 class TestPublishPostAction:
-    @pytest.mark.asyncio
     async def test_publish_post_missing_post_id(self, channel, mock_bot, mock_session_maker):
         from app.agent.channel.workflow import publish_post
 
@@ -419,7 +408,6 @@ class TestPublishPostAction:
         result = await publish_post(state)
         assert result["error"] == "missing_post_id"
 
-    @pytest.mark.asyncio
     async def test_publish_post_publish_error(self, channel, mock_bot, mock_session_maker):
         from app.agent.channel.exceptions import PublishError
         from app.agent.channel.workflow import publish_post
@@ -443,7 +431,6 @@ class TestPublishPostAction:
 
 
 class TestGeneratePostAction:
-    @pytest.mark.asyncio
     async def test_generate_produces_post(self, agent_settings, channel, mock_session_maker, sample_items):
         from app.agent.channel.generator import GeneratedPost
         from app.agent.channel.workflow import generate_post
@@ -488,6 +475,9 @@ class TestAppFactory:
             channel=channel,
         )
         assert app is not None
+        assert app.graph is not None
+        assert app.state["channel_id"] == "test_channel"
+        assert app.state["api_key"] == "test-key"
 
     def test_creates_app_with_resume_state(self, channel, agent_settings, mock_bot, mock_session_maker):
         app = create_pipeline_app(
@@ -501,6 +491,9 @@ class TestAppFactory:
             entrypoint="await_review",
         )
         assert app is not None
+        assert app.graph is not None
+        assert app.state["review_decision"] == "approved"
+        assert app.state["post_id"] == 42
 
 
 # ---------------------------------------------------------------------------
@@ -509,7 +502,6 @@ class TestAppFactory:
 
 
 class TestFullPipeline:
-    @pytest.mark.asyncio
     async def test_pipeline_no_content_stops_early(self, channel, agent_settings, mock_bot, mock_session_maker):
         with (
             patch("app.agent.channel.source_manager.get_active_sources", return_value=[]),
@@ -528,7 +520,6 @@ class TestFullPipeline:
             assert action_obj.name == "done"
             assert state["content_items"] == []
 
-    @pytest.mark.asyncio
     async def test_pipeline_halts_at_review(self, channel, agent_settings, mock_bot, mock_session_maker, sample_items):
         from app.agent.channel.generator import GeneratedPost
 
@@ -559,7 +550,6 @@ class TestFullPipeline:
             assert action_obj.name == "await_review"
             assert state["post_id"] == 99
 
-    @pytest.mark.asyncio
     async def test_pipeline_resume_approve(self, channel, agent_settings, mock_bot, mock_session_maker):
         with patch("app.agent.channel.review.handle_approve", return_value="Published! (msg #42)"):
             app = create_pipeline_app(
@@ -575,7 +565,6 @@ class TestFullPipeline:
             action_obj, _result, state = await app.arun(halt_after=["done"])
             assert state["result_message"] == "Published! (msg #42)"
 
-    @pytest.mark.asyncio
     async def test_pipeline_resume_reject(self, channel, agent_settings, mock_bot, mock_session_maker):
         with patch("app.agent.channel.review.handle_reject", return_value="Post rejected."):
             app = create_pipeline_app(
@@ -591,7 +580,6 @@ class TestFullPipeline:
             action_obj, _result, state = await app.arun(halt_after=["done"])
             assert state["result_message"] == "Post rejected."
 
-    @pytest.mark.asyncio
     async def test_pipeline_direct_publish_no_review_channel(
         self, channel_no_review, agent_settings, mock_bot, mock_session_maker, sample_items
     ):
