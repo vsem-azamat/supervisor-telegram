@@ -4,7 +4,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from aiogram import types
-from app.presentation.telegram.middlewares.admin import AdminMiddleware, SuperAdminMiddleware, you_are_not_admin
+from app.presentation.telegram.middlewares.admin import (
+    AdminMiddleware,
+    SuperAdminMiddleware,
+    invalidate_admin_cache,
+    you_are_not_admin,
+)
 
 
 def _make_message(user_id: int) -> MagicMock:
@@ -57,6 +62,13 @@ class TestSuperAdminMiddleware:
 
 
 class TestAdminMiddleware:
+    @pytest.fixture(autouse=True)
+    def _clear_cache(self):
+        """Invalidate admin cache before each test to ensure isolation."""
+        invalidate_admin_cache()
+        yield
+        invalidate_admin_cache()
+
     @pytest.fixture
     def middleware(self):
         return AdminMiddleware()

@@ -247,6 +247,38 @@ async def generate_post(state: State) -> State:
     language = language_name(channel.language)
     footer = channel.footer
 
+    # Pre-generation dedup: skip items whose title is too similar to recent posts
+    try:
+        from app.agent.channel.semantic_dedup import find_nearest_posts
+
+        deduplicated: list[Any] = []
+        for item in relevant:
+            nearest = await find_nearest_posts(
+                f"{item.title} {item.body[:100]}",
+                channel_id=channel_id,
+                api_key=api_key,
+                session_maker=session_maker,
+                model=config.embedding_model,
+                limit=1,
+                lookback_days=7,
+            )
+            if nearest and nearest[0][1] >= config.semantic_dedup_threshold:
+                logger.info(
+                    "pre_generation_dedup_skip",
+                    title=item.title[:60],
+                    similar_to=nearest[0][0][:60],
+                    similarity=f"{nearest[0][1]:.3f}",
+                )
+                continue
+            deduplicated.append(item)
+        if deduplicated:
+            relevant = deduplicated
+        else:
+            logger.info("all_relevant_items_are_duplicates", channel_id=channel_id)
+            return state.update(generated_post=None, error="all_items_are_duplicates")
+    except Exception:
+        logger.warning("pre_generation_dedup_failed_continuing", exc_info=True)
+
     # Non-blocking feedback context
     feedback_context: str | None = None
     try:

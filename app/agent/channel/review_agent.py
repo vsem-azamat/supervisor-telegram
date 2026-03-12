@@ -199,6 +199,7 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
         model,
         deps_type=ReviewAgentDeps,
         output_type=str,
+        retries=3,
     )
 
     # Dynamic system prompt that injects the footer from deps
@@ -256,9 +257,9 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
 
         from app.agent.channel.generator import enforce_footer_and_length
         from app.agent.channel.review import (
-            _build_review_keyboard,
             _edit_review_message,
-            _extract_source_btn_data,
+            build_review_keyboard,
+            extract_source_btn_data,
         )
         from app.core.markdown import md_to_entities
         from app.infrastructure.db.models import ChannelPost
@@ -280,8 +281,8 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
 
             # 3. Update the review message in Telegram
             if post.review_message_id:
-                source_btn_data = _extract_source_btn_data(post)
-                keyboard = _build_review_keyboard(
+                source_btn_data = extract_source_btn_data(post)
+                keyboard = build_review_keyboard(
                     ctx.deps.post_id,
                     source_items=source_btn_data,
                     channel_name=ctx.deps.channel_name,
@@ -363,9 +364,9 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
         Returns a warning string if refresh failed, None on success.
         """
         from app.agent.channel.review import (
-            _build_review_keyboard,
-            _extract_source_btn_data,
             _send_review_message,
+            build_review_keyboard,
+            extract_source_btn_data,
         )
 
         if not post.review_message_id:
@@ -380,8 +381,8 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
                 await bot.delete_message(chat_id=review_chat_id, message_id=post.review_message_id)
 
             # Send new message with current image
-            source_btn_data = _extract_source_btn_data(post)
-            keyboard = _build_review_keyboard(
+            source_btn_data = extract_source_btn_data(post)
+            keyboard = build_review_keyboard(
                 ctx.deps.post_id,
                 source_items=source_btn_data,
                 channel_name=ctx.deps.channel_name,

@@ -17,6 +17,8 @@ def sanitize_external_text(text: str) -> str:
     # Neutralise the specific boundary markers used in prompts
     text = text.replace("</content_item>", "[/content_item]")
     text = text.replace("<content_item>", "[content_item]")
+    text = text.replace("</user_message>", "[/user_message]")
+    text = text.replace("<user_message>", "[user_message]")
     return _XML_HTML_TAG_RE.sub("", text)
 
 

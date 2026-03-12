@@ -302,11 +302,11 @@ class TestSourceManager:
 
 
 class TestReviewFlow:
-    async def test_build_review_keyboard(self) -> None:
-        from app.agent.channel.review import _build_review_keyboard
+    async def testbuild_review_keyboard(self) -> None:
+        from app.agent.channel.review import build_review_keyboard
         from app.presentation.telegram.utils.callback_data import ReviewAction
 
-        kb = _build_review_keyboard(42)
+        kb = build_review_keyboard(42)
         assert len(kb.inline_keyboard) == 2
         assert len(kb.inline_keyboard[0]) == 4  # Approve, Schedule, Reject, Delete
         assert len(kb.inline_keyboard[1]) == 3  # Shorter, Longer, Regen
@@ -315,10 +315,10 @@ class TestReviewFlow:
         assert kb.inline_keyboard[0][2].callback_data == ReviewAction(action="reject", post_id=42).pack()
         assert kb.inline_keyboard[0][3].callback_data == ReviewAction(action="delete", post_id=42).pack()
 
-    async def test_build_review_keyboard_with_channel_and_sources(self) -> None:
-        from app.agent.channel.review import _build_review_keyboard
+    async def testbuild_review_keyboard_with_channel_and_sources(self) -> None:
+        from app.agent.channel.review import build_review_keyboard
 
-        kb = _build_review_keyboard(
+        kb = build_review_keyboard(
             42,
             source_items=[{"title": "Article 1", "url": "https://example.com/1"}],
             channel_name="Test Channel",

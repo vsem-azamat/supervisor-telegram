@@ -211,8 +211,8 @@ class Message(Base):
     __tablename__ = "messages"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    chat_id: Mapped[int] = mapped_column(BigInteger)
-    user_id: Mapped[int] = mapped_column(BigInteger)
+    chat_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, index=True)
     message_id: Mapped[int] = mapped_column(BigInteger)
     message: Mapped[str | None] = mapped_column(String, nullable=True)
     message_info: Mapped[dict[str, Any]] = mapped_column(JSON)
@@ -409,7 +409,7 @@ class ChannelPost(Base):
     review_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     image_url: Mapped[str | None] = mapped_column(String, nullable=True)
     image_urls: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
-    status: Mapped[str] = mapped_column(String(16), default=PostStatus.DRAFT)
+    status: Mapped[str] = mapped_column(String(16), default=PostStatus.DRAFT, index=True)
     admin_feedback: Mapped[str | None] = mapped_column(String, nullable=True)
     scheduled_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     scheduled_telegram_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
@@ -492,9 +492,9 @@ class AgentDecision(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     event_type: Mapped[str] = mapped_column(String(32))
-    chat_id: Mapped[int] = mapped_column(BigInteger)
+    chat_id: Mapped[int] = mapped_column(BigInteger, index=True)
     message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    target_user_id: Mapped[int] = mapped_column(BigInteger)
+    target_user_id: Mapped[int] = mapped_column(BigInteger, index=True)
     reporter_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     message_text: Mapped[str | None] = mapped_column(String, nullable=True)
     action: Mapped[str] = mapped_column(String(32))
@@ -532,9 +532,9 @@ class AgentEscalation(Base):
     __tablename__ = "agent_escalations"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    decision_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    chat_id: Mapped[int] = mapped_column(BigInteger)
-    target_user_id: Mapped[int] = mapped_column(BigInteger)
+    decision_id: Mapped[int | None] = mapped_column(Integer, index=True, nullable=True)
+    chat_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    target_user_id: Mapped[int] = mapped_column(BigInteger, index=True)
     message_text: Mapped[str | None] = mapped_column(String, nullable=True)
     suggested_action: Mapped[str] = mapped_column(String(32))
     reason: Mapped[str] = mapped_column(String)

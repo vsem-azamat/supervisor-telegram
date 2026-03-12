@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.services import moderation as moderation_services
 from app.application.services import spam as spam_service
 from app.application.services.user_service import UserService
+from app.core.text import escape_html
 from app.infrastructure.db.repositories import (
     ChatRepository,
     MessageRepository,
@@ -19,7 +20,6 @@ from app.presentation.telegram.utils.blacklist import (
     build_user_details_keyboard,
     build_user_details_text,
 )
-from app.presentation.telegram.utils.other import escape_html
 
 moderation_router = Router()
 

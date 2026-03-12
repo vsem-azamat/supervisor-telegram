@@ -394,7 +394,7 @@ async def generate_post(
         except Exception:
             logger.warning("image_search_failed", title=item.title[:60], exc_info=True)
 
-        logger.info("post_generated", length=len(post.text), images=len(image_urls))
+        logger.info("post_generated", length=len(post.text), images=len(post.image_urls or []))
         return post
     except GenerationError:
         raise

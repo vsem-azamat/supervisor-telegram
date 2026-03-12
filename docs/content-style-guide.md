@@ -87,3 +87,10 @@ Simple, clean, distinctive. The `——` (em-dash pair) is our separator — dif
 - No heavy emoji spam (1-2 per post max)
 - Clean whitespace between sections
 - Consistent footer on every post
+
+## Related Documents
+- `docs/KONNEKT_STRATEGY.md` — Full content strategy (6-month plan, quick wins, automation)
+- `docs/cvut-chat-deep-analysis.md` — Deep analysis of 45K ČVUT chat messages (3.5 years)
+- `docs/channel_analysis_report.md` — Competitor channel analysis (300 posts)
+- `docs/research/` — Agent architecture research (frameworks, memory, costs)
+- `docs/reviews/` — Code/architecture/security reviews

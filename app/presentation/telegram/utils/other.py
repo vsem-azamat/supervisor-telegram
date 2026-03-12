@@ -1,22 +1,13 @@
 import asyncio
 import contextlib
 import datetime
-import html
 import re
 from zoneinfo import ZoneInfo
 
 from aiogram import types
 
 from app.core.config import settings
-
-
-def escape_html(text: str) -> str:
-    """Escape HTML special characters in user-controlled text.
-
-    This MUST be used whenever user-supplied data (display names, usernames,
-    message text, etc.) is interpolated into strings sent with parse_mode="HTML".
-    """
-    return html.escape(text, quote=False)
+from app.core.text import escape_html
 
 
 async def _delete_later(message: types.Message, seconds: int) -> None:
@@ -57,9 +48,9 @@ def _strip_chat_id_prefix(chat_id: int) -> str:
     return s.lstrip("-")
 
 
-def get_message_link(tg_object: types.Message | types.Chat) -> str:
+def get_message_link(tg_object: types.Message) -> str:
     """Generate a direct link to a message."""
-    chat = tg_object.chat if isinstance(tg_object, types.Message) else tg_object
+    chat = tg_object.chat
 
     if chat.username:  # Public chat or channel
         return f"https://t.me/{chat.username}/{tg_object.message_id}"

@@ -18,10 +18,6 @@ class BlacklistPagination(CallbackData, prefix="blpage"):
     query: str = ""
 
 
-class BlacklistSearch(CallbackData, prefix="blsearch"):
-    user_id: int
-
-
 # ── Channel post review callbacks ──
 
 

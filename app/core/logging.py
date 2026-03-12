@@ -94,7 +94,7 @@ class BotLogger:
     def log_user_action(self, user_id: int, action: str, chat_id: int | None = None, **kwargs: Any) -> None:
         """Log user action with context."""
         context = {"user_id": user_id, "action": action, **kwargs}
-        if chat_id:
+        if chat_id is not None:
             context["chat_id"] = chat_id
 
         self.logger.info("User action", **context)
@@ -129,9 +129,9 @@ class BotLogger:
     ) -> None:
         """Log Telegram API error with context."""
         context = {"operation": operation, "error": error, "error_type": "telegram_api", **kwargs}
-        if chat_id:
+        if chat_id is not None:
             context["chat_id"] = chat_id
-        if user_id:
+        if user_id is not None:
             context["user_id"] = user_id
 
         self.logger.error("Telegram API error", **context)

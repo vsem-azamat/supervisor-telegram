@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
@@ -38,6 +39,7 @@ def _create_pydantic_agent() -> Agent[AgentDeps, ModerationResult]:
         system_prompt=MODERATION_PROMPT,
         deps_type=AgentDeps,
         output_type=ModerationResult,
+        retries=3,
     )
 
     # --- Dynamic system prompt: inject admin correction patterns ---
@@ -139,10 +141,20 @@ class AgentCore:
         deps = AgentDeps(bot=bot, db=db, event=event)
         user_prompt = self._build_user_prompt(event)
 
-        # Run PydanticAI agent
+        # Run PydanticAI agent with timeout
         try:
-            result: AgentRunResult[ModerationResult] = await self._agent.run(user_prompt, deps=deps)
+            result: AgentRunResult[ModerationResult] = await asyncio.wait_for(
+                self._agent.run(user_prompt, deps=deps),
+                timeout=60,
+            )
             decision = result.output
+        except TimeoutError as e:
+            logger.warning("Agent run timed out", error=str(e))
+            decision = ModerationResult(
+                action="escalate",
+                reason="Таймаут анализа: агент не ответил за 60 секунд",
+                suggested_action="ignore",
+            )
         except Exception as e:
             logger.error("Agent run failed", error=str(e))
             decision = ModerationResult(

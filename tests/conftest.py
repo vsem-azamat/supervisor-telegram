@@ -23,7 +23,6 @@ from unittest.mock import AsyncMock
 import pytest
 import pytest_asyncio
 from aiogram import Bot
-from app.application.services.moderation_service import ModerationService
 from app.application.services.user_service import UserService
 from app.domain.repositories import IAdminRepository, IChatRepository, IUserRepository
 from app.infrastructure.db.base import Base
@@ -94,12 +93,6 @@ async def admin_repository(session: AsyncSession) -> IAdminRepository:
 def mock_user_service() -> AsyncMock:
     """Mock user service."""
     return AsyncMock(spec=UserService)
-
-
-@pytest.fixture
-def mock_moderation_service() -> AsyncMock:
-    """Mock moderation service."""
-    return AsyncMock(spec=ModerationService)
 
 
 @pytest.fixture

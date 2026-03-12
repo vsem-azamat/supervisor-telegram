@@ -8,41 +8,10 @@ services:
     volumes:
       - .:/app
       - /app/.venv
-    depends_on:
-      - db
     environment:
       - PYTHONUNBUFFERED=1
     command: >
       sh -c "
-      ./scripts/wait_for_postgres.sh &&
       uv run alembic upgrade head &&
       uv run watchfiles 'uv run -m app.presentation.telegram' app/
       "
-
-  db:
-    image: postgres:17.6
-    restart: always
-    shm_size: 128mb
-    env_file:
-      - .env
-    environment:
-      - POSTGRES_DB=${DB_NAME}
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-    volumes:
-      - moderator-bot-db:/var/lib/postgresql/data
-    ports:
-      - "${DB_PORT:-5432}:5432"
-
-  adminer:
-    image: adminer:5.3.0
-    restart: always
-    env_file:
-      - .env
-    ports:
-      - "${ADMINER_PORT:-8080}:8080"
-    depends_on:
-      - db
-
-volumes:
-  moderator-bot-db:

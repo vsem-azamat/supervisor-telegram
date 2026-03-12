@@ -5,31 +5,11 @@ services:
       target: production
     env_file:
       - .env
-    depends_on:
-      - db
     environment:
       - PYTHONUNBUFFERED=1
     restart: unless-stopped
     command: >
       sh -c "
-      ./scripts/wait_for_postgres.sh &&
       uv run alembic upgrade head &&
       uv run -m app.presentation.telegram
       "
-
-  db:
-    image: postgres:17.6
-    restart: always
-    shm_size: 128mb
-    env_file:
-      - .env
-    environment:
-      - POSTGRES_DB=${DB_NAME}
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-    volumes:
-      - moderator-bot-db:/var/lib/postgresql/data
-
-
-volumes:
-  moderator-bot-db:
