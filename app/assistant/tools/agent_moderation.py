@@ -45,8 +45,8 @@ def register_agent_moderation_tools(agent: Agent[AssistantDeps, str]) -> None:
             reporter_id: User ID who reported the message (optional).
             event_type: Either "report" or "spam".
         """
-        from app.agent.core import AgentCore
         from app.agent.schemas import AgentEvent, EventType
+        from app.moderation.agent import AgentCore
 
         try:
             evt_type = EventType.SPAM if event_type == "spam" else EventType.REPORT
@@ -101,7 +101,7 @@ def register_agent_moderation_tools(agent: Agent[AssistantDeps, str]) -> None:
         Args:
             user_id: The user ID to look up.
         """
-        from app.agent.memory import AgentMemory
+        from app.moderation.memory import AgentMemory
 
         try:
             async with ctx.deps.session_maker() as session:

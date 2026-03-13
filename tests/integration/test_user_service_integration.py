@@ -1,10 +1,10 @@
 """Integration tests for user management service workflows."""
 
 import pytest
-from app.application.services.user_service import UserService
 from app.domain.exceptions import UserNotFoundException
 from app.infrastructure.db.models import User
 from app.infrastructure.db.repositories.user import UserRepository
+from app.moderation.user_service import UserService
 from sqlalchemy.ext.asyncio import AsyncSession
 
 

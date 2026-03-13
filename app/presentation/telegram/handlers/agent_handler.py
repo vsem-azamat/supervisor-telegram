@@ -132,7 +132,7 @@ async def handle_escalation_action(
         return
 
     # Resolve escalation (lazy import to avoid circular deps)
-    from app.agent.escalation import EscalationService
+    from app.moderation.escalation import EscalationService
 
     escalation_svc = EscalationService(bot, db)
     escalation = await escalation_svc.resolve(
@@ -147,7 +147,7 @@ async def handle_escalation_action(
 
     # Log admin override if agent's suggestion was different
     if escalation.decision_id and chosen_action != escalation.suggested_action:
-        from app.agent.memory import AgentMemory
+        from app.moderation.memory import AgentMemory
 
         memory = AgentMemory(db)
         await memory.set_admin_override(escalation.decision_id, chosen_action)
@@ -156,7 +156,7 @@ async def handle_escalation_action(
     action_type = ActionType(chosen_action) if chosen_action in ActionType.__members__.values() else ActionType.IGNORE
 
     if action_type != ActionType.IGNORE:
-        from app.agent.core import AgentCore
+        from app.moderation.agent import AgentCore
 
         event = AgentEvent(
             event_type=EventType.REPORT,

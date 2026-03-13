@@ -5,13 +5,13 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.services import moderation as moderation_services
-from app.application.services import spam as spam_service
-from app.application.services.user_service import UserService
 from app.core.text import escape_html
 from app.infrastructure.db.repositories import (
     ChatRepository,
     MessageRepository,
 )
+from app.moderation import spam_service
+from app.moderation.user_service import UserService
 from app.presentation.telegram.logger import logger
 from app.presentation.telegram.utils import BlacklistConfirm, BlacklistPagination, UnblockUser, other
 from app.presentation.telegram.utils.blacklist import (

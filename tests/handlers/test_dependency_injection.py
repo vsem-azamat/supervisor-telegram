@@ -10,7 +10,6 @@ from unittest.mock import AsyncMock
 
 import pytest
 from aiogram.types import CallbackQuery, Message
-from app.application.services.user_service import UserService
 from app.infrastructure.db.repositories import (
     AdminRepository,
     ChatLinkRepository,
@@ -18,6 +17,7 @@ from app.infrastructure.db.repositories import (
     MessageRepository,
     UserRepository,
 )
+from app.moderation.user_service import UserService
 from app.presentation.telegram.handlers import (
     admin,
     moderation,
@@ -74,7 +74,7 @@ class TestDependencyInjection:
 
     def test_user_service_properly_constructed(self):
         """Test that UserService is properly constructed with UserRepository."""
-        from app.application.services.user_service import UserService
+        from app.moderation.user_service import UserService
 
         # Verify UserService constructor signature
         sig = inspect.signature(UserService.__init__)

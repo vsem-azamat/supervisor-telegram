@@ -4,8 +4,7 @@ from typing import TYPE_CHECKING, Any
 from aiogram import BaseMiddleware, types
 from aiogram.types import TelegramObject
 
-from app.application.services import history as history_service
-from app.application.services import spam as spam_service
+from app.moderation import history_service, spam_service
 from app.presentation.telegram.logger import logger
 from app.presentation.telegram.utils import other
 

@@ -1,18 +1,5 @@
-from aiogram import types
-from sqlalchemy.ext.asyncio import AsyncSession
+"""Backward-compatibility shim — moved to app.moderation.spam_service."""
 
-from app.infrastructure.db.repositories import get_message_repository
+from app.moderation.spam_service import detect_spam
 
-
-async def detect_spam(db: AsyncSession, message: types.Message) -> bool:
-    if not message.from_user:
-        return False
-    text = message.text or message.caption
-    if not text:
-        return False
-
-    message_repo = get_message_repository(db)
-    if await message_repo.has_previous_messages(chat_id=message.chat.id, user_id=message.from_user.id):
-        return False
-
-    return bool(await message_repo.is_similar_spam_message(text))
+__all__ = ["detect_spam"]

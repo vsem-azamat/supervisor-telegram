@@ -262,6 +262,12 @@ module = "app.agent.*"
 disable_error_code = ["union-attr", "arg-type", "no-any-return", "call-overload"]
 disallow_any_generics = false
 
+# Moderation module — extracted from agent + application.services
+[[tool.mypy.overrides]]
+module = "app.moderation.*"
+disable_error_code = ["union-attr", "arg-type", "no-any-return", "call-overload"]
+disallow_any_generics = false
+
 [[tool.mypy.overrides]]
 module = ["pydantic_ai.*", "openai.*", "feedparser.*"]
 ignore_missing_imports = true

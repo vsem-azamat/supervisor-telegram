@@ -5,8 +5,8 @@ from typing import TYPE_CHECKING, Any
 from aiogram import BaseMiddleware, Bot, types
 from aiogram.types import TelegramObject
 
-from app.application.services import history as history_service
 from app.core.config import settings
+from app.moderation import history_service
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession

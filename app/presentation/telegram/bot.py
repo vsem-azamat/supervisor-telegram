@@ -130,7 +130,7 @@ def _init_escalation_recovery(session_maker: async_sessionmaker[AsyncSession]) -
         logger.info("agent_disabled")
         return
 
-    from app.agent.escalation import EscalationService
+    from app.moderation.escalation import EscalationService
 
     EscalationService.set_session_maker(session_maker)
     logger.info("escalation_service_configured")
@@ -208,7 +208,7 @@ async def main() -> None:
     # Phase 1: Initialize shared services
     _init_escalation_recovery(session_maker)
     if settings.moderation.enabled and settings.openrouter.api_key:
-        from app.agent.escalation import EscalationService
+        from app.moderation.escalation import EscalationService
 
         await EscalationService.recover_stale_escalations(session_maker)
 

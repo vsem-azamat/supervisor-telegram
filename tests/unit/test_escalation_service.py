@@ -13,10 +13,10 @@ if TYPE_CHECKING:
 import pytest
 import pytest_asyncio
 from aiogram import Bot
-from app.agent.escalation import EscalationService, _timeout_tasks
 from app.agent.schemas import AgentEvent, EventType
 from app.infrastructure.db.base import Base
 from app.infrastructure.db.models import AgentEscalation
+from app.moderation.escalation import EscalationService, _timeout_tasks
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
@@ -100,7 +100,7 @@ class TestEscalationCreate:
         db_session: AsyncSession,
         sample_event: AgentEvent,
     ):
-        with patch("app.agent.escalation.settings") as mock_settings:
+        with patch("app.moderation.escalation.settings") as mock_settings:
             mock_settings.moderation.escalation_timeout_minutes = 30
             mock_settings.moderation.default_timeout_action = "ignore"
             mock_settings.admin.super_admins = [123456789]
@@ -127,7 +127,7 @@ class TestEscalationCreate:
         db_session: AsyncSession,
         sample_event: AgentEvent,
     ):
-        with patch("app.agent.escalation.settings") as mock_settings:
+        with patch("app.moderation.escalation.settings") as mock_settings:
             mock_settings.moderation.escalation_timeout_minutes = 30
             mock_settings.moderation.default_timeout_action = "ignore"
             mock_settings.admin.super_admins = [123456789]
@@ -145,7 +145,7 @@ class TestEscalationCreate:
         db_session: AsyncSession,
         sample_event: AgentEvent,
     ):
-        with patch("app.agent.escalation.settings") as mock_settings:
+        with patch("app.moderation.escalation.settings") as mock_settings:
             mock_settings.moderation.escalation_timeout_minutes = 30
             mock_settings.moderation.default_timeout_action = "ignore"
             mock_settings.admin.super_admins = [123456789]
@@ -164,7 +164,7 @@ class TestEscalationCreate:
         db_session: AsyncSession,
         sample_event: AgentEvent,
     ):
-        with patch("app.agent.escalation.settings") as mock_settings:
+        with patch("app.moderation.escalation.settings") as mock_settings:
             mock_settings.moderation.escalation_timeout_minutes = 30
             mock_settings.moderation.default_timeout_action = "ignore"
             mock_settings.admin.super_admins = []
@@ -260,7 +260,7 @@ class TestGetPending:
 
 @pytest.mark.unit
 class TestTimeoutHandler:
-    @patch("app.agent.escalation.settings")
+    @patch("app.moderation.escalation.settings")
     async def test_timeout_handler_marks_timeout_status(
         self,
         mock_settings: object,
@@ -285,7 +285,7 @@ class TestTimeoutHandler:
         svc = _make_service(mock_bot, db_session)
 
         # Call _timeout_handler with 0 sleep time
-        with patch("app.agent.escalation.asyncio.sleep", new_callable=AsyncMock):
+        with patch("app.moderation.escalation.asyncio.sleep", new_callable=AsyncMock):
             await svc._timeout_handler(esc.id, 0)
 
         # Verify in DB via fresh session
@@ -307,13 +307,13 @@ class TestTimeoutHandler:
         EscalationService._session_maker = None
         try:
             svc = _make_service(mock_bot, db_session)
-            with patch("app.agent.escalation.asyncio.sleep", new_callable=AsyncMock):
+            with patch("app.moderation.escalation.asyncio.sleep", new_callable=AsyncMock):
                 # Should not raise
                 await svc._timeout_handler(999, 0)
         finally:
             EscalationService._session_maker = old_maker
 
-    @patch("app.agent.escalation.settings")
+    @patch("app.moderation.escalation.settings")
     async def test_timeout_handler_writes_memory_override_when_decision_id_set(
         self,
         mock_settings: object,
@@ -339,8 +339,8 @@ class TestTimeoutHandler:
         svc = _make_service(mock_bot, db_session)
 
         with (
-            patch("app.agent.escalation.asyncio.sleep", new_callable=AsyncMock),
-            patch("app.agent.memory.AgentMemory.set_admin_override", new_callable=AsyncMock) as mock_override,
+            patch("app.moderation.escalation.asyncio.sleep", new_callable=AsyncMock),
+            patch("app.moderation.memory.AgentMemory.set_admin_override", new_callable=AsyncMock) as mock_override,
         ):
             await svc._timeout_handler(esc.id, 0)
 
@@ -352,7 +352,7 @@ class TestTimeoutHandler:
 
 @pytest.mark.unit
 class TestRecoverStale:
-    @patch("app.agent.escalation.settings")
+    @patch("app.moderation.escalation.settings")
     async def test_recover_stale_escalations_marks_timed_out(
         self,
         mock_settings: object,
@@ -388,7 +388,7 @@ class TestRecoverStale:
 
 @pytest.mark.unit
 class TestSendEscalationMessage:
-    @patch("app.agent.escalation.settings")
+    @patch("app.moderation.escalation.settings")
     async def test_send_escalation_message_truncates_long_text(
         self,
         mock_settings: object,
@@ -420,7 +420,7 @@ class TestSendEscalationMessage:
         assert "..." in sent_text
         assert "A" * 501 not in sent_text
 
-    @patch("app.agent.escalation.settings")
+    @patch("app.moderation.escalation.settings")
     async def test_send_escalation_message_format_no_username(
         self,
         mock_settings: object,

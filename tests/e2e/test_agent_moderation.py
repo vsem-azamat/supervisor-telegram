@@ -389,7 +389,7 @@ class TestEscalationCallback:
         )
 
         # Mock AgentCore.execute_action to avoid real Telegram API calls
-        with patch("app.agent.core.AgentCore") as MockAgentCore:
+        with patch("app.moderation.agent.AgentCore") as MockAgentCore:
             mock_instance = MockAgentCore.return_value
             mock_instance.execute_action = AsyncMock()
             await dispatcher.feed_update(bot, update)
@@ -510,7 +510,7 @@ class TestEscalationCallback:
         )
 
         # Mock AgentCore to verify it's NOT called for ignore
-        with patch("app.agent.core.AgentCore") as MockAgentCore:
+        with patch("app.moderation.agent.AgentCore") as MockAgentCore:
             mock_instance = MockAgentCore.return_value
             mock_instance.execute_action = AsyncMock()
             await dispatcher.feed_update(bot, update)

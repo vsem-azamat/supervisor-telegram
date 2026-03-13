@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, URLInputFile
 
-from app.agent.channel.review_service import (
+from app.agent.channel.review.service import (
     CB_APPROVE,
     CB_BACK,
     CB_DELETE,
@@ -64,7 +64,7 @@ __all__ = [
     "handle_regen",
     "handle_reject",
     "send_for_review",
-    # Helpers used by review_agent.py
+    # Helpers used by review agent
     "build_review_keyboard",
     "_edit_review_message",
     "extract_source_btn_data",

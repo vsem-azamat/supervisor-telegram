@@ -1,54 +1,5 @@
-from aiogram import types
-from sqlalchemy.ext.asyncio import AsyncSession
+"""Backward-compatibility shim — moved to app.moderation.history_service."""
 
-from app.infrastructure.db.repositories import (
-    get_chat_repository,
-    get_message_repository,
-    get_user_repository,
-)
+from app.moderation.history_service import merge_chat, merge_user, save_message
 
-
-async def save_message(db: AsyncSession, message: types.Message) -> None:
-    if not message.from_user:
-        return
-    chat_id = message.chat.id
-    user_id = message.from_user.id
-    message_id = message.message_id
-    message_text = message.text or message.caption
-    message_info = message.model_dump(
-        exclude_none=True,
-        exclude={"contact", "location", "venue", "passport_data", "web_app_data"},
-    )
-
-    message_repo = get_message_repository(db)
-    await message_repo.add_message(chat_id, user_id, message_id, message_text, message_info)
-
-
-async def merge_user(db: AsyncSession, user: types.User) -> None:
-    user_repo = get_user_repository(db)
-    from app.infrastructure.db.models import User
-
-    existing = await user_repo.get_by_id(user.id)
-    if existing:
-        # Only update profile fields — never overwrite blocked / verify
-        existing.username = user.username
-        existing.first_name = user.first_name
-        existing.last_name = user.last_name
-        await user_repo.save(existing)
-    else:
-        user_model = User(
-            id=user.id,
-            username=user.username,
-            first_name=user.first_name,
-            last_name=user.last_name,
-        )
-        await user_repo.save(user_model)
-
-
-async def merge_chat(db: AsyncSession, chat: types.Chat) -> None:
-    chat_repo = get_chat_repository(db)
-    await chat_repo.merge_chat(
-        id_tg_chat=chat.id,
-        title=chat.title,
-        is_forum=chat.is_forum,
-    )
+__all__ = ["merge_chat", "merge_user", "save_message"]

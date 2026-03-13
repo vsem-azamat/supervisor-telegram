@@ -3,15 +3,15 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from app.application.services.user_service import UserService
 from app.domain.exceptions import UserNotFoundException
 from app.infrastructure.db.models import User
 from app.infrastructure.db.repositories.user import UserRepository
+from app.moderation.user_service import UserService
 
 from tests.factories import UserFactory
 
 # Constants for patch paths
-BOT_LOGGER_PATCH_PATH = "app.application.services.user_service.BotLogger"
+BOT_LOGGER_PATCH_PATH = "app.moderation.user_service.BotLogger"
 
 
 # --- Module-level fixtures (shared by all test classes) ---

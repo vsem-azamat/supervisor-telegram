@@ -3,8 +3,8 @@
 from unittest.mock import AsyncMock
 
 import pytest
-from app.application.services.user_service import UserService
 from app.infrastructure.db.models import User
+from app.moderation.user_service import UserService
 from app.presentation.telegram.handlers.moderation import show_blacklist
 
 from tests.telegram_helpers import TelegramObjectFactory

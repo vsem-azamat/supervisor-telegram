@@ -3,7 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from app.application.services.spam import detect_spam
+from app.moderation.spam_service import detect_spam
 
 
 class TestDetectSpam:
@@ -36,7 +36,7 @@ class TestDetectSpam:
         msg = self._make_message()
         mock_repo = MagicMock()
         mock_repo.has_previous_messages = AsyncMock(return_value=True)
-        with patch("app.application.services.spam.get_message_repository", return_value=mock_repo):
+        with patch("app.moderation.spam_service.get_message_repository", return_value=mock_repo):
             assert await detect_spam(db, msg) is False
 
     async def test_first_message_spam_returns_true(self, db):
@@ -44,7 +44,7 @@ class TestDetectSpam:
         mock_repo = MagicMock()
         mock_repo.has_previous_messages = AsyncMock(return_value=False)
         mock_repo.is_similar_spam_message = AsyncMock(return_value=True)
-        with patch("app.application.services.spam.get_message_repository", return_value=mock_repo):
+        with patch("app.moderation.spam_service.get_message_repository", return_value=mock_repo):
             assert await detect_spam(db, msg) is True
 
     async def test_first_message_clean_returns_false(self, db):
@@ -52,7 +52,7 @@ class TestDetectSpam:
         mock_repo = MagicMock()
         mock_repo.has_previous_messages = AsyncMock(return_value=False)
         mock_repo.is_similar_spam_message = AsyncMock(return_value=False)
-        with patch("app.application.services.spam.get_message_repository", return_value=mock_repo):
+        with patch("app.moderation.spam_service.get_message_repository", return_value=mock_repo):
             assert await detect_spam(db, msg) is False
 
     async def test_caption_fallback(self, db):
@@ -61,7 +61,7 @@ class TestDetectSpam:
         mock_repo = MagicMock()
         mock_repo.has_previous_messages = AsyncMock(return_value=False)
         mock_repo.is_similar_spam_message = AsyncMock(return_value=True)
-        with patch("app.application.services.spam.get_message_repository", return_value=mock_repo):
+        with patch("app.moderation.spam_service.get_message_repository", return_value=mock_repo):
             result = await detect_spam(db, msg)
             # Caption should be used when text is None, and spam detection should proceed
             mock_repo.is_similar_spam_message.assert_awaited_once_with("Buy crypto now!")

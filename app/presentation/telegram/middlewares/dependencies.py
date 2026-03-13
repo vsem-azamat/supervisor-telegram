@@ -5,7 +5,6 @@ from aiogram import BaseMiddleware, Bot
 from aiogram.types import TelegramObject
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.application.services.user_service import UserService
 from app.infrastructure.db.repositories import (
     get_admin_repository,
     get_chat_link_repository,
@@ -13,6 +12,7 @@ from app.infrastructure.db.repositories import (
     get_message_repository,
     get_user_repository,
 )
+from app.moderation.user_service import UserService
 
 
 class DependenciesMiddleware(BaseMiddleware):
