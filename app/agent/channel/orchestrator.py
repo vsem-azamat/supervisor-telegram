@@ -22,6 +22,7 @@ from app.agent.channel.channel_repo import (
 from app.agent.channel.source_discovery import discover_and_add_sources
 from app.core.logging import get_logger
 from app.core.time import utc_now
+from app.domain.value_objects import ReviewDecision
 
 if TYPE_CHECKING:
     from aiogram import Bot
@@ -220,7 +221,7 @@ class SingleChannelOrchestrator:
         elif state.get("result_message", "").startswith("published_directly:"):
             await try_reserve_daily_slot(self.session_maker, channel_id)
 
-    async def resume_review(self, post_id: int, decision: str) -> str:
+    async def resume_review(self, post_id: int, decision: str | ReviewDecision) -> str:
         """Resume a halted Burr workflow after admin review."""
         from app.agent.channel.workflow import create_pipeline_app
 
@@ -229,7 +230,7 @@ class SingleChannelOrchestrator:
             logger.warning("no_pending_review", post_id=post_id)
             return "No pending review found for this post."
 
-        saved_state["review_decision"] = decision
+        saved_state["review_decision"] = ReviewDecision(decision)
 
         channel_id = self.channel.telegram_id
         app = create_pipeline_app(

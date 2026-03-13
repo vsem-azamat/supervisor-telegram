@@ -108,7 +108,7 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
                 await callback.answer("Post not found or channel not configured", show_alert=True)
                 return
             # Use moderator bot for publishing (callback.bot may be the assistant bot)
-            publish_bot = container.get_bot() or bot
+            publish_bot = container.try_get_bot() or bot
             result = await handle_approve(publish_bot, post_id, channel.telegram_id, session_maker)
             await callback.answer(result, show_alert=True)
 
@@ -422,7 +422,7 @@ async def on_publish_now(callback: CallbackQuery, callback_data: PublishNow) -> 
                 await cancel_scheduled_post(tc, session_maker, post_id, channel)
 
         # Use moderator bot for publishing (callback.bot may be the assistant bot)
-        publish_bot = container.get_bot() or bot
+        publish_bot = container.try_get_bot() or bot
         result = await handle_approve(publish_bot, post_id, channel.telegram_id, session_maker)
         await callback.answer(result, show_alert=True)
 

@@ -101,6 +101,10 @@ class Container:
             raise ValueError("Bot not set")
         return self._bot
 
+    def try_get_bot(self) -> Bot | None:
+        """Get bot instance, or None if not set."""
+        return self._bot
+
     def get_user_repository(self, session: AsyncSession) -> IUserRepository:
         """Get user repository."""
         return UserRepository(session)
