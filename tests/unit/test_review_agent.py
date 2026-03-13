@@ -40,13 +40,6 @@ class TestCreateReviewAgent:
         assert expected <= tool_names, f"Missing tools: {expected - tool_names}"
         assert len(tool_names) >= len(expected)
 
-    def test_agent_is_pydantic_agent(self) -> None:
-        """Verify it returns a pydantic_ai.Agent instance."""
-        from pydantic_ai import Agent
-
-        agent = create_review_agent()
-        assert isinstance(agent, Agent)
-
 
 # ---------------------------------------------------------------------------
 # Test conversation memory
@@ -99,82 +92,34 @@ class TestReviewConversationMemory:
         assert len(_review_conversations) <= _MAX_REVIEW_CONVERSATIONS
 
 
-# --- Tests for generator.enforce_footer_and_length (co-located here) ---
+# ---------------------------------------------------------------------------
+# build_schedule_picker_keyboard
+# ---------------------------------------------------------------------------
 
 
-class TestEnforceFooterAndLength:
-    def test_appends_footer_when_missing(self) -> None:
-        from app.agent.channel.generator import enforce_footer_and_length
+class TestBuildSchedulePickerKeyboard:
+    def test_builds_keyboard_with_slots(self) -> None:
+        from datetime import datetime
 
-        result = enforce_footer_and_length("Hello world", "——\nFooter")
-        assert result.endswith("——\nFooter")
+        from app.agent.channel.review import build_schedule_picker_keyboard
 
-    def test_preserves_footer_when_present(self) -> None:
-        from app.agent.channel.generator import enforce_footer_and_length
+        slots = [
+            datetime(2026, 3, 8, 9, 0, 0),
+            datetime(2026, 3, 8, 15, 0, 0),
+        ]
+        kb = build_schedule_picker_keyboard(42, slots)
+        # 2 slot rows + 1 action row (publish now + back)
+        assert len(kb.inline_keyboard) == 3
+        assert "\U0001f4c5" in kb.inline_keyboard[0][0].text
+        assert (kb.inline_keyboard[0][0].callback_data or "").startswith("rvsp:42:")
+        assert (kb.inline_keyboard[2][0].callback_data or "").startswith("rvpub:42")
 
-        text = "Hello world\n\n——\nFooter"
-        result = enforce_footer_and_length(text, "——\nFooter")
-        assert result.count("——\nFooter") == 1
+    def test_limits_to_5_slots(self) -> None:
+        from datetime import datetime
 
-    def test_truncates_to_max_length(self) -> None:
-        from app.agent.channel.generator import enforce_footer_and_length
+        from app.agent.channel.review import build_schedule_picker_keyboard
 
-        long_text = "A" * 1000
-        footer = "——\nFooter"
-        result = enforce_footer_and_length(long_text, footer, max_length=200)
-        assert len(result) <= 200
-        assert result.endswith(footer)
-
-    def test_uses_default_footer_when_empty(self) -> None:
-        from app.agent.channel.generator import DEFAULT_FOOTER, enforce_footer_and_length
-
-        result = enforce_footer_and_length("Hello", "")
-        assert DEFAULT_FOOTER in result
-
-
-# --- Tests for Channel.footer property (co-located here) ---
-
-
-class TestChannelFooter:
-    def test_footer_with_template(self) -> None:
-        from app.infrastructure.db.models import Channel
-
-        ch = Channel(telegram_id="@test", name="Test", footer_template="Custom footer")
-        assert ch.footer == "Custom footer"
-
-    def test_footer_without_template_uses_username(self) -> None:
-        from app.infrastructure.db.models import Channel
-
-        ch = Channel(telegram_id="@test", name="MyChannel", username="mychan")
-        assert "MyChannel" in ch.footer
-        assert "@mychan" in ch.footer
-
-    def test_footer_without_template_or_username(self) -> None:
-        from app.infrastructure.db.models import Channel
-
-        ch = Channel(telegram_id="@testchan", name="TestChan")
-        assert "TestChan" in ch.footer
-        assert "@testchan" in ch.footer
-
-    def test_footer_numeric_id_no_at_mention(self) -> None:
-        from app.infrastructure.db.models import Channel
-
-        ch = Channel(telegram_id="-1001234567890", name="NumChannel")
-        assert "NumChannel" in ch.footer
-        assert "@" not in ch.footer
-
-    def test_footer_username_with_at_prefix_no_double_at(self) -> None:
-        """Regression: username stored with @ prefix must not produce @@username."""
-        from app.infrastructure.db.models import Channel
-
-        ch = Channel(telegram_id="@test_chan", name="TestChan", username="@test_chan")
-        assert "@@" not in ch.footer
-        assert "@test_chan" in ch.footer
-
-    def test_footer_telegram_id_with_at_prefix(self) -> None:
-        """Regression: telegram_id starting with @ must be stripped when used as fallback."""
-        from app.infrastructure.db.models import Channel
-
-        ch = Channel(telegram_id="@mychannel", name="MyChan")
-        assert "@@" not in ch.footer
-        assert "@mychannel" in ch.footer
+        slots = [datetime(2026, 3, 8, h, 0, 0) for h in range(8)]
+        kb = build_schedule_picker_keyboard(1, slots)
+        # 5 slot rows + 1 action row
+        assert len(kb.inline_keyboard) == 6

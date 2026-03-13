@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from app.core.config import ModerationSettings
@@ -53,81 +53,3 @@ class TestContainerTryGetBot:
         c = Container()
         with pytest.raises(ValueError, match="Bot not set"):
             c.get_bot()
-
-
-# ---------------------------------------------------------------------------
-# Two-bot orchestrator wiring
-# ---------------------------------------------------------------------------
-
-
-class TestTwoBotOrchestrator:
-    def test_review_bot_defaults_to_publish_bot(self):
-        from app.agent.channel.config import ChannelAgentSettings
-        from app.agent.channel.orchestrator import SingleChannelOrchestrator
-        from app.infrastructure.db.models import Channel
-
-        bot = AsyncMock()
-        ch = Channel(telegram_id="-100123", name="Test", language="en")  # type: ignore[call-arg]
-        orch = SingleChannelOrchestrator(
-            publish_bot=bot,
-            config=ChannelAgentSettings(enabled=True),
-            channel=ch,
-            api_key="k",
-            session_maker=MagicMock(),
-        )
-        assert orch.review_bot is bot
-        assert orch.publish_bot is bot
-
-    def test_separate_review_bot(self):
-        from app.agent.channel.config import ChannelAgentSettings
-        from app.agent.channel.orchestrator import SingleChannelOrchestrator
-        from app.infrastructure.db.models import Channel
-
-        pub_bot = AsyncMock()
-        rev_bot = AsyncMock()
-        ch = Channel(telegram_id="-100123", name="Test", language="en")  # type: ignore[call-arg]
-        orch = SingleChannelOrchestrator(
-            publish_bot=pub_bot,
-            config=ChannelAgentSettings(enabled=True),
-            channel=ch,
-            api_key="k",
-            session_maker=MagicMock(),
-            review_bot=rev_bot,
-        )
-        assert orch.review_bot is rev_bot
-        assert orch.publish_bot is pub_bot
-        assert orch.bot is pub_bot  # backward-compat property
-
-    async def test_resume_review_converts_str_to_enum(self):
-        from app.agent.channel.config import ChannelAgentSettings
-        from app.agent.channel.orchestrator import SingleChannelOrchestrator
-        from app.core.enums import ReviewDecision
-        from app.infrastructure.db.models import Channel
-
-        bot = AsyncMock()
-        ch = Channel(telegram_id="-100123", name="Test", language="en")  # type: ignore[call-arg]
-        orch = SingleChannelOrchestrator(
-            publish_bot=bot,
-            config=ChannelAgentSettings(enabled=True),
-            channel=ch,
-            api_key="k",
-            session_maker=MagicMock(),
-        )
-
-        # Inject a pending review
-        orch._pending_reviews[42] = {"channel_id": "-100123", "post_id": 42}
-
-        # Mock create_pipeline_app to capture the resume_state
-        captured_state: dict = {}
-
-        def fake_create(**kwargs):
-            captured_state.update(kwargs.get("resume_state", {}))
-            mock_app = MagicMock()
-            mock_app.arun = AsyncMock(return_value=(None, None, MagicMock(get=lambda _k, d="": d)))
-            return mock_app
-
-        with patch("app.agent.channel.workflow.create_pipeline_app", side_effect=fake_create):
-            await orch.resume_review(42, "approved")
-
-        assert captured_state["review_decision"] == ReviewDecision.APPROVED
-        assert isinstance(captured_state["review_decision"], ReviewDecision)

@@ -10,36 +10,17 @@ from unittest.mock import AsyncMock, patch
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
 import pytest
 import pytest_asyncio
 from aiogram import Bot
 from app.agent.schemas import AgentEvent, EventType
-from app.infrastructure.db.base import Base
 from app.infrastructure.db.models import AgentEscalation
 from app.moderation.escalation import EscalationService, _timeout_tasks
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 # ---- Fixtures ----
-
-
-@pytest_asyncio.fixture()
-async def db_engine() -> AsyncGenerator[AsyncEngine, None]:
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield engine
-    await engine.dispose()
-
-
-@pytest_asyncio.fixture()
-async def db_session_maker(db_engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
-    return async_sessionmaker(
-        bind=db_engine,
-        class_=AsyncSession,
-        autoflush=False,
-        expire_on_commit=False,
-    )
 
 
 @pytest_asyncio.fixture()

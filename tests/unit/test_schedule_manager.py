@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-import pytest_asyncio
 from app.agent.channel.schedule_manager import (
     cancel_scheduled_post,
     get_occupied_slots,
@@ -17,31 +17,11 @@ from app.agent.channel.schedule_manager import (
 )
 from app.core.enums import PostStatus
 from app.core.time import utc_now
-from app.infrastructure.db.base import Base
 from app.infrastructure.db.models import ChannelPost
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
-# ── Fixtures ──────────────────────────────────────────────────────────
-
-
-@pytest_asyncio.fixture()
-async def db_engine():  # type: ignore[misc]
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield engine
-    await engine.dispose()
-
-
-@pytest_asyncio.fixture()
-async def session_maker(db_engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
-    return async_sessionmaker(
-        bind=db_engine,
-        class_=AsyncSession,
-        autoflush=False,
-        expire_on_commit=False,
-    )
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
 @pytest.fixture
@@ -409,68 +389,3 @@ class TestUpdateScheduledText:
         result = await update_scheduled_text(mock_telethon, mock_channel, post)
         assert result is False
         mock_telethon.edit_scheduled_message.assert_not_awaited()
-
-
-# --- Tests for ChannelPost domain methods (co-located) ---
-
-
-class TestChannelPostScheduleMethods:
-    def test_schedule(self) -> None:
-        post = ChannelPost(channel_id="@test", external_id="e1", title="T", post_text="text")
-        t = utc_now()
-        post.schedule(t, 42)
-        assert post.status == PostStatus.SCHEDULED
-        assert post.scheduled_at == t
-        assert post.scheduled_telegram_id == 42
-
-    def test_confirm_published(self) -> None:
-        post = ChannelPost(channel_id="@test", external_id="e1", title="T", post_text="text")
-        post.schedule(utc_now(), 42)
-        post.confirm_published(100)
-        assert post.status == PostStatus.APPROVED
-        assert post.telegram_message_id == 100
-        assert post.published_at is not None
-
-    def test_reschedule(self) -> None:
-        post = ChannelPost(channel_id="@test", external_id="e1", title="T", post_text="text")
-        t1 = utc_now()
-        t2 = utc_now() + timedelta(hours=1)
-        post.schedule(t1, 42)
-        post.reschedule(t2, 99)
-        assert post.scheduled_at == t2
-        assert post.scheduled_telegram_id == 99
-
-    def test_unschedule(self) -> None:
-        post = ChannelPost(channel_id="@test", external_id="e1", title="T", post_text="text")
-        post.schedule(utc_now(), 42)
-        post.unschedule()
-        assert post.status == PostStatus.DRAFT
-        assert post.scheduled_at is None
-        assert post.scheduled_telegram_id is None
-
-
-# --- Tests for build_schedule_picker_keyboard (co-located, presentation layer) ---
-
-
-class TestBuildSchedulePickerKeyboard:
-    def test_builds_keyboard_with_slots(self) -> None:
-        from app.agent.channel.review import build_schedule_picker_keyboard
-
-        slots = [
-            datetime(2026, 3, 8, 9, 0, 0),
-            datetime(2026, 3, 8, 15, 0, 0),
-        ]
-        kb = build_schedule_picker_keyboard(42, slots)
-        # 2 slot rows + 1 action row (publish now + back)
-        assert len(kb.inline_keyboard) == 3
-        assert "📅" in kb.inline_keyboard[0][0].text
-        assert (kb.inline_keyboard[0][0].callback_data or "").startswith("rvsp:42:")
-        assert (kb.inline_keyboard[2][0].callback_data or "").startswith("rvpub:42")
-
-    def test_limits_to_5_slots(self) -> None:
-        from app.agent.channel.review import build_schedule_picker_keyboard
-
-        slots = [datetime(2026, 3, 8, h, 0, 0) for h in range(8)]
-        kb = build_schedule_picker_keyboard(1, slots)
-        # 5 slot rows + 1 action row
-        assert len(kb.inline_keyboard) == 6

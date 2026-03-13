@@ -28,40 +28,49 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 
 @pytest_asyncio.fixture(scope="function")
-async def engine() -> AsyncGenerator[AsyncEngine, None]:
-    """Create test database engine."""
-    test_engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
-        echo=False,
-    )
-
-    # Create all tables
-    async with test_engine.begin() as conn:
+async def db_engine() -> AsyncGenerator[AsyncEngine, None]:
+    """In-memory SQLite engine with all tables created."""
+    eng = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
+    async with eng.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    yield eng
+    await eng.dispose()
 
-    yield test_engine
 
-    await test_engine.dispose()
+# Alias for backward compat — some tests use `engine`
+engine = db_engine
 
 
 @pytest_asyncio.fixture(scope="function")
-async def session(engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
+async def session_maker(db_engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
+    """Async session maker bound to the in-memory engine."""
+    return async_sessionmaker(
+        bind=db_engine,
+        class_=AsyncSession,
+        autoflush=False,
+        expire_on_commit=False,
+    )
+
+
+# Alias — escalation tests use `db_session_maker`
+db_session_maker = session_maker
+
+
+@pytest_asyncio.fixture(scope="function")
+async def session(db_engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
     """Create database session for tests with proper isolation."""
-    session_factory = async_sessionmaker(
-        bind=engine,
+    factory = async_sessionmaker(
+        bind=db_engine,
         class_=AsyncSession,
         autoflush=False,
         autocommit=False,
         expire_on_commit=False,
     )
-    async with session_factory() as session:
-        # Use nested transaction (savepoint) for test isolation
-        # This allows repositories to commit while still maintaining isolation
-        nested_transaction = await session.begin_nested()
+    async with factory() as sess:
+        nested_transaction = await sess.begin_nested()
         try:
-            yield session
+            yield sess
         finally:
-            # Rollback the savepoint to undo all changes
             if nested_transaction.is_active:
                 await nested_transaction.rollback()
 

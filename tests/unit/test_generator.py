@@ -210,3 +210,38 @@ class TestGeneratePost:
             prompt = call_args.args[0] if call_args.args else call_args.kwargs.get("user_prompt", "")
             assert "First" in prompt
             assert "Second" not in prompt
+
+
+# ---------------------------------------------------------------------------
+# enforce_footer_and_length
+# ---------------------------------------------------------------------------
+
+
+class TestEnforceFooterAndLength:
+    def test_appends_footer_when_missing(self) -> None:
+        from app.agent.channel.generator import enforce_footer_and_length
+
+        result = enforce_footer_and_length("Hello world", "——\nFooter")
+        assert result.endswith("——\nFooter")
+
+    def test_preserves_footer_when_present(self) -> None:
+        from app.agent.channel.generator import enforce_footer_and_length
+
+        text = "Hello world\n\n——\nFooter"
+        result = enforce_footer_and_length(text, "——\nFooter")
+        assert result.count("——\nFooter") == 1
+
+    def test_truncates_to_max_length(self) -> None:
+        from app.agent.channel.generator import enforce_footer_and_length
+
+        long_text = "A" * 1000
+        footer = "——\nFooter"
+        result = enforce_footer_and_length(long_text, footer, max_length=200)
+        assert len(result) <= 200
+        assert result.endswith(footer)
+
+    def test_uses_default_footer_when_empty(self) -> None:
+        from app.agent.channel.generator import DEFAULT_FOOTER, enforce_footer_and_length
+
+        result = enforce_footer_and_length("Hello", "")
+        assert DEFAULT_FOOTER in result

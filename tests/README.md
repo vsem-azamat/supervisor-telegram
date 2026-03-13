@@ -52,7 +52,6 @@ uv run -m pytest tests/unit tests/e2e -x
 uv run -m pytest -m unit           # Unit tests
 uv run -m pytest -m integration    # Integration tests
 uv run -m pytest -m e2e            # End-to-end tests
-uv run -m pytest -m handlers       # Handler tests
 uv run -m pytest -m "not slow"     # Exclude slow tests
 ```
 
@@ -62,35 +61,39 @@ uv run -m pytest -m "not slow"     # Exclude slow tests
 
 ```
 tests/
-├── conftest.py                        # Shared fixtures (engine, session, repositories)
+├── conftest.py                        # Shared fixtures (db_engine, session, session_maker, repos)
 ├── factories.py                       # Test data factories (UserFactory, ChatFactory, etc.)
 ├── fake_telegram.py                   # FakeTelegramServer (aiohttp Bot API simulator)
 ├── telegram_helpers.py                # TelegramObjectFactory, MockBot, utility functions
 ├── unit/                              # Unit tests
-│   ├── test_domain_entities.py
-│   ├── test_value_objects.py
-│   ├── test_user_service.py
-│   ├── test_application_services.py
-│   ├── test_escalation_service.py
-│   ├── test_channel_agent_v2.py
+│   ├── test_admin_middleware.py
+│   ├── test_assistant.py
+│   ├── test_buttons.py
+│   ├── test_channel_agent.py
+│   ├── test_channel_model.py
 │   ├── test_channel_workflow.py
+│   ├── test_config.py
+│   ├── test_cost_tracker.py
+│   ├── test_enums.py
+│   ├── test_escalation_service.py
+│   ├── test_exceptions.py
+│   ├── test_filters.py
 │   ├── test_generator.py
+│   ├── test_images.py
+│   ├── test_markdown.py
+│   ├── test_middlewares.py
 │   ├── test_orchestrator.py
 │   ├── test_publisher.py
+│   ├── test_report.py
 │   ├── test_review_agent.py
 │   ├── test_review_service_helpers.py
 │   ├── test_schedule_manager.py
-│   ├── test_topic_splitter.py
-│   ├── test_images.py
-│   ├── test_ssrf.py
 │   ├── test_spam_service.py
-│   ├── test_assistant.py
-│   ├── test_middlewares.py
-│   ├── test_admin_middleware.py
-│   ├── test_filters.py
+│   ├── test_ssrf.py
 │   ├── test_telethon_client.py
 │   ├── test_tool_trace.py
-│   └── test_domain_exceptions.py
+│   ├── test_topic_splitter.py
+│   └── test_user_service.py
 ├── integration/                       # Integration tests (DB + services)
 │   ├── conftest.py                    # PostgreSQL testcontainers fixtures
 │   ├── test_user_repository.py
@@ -99,14 +102,13 @@ tests/
 │   ├── test_user_service_integration.py
 │   └── test_assistant_conversation.py
 ├── e2e/                               # End-to-end tests (FakeTelegramServer)
-│   ├── conftest.py                    # Shared e2e fixtures (db_engine, db_session_maker, fake_tg)
+│   ├── conftest.py                    # Shared e2e fixtures (fake_tg)
 │   ├── test_agent_moderation.py
 │   └── test_channel_review.py
 ├── handlers/                          # Handler unit tests
 │   ├── test_moderation_handlers.py
 │   ├── test_admin_handlers.py
-│   ├── test_events_handlers.py
-│   ├── test_blacklist_improvements.py
+│   ├── test_blacklist_handlers.py
 │   └── test_dependency_injection.py
 ├── middleware/                         # Middleware tests
 │   └── test_blacklist_middleware.py
@@ -120,7 +122,8 @@ tests/
 
 Available in all tests (from root `conftest.py`):
 
-- `engine` - SQLite in-memory async engine
+- `db_engine` / `engine` - SQLite in-memory async engine
+- `session_maker` / `db_session_maker` - Async session maker
 - `session` - Database session with savepoint isolation
 - `user_repository` - User repository instance
 - `chat_repository` - Chat repository instance
@@ -135,8 +138,6 @@ Available in `tests/telegram_helpers.py` (auto-discovered by pytest):
 
 Available in `tests/e2e/conftest.py`:
 
-- `db_engine` - SQLite in-memory engine for e2e tests
-- `db_session_maker` - Async session maker for e2e tests
 - `fake_tg` - `FakeTelegramServer` instance
 
 ## Test Factories

@@ -186,34 +186,6 @@ class TestSingleChannelOrchestrator:
 
 
 # ---------------------------------------------------------------------------
-# Channel model tests (not orchestrator logic, but Channel method behavior)
-# ---------------------------------------------------------------------------
-
-
-class TestChannelModel:
-    def test_daily_count_reset(self, channel: Channel):
-        channel.daily_posts_count = 5
-        channel.daily_count_date = "2020-01-01"
-        channel.reset_daily_count("2020-01-02")
-        assert channel.daily_posts_count == 0
-
-    def test_daily_count_no_reset_same_day(self, channel: Channel):
-        channel.daily_posts_count = 2
-        channel.daily_count_date = "2020-01-01"
-        channel.reset_daily_count("2020-01-01")
-        assert channel.daily_posts_count == 2
-
-    def test_language_name(self, channel: Channel):
-        from app.agent.channel.config import language_name
-
-        channel.language = "ru"
-        assert language_name(channel.language) == "Russian"
-
-        channel.language = "cs"
-        assert language_name(channel.language) == "Czech"
-
-
-# ---------------------------------------------------------------------------
 # ChannelOrchestrator tests
 # ---------------------------------------------------------------------------
 
@@ -299,3 +271,70 @@ class TestChannelOrchestrator:
         await orch.stop()
         for sub in orch._orchestrators.values():
             sub.stop.assert_awaited_once()  # type: ignore[attr-defined]
+
+
+# ---------------------------------------------------------------------------
+# Two-bot orchestrator wiring
+# ---------------------------------------------------------------------------
+
+
+class TestTwoBotOrchestrator:
+    def test_review_bot_defaults_to_publish_bot(self):
+        bot = AsyncMock()
+        ch = Channel(telegram_id="-100123", name="Test", language="en")  # type: ignore[call-arg]
+        orch = SingleChannelOrchestrator(
+            publish_bot=bot,
+            config=ChannelAgentSettings(enabled=True),
+            channel=ch,
+            api_key="k",
+            session_maker=MagicMock(),
+        )
+        assert orch.review_bot is bot
+        assert orch.publish_bot is bot
+
+    def test_separate_review_bot(self):
+        pub_bot = AsyncMock()
+        rev_bot = AsyncMock()
+        ch = Channel(telegram_id="-100123", name="Test", language="en")  # type: ignore[call-arg]
+        orch = SingleChannelOrchestrator(
+            publish_bot=pub_bot,
+            config=ChannelAgentSettings(enabled=True),
+            channel=ch,
+            api_key="k",
+            session_maker=MagicMock(),
+            review_bot=rev_bot,
+        )
+        assert orch.review_bot is rev_bot
+        assert orch.publish_bot is pub_bot
+        assert orch.bot is pub_bot  # backward-compat property
+
+    async def test_resume_review_converts_str_to_enum(self):
+        from app.core.enums import ReviewDecision
+
+        bot = AsyncMock()
+        ch = Channel(telegram_id="-100123", name="Test", language="en")  # type: ignore[call-arg]
+        orch = SingleChannelOrchestrator(
+            publish_bot=bot,
+            config=ChannelAgentSettings(enabled=True),
+            channel=ch,
+            api_key="k",
+            session_maker=MagicMock(),
+        )
+
+        # Inject a pending review
+        orch._pending_reviews[42] = {"channel_id": "-100123", "post_id": 42}
+
+        # Mock create_pipeline_app to capture the resume_state
+        captured_state: dict = {}
+
+        def fake_create(**kwargs):
+            captured_state.update(kwargs.get("resume_state", {}))
+            mock_app = MagicMock()
+            mock_app.arun = AsyncMock(return_value=(None, None, MagicMock(get=lambda _k, d="": d)))
+            return mock_app
+
+        with patch("app.agent.channel.workflow.create_pipeline_app", side_effect=fake_create):
+            await orch.resume_review(42, "approved")
+
+        assert captured_state["review_decision"] == ReviewDecision.APPROVED
+        assert isinstance(captured_state["review_decision"], ReviewDecision)

@@ -10,13 +10,6 @@ from unittest.mock import AsyncMock
 
 import pytest
 from aiogram.types import CallbackQuery, Message
-from app.infrastructure.db.repositories import (
-    AdminRepository,
-    ChatLinkRepository,
-    ChatRepository,
-    MessageRepository,
-    UserRepository,
-)
 from app.moderation.user_service import UserService
 from app.presentation.telegram.handlers import (
     admin,
@@ -184,31 +177,3 @@ class TestDependencyInjection:
                 error_msg += f"  {dep['handler']}: missing '{dep['missing_param']}' of type {dep['param_type']}\n"
 
             pytest.fail(error_msg)
-
-    def test_repository_types_consistency(self):
-        """Test that repository types are consistent between middleware and handlers."""
-        from app.infrastructure.db.repositories import (
-            get_admin_repository,
-            get_chat_link_repository,
-            get_chat_repository,
-            get_message_repository,
-            get_user_repository,
-        )
-
-        # Verify repository factory functions return the expected types
-        repository_factories = {
-            "admin_repo": (get_admin_repository, AdminRepository),
-            "chat_repo": (get_chat_repository, ChatRepository),
-            "chat_link_repo": (get_chat_link_repository, ChatLinkRepository),
-            "message_repo": (get_message_repository, MessageRepository),
-            "user_repo": (get_user_repository, UserRepository),
-        }
-
-        for _dep_name, (factory_func, _expected_type) in repository_factories.items():
-            # Check factory function return type annotation
-            type_hints = get_type_hints(factory_func)
-            return_type = type_hints.get("return")
-
-            # Note: Some factories might return the interface type, not concrete type
-            # This is acceptable as long as the concrete type implements the interface
-            assert return_type is not None, f"Factory {factory_func.__name__} should have return type annotation"

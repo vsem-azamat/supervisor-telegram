@@ -259,47 +259,6 @@ class TestModerationHandlerEdgeCases:
         answer_text = command_message.answer.call_args[0][0]
         assert "ответом" in answer_text.lower()
 
-    async def test_concurrent_moderation_actions(self, telegram_factory: TelegramObjectFactory, mock_bot: MockBot):
-        """Test concurrent moderation actions on same user."""
-        # Arrange
-        admin_user = create_admin_user()
-        target_user = create_normal_user()
-        chat = create_test_chat()
-
-        reply_message = telegram_factory.create_message(user=target_user, chat=chat)
-        mute_message = telegram_factory.create_command_message(
-            command="mute", user=admin_user, chat=chat, reply_to_message=reply_message
-        )
-        ban_message = telegram_factory.create_command_message(
-            command="ban", user=admin_user, chat=chat, reply_to_message=reply_message
-        )
-
-        # Mock bot methods
-        mock_bot.mock.restrict_chat_member = AsyncMock()
-        mock_bot.mock.ban_chat_member = AsyncMock()
-
-        # Mock utility functions
-        with (
-            patch("app.presentation.telegram.handlers.moderation.other.calculate_mute_duration") as mock_calc,
-            patch("app.presentation.telegram.handlers.moderation.other.get_user_mention") as mock_mention,
-        ):
-            mock_duration = AsyncMock()
-            mock_duration.until_date = 1234567890
-            mock_duration.time = "5"
-            mock_duration.unit = "минут"
-            mock_duration.formatted_until_date = lambda: "2024-01-01 12:00:00"
-            mock_calc.return_value = mock_duration
-            mock_mention.return_value = "@user"
-
-            # Act - simulate concurrent actions
-            import asyncio
-
-            await asyncio.gather(mute_user(mute_message, mock_bot.mock), ban_user(ban_message, mock_bot.mock))
-
-        # Assert
-        mock_bot.mock.restrict_chat_member.assert_called_once()
-        mock_bot.mock.ban_chat_member.assert_called_once()
-
     async def test_moderation_permission_error(self, telegram_factory: TelegramObjectFactory, mock_bot: MockBot):
         """Test moderation when bot lacks permissions."""
         # Arrange

@@ -2,37 +2,17 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-import pytest_asyncio
 from app.agent.channel.generator import GeneratedPost
 from app.agent.channel.sources import ContentItem
-from app.infrastructure.db.base import Base
 from app.infrastructure.db.models import ChannelPost, ChannelSource
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
-# ── Fixtures ──────────────────────────────────────────────────────────
-
-
-@pytest_asyncio.fixture()
-async def db_engine():  # type: ignore[misc]
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:", echo=False)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield engine
-    await engine.dispose()
-
-
-@pytest_asyncio.fixture()
-async def session_maker(db_engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
-    return async_sessionmaker(
-        bind=db_engine,
-        class_=AsyncSession,
-        autoflush=False,
-        expire_on_commit=False,
-    )
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 
 @pytest.fixture

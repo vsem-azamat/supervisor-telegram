@@ -7,7 +7,6 @@ from unittest.mock import patch
 import pytest
 from app.agent.channel.sources import ContentItem
 from app.agent.channel.topic_splitter import (
-    ContentSource,
     EnrichedTopic,
     SplitTopic,
     _is_synthesized,
@@ -114,20 +113,6 @@ class TestIsSynthesized:
     def test_https_source(self) -> None:
         item = ContentItem(source_url="https://example.com", external_id="h1", title="T", body="B")
         assert _is_synthesized(item) is False
-
-
-class TestContentSource:
-    def test_values(self) -> None:
-        assert ContentSource.RSS.value == "rss"
-        assert ContentSource.PERPLEXITY.value == "perplexity"
-        assert ContentSource.BRAVE.value == "brave"
-        assert ContentSource.SPLIT.value == "split"
-        assert ContentSource.ENRICHED.value == "enriched"
-        assert ContentSource.ASSISTANT.value == "assistant"
-
-    def test_is_str_enum(self) -> None:
-        assert isinstance(ContentSource.RSS, str)
-        assert f"prefix:{ContentSource.SPLIT}" == "prefix:split"
 
 
 class TestTopicToContentItem:
