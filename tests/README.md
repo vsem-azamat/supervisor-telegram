@@ -191,12 +191,12 @@ async def test_user_not_found_raises_exception(user_service):
 
 ## Running in CI
 
-Pre-commit hooks run ruff + mypy on commit, pytest on push.
+Pre-commit hooks run ruff + ty on commit, pytest on push.
 
 ```bash
 # Quality checks
 ruff check app tests && ruff format app tests
-mypy app tests
+ty check app tests
 
 # Full test suite
 uv run -m pytest --cov=app

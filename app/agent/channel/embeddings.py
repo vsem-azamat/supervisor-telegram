@@ -78,5 +78,5 @@ async def get_embeddings(
     data = await _call()
 
     # Sort by index to ensure order matches input
-    sorted_data = sorted(data["data"], key=lambda x: x["index"])
+    sorted_data = sorted(data["data"], key=lambda x: x["index"])  # ty: ignore[no-matching-overload]
     return [item["embedding"] for item in sorted_data]

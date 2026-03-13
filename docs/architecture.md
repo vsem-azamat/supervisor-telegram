@@ -92,18 +92,14 @@ app/
 │       ├── middlewares/           # 6 middlewares (auth, history, deps, etc.)
 │       └── utils/                 # Filters, callback data, blacklist utils
 │
-├── application/                   # [Legacy — shims only, migrating away]
+├── application/                   # [Legacy — migrating away]
 │   └── services/
-│       ├── spam.py                # → app.moderation.spam_service
-│       ├── user_service.py        # → app.moderation.user_service
-│       ├── history.py             # → app.moderation.history_service
 │       ├── buttons.py             # Inline button builders (not yet migrated)
 │       ├── moderation.py          # Moderation action executor (not yet migrated)
 │       └── report.py              # Report forwarding (not yet migrated)
 │
-└── domain/                        # [Legacy — shims only, migrating away]
-    ├── exceptions.py              # DomainError, UserNotFoundException
-    └── value_objects.py           # → app.core.enums (shim)
+└── domain/                        # [Legacy — migrating away]
+    └── exceptions.py              # DomainError, UserNotFoundException
 ```
 
 ## Configuration Hierarchy
@@ -196,10 +192,7 @@ All shared enums in `app/core/enums.py`: `PostStatus`, `EscalationStatus`, `Revi
 
 ### Backward-Compat Shims
 
-During the architecture migration, old import paths are preserved as thin re-export files. These will be removed once all external references are updated:
-- `app/domain/value_objects.py` → `app/core/enums`
-- `app/application/services/{spam,user_service,history}.py` → `app/moderation/*`
-- `app/agent/{core,escalation,memory}.py` → `app/moderation/*`
+During the architecture migration, old import paths are preserved as thin re-export files:
 - `app/agent/channel/{review_agent,review_service}.py` → `app/agent/channel/review/*`
 
 ## Testing
@@ -208,5 +201,5 @@ During the architecture migration, old import paths are preserved as thin re-exp
 - **Unit**: SQLite in-memory, mocked dependencies
 - **Integration**: testcontainers PostgreSQL (real DB)
 - **E2E**: `FakeTelegramServer` (aiohttp-based Bot API simulator)
-- **Pre-commit**: ruff + mypy on commit, pytest on push
+- **Pre-commit**: ruff + ty on commit, pytest on push
 - **Factories**: `tests/factories.py` — ORM model factories (User, Chat, Admin, Message, ChatLink)

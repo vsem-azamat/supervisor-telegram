@@ -159,7 +159,7 @@ class TestChannelPostModel:
             result = await session.execute(select(ChannelPost))
             saved = result.scalar_one()
             assert saved.source_items == sources
-            assert saved.source_items[0]["title"] == "Art"
+            assert saved.source_items[0]["title"] == "Art"  # ty: ignore[not-subscriptable]
 
 
 # ── ChannelSource model tests ────────────────────────────────────────

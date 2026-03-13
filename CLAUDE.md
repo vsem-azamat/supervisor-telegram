@@ -18,7 +18,7 @@ uv run -m pytest --cov=app                # with coverage
 
 # Quality
 ruff check app tests && ruff format app tests
-mypy app tests
+ty check app tests
 
 # Migrations
 alembic revision --autogenerate -m "description"
@@ -102,7 +102,7 @@ Self-calibrating: injects last 5 admin corrections into system prompt. Escalates
 - Unit: SQLite in-memory
 - Integration: testcontainers PostgreSQL
 - E2E: `FakeTelegramServer` (aiohttp-based Bot API simulator)
-- Pre-commit: ruff + mypy on commit, pytest on push
+- Pre-commit: ruff + ty on commit, pytest on push
 
 ## Environment
 

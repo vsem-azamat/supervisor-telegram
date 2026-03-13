@@ -94,183 +94,60 @@ indent-style = "space"
 skip-magic-trailing-comma = false
 line-ending = "auto"
 
-[tool.mypy]
-python_version = "3.12"
-packages = ["app", "tests"]
-exclude = "alembic/"
-strict = true
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-disallow_incomplete_defs = true
-check_untyped_defs = true
-# Allow untyped decorators to handle aiogram and other framework decorators
-disallow_untyped_decorators = false
-no_implicit_optional = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-warn_no_return = true
-warn_unreachable = true
-strict_equality = true
+# ── ty type checker (replaces mypy) ──────────────────────────────────
+[tool.ty.environment]
+python-version = "3.12"
 
-# Specific module configurations
-[[tool.mypy.overrides]]
-module = [
-    "aiogram.*",
-    "alembic.*",
-    "asyncpg.*",
-    "psycopg2.*",
-    "testcontainers.*",
-    "fastapi.*",
-    "telethon.*",
-    "burr.*",
-    "app.presentation.api.routers.*",
+[tool.ty.src]
+include = ["app", "tests"]
+exclude = ["alembic/**"]
+
+[tool.ty.rules]
+# Third-party stubs often missing or incomplete
+unresolved-import = "warn"
+
+[tool.ty.analysis]
+# Telethon, burr, feedparser, pydantic-ai lack complete stubs
+replace-imports-with-any = [
+    "telethon.**",
+    "burr.**",
+    "feedparser.**",
+    "testcontainers.**",
 ]
-ignore_missing_imports = true
 
-# Allow untyped decorators specifically for handler files + aiogram patterns
-[[tool.mypy.overrides]]
-module = "app.presentation.telegram.handlers.*"
-disallow_untyped_decorators = false
-# Aiogram Message objects often have User | None patterns in handlers
-disable_error_code = ["union-attr"]
+# Agent + moderation modules — PydanticAI dynamic patterns, framework constructors
+[[tool.ty.overrides]]
+include = ["app/agent/**", "app/moderation/**"]
 
-# Aiogram middleware and utils - common Message.from_user.id patterns
-[[tool.mypy.overrides]]
-module = "app.presentation.telegram.middlewares.*"
-disable_error_code = ["union-attr"]  # message.from_user.id patterns
+[tool.ty.overrides.rules]
+invalid-argument-type = "warn"       # PydanticAI/Pydantic constructor patterns
+invalid-return-type = "warn"         # dynamic returns from agent frameworks
+invalid-assignment = "warn"          # PydanticAI agent type variance
 
-[[tool.mypy.overrides]]
-module = "app.presentation.telegram.utils.*"
-disable_error_code = ["union-attr"]  # Message/Chat union types, regex Match | None
+# Presentation layer — aiogram Message | InaccessibleMessage union patterns
+[[tool.ty.overrides]]
+include = ["app/presentation/**"]
 
-# Application services that work with aiogram objects
-[[tool.mypy.overrides]]
-module = "app.application.services.*"
-disable_error_code = ["union-attr"]  # User | None patterns from message.from_user
+[tool.ty.overrides.rules]
+unresolved-attribute = "warn"        # callback.message.edit_text on union type
 
-# Core infrastructure - DI container and configuration patterns
-[[tool.mypy.overrides]]
-module = "app.core.config"
-disable_error_code = ["arg-type"]  # Pydantic Field default_factory patterns
+# Core — DI container generic patterns, Pydantic config
+[[tool.ty.overrides]]
+include = ["app/core/**"]
 
-[[tool.mypy.overrides]]
-module = "app.core.logging"
-disable_error_code = ["no-any-return"]  # Structlog BoundLogger typing
+[tool.ty.overrides.rules]
+invalid-return-type = "warn"         # generic container return patterns
+invalid-argument-type = "warn"       # Pydantic Field patterns
 
-[[tool.mypy.overrides]]
-module = "app.core.container"
-disable_error_code = ["return-value", "type-abstract"]  # DI container interface patterns
+# Tests — relaxed checking for mocks, fixtures, test data
+[[tool.ty.overrides]]
+include = ["tests/**"]
 
-[[tool.mypy.overrides]]
-module = "app.infrastructure.telegram.*"
-disable_error_code = ["import-untyped"]  # Telethon lacks py.typed marker
-
-# Comprehensive test configuration - tests have different typing needs
-[[tool.mypy.overrides]]
-module = "tests.*"
-disallow_untyped_decorators = false
-disallow_untyped_defs = false         # Test functions don't need return annotations
-disallow_incomplete_defs = false      # Allow partial typing in tests
-check_untyped_defs = false           # Don't check untyped test functions
-warn_return_any = false              # Allow Any returns in tests
-warn_unused_ignores = false          # Allow unused ignores in tests
-
-# Test factories - common patterns for test data creation
-[[tool.mypy.overrides]]
-module = "tests.factories"
-disallow_any_generics = false       # Allow dict without type args
-disallow_untyped_defs = false       # Factory functions can be untyped
-
-# Test fixtures and mocks - pytest/mock specific issues
-[[tool.mypy.overrides]]
-module = "tests.conftest"
-disallow_untyped_defs = false       # Fixtures don't need strict typing
-warn_return_any = false
-
-# Mock objects in tests - mock attributes are dynamic
-[[tool.mypy.overrides]]
-module = "tests.handlers.*"
-disable_error_code = ["attr-defined", "union-attr"]  # Mock objects have dynamic attributes
-
-# Test middleware - similar mock issues
-[[tool.mypy.overrides]]
-module = "tests.middleware.*"
-disable_error_code = ["attr-defined", "union-attr", "no-untyped-call"]
-
-# Integration tests - allow more flexibility for database interactions
-[[tool.mypy.overrides]]
-module = "tests.integration.*"
-disable_error_code = ["union-attr", "type-arg"]  # Database results can be None
-disallow_any_generics = false
-
-# Performance tests - psutil and measurement code
-[[tool.mypy.overrides]]
-module = "tests.performance.*"
-ignore_missing_imports = true           # psutil stubs not required for tests
-disable_error_code = ["assignment", "import-untyped"]
-
-# Test helpers and factories - allow flexibility for test data creation
-[[tool.mypy.overrides]]
-module = "tests.telegram_helpers"
-disable_error_code = ["arg-type"]       # Test factories can have flexible types
-
-# E2E tests - more relaxed typing for integration scenarios
-[[tool.mypy.overrides]]
-module = "tests.e2e.*"
-disable_error_code = ["union-attr", "operator"]
-
-# Router integration tests - mock/test specific issues
-[[tool.mypy.overrides]]
-module = "tests.handlers.test_router_integration"
-disable_error_code = ["arg-type", "operator"]
-
-# Event handler tests - similar mock issues
-[[tool.mypy.overrides]]
-module = "tests.handlers.test_events_handlers"
-disable_error_code = ["arg-type", "no-untyped-call", "operator"]
-
-# Moderation handler tests
-[[tool.mypy.overrides]]
-module = "tests.handlers.test_moderation_handlers"
-disable_error_code = ["no-untyped-call"]
-
-# Admin handler tests
-[[tool.mypy.overrides]]
-module = "tests.handlers.test_admin_handlers"
-disable_error_code = ["no-untyped-call"]
-
-# Gradual typing - start with less strict rules for specific patterns
-[[tool.mypy.overrides]]
-module = "app.domain.value_objects"
-# Allow missing return annotations for __post_init__ methods (dataclass)
-disallow_untyped_defs = false
-
-[[tool.mypy.overrides]]
-module = "app.core.config"
-# Pydantic Field with default_factory can cause issues
-warn_return_any = false
-
-[[tool.mypy.overrides]]
-module = "app.infrastructure.db.repositories.*"
-# Allow dict without type args for now (gradual improvement)
-disallow_any_generics = false
-
-# Agent module — PydanticAI and dynamic patterns
-[[tool.mypy.overrides]]
-module = "app.agent.*"
-disable_error_code = ["union-attr", "arg-type", "no-any-return", "call-overload"]
-disallow_any_generics = false
-
-# Moderation module — extracted from agent + application.services
-[[tool.mypy.overrides]]
-module = "app.moderation.*"
-disable_error_code = ["union-attr", "arg-type", "no-any-return", "call-overload"]
-disallow_any_generics = false
-
-[[tool.mypy.overrides]]
-module = ["pydantic_ai.*", "openai.*", "feedparser.*"]
-ignore_missing_imports = true
+[tool.ty.overrides.rules]
+invalid-argument-type = "warn"       # mock/fixture type mismatches
+unresolved-attribute = "warn"        # mock object dynamic attributes
+invalid-return-type = "warn"         # test helpers
+no-matching-overload = "warn"        # mock constructor patterns
 
 [dependency-groups]
 dev = [
@@ -280,13 +157,11 @@ dev = [
     "pytest-mock>=3.12",
     "aiosqlite>=0.20",
     "ruff>=0.12.4",
-    "mypy>=1.8",
+    "ty>=0.0.23",
     "pre-commit>=3.6",
     "watchfiles>=0.21",
     "psutil",
-    "types-pytz>=2025.2.0.20250809",
     "testcontainers[postgres]>=4.14.1",
-    "types-docker>=7.1.0.20260109",
 ]
 
 [tool.pytest.ini_options]

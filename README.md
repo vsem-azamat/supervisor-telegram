@@ -199,7 +199,7 @@ Messages revoked in 3 chats.
 | **Database** | PostgreSQL 17 + pgvector, SQLAlchemy 2.x async, Alembic |
 | **Search** | Brave Search API (web + images), Perplexity Sonar (synthesis) |
 | **Architecture** | Feature-based modular (moderation/channel/assistant), service locator DI |
-| **Quality** | ruff, mypy (strict), pytest, pre-commit, structlog |
+| **Quality** | ruff, ty (Astral type checker), pytest, pre-commit, structlog |
 | **Infrastructure** | Docker multi-stage, uv package manager |
 
 ## Project Structure
