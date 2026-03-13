@@ -1,35 +1,30 @@
 from sqlalchemy import delete, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.entities import AdminEntity
-from app.domain.repositories import IAdminRepository
 from app.infrastructure.db.models import Admin
 
 
-class AdminRepository(IAdminRepository):
+class AdminRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_by_id(self, admin_id: int) -> AdminEntity | None:
+    async def get_by_id(self, admin_id: int) -> Admin | None:
         """Get admin by ID."""
         result = await self.db.execute(select(Admin).filter(Admin.id == admin_id))
-        admin_model = result.scalars().first()
-        if not admin_model:
-            return None
-        return self._model_to_entity(admin_model)
+        return result.scalars().first()
 
-    async def save(self, admin: AdminEntity) -> AdminEntity:
+    async def save(self, admin: Admin) -> Admin:
         """Save admin."""
         admin_model = await self._get_admin_model(admin.id)
         if admin_model:
-            admin_model.state = admin.is_active
+            admin_model.state = admin.state
         else:
-            admin_model = Admin(id=admin.id, state=admin.is_active)
+            admin_model = Admin(id=admin.id, state=admin.state)
             self.db.add(admin_model)
 
         await self.db.commit()
         await self.db.refresh(admin_model)
-        return self._model_to_entity(admin_model)
+        return admin_model
 
     async def delete(self, admin_id: int) -> None:
         """Delete admin."""
@@ -41,23 +36,15 @@ class AdminRepository(IAdminRepository):
         result = await self.db.execute(select(Admin).where(Admin.id == user_id).where(Admin.state))
         return result.scalars().first() is not None
 
-    async def get_all_active(self) -> list[AdminEntity]:
+    async def get_all_active(self) -> list[Admin]:
         """Get all active admins."""
         result = await self.db.execute(select(Admin).filter(Admin.state))
-        admin_models = result.scalars().all()
-        return [self._model_to_entity(admin_model) for admin_model in admin_models]
+        return list(result.scalars().all())
 
     async def _get_admin_model(self, admin_id: int) -> Admin | None:
         """Get admin model by ID."""
         result = await self.db.execute(select(Admin).filter(Admin.id == admin_id))
         return result.scalars().first()
-
-    def _model_to_entity(self, admin_model: Admin) -> AdminEntity:
-        """Convert admin model to entity."""
-        return AdminEntity(
-            id=admin_model.id,
-            is_active=admin_model.is_active,
-        )
 
     # Legacy methods for backward compatibility
     async def get_db_admins(self) -> list[Admin]:

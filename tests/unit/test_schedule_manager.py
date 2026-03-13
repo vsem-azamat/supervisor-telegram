@@ -15,8 +15,8 @@ from app.agent.channel.schedule_manager import (
     schedule_post,
     update_scheduled_text,
 )
+from app.core.enums import PostStatus
 from app.core.time import utc_now
-from app.domain.value_objects import PostStatus
 from app.infrastructure.db.base import Base
 from app.infrastructure.db.models import ChannelPost
 from sqlalchemy import select

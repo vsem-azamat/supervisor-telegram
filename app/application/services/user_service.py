@@ -1,26 +1,26 @@
 """User domain service."""
 
 from app.core.logging import BotLogger
-from app.domain.entities import UserEntity
 from app.domain.exceptions import UserNotFoundException
-from app.domain.repositories import IUserRepository
+from app.infrastructure.db.models import User
+from app.infrastructure.db.repositories.user import UserRepository
 
 
 class UserService:
     """User domain service."""
 
-    def __init__(self, user_repository: IUserRepository) -> None:
+    def __init__(self, user_repository: UserRepository) -> None:
         self.user_repository = user_repository
         self.logger = BotLogger("user_service")
 
-    async def get_user_by_id(self, user_id: int) -> UserEntity:
+    async def get_user_by_id(self, user_id: int) -> User:
         """Get user by ID, raise exception if not found."""
         user = await self.user_repository.get_by_id(user_id)
         if not user:
             raise UserNotFoundException(user_id)
         return user
 
-    async def get_user_by_id_optional(self, user_id: int) -> UserEntity | None:
+    async def get_user_by_id_optional(self, user_id: int) -> User | None:
         """Get user by ID, return None if not found."""
         return await self.user_repository.get_by_id(user_id)
 
@@ -30,7 +30,7 @@ class UserService:
         username: str | None = None,
         first_name: str | None = None,
         last_name: str | None = None,
-    ) -> UserEntity:
+    ) -> User:
         """Create or update user with profile information."""
         existing_user = await self.user_repository.get_by_id(user_id)
 
@@ -43,7 +43,7 @@ class UserService:
             self.logger.log_user_action(user_id, "profile_updated")
         else:
             # Create new user
-            user = UserEntity(
+            user = User(
                 id=user_id,
                 username=username,
                 first_name=first_name,
@@ -54,13 +54,13 @@ class UserService:
 
         return user
 
-    async def block_user(self, user_id: int) -> UserEntity:
+    async def block_user(self, user_id: int) -> User:
         """Block user (add to blacklist)."""
         user = await self.get_user_by_id_optional(user_id)
 
         if not user:
             # Create user record if doesn't exist
-            user = UserEntity(id=user_id, is_blocked=True)
+            user = User(id=user_id, blocked=True)
         else:
             user.block()
 
@@ -68,7 +68,7 @@ class UserService:
         self.logger.log_user_action(user_id, "user_blocked")
         return user
 
-    async def unblock_user(self, user_id: int) -> UserEntity:
+    async def unblock_user(self, user_id: int) -> User:
         """Unblock user (remove from blacklist)."""
         user = await self.get_user_by_id(user_id)
 
@@ -81,11 +81,11 @@ class UserService:
         self.logger.log_user_action(user_id, "user_unblocked")
         return user
 
-    async def get_blocked_users(self) -> list[UserEntity]:
+    async def get_blocked_users(self) -> list[User]:
         """Get all blocked users."""
         return await self.user_repository.get_blocked_users()
 
-    async def find_blocked_user(self, identifier: str) -> UserEntity | None:
+    async def find_blocked_user(self, identifier: str) -> User | None:
         """Find blocked user by username or user_id."""
         return await self.user_repository.find_blocked_user(identifier)
 

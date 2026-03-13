@@ -101,7 +101,7 @@ class TestTwoBotOrchestrator:
     async def test_resume_review_converts_str_to_enum(self):
         from app.agent.channel.config import ChannelAgentSettings
         from app.agent.channel.orchestrator import SingleChannelOrchestrator
-        from app.domain.value_objects import ReviewDecision
+        from app.core.enums import ReviewDecision
         from app.infrastructure.db.models import Channel
 
         bot = AsyncMock()

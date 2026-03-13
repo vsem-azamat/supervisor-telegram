@@ -6,8 +6,8 @@ from pgvector.sqlalchemy import Vector  # type: ignore[import-untyped]
 from sqlalchemy import JSON, BigInteger, Boolean, DateTime, Float, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
+from app.core.enums import EscalationStatus, PostStatus
 from app.core.time import utc_now
-from app.domain.value_objects import EscalationStatus, PostStatus
 from app.infrastructure.db.base import Base
 
 

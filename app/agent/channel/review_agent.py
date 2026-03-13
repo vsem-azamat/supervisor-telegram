@@ -17,8 +17,8 @@ from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
 from app.core.config import settings
+from app.core.enums import PostStatus
 from app.core.logging import get_logger
-from app.domain.value_objects import PostStatus
 
 logger = get_logger("channel.review_agent")
 

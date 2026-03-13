@@ -5,9 +5,9 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
+from app.core.enums import PostStatus
 from app.core.logging import get_logger
 from app.core.time import utc_now
-from app.domain.value_objects import PostStatus
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker

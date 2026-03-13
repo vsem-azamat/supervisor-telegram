@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from app.application.services.user_service import UserService
-from app.domain.entities import UserEntity
+from app.infrastructure.db.models import User
 from app.presentation.telegram.handlers.moderation import show_blacklist
 
 from tests.telegram_helpers import TelegramObjectFactory
@@ -26,9 +26,9 @@ class TestBlacklistImprovements:
     def sample_users(self):
         """Create sample blocked users for testing."""
         return [
-            UserEntity(id=123, username="testuser", first_name="Test", last_name="User", is_blocked=True),
-            UserEntity(id=456, username="spammer", first_name="Spam", is_blocked=True),
-            UserEntity(id=789, username=None, first_name=None, last_name=None, is_blocked=True),
+            User(id=123, username="testuser", first_name="Test", last_name="User", blocked=True),
+            User(id=456, username="spammer", first_name="Spam", blocked=True),
+            User(id=789, username=None, first_name=None, last_name=None, blocked=True),
         ]
 
     async def test_blacklist_empty(self, telegram_factory: TelegramObjectFactory, mock_user_service: AsyncMock):
@@ -46,7 +46,7 @@ class TestBlacklistImprovements:
         message.delete.assert_called_once()
 
     async def test_blacklist_with_users_pagination(
-        self, telegram_factory: TelegramObjectFactory, mock_user_service: AsyncMock, sample_users: list[UserEntity]
+        self, telegram_factory: TelegramObjectFactory, mock_user_service: AsyncMock, sample_users: list[User]
     ):
         """Test blacklist command with blocked users and pagination."""
         # Arrange
@@ -62,7 +62,7 @@ class TestBlacklistImprovements:
         message.delete.assert_called_once()
 
     async def test_blacklist_find_user_by_username(
-        self, telegram_factory: TelegramObjectFactory, mock_user_service: AsyncMock, sample_users: list[UserEntity]
+        self, telegram_factory: TelegramObjectFactory, mock_user_service: AsyncMock, sample_users: list[User]
     ):
         """Test blacklist command with username search."""
         # Arrange
@@ -79,7 +79,7 @@ class TestBlacklistImprovements:
         message.delete.assert_called_once()
 
     async def test_blacklist_find_user_by_id(
-        self, telegram_factory: TelegramObjectFactory, mock_user_service: AsyncMock, sample_users: list[UserEntity]
+        self, telegram_factory: TelegramObjectFactory, mock_user_service: AsyncMock, sample_users: list[User]
     ):
         """Test blacklist command with user ID search."""
         # Arrange
@@ -116,7 +116,7 @@ class TestBlacklistImprovements:
     ):
         """Test blacklist command shows pagination for large lists."""
         # Arrange - Create more than 10 users
-        many_users = [UserEntity(id=i, username=f"user{i}", is_blocked=True) for i in range(15)]
+        many_users = [User(id=i, username=f"user{i}", blocked=True) for i in range(15)]
         mock_user_service.get_blocked_users.return_value = many_users
         message = telegram_factory.create_message(text="/blacklist")
 

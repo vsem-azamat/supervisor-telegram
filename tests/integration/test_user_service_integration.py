@@ -2,9 +2,9 @@
 
 import pytest
 from app.application.services.user_service import UserService
-from app.domain.entities import UserEntity
 from app.domain.exceptions import UserNotFoundException
-from app.domain.repositories import IUserRepository
+from app.infrastructure.db.models import User
+from app.infrastructure.db.repositories.user import UserRepository
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 class TestUserWorkflowIntegration:
     """Integration tests for complete user workflows."""
 
-    async def test_complete_user_lifecycle(self, user_repository: IUserRepository, session: AsyncSession):
+    async def test_complete_user_lifecycle(self, user_repository: UserRepository, session: AsyncSession):
         """Test complete user lifecycle from creation to deletion."""
         user_service = UserService(user_repository)
 
@@ -64,7 +64,7 @@ class TestUserWorkflowIntegration:
         assert final_user.username == "updated_username"
         assert final_user.is_blocked is False
 
-    async def test_bulk_user_operations(self, user_repository: IUserRepository, session: AsyncSession):
+    async def test_bulk_user_operations(self, user_repository: UserRepository, session: AsyncSession):
         """Test bulk operations on multiple users."""
         user_service = UserService(user_repository)
 
@@ -102,7 +102,7 @@ class TestUserWorkflowIntegration:
 
         assert len(final_blocked_ids.intersection(set(user_ids))) == 0
 
-    async def test_user_edge_cases_workflow(self, user_repository: IUserRepository, session: AsyncSession):
+    async def test_user_edge_cases_workflow(self, user_repository: UserRepository, session: AsyncSession):
         """Test edge cases in user workflow."""
         user_service = UserService(user_repository)
 
@@ -135,7 +135,7 @@ class TestUserWorkflowIntegration:
         final_test_user = await user_service.get_user_by_id(test_user_id)
         assert final_test_user.is_blocked is False
 
-    async def test_concurrent_user_operations(self, user_repository: IUserRepository, session: AsyncSession):
+    async def test_concurrent_user_operations(self, user_repository: UserRepository, session: AsyncSession):
         """Test concurrent operations on users."""
 
         user_service = UserService(user_repository)
@@ -143,7 +143,7 @@ class TestUserWorkflowIntegration:
         # Create users concurrently
         user_ids = list(range(200000001, 200000011))  # 10 users
 
-        async def create_user(user_id: int) -> UserEntity:
+        async def create_user(user_id: int) -> User:
             return await user_service.create_or_update_user(
                 user_id=user_id, username=f"concurrent_user_{user_id}", first_name=f"User{user_id}"
             )
@@ -173,7 +173,7 @@ class TestUserWorkflowIntegration:
         # Should contain at least our 5 blocked users
         assert len(blocked_ids.intersection(set(user_ids[:5]))) == 5
 
-    async def test_user_profile_updates_workflow(self, user_repository: IUserRepository, session: AsyncSession):
+    async def test_user_profile_updates_workflow(self, user_repository: UserRepository, session: AsyncSession):
         """Test various user profile update scenarios."""
         user_service = UserService(user_repository)
         user_id = 333333333
@@ -226,7 +226,7 @@ class TestUserWorkflowIntegration:
 class TestUserErrorScenariosIntegration:
     """Test error scenarios in user workflows."""
 
-    async def test_nonexistent_user_operations(self, user_repository: IUserRepository, session: AsyncSession):
+    async def test_nonexistent_user_operations(self, user_repository: UserRepository, session: AsyncSession):
         """Test operations on non-existent users."""
         user_service = UserService(user_repository)
         nonexistent_id = 999999999
@@ -249,7 +249,7 @@ class TestUserErrorScenariosIntegration:
         with pytest.raises(UserNotFoundException):
             await user_service.unblock_user(nonexistent_id)
 
-    async def test_user_state_consistency(self, user_repository: IUserRepository, session: AsyncSession):
+    async def test_user_state_consistency(self, user_repository: UserRepository, session: AsyncSession):
         """Test user state consistency across operations."""
         user_service = UserService(user_repository)
         user_id = 444444444

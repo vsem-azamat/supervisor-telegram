@@ -26,23 +26,23 @@ async def save_message(db: AsyncSession, message: types.Message) -> None:
 
 async def merge_user(db: AsyncSession, user: types.User) -> None:
     user_repo = get_user_repository(db)
-    from app.domain.entities import UserEntity
+    from app.infrastructure.db.models import User
 
     existing = await user_repo.get_by_id(user.id)
     if existing:
-        # Only update profile fields — never overwrite is_blocked / is_verified
+        # Only update profile fields — never overwrite blocked / verify
         existing.username = user.username
         existing.first_name = user.first_name
         existing.last_name = user.last_name
         await user_repo.save(existing)
     else:
-        user_entity = UserEntity(
+        user_model = User(
             id=user.id,
             username=user.username,
             first_name=user.first_name,
             last_name=user.last_name,
         )
-        await user_repo.save(user_entity)
+        await user_repo.save(user_model)
 
 
 async def merge_chat(db: AsyncSession, chat: types.Chat) -> None:

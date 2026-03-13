@@ -1,42 +1,36 @@
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.entities import ChatEntity
-from app.domain.repositories import IChatRepository
 from app.infrastructure.db.models import Chat
 
 
-class ChatRepository(IChatRepository):
+class ChatRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def get_by_id(self, chat_id: int) -> ChatEntity | None:
+    async def get_by_id(self, chat_id: int) -> Chat | None:
         """Get chat by ID."""
         result = await self.db.execute(select(Chat).filter(Chat.id == chat_id))
-        chat_model = result.scalars().first()
-        if not chat_model:
-            return None
-        return self._model_to_entity(chat_model)
+        return result.scalars().first()
 
-    async def get_all(self) -> list[ChatEntity]:
+    async def get_all(self) -> list[Chat]:
         """Get all chats."""
         result = await self.db.execute(select(Chat))
-        chat_models = result.scalars().all()
-        return [self._model_to_entity(chat_model) for chat_model in chat_models]
+        return list(result.scalars().all())
 
     async def exists(self, chat_id: int) -> bool:
         """Check if chat exists."""
         result = await self.db.execute(select(Chat.id).filter(Chat.id == chat_id))
         return result.scalars().first() is not None
 
-    async def save(self, chat: ChatEntity) -> ChatEntity:
+    async def save(self, chat: Chat) -> Chat:
         """Save chat."""
         chat_model = await self._get_chat_model(chat.id)
         if chat_model:
             chat_model.title = chat.title
             chat_model.is_forum = chat.is_forum
             chat_model.welcome_message = chat.welcome_message
-            chat_model.time_delete = chat.welcome_delete_time
+            chat_model.time_delete = chat.time_delete
             chat_model.is_welcome_enabled = chat.is_welcome_enabled
             chat_model.is_captcha_enabled = chat.is_captcha_enabled
         else:
@@ -45,7 +39,7 @@ class ChatRepository(IChatRepository):
                 title=chat.title,
                 is_forum=chat.is_forum,
                 welcome_message=chat.welcome_message,
-                time_delete=chat.welcome_delete_time,
+                time_delete=chat.time_delete,
                 is_welcome_enabled=chat.is_welcome_enabled,
                 is_captcha_enabled=chat.is_captcha_enabled,
             )
@@ -53,26 +47,12 @@ class ChatRepository(IChatRepository):
 
         await self.db.commit()
         await self.db.refresh(chat_model)
-        return self._model_to_entity(chat_model)
+        return chat_model
 
     async def _get_chat_model(self, chat_id: int) -> Chat | None:
         """Get chat model by ID."""
         result = await self.db.execute(select(Chat).filter(Chat.id == chat_id))
         return result.scalars().first()
-
-    def _model_to_entity(self, chat_model: Chat) -> ChatEntity:
-        """Convert chat model to entity."""
-        return ChatEntity(
-            id=chat_model.id,
-            title=chat_model.title,
-            is_forum=chat_model.is_forum,
-            welcome_message=chat_model.welcome_message,
-            welcome_delete_time=chat_model.time_delete,
-            is_welcome_enabled=chat_model.is_welcome_enabled,
-            is_captcha_enabled=chat_model.is_captcha_enabled,
-            created_at=chat_model.created_at,
-            modified_at=chat_model.modified_at,
-        )
 
     # Legacy methods for backward compatibility
     async def get_chat(self, id_tg_chat: int) -> Chat | None:

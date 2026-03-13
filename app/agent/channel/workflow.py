@@ -390,7 +390,7 @@ async def send_for_review(state: State) -> State:
                 try:
                     from hashlib import sha256
 
-                    from app.domain.value_objects import PostStatus
+                    from app.core.enums import PostStatus
                     from app.infrastructure.db.models import ChannelPost
 
                     ext_id = sha256(post.text[:200].encode()).hexdigest()[:16]
@@ -505,13 +505,13 @@ def _has_review_channel(state: State) -> bool:
 
 
 def _is_approved(state: State) -> bool:
-    from app.domain.value_objects import ReviewDecision
+    from app.core.enums import ReviewDecision
 
     return state.get("review_decision") == ReviewDecision.APPROVED
 
 
 def _is_rejected(state: State) -> bool:
-    from app.domain.value_objects import ReviewDecision
+    from app.core.enums import ReviewDecision
 
     return state.get("review_decision") == ReviewDecision.REJECTED
 

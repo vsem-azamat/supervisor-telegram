@@ -20,7 +20,6 @@ os.environ.update(
 
 import pytest
 import pytest_asyncio
-from app.domain.repositories import IAdminRepository, IChatRepository, IUserRepository
 from app.infrastructure.db.base import Base
 from app.infrastructure.db.repositories.admin import AdminRepository
 from app.infrastructure.db.repositories.chat import ChatRepository
@@ -68,19 +67,19 @@ async def session(engine: AsyncEngine) -> AsyncGenerator[AsyncSession, None]:
 
 
 @pytest_asyncio.fixture()
-async def user_repository(session: AsyncSession) -> IUserRepository:
+async def user_repository(session: AsyncSession) -> UserRepository:
     """Create user repository for tests."""
     return UserRepository(session)
 
 
 @pytest_asyncio.fixture()
-async def chat_repository(session: AsyncSession) -> IChatRepository:
+async def chat_repository(session: AsyncSession) -> ChatRepository:
     """Create chat repository for tests."""
     return ChatRepository(session)
 
 
 @pytest_asyncio.fixture()
-async def admin_repository(session: AsyncSession) -> IAdminRepository:
+async def admin_repository(session: AsyncSession) -> AdminRepository:
     """Create admin repository for tests."""
     return AdminRepository(session)
 

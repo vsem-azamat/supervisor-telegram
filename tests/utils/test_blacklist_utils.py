@@ -1,7 +1,7 @@
 """Tests for blacklist utilities."""
 
 import pytest
-from app.domain.entities import UserEntity
+from app.infrastructure.db.models import User
 from app.presentation.telegram.utils.blacklist import (
     build_blacklist_keyboard,
     build_blacklist_text,
@@ -17,9 +17,9 @@ class TestBlacklistUtils:
     def sample_users(self):
         """Create sample users for testing."""
         return [
-            UserEntity(id=123, username="testuser", first_name="Test", last_name="User", is_blocked=True),
-            UserEntity(id=456, username="spammer", first_name="Spam", is_blocked=True),
-            UserEntity(id=789, username=None, first_name=None, last_name=None, is_blocked=True),
+            User(id=123, username="testuser", first_name="Test", last_name="User", blocked=True),
+            User(id=456, username="spammer", first_name="Spam", blocked=True),
+            User(id=789, username=None, first_name=None, last_name=None, blocked=True),
         ]
 
     def test_build_blacklist_text_with_pagination(self, sample_users):
@@ -68,7 +68,7 @@ class TestBlacklistUtils:
         # Check pagination row (last row) - should only have Prev and Page indicator for last page
         pagination_row = buttons[-1]
         assert len(pagination_row) == 2  # Prev, Page indicator (no Next for last page)
-        assert "◀️ Prev" in pagination_row[0].text
+        assert "\u25c0\ufe0f Prev" in pagination_row[0].text
         assert "2/2" in pagination_row[1].text
 
     def test_build_blacklist_keyboard_first_page_pagination(self, sample_users):
@@ -88,7 +88,7 @@ class TestBlacklistUtils:
         pagination_row = buttons[-1]
         assert len(pagination_row) == 2  # Page indicator, Next (no Prev for first page)
         assert "1/2" in pagination_row[0].text
-        assert "Next ▶️" in pagination_row[1].text
+        assert "Next \u25b6\ufe0f" in pagination_row[1].text
 
     def test_build_blacklist_keyboard_middle_page_pagination(self, sample_users):
         """Test building keyboard for middle page with both Prev and Next buttons."""
@@ -105,9 +105,9 @@ class TestBlacklistUtils:
         # Check pagination row (last row) - should have Prev, Page indicator, and Next
         pagination_row = buttons[-1]
         assert len(pagination_row) == 3  # Prev, Page indicator, Next
-        assert "◀️ Prev" in pagination_row[0].text
+        assert "\u25c0\ufe0f Prev" in pagination_row[0].text
         assert "2/3" in pagination_row[1].text
-        assert "Next ▶️" in pagination_row[2].text
+        assert "Next \u25b6\ufe0f" in pagination_row[2].text
 
     def test_build_user_details_text(self, sample_users):
         """Test building user details text."""
@@ -140,12 +140,12 @@ class TestBlacklistUtils:
 
     def test_long_display_name_truncation(self):
         """Test that long display names are properly truncated."""
-        user = UserEntity(
+        user = User(
             id=999,
             username="verylongusernamethatexceedslimit",
             first_name="Very Long First Name That Exceeds Limit",
             last_name="Very Long Last Name",
-            is_blocked=True,
+            blocked=True,
         )
 
         keyboard = build_blacklist_keyboard(users=[user], current_page=0, total_pages=1, page_size=10)

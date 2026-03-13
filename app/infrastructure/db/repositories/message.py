@@ -1,18 +1,18 @@
+from typing import Any
+
 from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.expression import and_
 
-from app.domain.entities import MessageEntity
-from app.domain.repositories import IMessageRepository
 from app.infrastructure.db.models import Message
 
 
-class MessageRepository(IMessageRepository):
+class MessageRepository:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def save(self, message: MessageEntity) -> MessageEntity:
-        """Save message entity."""
+    async def save(self, message: Message) -> Message:
+        """Save message."""
         # Check if message exists
         existing_query = select(Message).where(
             and_(
@@ -26,24 +26,24 @@ class MessageRepository(IMessageRepository):
 
         if existing:
             # Update existing
-            existing.message = message.content
-            existing.message_info = message.metadata or {}
-            existing.spam = message.is_spam
+            existing.message = message.message
+            existing.message_info = message.message_info or {}
+            existing.spam = message.spam
         else:
             # Create new
             new_message = Message(
                 chat_id=message.chat_id,
                 user_id=message.user_id,
                 message_id=message.message_id,
-                message=message.content,
-                message_info=message.metadata or {},
-                spam=message.is_spam,
+                message=message.message,
+                message_info=message.message_info or {},
+                spam=message.spam,
             )
             self.db.add(new_message)
 
         await self.db.commit()
 
-        # Return updated entity
+        # Return updated message
         return message
 
     async def add_message(
@@ -52,7 +52,7 @@ class MessageRepository(IMessageRepository):
         user_id: int,
         message_id: int,
         message: str | None,
-        message_info: dict,
+        message_info: dict[str, Any],
     ) -> None:
         await self.db.execute(
             insert(Message).values(
@@ -72,25 +72,23 @@ class MessageRepository(IMessageRepository):
         await self.db.execute(query)
         await self.db.commit()
 
-    async def get_user_messages(self, user_id: int, chat_id: int | None = None) -> list[MessageEntity]:
+    async def get_user_messages(self, user_id: int, chat_id: int | None = None) -> list[Message]:
         """Get messages by user, optionally filtered by chat."""
         query = select(Message).where(Message.user_id == user_id)
         if chat_id is not None:
             query = query.where(Message.chat_id == chat_id)
 
         result = await self.db.execute(query)
-        messages = result.scalars().all()
-        return [self._model_to_entity(msg) for msg in messages]
+        return list(result.scalars().all())
 
-    async def get_spam_messages(self, limit: int | None = None) -> list[MessageEntity]:
+    async def get_spam_messages(self, limit: int | None = None) -> list[Message]:
         """Get spam messages."""
         query = select(Message).where(Message.spam)
         if limit:
             query = query.limit(limit)
 
         result = await self.db.execute(query)
-        messages = result.scalars().all()
-        return [self._model_to_entity(msg) for msg in messages]
+        return list(result.scalars().all())
 
     async def delete_user_messages(self, user_id: int, chat_id: int | None = None) -> int:
         """Delete user messages and return count."""
@@ -101,19 +99,6 @@ class MessageRepository(IMessageRepository):
         cursor = await self.db.execute(query)
         await self.db.commit()
         return cursor.rowcount or 0  # type: ignore[attr-defined]
-
-    def _model_to_entity(self, message_model: Message) -> MessageEntity:
-        """Convert database model to domain entity."""
-        return MessageEntity(
-            id=message_model.id,
-            chat_id=message_model.chat_id,
-            user_id=message_model.user_id,
-            message_id=message_model.message_id,
-            content=message_model.message,
-            metadata=message_model.message_info,
-            timestamp=message_model.timestamp,
-            is_spam=message_model.spam,
-        )
 
     async def count_user_chats(self, user_id: int) -> int:
         query = select(func.count(func.distinct(Message.chat_id))).where(Message.user_id == user_id)
@@ -134,6 +119,10 @@ class MessageRepository(IMessageRepository):
         count = result.scalar()
         return count is not None and count > 0
 
+    async def is_first_message(self, chat_id: int, user_id: int) -> bool:
+        """Check if this is the user's first message in the chat."""
+        return not await self.has_previous_messages(chat_id, user_id)
+
     async def is_similar_spam_message(self, message: str) -> bool:
         query = select(func.count()).where(Message.message == message, Message.spam)
         result = await self.db.execute(query)
@@ -141,5 +130,5 @@ class MessageRepository(IMessageRepository):
         return count is not None and count > 0
 
 
-def get_message_repository(db: AsyncSession) -> IMessageRepository:
+def get_message_repository(db: AsyncSession) -> MessageRepository:
     return MessageRepository(db)

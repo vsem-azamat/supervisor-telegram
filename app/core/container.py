@@ -4,13 +4,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, TypeVar
 
-from app.domain.repositories import (
-    IAdminRepository,
-    IChatLinkRepository,
-    IChatRepository,
-    IMessageRepository,
-    IUserRepository,
-)
 from app.infrastructure.db.repositories.admin import AdminRepository
 from app.infrastructure.db.repositories.chat import ChatRepository
 from app.infrastructure.db.repositories.chat_link import ChatLinkRepository
@@ -105,23 +98,23 @@ class Container:
         """Get bot instance, or None if not set."""
         return self._bot
 
-    def get_user_repository(self, session: AsyncSession) -> IUserRepository:
+    def get_user_repository(self, session: AsyncSession) -> UserRepository:
         """Get user repository."""
         return UserRepository(session)
 
-    def get_chat_repository(self, session: AsyncSession) -> IChatRepository:
+    def get_chat_repository(self, session: AsyncSession) -> ChatRepository:
         """Get chat repository."""
         return ChatRepository(session)
 
-    def get_admin_repository(self, session: AsyncSession) -> IAdminRepository:
+    def get_admin_repository(self, session: AsyncSession) -> AdminRepository:
         """Get admin repository."""
         return AdminRepository(session)
 
-    def get_message_repository(self, session: AsyncSession) -> IMessageRepository:
+    def get_message_repository(self, session: AsyncSession) -> MessageRepository:
         """Get message repository."""
         return MessageRepository(session)
 
-    def get_chat_link_repository(self, session: AsyncSession) -> IChatLinkRepository:
+    def get_chat_link_repository(self, session: AsyncSession) -> ChatLinkRepository:
         """Get chat link repository."""
         return ChatLinkRepository(session)
 
@@ -134,12 +127,3 @@ def setup_container(session_maker: async_sessionmaker[AsyncSession], bot: Bot) -
     """Setup dependency injection container."""
     container.set_session_maker(session_maker)
     container.set_bot(bot)
-
-    # Register repository factories
-    container.register_transient(IUserRepository, lambda: container.get_user_repository(container.get_session()))
-    container.register_transient(IChatRepository, lambda: container.get_chat_repository(container.get_session()))
-    container.register_transient(IAdminRepository, lambda: container.get_admin_repository(container.get_session()))
-    container.register_transient(IMessageRepository, lambda: container.get_message_repository(container.get_session()))
-    container.register_transient(
-        IChatLinkRepository, lambda: container.get_chat_link_repository(container.get_session())
-    )

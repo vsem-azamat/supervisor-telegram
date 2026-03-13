@@ -1,8 +1,7 @@
 """Integration tests for ChatRepository."""
 
 import pytest
-from app.domain.entities import ChatEntity
-from app.domain.repositories import IChatRepository
+from app.infrastructure.db.models import Chat
 from app.infrastructure.db.repositories.chat import ChatRepository
 
 from tests.factories import ChatFactory
@@ -12,9 +11,9 @@ from tests.factories import ChatFactory
 class TestChatRepositoryIntegration:
     """Integration tests for ChatRepository."""
 
-    async def test_save_and_get_chat(self, chat_repository: IChatRepository, sample_chat_data: dict):
+    async def test_save_and_get_chat(self, chat_repository: ChatRepository, sample_chat_data: dict):
         """Test saving and retrieving a chat."""
-        # Create chat entity
+        # Create chat
         chat = ChatFactory.create(**sample_chat_data)
 
         # Save chat
@@ -34,7 +33,7 @@ class TestChatRepositoryIntegration:
         assert retrieved_chat.title == chat.title
         assert retrieved_chat.is_forum == chat.is_forum
 
-    async def test_get_nonexistent_chat(self, chat_repository: IChatRepository):
+    async def test_get_nonexistent_chat(self, chat_repository: ChatRepository):
         """Test getting a chat that doesn't exist."""
         nonexistent_id = -999999999999
 
@@ -42,7 +41,7 @@ class TestChatRepositoryIntegration:
 
         assert chat is None
 
-    async def test_chat_exists(self, chat_repository: IChatRepository):
+    async def test_chat_exists(self, chat_repository: ChatRepository):
         """Test checking if chat exists."""
         chat = ChatFactory.create()
 
@@ -57,7 +56,7 @@ class TestChatRepositoryIntegration:
         exists_after = await chat_repository.exists(chat.id)
         assert exists_after is True
 
-    async def test_update_existing_chat(self, chat_repository: IChatRepository):
+    async def test_update_existing_chat(self, chat_repository: ChatRepository):
         """Test updating an existing chat."""
         # Create and save chat
         chat = ChatFactory.create(title="Original Title", is_forum=False, welcome_message="Original welcome")
@@ -82,7 +81,7 @@ class TestChatRepositoryIntegration:
         assert retrieved_chat.is_forum is True
         assert retrieved_chat.welcome_message == "Updated welcome"
 
-    async def test_chat_welcome_settings(self, chat_repository: IChatRepository):
+    async def test_chat_welcome_settings(self, chat_repository: ChatRepository):
         """Test chat welcome message settings."""
         # Create chat with welcome settings
         chat = ChatFactory.create_with_welcome(message="Welcome to our chat!", delete_time=120)
@@ -90,16 +89,16 @@ class TestChatRepositoryIntegration:
         saved_chat = await chat_repository.save(chat)
 
         assert saved_chat.welcome_message == "Welcome to our chat!"
-        assert saved_chat.welcome_delete_time == 120
+        assert saved_chat.time_delete == 120
         assert saved_chat.is_welcome_enabled is True
 
         # Retrieve and verify
         retrieved_chat = await chat_repository.get_by_id(chat.id)
         assert retrieved_chat.welcome_message == "Welcome to our chat!"
-        assert retrieved_chat.welcome_delete_time == 120
+        assert retrieved_chat.time_delete == 120
         assert retrieved_chat.is_welcome_enabled is True
 
-    async def test_forum_chat(self, chat_repository: IChatRepository):
+    async def test_forum_chat(self, chat_repository: ChatRepository):
         """Test forum chat functionality."""
         chat = ChatFactory.create_forum(title="Test Forum")
 
@@ -112,13 +111,13 @@ class TestChatRepositoryIntegration:
         retrieved_chat = await chat_repository.get_by_id(chat.id)
         assert retrieved_chat.is_forum is True
 
-    async def test_get_all_chats_empty(self, chat_repository: IChatRepository):
+    async def test_get_all_chats_empty(self, chat_repository: ChatRepository):
         """Test getting all chats when none exist."""
         chats = await chat_repository.get_all()
 
         assert chats == []
 
-    async def test_get_all_chats_with_data(self, chat_repository: IChatRepository):
+    async def test_get_all_chats_with_data(self, chat_repository: ChatRepository):
         """Test getting all chats with data."""
         # Create and save multiple chats
         chats = ChatFactory.create_batch(3)
@@ -135,20 +134,20 @@ class TestChatRepositoryIntegration:
         expected_ids = {chat.id for chat in chats}
         assert chat_ids == expected_ids
 
-    async def test_save_chat_with_minimal_data(self, chat_repository: IChatRepository):
+    async def test_save_chat_with_minimal_data(self, chat_repository: ChatRepository):
         """Test saving chat with minimal required data."""
-        chat = ChatEntity(id=-1001234567890)
+        chat = Chat(id=-1001234567890)
 
         saved_chat = await chat_repository.save(chat)
 
         assert saved_chat.id == -1001234567890
         assert saved_chat.title is None
         assert saved_chat.is_forum is False  # Default
-        assert saved_chat.welcome_delete_time == 60  # Default
+        assert saved_chat.time_delete == 60  # Default
         assert saved_chat.is_welcome_enabled is False  # Default
         assert saved_chat.is_captcha_enabled is False  # Default
 
-    async def test_chat_captcha_settings(self, chat_repository: IChatRepository):
+    async def test_chat_captcha_settings(self, chat_repository: ChatRepository):
         """Test chat captcha settings."""
         chat = ChatFactory.create(is_captcha_enabled=True)
 
@@ -164,7 +163,7 @@ class TestChatRepositoryIntegration:
         retrieved_chat = await chat_repository.get_by_id(chat.id)
         assert retrieved_chat.is_captcha_enabled is False
 
-    async def test_multiple_chats_different_ids(self, chat_repository: IChatRepository):
+    async def test_multiple_chats_different_ids(self, chat_repository: ChatRepository):
         """Test saving multiple chats with different IDs."""
         chats = ChatFactory.create_batch(5)
 
@@ -183,7 +182,7 @@ class TestChatRepositoryIntegration:
             assert retrieved_chat is not None
             assert retrieved_chat.id == original_chat.id
 
-    async def test_chat_settings_persistence(self, chat_repository: IChatRepository):
+    async def test_chat_settings_persistence(self, chat_repository: ChatRepository):
         """Test that chat settings persist across saves."""
         chat = ChatFactory.create(is_welcome_enabled=False, is_captcha_enabled=False, welcome_delete_time=60)
         await chat_repository.save(chat)
@@ -191,7 +190,7 @@ class TestChatRepositoryIntegration:
         # Change chat settings
         chat.is_welcome_enabled = True
         chat.is_captcha_enabled = True
-        chat.welcome_delete_time = 120
+        chat.time_delete = 120
         chat.welcome_message = "New welcome message"
 
         # Save changes
@@ -201,7 +200,7 @@ class TestChatRepositoryIntegration:
         retrieved_chat = await chat_repository.get_by_id(chat.id)
         assert retrieved_chat.is_welcome_enabled is True
         assert retrieved_chat.is_captcha_enabled is True
-        assert retrieved_chat.welcome_delete_time == 120
+        assert retrieved_chat.time_delete == 120
         assert retrieved_chat.welcome_message == "New welcome message"
 
 
@@ -209,7 +208,7 @@ class TestChatRepositoryIntegration:
 class TestChatRepositoryEdgeCases:
     """Edge cases and error conditions for ChatRepository."""
 
-    async def test_save_chat_with_duplicate_id(self, chat_repository: IChatRepository):
+    async def test_save_chat_with_duplicate_id(self, chat_repository: ChatRepository):
         """Test saving chats with the same ID (should update)."""
         chat_id = -1001234567890
 
@@ -232,7 +231,7 @@ class TestChatRepositoryEdgeCases:
         assert retrieved_chat.is_forum is True
 
     @pytest.mark.skip(reason="SQLAlchemy sessions don't support concurrent operations")
-    async def test_concurrent_chat_operations(self, chat_repository: IChatRepository):
+    async def test_concurrent_chat_operations(self, chat_repository: ChatRepository):
         """Test concurrent operations on different chats."""
         import asyncio
 
@@ -251,7 +250,7 @@ class TestChatRepositoryEdgeCases:
         assert len(retrieved_chats) == 10
         assert all(chat is not None for chat in retrieved_chats)
 
-    async def test_chat_with_very_long_strings(self, chat_repository: IChatRepository):
+    async def test_chat_with_very_long_strings(self, chat_repository: ChatRepository):
         """Test chat with very long string values."""
         long_string = "a" * 1000  # Very long string
 
@@ -265,7 +264,7 @@ class TestChatRepositoryEdgeCases:
         assert saved_chat.title == long_string[:200]
         assert saved_chat.welcome_message == long_string[:500]
 
-    async def test_chat_with_special_characters(self, chat_repository: IChatRepository):
+    async def test_chat_with_special_characters(self, chat_repository: ChatRepository):
         """Test chat with special characters in strings."""
         chat = ChatFactory.create(
             title="测试聊天室 🚀",  # Chinese + emoji
@@ -278,28 +277,28 @@ class TestChatRepositoryEdgeCases:
         assert retrieved_chat.title == "测试聊天室 🚀"
         assert retrieved_chat.welcome_message == "Bienvenido! 欢迎 👋"
 
-    async def test_chat_with_none_values(self, chat_repository: IChatRepository):
+    async def test_chat_with_none_values(self, chat_repository: ChatRepository):
         """Test saving chat with explicit None values."""
-        chat = ChatEntity(id=-1001234567890, title=None, welcome_message=None)
+        chat = Chat(id=-1001234567890, title=None, welcome_message=None)
 
         saved_chat = await chat_repository.save(chat)
 
         assert saved_chat.title is None
         assert saved_chat.welcome_message is None
 
-    async def test_chat_welcome_time_boundaries(self, chat_repository: IChatRepository):
+    async def test_chat_welcome_time_boundaries(self, chat_repository: ChatRepository):
         """Test chat welcome delete time boundary values."""
         # Test minimum valid time
         chat1 = ChatFactory.create(welcome_delete_time=1)
         saved_chat1 = await chat_repository.save(chat1)
-        assert saved_chat1.welcome_delete_time == 1
+        assert saved_chat1.time_delete == 1
 
         # Test large valid time
         chat2 = ChatFactory.create(welcome_delete_time=86400)  # 24 hours
         saved_chat2 = await chat_repository.save(chat2)
-        assert saved_chat2.welcome_delete_time == 86400
+        assert saved_chat2.time_delete == 86400
 
-    async def test_positive_and_negative_chat_ids(self, chat_repository: IChatRepository):
+    async def test_positive_and_negative_chat_ids(self, chat_repository: ChatRepository):
         """Test both positive (private) and negative (group/supergroup) chat IDs."""
         # Positive chat ID (private chat - though bot usually doesn't manage these)
         positive_chat = ChatFactory.create(id=123456789)

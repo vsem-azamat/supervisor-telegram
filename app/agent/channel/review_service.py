@@ -12,8 +12,8 @@ from typing import TYPE_CHECKING, Any
 from app.agent.channel.embeddings import EMBEDDING_MODEL
 from app.agent.channel.generator import DEFAULT_FOOTER, enforce_footer_and_length
 from app.agent.channel.llm_client import openrouter_chat_completion
+from app.core.enums import PostStatus
 from app.core.logging import get_logger
-from app.domain.value_objects import PostStatus
 from app.infrastructure.db.models import ChannelPost
 
 if TYPE_CHECKING:

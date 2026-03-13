@@ -5,7 +5,7 @@ database (not SQLite), catching dialect-specific issues.
 """
 
 import pytest
-from app.domain.entities import AdminEntity, ChatEntity, UserEntity
+from app.infrastructure.db.models import Admin, Chat, User
 from app.infrastructure.db.repositories.admin import AdminRepository
 from app.infrastructure.db.repositories.chat import ChatRepository
 from app.infrastructure.db.repositories.user import UserRepository
@@ -18,7 +18,7 @@ class TestUserRepositoryPostgres:
 
     async def test_save_and_get_user(self, pg_session: AsyncSession):
         repo = UserRepository(pg_session)
-        user = UserEntity(
+        user = User(
             id=111,
             username="testuser",
             first_name="Test",
@@ -34,7 +34,7 @@ class TestUserRepositoryPostgres:
 
     async def test_block_user(self, pg_session: AsyncSession):
         repo = UserRepository(pg_session)
-        user = UserEntity(id=222, username="blockme", first_name="Block")
+        user = User(id=222, username="blockme", first_name="Block")
         await repo.save(user)
         await repo.add_to_blacklist(222)
 
@@ -54,7 +54,7 @@ class TestChatRepositoryPostgres:
 
     async def test_save_and_get_chat(self, pg_session: AsyncSession):
         repo = ChatRepository(pg_session)
-        chat = ChatEntity(
+        chat = Chat(
             id=-100123,
             title="Test Chat",
             welcome_message="Hello!",
@@ -73,7 +73,7 @@ class TestAdminRepositoryPostgres:
 
     async def test_add_and_check_admin(self, pg_session: AsyncSession):
         repo = AdminRepository(pg_session)
-        admin = AdminEntity(id=333, is_active=True)
+        admin = Admin(id=333, state=True)
         await repo.save(admin)
         is_admin = await repo.is_admin(333)
         assert is_admin is True

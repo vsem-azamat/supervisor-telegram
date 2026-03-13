@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 from sqlalchemy import select
 
 from app.agent.channel.llm_client import openrouter_chat_completion
+from app.core.enums import PostStatus
 from app.core.logging import get_logger
-from app.domain.value_objects import PostStatus
 from app.infrastructure.db.models import ChannelPost, ChannelSource
 
 if TYPE_CHECKING:

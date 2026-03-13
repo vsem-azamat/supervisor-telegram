@@ -20,9 +20,9 @@ from app.agent.channel.channel_repo import (
     update_source_discovery_time,
 )
 from app.agent.channel.source_discovery import discover_and_add_sources
+from app.core.enums import ReviewDecision
 from app.core.logging import get_logger
 from app.core.time import utc_now
-from app.domain.value_objects import ReviewDecision
 
 if TYPE_CHECKING:
     from aiogram import Bot
@@ -347,7 +347,7 @@ class ChannelOrchestrator:
         """
         from sqlalchemy import select
 
-        from app.domain.value_objects import PostStatus
+        from app.core.enums import PostStatus
         from app.infrastructure.db.models import ChannelPost
 
         try:

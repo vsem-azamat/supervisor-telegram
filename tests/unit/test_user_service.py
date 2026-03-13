@@ -4,9 +4,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from app.application.services.user_service import UserService
-from app.domain.entities import UserEntity
 from app.domain.exceptions import UserNotFoundException
-from app.domain.repositories import IUserRepository
+from app.infrastructure.db.models import User
+from app.infrastructure.db.repositories.user import UserRepository
 
 from tests.factories import UserFactory
 
@@ -20,7 +20,7 @@ BOT_LOGGER_PATCH_PATH = "app.application.services.user_service.BotLogger"
 @pytest.fixture
 def mock_user_repository() -> AsyncMock:
     """Create a mock user repository."""
-    return AsyncMock(spec=IUserRepository)
+    return AsyncMock(spec=UserRepository)
 
 
 @pytest.fixture
@@ -292,9 +292,7 @@ class TestUserServiceEdgeCases:
         """Test creating user with partial data (some None values)."""
         user_id = 123456789
         mock_user_repository.get_by_id.return_value = None
-        expected_user = UserEntity(
-            id=user_id, username=None, first_name="Test", last_name=None, is_verified=False, is_blocked=False
-        )
+        expected_user = User(id=user_id, username=None, first_name="Test", last_name=None, verify=False, blocked=False)
         mock_user_repository.save.return_value = expected_user
 
         with patch(BOT_LOGGER_PATCH_PATH):

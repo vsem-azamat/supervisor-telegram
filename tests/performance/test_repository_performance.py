@@ -4,7 +4,7 @@ import asyncio
 import time
 
 import pytest
-from app.domain.entities import ChatEntity, UserEntity
+from app.infrastructure.db.models import Chat, User
 from app.infrastructure.db.repositories.chat import ChatRepository
 from app.infrastructure.db.repositories.user import UserRepository
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
@@ -41,7 +41,7 @@ class TestRepositoryPerformance:
             new_users = UserFactory.create_batch(batch_size)
             start_time = time.time()
 
-            async def save_with_new_session(user: UserEntity, factory=session_factory) -> UserEntity:
+            async def save_with_new_session(user: User, factory=session_factory) -> User:
                 async with factory() as session:
                     user_repo = UserRepository(session)
                     return await user_repo.save(user)
@@ -67,7 +67,7 @@ class TestRepositoryPerformance:
         # Save all users first using separate sessions
         session_factory = async_sessionmaker(bind=engine, expire_on_commit=False)
 
-        async def save_with_session(user: UserEntity, factory=session_factory) -> UserEntity:
+        async def save_with_session(user: User, factory=session_factory) -> User:
             async with factory() as session:
                 user_repo = UserRepository(session)
                 return await user_repo.save(user)
@@ -93,7 +93,7 @@ class TestRepositoryPerformance:
         # Test concurrent retrieval with separate sessions
         start_time = time.time()
 
-        async def get_with_session(user_id: int, factory=session_factory) -> UserEntity | None:
+        async def get_with_session(user_id: int, factory=session_factory) -> User | None:
             async with factory() as session:
                 user_repo = UserRepository(session)
                 return await user_repo.get_by_id(user_id)
@@ -129,7 +129,7 @@ class TestRepositoryPerformance:
         # Save all users with separate sessions
         session_factory = async_sessionmaker(bind=engine, expire_on_commit=False)
 
-        async def save_with_session(user: UserEntity, factory=session_factory) -> UserEntity:
+        async def save_with_session(user: User, factory=session_factory) -> User:
             async with factory() as session:
                 user_repo = UserRepository(session)
                 return await user_repo.save(user)
@@ -168,7 +168,7 @@ class TestRepositoryPerformance:
         session_factory = async_sessionmaker(bind=engine, expire_on_commit=False)
 
         # Test bulk creation with separate sessions
-        async def save_chat_with_session(chat: ChatEntity, factory=session_factory) -> ChatEntity:
+        async def save_chat_with_session(chat: Chat, factory=session_factory) -> Chat:
             async with factory() as session:
                 chat_repo = ChatRepository(session)
                 return await chat_repo.save(chat)
@@ -203,7 +203,7 @@ class TestRepositoryPerformance:
 
         session_factory = async_sessionmaker(bind=engine, expire_on_commit=False)
 
-        async def random_user_operation(index: int, factory=session_factory) -> UserEntity | None:
+        async def random_user_operation(index: int, factory=session_factory) -> User | None:
             """Perform a random user operation with separate session."""
             import random
 
@@ -299,7 +299,7 @@ class TestMemoryUsagePerformance:
         # Save to database with separate sessions
         session_factory = async_sessionmaker(bind=engine, expire_on_commit=False)
 
-        async def save_with_session(user: UserEntity, factory=session_factory) -> UserEntity:
+        async def save_with_session(user: User, factory=session_factory) -> User:
             async with factory() as session:
                 user_repo = UserRepository(session)
                 return await user_repo.save(user)

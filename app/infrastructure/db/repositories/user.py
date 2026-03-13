@@ -1,56 +1,50 @@
 from sqlalchemy import insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.entities import UserEntity
 from app.domain.exceptions import UserNotFoundException
-from app.domain.repositories import IUserRepository
 from app.infrastructure.db.models import User
 
 
-class UserRepository(IUserRepository):
+class UserRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def get_by_id(self, user_id: int) -> UserEntity | None:
+    async def get_by_id(self, user_id: int) -> User | None:
         result = await self.db.execute(select(User).filter(User.id == user_id))
-        user_model = result.scalars().first()
-        if not user_model:
-            return None
-        return self._model_to_entity(user_model)
+        return result.scalars().first()
 
     async def exists(self, user_id: int) -> bool:
         result = await self.db.execute(select(User.id).filter(User.id == user_id))
         return result.scalars().first() is not None
 
-    async def save(self, user: UserEntity) -> UserEntity:
+    async def save(self, user: User) -> User:
         user_model = await self._get_user_model(user.id)
         if user_model:
             user_model.username = user.username
             user_model.first_name = user.first_name
             user_model.last_name = user.last_name
-            user_model.verify = user.is_verified
-            user_model.blocked = user.is_blocked
+            user_model.verify = user.verify
+            user_model.blocked = user.blocked
         else:
             user_model = User(
                 id=user.id,
                 username=user.username,
                 first_name=user.first_name,
                 last_name=user.last_name,
-                verify=user.is_verified,
-                blocked=user.is_blocked,
+                verify=user.verify,
+                blocked=user.blocked,
             )
             self.db.add(user_model)
 
         await self.db.commit()
         await self.db.refresh(user_model)
-        return self._model_to_entity(user_model)
+        return user_model
 
-    async def get_blocked_users(self) -> list[UserEntity]:
+    async def get_blocked_users(self) -> list[User]:
         result = await self.db.execute(select(User).filter(User.blocked))
-        user_models = result.scalars().all()
-        return [self._model_to_entity(user_model) for user_model in user_models]
+        return list(result.scalars().all())
 
-    async def find_blocked_user(self, identifier: str) -> UserEntity | None:
+    async def find_blocked_user(self, identifier: str) -> User | None:
         """Find blocked user by username (without @) or user_id."""
         # Remove @ prefix if present
         if identifier.startswith("@"):
@@ -64,24 +58,11 @@ class UserRepository(IUserRepository):
             # Search by username
             result = await self.db.execute(select(User).filter(User.username == identifier, User.blocked))
 
-        user_model = result.scalars().first()
-        return self._model_to_entity(user_model) if user_model else None
+        return result.scalars().first()
 
     async def _get_user_model(self, user_id: int) -> User | None:
         result = await self.db.execute(select(User).filter(User.id == user_id))
         return result.scalars().first()
-
-    def _model_to_entity(self, user_model: User) -> UserEntity:
-        return UserEntity(
-            id=user_model.id,
-            username=user_model.username,
-            first_name=user_model.first_name,
-            last_name=user_model.last_name,
-            is_verified=user_model.verify,
-            is_blocked=user_model.blocked,
-            created_at=user_model.created_at,
-            modified_at=user_model.modified_at,
-        )
 
     # Legacy methods for backward compatibility
     async def get_user(self, id_tg: int) -> User | None:

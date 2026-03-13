@@ -1,8 +1,7 @@
 """Integration tests for UserRepository."""
 
 import pytest
-from app.domain.entities import UserEntity
-from app.domain.repositories import IUserRepository
+from app.infrastructure.db.models import User
 from app.infrastructure.db.repositories.user import UserRepository
 
 from tests.factories import UserFactory
@@ -12,9 +11,9 @@ from tests.factories import UserFactory
 class TestUserRepositoryIntegration:
     """Integration tests for UserRepository."""
 
-    async def test_save_and_get_user(self, user_repository: IUserRepository, sample_user_data: dict):
+    async def test_save_and_get_user(self, user_repository: UserRepository, sample_user_data: dict):
         """Test saving and retrieving a user."""
-        # Create user entity
+        # Create user
         user = UserFactory.create(**sample_user_data)
 
         # Save user
@@ -35,7 +34,7 @@ class TestUserRepositoryIntegration:
         assert retrieved_user.first_name == user.first_name
         assert retrieved_user.last_name == user.last_name
 
-    async def test_get_nonexistent_user(self, user_repository: IUserRepository):
+    async def test_get_nonexistent_user(self, user_repository: UserRepository):
         """Test getting a user that doesn't exist."""
         nonexistent_id = 999999999
 
@@ -43,7 +42,7 @@ class TestUserRepositoryIntegration:
 
         assert user is None
 
-    async def test_user_exists(self, user_repository: IUserRepository):
+    async def test_user_exists(self, user_repository: UserRepository):
         """Test checking if user exists."""
         user = UserFactory.create()
 
@@ -58,7 +57,7 @@ class TestUserRepositoryIntegration:
         exists_after = await user_repository.exists(user.id)
         assert exists_after is True
 
-    async def test_update_existing_user(self, user_repository: IUserRepository):
+    async def test_update_existing_user(self, user_repository: UserRepository):
         """Test updating an existing user."""
         # Create and save user
         user = UserFactory.create(username="original_username", first_name="Original")
@@ -80,7 +79,7 @@ class TestUserRepositoryIntegration:
         assert retrieved_user.username == "updated_username"
         assert retrieved_user.first_name == "Updated"
 
-    async def test_block_and_unblock_user(self, user_repository: IUserRepository):
+    async def test_block_and_unblock_user(self, user_repository: UserRepository):
         """Test blocking and unblocking a user."""
         # Create and save user
         user = UserFactory.create(is_blocked=False)
@@ -106,13 +105,13 @@ class TestUserRepositoryIntegration:
         retrieved_user = await user_repository.get_by_id(user.id)
         assert retrieved_user.is_blocked is False
 
-    async def test_get_blocked_users_empty(self, user_repository: IUserRepository):
+    async def test_get_blocked_users_empty(self, user_repository: UserRepository):
         """Test getting blocked users when none exist."""
         blocked_users = await user_repository.get_blocked_users()
 
         assert blocked_users == []
 
-    async def test_get_blocked_users_with_data(self, user_repository: IUserRepository):
+    async def test_get_blocked_users_with_data(self, user_repository: UserRepository):
         """Test getting blocked users with mixed data."""
         # Create users - some blocked, some not
         blocked_user1 = UserFactory.create_blocked()
@@ -134,9 +133,9 @@ class TestUserRepositoryIntegration:
         assert blocked_user2.id in blocked_ids
         assert normal_user.id not in blocked_ids
 
-    async def test_save_user_with_minimal_data(self, user_repository: IUserRepository):
+    async def test_save_user_with_minimal_data(self, user_repository: UserRepository):
         """Test saving user with minimal required data."""
-        user = UserEntity(id=123456789)
+        user = User(id=123456789)
 
         saved_user = await user_repository.save(user)
 
@@ -147,7 +146,7 @@ class TestUserRepositoryIntegration:
         assert saved_user.is_verified is True  # Default
         assert saved_user.is_blocked is False  # Default
 
-    async def test_save_user_with_none_values(self, user_repository: IUserRepository):
+    async def test_save_user_with_none_values(self, user_repository: UserRepository):
         """Test saving user with explicit None values."""
         user = UserFactory.create(username=None, first_name=None, last_name=None)
 
@@ -157,7 +156,7 @@ class TestUserRepositoryIntegration:
         assert saved_user.first_name is None
         assert saved_user.last_name is None
 
-    async def test_multiple_users_different_ids(self, user_repository: IUserRepository):
+    async def test_multiple_users_different_ids(self, user_repository: UserRepository):
         """Test saving multiple users with different IDs."""
         users = UserFactory.create_batch(5)
 
@@ -176,13 +175,13 @@ class TestUserRepositoryIntegration:
             assert retrieved_user is not None
             assert retrieved_user.id == original_user.id
 
-    async def test_user_state_persistence(self, user_repository: IUserRepository):
+    async def test_user_state_persistence(self, user_repository: UserRepository):
         """Test that user state changes persist across saves."""
         user = UserFactory.create(is_verified=True, is_blocked=False)
         await user_repository.save(user)
 
         # Change user state
-        user.is_verified = False
+        user.verify = False
         user.block()
 
         # Save changes
@@ -198,7 +197,7 @@ class TestUserRepositoryIntegration:
 class TestUserRepositoryEdgeCases:
     """Edge cases and error conditions for UserRepository."""
 
-    async def test_save_user_with_duplicate_id(self, user_repository: IUserRepository):
+    async def test_save_user_with_duplicate_id(self, user_repository: UserRepository):
         """Test saving users with the same ID (should update)."""
         user_id = 123456789
 
@@ -220,7 +219,7 @@ class TestUserRepositoryEdgeCases:
         assert retrieved_user.username == "user2"
         assert retrieved_user.first_name == "Second"
 
-    async def test_concurrent_user_operations(self, user_repository: IUserRepository):
+    async def test_concurrent_user_operations(self, user_repository: UserRepository):
         """Test operations on multiple different users (sequential due to session limitations)."""
         users = UserFactory.create_batch(10)
 
@@ -241,7 +240,7 @@ class TestUserRepositoryEdgeCases:
         assert len(retrieved_users) == 10
         assert all(user is not None for user in retrieved_users)
 
-    async def test_user_with_very_long_strings(self, user_repository: IUserRepository):
+    async def test_user_with_very_long_strings(self, user_repository: UserRepository):
         """Test user with very long string values."""
         long_string = "a" * 1000  # Very long string
 
@@ -257,7 +256,7 @@ class TestUserRepositoryEdgeCases:
         assert saved_user.first_name == long_string[:100]
         assert saved_user.last_name == long_string[:100]
 
-    async def test_user_with_special_characters(self, user_repository: IUserRepository):
+    async def test_user_with_special_characters(self, user_repository: UserRepository):
         """Test user with special characters in strings."""
         user = UserFactory.create(
             username="用户名_123",  # Chinese characters + underscore + numbers
@@ -301,9 +300,9 @@ class TestUserRepositoryLegacy:
         repo = UserRepository(session)
 
         # Create test users
-        user1 = UserEntity(id=123, username="testuser", first_name="Test", is_blocked=True)
-        user2 = UserEntity(id=456, username="spammer", first_name="Spam", is_blocked=True)
-        user3 = UserEntity(id=789, username=None, first_name="NoUsername", is_blocked=False)
+        user1 = User(id=123, username="testuser", first_name="Test", blocked=True)
+        user2 = User(id=456, username="spammer", first_name="Spam", blocked=True)
+        user3 = User(id=789, username=None, first_name="NoUsername", blocked=False)
 
         await repo.save(user1)
         await repo.save(user2)

@@ -407,7 +407,7 @@ async def on_publish_now(callback: CallbackQuery, callback_data: PublishNow) -> 
         # If post is currently scheduled, cancel the schedule first
         from sqlalchemy import select
 
-        from app.domain.value_objects import PostStatus
+        from app.core.enums import PostStatus
         from app.infrastructure.db.models import ChannelPost
 
         async with session_maker() as session:
