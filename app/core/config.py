@@ -61,9 +61,6 @@ class TelegramSettings(BaseSettings):
     """Telegram bot configuration."""
 
     token: str = Field(..., description="Bot token from BotFather")
-    webhook_url: str | None = Field(default=None, description="Webhook URL for production")
-    webhook_secret: str | None = Field(default=None, description="Webhook secret token")
-    use_webhook: bool = Field(default=False, description="Use webhook instead of polling")
 
     model_config = SettingsConfigDict(
         env_prefix="BOT_",
@@ -124,30 +121,66 @@ class LoggingSettings(BaseSettings):
     )
 
 
-class AgentSettings(BaseSettings):
-    """AI agent configuration (shared OpenRouter credentials + per-role models)."""
+class OpenRouterSettings(BaseSettings):
+    """Shared LLM credentials used by all agents."""
 
-    openrouter_api_key: str = Field(default="", description="OpenRouter API key")
-    openrouter_base_url: str = Field(default="https://openrouter.ai/api/v1", description="OpenRouter API base URL")
+    api_key: str = Field(default="", description="OpenRouter API key")
+    base_url: str = Field(default="https://openrouter.ai/api/v1", description="OpenRouter API base URL")
+    brave_api_key: str = Field(default="", description="Brave Search API key for web search")
 
-    # Per-role models
-    moderation_model: str = Field(
+    model_config = SettingsConfigDict(
+        env_prefix="OPENROUTER_",
+        case_sensitive=False,
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
+class ModerationSettings(BaseSettings):
+    """Moderation agent configuration."""
+
+    model: str = Field(
         default="google/gemini-3.1-flash-lite-preview",
         description="Model for spam/moderation agent in chats",
     )
-    assistant_model: str = Field(
-        default="google/gemini-3-flash-preview",
+    escalation_timeout_minutes: int = Field(default=30, description="Minutes before escalation times out")
+    default_timeout_action: str = Field(
+        default="ignore",
+        description="Default action on escalation timeout (mute/ban/delete/warn/blacklist/escalate/ignore)",
+    )
+    enabled: bool = Field(default=False, description="Whether the moderation agent is enabled")
+
+    @field_validator("default_timeout_action")
+    @classmethod
+    def validate_timeout_action(cls, v: str) -> str:
+        """Validate that the timeout action is a known moderation action."""
+        valid = {"mute", "ban", "delete", "warn", "blacklist", "escalate", "ignore"}
+        if v not in valid:
+            raise ValueError(f"default_timeout_action must be one of {valid}, got '{v}'")
+        return v
+
+    model_config = SettingsConfigDict(
+        env_prefix="MODERATION_",
+        case_sensitive=False,
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
+class AssistantSettings(BaseSettings):
+    """Settings for the conversational assistant bot."""
+
+    token: str = Field(default="", description="Telegram bot token for assistant bot")
+    enabled: bool = Field(default=False, description="Enable assistant bot")
+    model: str = Field(
+        default="anthropic/claude-sonnet-4-6",
         description="Model for the assistant bot (channel/chat management)",
     )
 
-    temperature: float = Field(default=0.3, description="LLM temperature")
-    escalation_timeout_minutes: int = Field(default=30, description="Minutes before escalation times out")
-    default_timeout_action: str = Field(default="ignore", description="Default action on escalation timeout")
-    brave_api_key: str = Field(default="", description="Brave Search API key for web search")
-    enabled: bool = Field(default=False, description="Whether the moderation agent is enabled")
-
     model_config = SettingsConfigDict(
-        env_prefix="AGENT_",
+        env_prefix="ASSISTANT_BOT_",
         case_sensitive=False,
         env_file=".env",
         env_file_encoding="utf-8",
@@ -184,7 +217,9 @@ class AppSettings(BaseSettings):
     telegram: TelegramSettings = Field(default_factory=TelegramSettings)
     admin: AdminSettings = Field(default_factory=AdminSettings)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
-    agent: AgentSettings = Field(default_factory=AgentSettings)
+    openrouter: OpenRouterSettings = Field(default_factory=OpenRouterSettings)
+    moderation: ModerationSettings = Field(default_factory=ModerationSettings)
+    assistant: AssistantSettings = Field(default_factory=AssistantSettings)
     telethon: TelethonSettings = Field(default_factory=TelethonSettings)
 
     @property

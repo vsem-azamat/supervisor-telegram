@@ -52,7 +52,7 @@ async def get_embeddings(
     if not texts:
         return []
 
-    base_url = settings.agent.openrouter_base_url
+    base_url = settings.openrouter.base_url
 
     payload: dict[str, object] = {
         "model": model,

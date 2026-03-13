@@ -73,7 +73,7 @@ async def openrouter_chat_completion(
 
     If raw_response=True, returns the full message dict (for tool calling).
     """
-    base_url = settings.agent.openrouter_base_url
+    base_url = settings.openrouter.base_url
 
     payload: dict[str, Any] = {
         "model": model,

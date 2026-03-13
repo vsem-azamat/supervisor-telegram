@@ -89,8 +89,14 @@ async def on_shutdown(bot: Bot) -> None:
 
 def _setup_main_bot(
     session_maker: async_sessionmaker[AsyncSession],
+    *,
+    include_review_router: bool = True,
 ) -> tuple[Bot, Dispatcher]:
-    """Create and configure the main moderation bot."""
+    """Create and configure the main moderation bot.
+
+    When the assistant bot handles review callbacks, *include_review_router*
+    should be ``False`` so the main bot doesn't register duplicate handlers.
+    """
     bot = Bot(token=settings.telegram.token, default=DefaultBotProperties(parse_mode="HTML"))
     dp = Dispatcher()
 
@@ -99,6 +105,12 @@ def _setup_main_bot(
     dp.update.middleware(HistoryMiddleware())
     dp.message.middleware(BlacklistMiddleware())
     dp.callback_query.middleware(CallbackAnswerMiddleware())
+
+    if not include_review_router:
+        # Remove channel_review_router from the main router before including
+        from app.presentation.telegram.handlers.channel_review import channel_review_router
+
+        router.sub_routers[:] = [r for r in router.sub_routers if r is not channel_review_router]
 
     dp.include_router(router)
     dp.startup.register(on_startup)
@@ -109,7 +121,7 @@ def _setup_main_bot(
 
 def _init_escalation_recovery(session_maker: async_sessionmaker[AsyncSession]) -> None:
     """Set up EscalationService session maker for timeout handlers."""
-    if not (settings.agent.enabled and settings.agent.openrouter_api_key):
+    if not (settings.moderation.enabled and settings.openrouter.api_key):
         logger.info("agent_disabled")
         return
 
@@ -120,8 +132,10 @@ def _init_escalation_recovery(session_maker: async_sessionmaker[AsyncSession]) -
 
 
 def _init_channel_orchestrator(
-    bot: Bot,
+    main_bot: Bot,
     session_maker: async_sessionmaker[AsyncSession],
+    *,
+    review_bot: Bot | None = None,
 ) -> ChannelOrchestrator | None:
     """Initialize the channel content orchestrator if enabled."""
     try:
@@ -130,10 +144,11 @@ def _init_channel_orchestrator(
             from app.agent.channel.orchestrator import ChannelOrchestrator
 
             orchestrator = ChannelOrchestrator(
-                bot=bot,
+                publish_bot=main_bot,
                 config=config,
-                api_key=settings.agent.openrouter_api_key,
+                api_key=settings.openrouter.api_key,
                 session_maker=session_maker,
+                review_bot=review_bot,
             )
             orchestrator.start()
             logger.info("channel_agent_enabled")
@@ -178,41 +193,74 @@ async def main() -> None:
     """Application entry point — coordinates all bots."""
     logger.info("starting", environment=settings.environment)
 
+    # Validate: features requiring OpenRouter API key
+    if settings.channel.enabled and not settings.openrouter.api_key:
+        raise ValueError("CHANNEL_ENABLED=true requires OPENROUTER_API_KEY")
+    if settings.moderation.enabled and not settings.openrouter.api_key:
+        raise ValueError("MODERATION_ENABLED=true requires OPENROUTER_API_KEY")
+
     session_maker = create_session_maker()
 
     # Phase 1: Initialize shared services
     _init_escalation_recovery(session_maker)
-    if settings.agent.enabled and settings.agent.openrouter_api_key:
+    if settings.moderation.enabled and settings.openrouter.api_key:
         from app.agent.escalation import EscalationService
 
         await EscalationService.recover_stale_escalations(session_maker)
 
     telethon_client = _init_telethon()
 
-    # Phase 2: Setup main bot
-    main_bot, main_dp = _setup_main_bot(session_maker)
-    setup_container(session_maker, main_bot)
-
-    channel_orchestrator = _init_channel_orchestrator(main_bot, session_maker)
-    if channel_orchestrator:
-        container.set_channel_orchestrator(channel_orchestrator)
-
-    # Re-create main bot with orchestrator reference in DI middleware
-    # (DependenciesMiddleware was already added, but orchestrator wasn't ready yet)
-    # The middleware stores a reference to session_pool and bot, not orchestrator,
-    # so this is fine. Orchestrator is accessed via container/direct reference.
-
-    # Phase 3: Setup assistant bot (separate Dispatcher, no shared middleware)
+    # Phase 2: Setup assistant bot FIRST (needed as review_bot for orchestrator)
     from app.assistant.bot import setup_assistant
 
     assistant_pair = setup_assistant(
         session_maker=session_maker,
-        main_bot=main_bot,
-        channel_orchestrator=channel_orchestrator,
+        main_bot=Bot(token=settings.telegram.token, default=DefaultBotProperties(parse_mode="HTML")),
         telethon_client=telethon_client,
     )
 
-    # Phase 4: Run all polling loops concurrently
+    # Determine review bot: assistant bot if available, otherwise main bot handles reviews
+    assistant_bot: Bot | None = None
+    assistant_dp: Dispatcher | None = None
+    if assistant_pair:
+        assistant_bot, assistant_dp = assistant_pair
+
+    # Phase 3: Setup main bot
+    # If assistant bot is active, it handles review callbacks — remove from main bot
+    main_bot, main_dp = _setup_main_bot(
+        session_maker,
+        include_review_router=assistant_bot is None,
+    )
+    setup_container(session_maker, main_bot)
+
+    # Phase 4: Initialize channel orchestrator with review_bot
+    channel_orchestrator = _init_channel_orchestrator(
+        main_bot,
+        session_maker,
+        review_bot=assistant_bot,
+    )
+    if channel_orchestrator:
+        container.set_channel_orchestrator(channel_orchestrator)
+
+    # Re-setup assistant with channel orchestrator now available
+    if assistant_pair:
+        from app.assistant.bot import setup_assistant
+
+        assistant_pair = setup_assistant(
+            session_maker=session_maker,
+            main_bot=main_bot,
+            channel_orchestrator=channel_orchestrator,
+            telethon_client=telethon_client,
+        )
+        if assistant_pair:
+            assistant_bot, assistant_dp = assistant_pair
+
+            # Add channel_review_router to the assistant bot's dispatcher
+            from app.presentation.telegram.handlers.channel_review import channel_review_router
+
+            assistant_dp.include_router(channel_review_router)
+
+    # Phase 5: Run all polling loops concurrently
     polling_tasks = [
         _run_polling(
             main_bot,
@@ -223,15 +271,14 @@ async def main() -> None:
         ),
     ]
 
-    if assistant_pair:
-        assistant_bot, assistant_dp = assistant_pair
+    if assistant_bot and assistant_dp:
         polling_tasks.append(
             _run_polling(
                 assistant_bot,
                 assistant_dp,
                 name="assistant",
                 skip_updates=True,
-                allowed_updates=["message"],
+                allowed_updates=["message", "callback_query"],
                 handle_signals=False,  # main bot handles SIGINT/SIGTERM
             ),
         )

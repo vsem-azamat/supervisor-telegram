@@ -21,6 +21,13 @@ class EscalationStatus(StrEnum):
     TIMEOUT = "timeout"
 
 
+class ReviewDecision(StrEnum):
+    """Admin decision on a channel post review."""
+
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
 class ModerationAction(Enum):
     """Types of moderation actions."""
 

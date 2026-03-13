@@ -19,7 +19,6 @@ from aiogram.types import Message, MessageEntity, TelegramObject  # noqa: TC002
 
 from app.agent.channel.cost_tracker import extract_usage_from_pydanticai_result, log_usage
 from app.assistant.agent import AssistantDeps, create_assistant_agent
-from app.assistant.config import AssistantSettings
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.markdown import md_to_entities_chunked
@@ -169,9 +168,7 @@ async def _chat_stream(bot: Bot, chat_id: int, user_id: int, user_message: str) 
                     await _send_draft(bot, chat_id, draft_id, plain_preview)
 
                 # Track usage/cost
-                usage = extract_usage_from_pydanticai_result(
-                    stream_result, settings.agent.assistant_model, "assistant_chat"
-                )
+                usage = extract_usage_from_pydanticai_result(stream_result, settings.assistant.model, "assistant_chat")
                 if usage:
                     await log_usage(usage)
 
@@ -221,7 +218,7 @@ async def _chat(user_id: int, user_message: str) -> str:
         logger.warning("assistant_agent_timeout", user_id=user_id, timeout=_AGENT_TIMEOUT_SECONDS)
         return "Превышено время ожидания ответа от агента. Попробуй ещё раз или упрости запрос."
 
-    usage = extract_usage_from_pydanticai_result(result, settings.agent.assistant_model, "assistant_chat")
+    usage = extract_usage_from_pydanticai_result(result, settings.assistant.model, "assistant_chat")
     if usage:
         await log_usage(usage)
 
@@ -293,7 +290,7 @@ def setup_assistant(
     """Create assistant Bot + Dispatcher. Returns None if disabled."""
     global _agent, _deps, _super_admins  # noqa: PLW0603
 
-    assistant_settings = AssistantSettings()
+    assistant_settings = settings.assistant
     if not assistant_settings.enabled or not assistant_settings.token:
         logger.info("assistant_bot_disabled")
         return None

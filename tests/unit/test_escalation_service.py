@@ -101,8 +101,8 @@ class TestEscalationCreate:
         sample_event: AgentEvent,
     ):
         with patch("app.agent.escalation.settings") as mock_settings:
-            mock_settings.agent.escalation_timeout_minutes = 30
-            mock_settings.agent.default_timeout_action = "ignore"
+            mock_settings.moderation.escalation_timeout_minutes = 30
+            mock_settings.moderation.default_timeout_action = "ignore"
             mock_settings.admin.super_admins = [123456789]
 
             svc = _make_service(mock_bot, db_session)
@@ -128,8 +128,8 @@ class TestEscalationCreate:
         sample_event: AgentEvent,
     ):
         with patch("app.agent.escalation.settings") as mock_settings:
-            mock_settings.agent.escalation_timeout_minutes = 30
-            mock_settings.agent.default_timeout_action = "ignore"
+            mock_settings.moderation.escalation_timeout_minutes = 30
+            mock_settings.moderation.default_timeout_action = "ignore"
             mock_settings.admin.super_admins = [123456789]
 
             svc = _make_service(mock_bot, db_session)
@@ -146,8 +146,8 @@ class TestEscalationCreate:
         sample_event: AgentEvent,
     ):
         with patch("app.agent.escalation.settings") as mock_settings:
-            mock_settings.agent.escalation_timeout_minutes = 30
-            mock_settings.agent.default_timeout_action = "ignore"
+            mock_settings.moderation.escalation_timeout_minutes = 30
+            mock_settings.moderation.default_timeout_action = "ignore"
             mock_settings.admin.super_admins = [123456789]
 
             svc = _make_service(mock_bot, db_session)
@@ -165,8 +165,8 @@ class TestEscalationCreate:
         sample_event: AgentEvent,
     ):
         with patch("app.agent.escalation.settings") as mock_settings:
-            mock_settings.agent.escalation_timeout_minutes = 30
-            mock_settings.agent.default_timeout_action = "ignore"
+            mock_settings.moderation.escalation_timeout_minutes = 30
+            mock_settings.moderation.default_timeout_action = "ignore"
             mock_settings.admin.super_admins = []
 
             svc = _make_service(mock_bot, db_session)
@@ -268,7 +268,7 @@ class TestTimeoutHandler:
         db_session: AsyncSession,
         db_session_maker: async_sessionmaker[AsyncSession],
     ):
-        mock_settings.agent.default_timeout_action = "ignore"  # type: ignore[attr-defined]
+        mock_settings.moderation.default_timeout_action = "ignore"  # type: ignore[attr-defined]
 
         esc = AgentEscalation(
             chat_id=-100123,
@@ -321,7 +321,7 @@ class TestTimeoutHandler:
         db_session: AsyncSession,
         db_session_maker: async_sessionmaker[AsyncSession],
     ):
-        mock_settings.agent.default_timeout_action = "ignore"  # type: ignore[attr-defined]
+        mock_settings.moderation.default_timeout_action = "ignore"  # type: ignore[attr-defined]
 
         esc = AgentEscalation(
             chat_id=-100123,
@@ -359,7 +359,7 @@ class TestRecoverStale:
         db_session: AsyncSession,
         db_session_maker: async_sessionmaker[AsyncSession],
     ):
-        mock_settings.agent.default_timeout_action = "ignore"  # type: ignore[attr-defined]
+        mock_settings.moderation.default_timeout_action = "ignore"  # type: ignore[attr-defined]
 
         # Insert a stale escalation (timeout_at in the past)
         esc = AgentEscalation(
@@ -395,8 +395,8 @@ class TestSendEscalationMessage:
         mock_bot: AsyncMock,
         db_session: AsyncSession,
     ):
-        mock_settings.agent.escalation_timeout_minutes = 30  # type: ignore[attr-defined]
-        mock_settings.agent.default_timeout_action = "ignore"  # type: ignore[attr-defined]
+        mock_settings.moderation.escalation_timeout_minutes = 30  # type: ignore[attr-defined]
+        mock_settings.moderation.default_timeout_action = "ignore"  # type: ignore[attr-defined]
         mock_settings.admin.super_admins = [123456789]  # type: ignore[attr-defined]
 
         long_text = "A" * 1000
@@ -427,8 +427,8 @@ class TestSendEscalationMessage:
         mock_bot: AsyncMock,
         db_session: AsyncSession,
     ):
-        mock_settings.agent.escalation_timeout_minutes = 30  # type: ignore[attr-defined]
-        mock_settings.agent.default_timeout_action = "ignore"  # type: ignore[attr-defined]
+        mock_settings.moderation.escalation_timeout_minutes = 30  # type: ignore[attr-defined]
+        mock_settings.moderation.default_timeout_action = "ignore"  # type: ignore[attr-defined]
         mock_settings.admin.super_admins = [123456789]  # type: ignore[attr-defined]
 
         event = AgentEvent(

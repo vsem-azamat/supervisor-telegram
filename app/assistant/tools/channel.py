@@ -407,7 +407,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
             url=source_url or None,
         )
 
-        api_key = settings.agent.openrouter_api_key
+        api_key = settings.openrouter.api_key
         gen_model = settings.channel.generation_model
         lang = language_name(channel.language)
 

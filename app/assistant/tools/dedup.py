@@ -25,7 +25,7 @@ def register_dedup_tools(agent: Agent[AssistantDeps, str]) -> None:
             results = await find_nearest_posts(
                 text,
                 channel_id=channel_id,
-                api_key=settings.agent.openrouter_api_key,
+                api_key=settings.openrouter.api_key,
                 session_maker=ctx.deps.session_maker,
             )
 
@@ -107,7 +107,7 @@ def register_dedup_tools(agent: Agent[AssistantDeps, str]) -> None:
                 return f"All posts in {channel_id} already have embeddings."
 
             texts = [f"{p.title} {(p.post_text or '')[:100]}" for p in posts]
-            embeddings = await get_embeddings(texts, api_key=settings.agent.openrouter_api_key, model=EMBEDDING_MODEL)
+            embeddings = await get_embeddings(texts, api_key=settings.openrouter.api_key, model=EMBEDDING_MODEL)
 
             post_ids = [p.id for p in posts]
             async with ctx.deps.session_maker() as session:
@@ -127,9 +127,9 @@ def register_dedup_tools(agent: Agent[AssistantDeps, str]) -> None:
     @agent.tool
     async def search_news(ctx: RunContext[AssistantDeps], query: str, count: int = 5, freshness: str = "pw") -> str:  # noqa: ARG001
         """Search the web for current news and information. Use this to find fresh content before generating posts. freshness: pd=past day, pw=past week, pm=past month."""
-        brave_key = settings.agent.brave_api_key
+        brave_key = settings.openrouter.brave_api_key
         if not brave_key:
-            return "Brave API key not configured. Set AGENT_BRAVE_API_KEY in .env."
+            return "Brave API key not configured. Set OPENROUTER_BRAVE_API_KEY in .env."
 
         if freshness not in {"pd", "pw", "pm", "py"}:
             freshness = "pw"

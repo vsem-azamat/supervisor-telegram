@@ -190,8 +190,8 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
     model_name = model_name or settings.channel.generation_model
 
     provider = OpenAIProvider(
-        base_url=settings.agent.openrouter_base_url,
-        api_key=settings.agent.openrouter_api_key,
+        base_url=settings.openrouter.base_url,
+        api_key=settings.openrouter.api_key,
     )
     model = OpenAIChatModel(model_name, provider=provider)
 
@@ -239,7 +239,7 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
         """Search the web for facts or context to enrich the post."""
         from app.agent.channel.brave_search import brave_search_for_assistant
 
-        api_key = settings.agent.brave_api_key
+        api_key = settings.openrouter.brave_api_key
         if not api_key:
             return "Web search is not configured (no Brave API key)."
 
@@ -325,7 +325,7 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
         from app.agent.channel.brave_search import brave_image_search, brave_web_search
         from app.agent.channel.images import find_images_for_post
 
-        brave_api_key = settings.agent.brave_api_key
+        brave_api_key = settings.openrouter.brave_api_key
         images: list[str] = []
 
         # Strategy 1: Brave Image Search API

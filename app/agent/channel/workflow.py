@@ -325,7 +325,16 @@ async def generate_post(state: State) -> State:
 
 
 @action(
-    reads=["generated_post", "relevant_items", "channel_id", "channel", "config", "bot", "session_maker"],
+    reads=[
+        "generated_post",
+        "relevant_items",
+        "channel_id",
+        "channel",
+        "config",
+        "publish_bot",
+        "review_bot",
+        "session_maker",
+    ],
     writes=["post_id", "result_message", "error"],
 )
 async def send_for_review(state: State) -> State:
@@ -337,7 +346,8 @@ async def send_for_review(state: State) -> State:
     if not post_dict:
         return state.update(post_id=None, result_message="no_post", error="no_generated_post")
 
-    bot: Bot = state["bot"]
+    review_bot: Bot = state["review_bot"]
+    publish_bot: Bot = state["publish_bot"]
     channel_id: str = str(state["channel_id"])
     channel: Channel = state["channel"]
     session_maker: async_sessionmaker[AsyncSession] = state["session_maker"]
@@ -351,7 +361,7 @@ async def send_for_review(state: State) -> State:
             api_key: str = state["api_key"]
             config: ChannelAgentSettings = state["config"]
             post_id = await _send_review(
-                bot=bot,
+                bot=review_bot,
                 review_chat_id=review_chat_id,
                 channel_id=channel_id,
                 post=post,
@@ -374,7 +384,7 @@ async def send_for_review(state: State) -> State:
         from app.agent.channel.publisher import publish_post as _publish
 
         try:
-            msg_id = await _publish(bot, channel.telegram_id, post)
+            msg_id = await _publish(publish_bot, channel.telegram_id, post)
             if msg_id:
                 # Create ChannelPost record for dedup, feedback, and audit
                 try:
@@ -419,7 +429,7 @@ async def await_review(state: State) -> State:
     return state.update(review_decision=state.get("review_decision"))
 
 
-@action(reads=["post_id", "channel_id", "channel", "bot", "session_maker"], writes=["result_message", "error"])
+@action(reads=["post_id", "channel_id", "channel", "publish_bot", "session_maker"], writes=["result_message", "error"])
 async def publish_post(state: State) -> State:
     """Publish an approved post to the channel."""
     from app.agent.channel.review import handle_approve
@@ -428,7 +438,7 @@ async def publish_post(state: State) -> State:
     if not post_id:
         return state.update(result_message="no_post_id", error="missing_post_id")
 
-    bot: Bot = state["bot"]
+    bot: Bot = state["publish_bot"]
     channel: Channel = state["channel"]
     session_maker: async_sessionmaker[AsyncSession] = state["session_maker"]
 
@@ -495,11 +505,15 @@ def _has_review_channel(state: State) -> bool:
 
 
 def _is_approved(state: State) -> bool:
-    return state.get("review_decision") == "approved"
+    from app.domain.value_objects import ReviewDecision
+
+    return state.get("review_decision") == ReviewDecision.APPROVED
 
 
 def _is_rejected(state: State) -> bool:
-    return state.get("review_decision") == "rejected"
+    from app.domain.value_objects import ReviewDecision
+
+    return state.get("review_decision") == ReviewDecision.REJECTED
 
 
 def build_content_pipeline_graph() -> Any:
@@ -570,11 +584,12 @@ def get_pipeline_graph() -> Any:
 def create_pipeline_app(
     channel_id: str,
     session_maker: async_sessionmaker[AsyncSession],
-    bot: Bot,
+    publish_bot: Bot,
     api_key: str,
     config: ChannelAgentSettings,
     channel: Channel,
     *,
+    review_bot: Bot | None = None,
     brave_api_key: str = "",
     app_id: str | None = None,
     resume_state: dict[str, Any] | None = None,
@@ -583,12 +598,13 @@ def create_pipeline_app(
     """Create a Burr Application for a single pipeline run."""
     graph = get_pipeline_graph()
 
-    resolved_brave_key = brave_api_key or settings.agent.brave_api_key
+    resolved_brave_key = brave_api_key or settings.openrouter.brave_api_key
 
     initial_state = {
         "channel_id": channel_id,
         "session_maker": session_maker,
-        "bot": bot,
+        "publish_bot": publish_bot,
+        "review_bot": review_bot or publish_bot,
         "api_key": api_key,
         "brave_api_key": resolved_brave_key,
         "config": config,

@@ -46,7 +46,7 @@ class EscalationService:
         decision_id: int | None = None,
     ) -> AgentEscalation:
         """Create escalation, send to admin, start timeout."""
-        timeout_minutes = settings.agent.escalation_timeout_minutes
+        timeout_minutes = settings.moderation.escalation_timeout_minutes
         timeout_at = utc_now() + datetime.timedelta(minutes=timeout_minutes)
 
         escalation = AgentEscalation(
@@ -145,7 +145,7 @@ class EscalationService:
 
             for esc in stale:
                 esc.status = EscalationStatus.TIMEOUT
-                esc.resolved_action = settings.agent.default_timeout_action
+                esc.resolved_action = settings.moderation.default_timeout_action
                 esc.resolved_at = now
             if stale:
                 await db.commit()
@@ -179,8 +179,8 @@ class EscalationService:
         text += (
             f"🤖 Предложение: <b>{escape_html(escalation.suggested_action)}</b>\n"
             f"💭 Причина: {escape_html(escalation.reason)}\n\n"
-            f"⏰ Таймаут: {settings.agent.escalation_timeout_minutes} мин "
-            f"→ <i>{settings.agent.default_timeout_action}</i>"
+            f"⏰ Таймаут: {settings.moderation.escalation_timeout_minutes} мин "
+            f"→ <i>{settings.moderation.default_timeout_action}</i>"
         )
 
         builder = InlineKeyboardBuilder()
@@ -225,7 +225,7 @@ class EscalationService:
             if not escalation:
                 return
 
-            default_action = settings.agent.default_timeout_action
+            default_action = settings.moderation.default_timeout_action
             escalation.status = EscalationStatus.TIMEOUT
             escalation.resolved_action = default_action
             escalation.resolved_at = utc_now()

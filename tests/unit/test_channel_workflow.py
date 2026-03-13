@@ -52,8 +52,6 @@ def channel_no_review() -> Channel:
 def agent_settings() -> ChannelAgentSettings:
     return ChannelAgentSettings(
         enabled=True,
-        channel_id=-1001234567890,
-        review_chat_id=0,
         discovery_enabled=False,
         source_discovery_enabled=False,
     )
@@ -401,7 +399,7 @@ class TestPublishPostAction:
                 "post_id": None,
                 "channel_id": "test",
                 "channel": channel,
-                "bot": mock_bot,
+                "publish_bot": mock_bot,
                 "session_maker": mock_session_maker,
             }
         )
@@ -421,7 +419,7 @@ class TestPublishPostAction:
                     "post_id": 42,
                     "channel_id": "test",
                     "channel": channel,
-                    "bot": mock_bot,
+                    "publish_bot": mock_bot,
                     "session_maker": mock_session_maker,
                 }
             )
@@ -469,7 +467,7 @@ class TestAppFactory:
         app = create_pipeline_app(
             channel_id="test_channel",
             session_maker=mock_session_maker,
-            bot=mock_bot,
+            publish_bot=mock_bot,
             api_key="test-key",
             config=agent_settings,
             channel=channel,
@@ -483,7 +481,7 @@ class TestAppFactory:
         app = create_pipeline_app(
             channel_id="test_channel",
             session_maker=mock_session_maker,
-            bot=mock_bot,
+            publish_bot=mock_bot,
             api_key="test-key",
             config=agent_settings,
             channel=channel,
@@ -511,7 +509,7 @@ class TestFullPipeline:
             app = create_pipeline_app(
                 channel_id="test_channel",
                 session_maker=mock_session_maker,
-                bot=mock_bot,
+                publish_bot=mock_bot,
                 api_key="test-key",
                 config=agent_settings,
                 channel=channel,
@@ -541,7 +539,7 @@ class TestFullPipeline:
             app = create_pipeline_app(
                 channel_id="test_channel",
                 session_maker=mock_session_maker,
-                bot=mock_bot,
+                publish_bot=mock_bot,
                 api_key="test-key",
                 config=agent_settings,
                 channel=channel,
@@ -555,7 +553,7 @@ class TestFullPipeline:
             app = create_pipeline_app(
                 channel_id="test_channel",
                 session_maker=mock_session_maker,
-                bot=mock_bot,
+                publish_bot=mock_bot,
                 api_key="test-key",
                 config=agent_settings,
                 channel=channel,
@@ -570,7 +568,7 @@ class TestFullPipeline:
             app = create_pipeline_app(
                 channel_id="test_channel",
                 session_maker=mock_session_maker,
-                bot=mock_bot,
+                publish_bot=mock_bot,
                 api_key="test-key",
                 config=agent_settings,
                 channel=channel,
@@ -606,7 +604,7 @@ class TestFullPipeline:
             app = create_pipeline_app(
                 channel_id="test_channel",
                 session_maker=mock_session_maker,
-                bot=mock_bot,
+                publish_bot=mock_bot,
                 api_key="test-key",
                 config=agent_settings,
                 channel=channel_no_review,

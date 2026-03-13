@@ -164,7 +164,7 @@ def _create_screening_agent(
     api_key: str, model: str, *, channel_name: str = "", discovery_query: str = ""
 ) -> Agent[None, str]:
     """Create a cheap screening agent."""
-    provider = OpenAIProvider(base_url=settings.agent.openrouter_base_url, api_key=api_key)
+    provider = OpenAIProvider(base_url=settings.openrouter.base_url, api_key=api_key)
     llm = OpenAIChatModel(model_name=model, provider=provider)
     prompt = build_screening_prompt(channel_name or "Konnekt", discovery_query)
     return Agent(llm, system_prompt=prompt, output_type=str, model_settings={"temperature": 0.1})
@@ -180,7 +180,7 @@ def _create_generation_agent(
     channel_context: str = "",
 ) -> Agent[None, GeneratedPost]:
     """Create a post generation agent."""
-    provider = OpenAIProvider(base_url=settings.agent.openrouter_base_url, api_key=api_key)
+    provider = OpenAIProvider(base_url=settings.openrouter.base_url, api_key=api_key)
     llm = OpenAIChatModel(model_name=model, provider=provider)
     prompt = substitute_template(
         GENERATION_PROMPT,

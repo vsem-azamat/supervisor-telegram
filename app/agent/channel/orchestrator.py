@@ -20,7 +20,6 @@ from app.agent.channel.channel_repo import (
     update_source_discovery_time,
 )
 from app.agent.channel.source_discovery import discover_and_add_sources
-from app.agent.channel.source_manager import seed_sources_from_env
 from app.core.logging import get_logger
 from app.core.time import utc_now
 
@@ -66,19 +65,27 @@ class SingleChannelOrchestrator:
 
     def __init__(
         self,
-        bot: Bot,
+        publish_bot: Bot,
         config: ChannelAgentSettings,
         channel: Channel,
         api_key: str,
         session_maker: async_sessionmaker[AsyncSession],
+        *,
+        review_bot: Bot | None = None,
     ) -> None:
-        self.bot = bot
+        self.publish_bot = publish_bot
+        self.review_bot = review_bot or publish_bot
         self.config = config
         self.channel = channel
         self.api_key = api_key
         self.session_maker = session_maker
         self._task: asyncio.Task[None] | None = None
         self._pending_reviews: dict[int, dict[str, object]] = {}
+
+    @property
+    def bot(self) -> Bot:
+        """Backward-compat alias — returns the publish bot."""
+        return self.publish_bot
 
     @property
     def channel_id(self) -> str:
@@ -109,14 +116,6 @@ class SingleChannelOrchestrator:
     async def _run_loop(self) -> None:
         """Main loop: discover sources, fetch content, screen, generate, send for review."""
         await asyncio.sleep(5)
-
-        # Seed DB sources from env config on first run (deprecated, for migration)
-        if self.config.rss_source_list:
-            await seed_sources_from_env(
-                self.session_maker,
-                self.channel.telegram_id,
-                self.config.rss_source_list,
-            )
 
         while True:
             try:
@@ -202,7 +201,8 @@ class SingleChannelOrchestrator:
         app = create_pipeline_app(
             channel_id=channel_id,
             session_maker=self.session_maker,
-            bot=self.bot,
+            publish_bot=self.publish_bot,
+            review_bot=self.review_bot,
             api_key=self.api_key,
             config=self.config,
             channel=self.channel,
@@ -235,7 +235,8 @@ class SingleChannelOrchestrator:
         app = create_pipeline_app(
             channel_id=channel_id,
             session_maker=self.session_maker,
-            bot=self.bot,
+            publish_bot=self.publish_bot,
+            review_bot=self.review_bot,
             api_key=self.api_key,
             config=self.config,
             channel=self.channel,
@@ -261,17 +262,25 @@ class ChannelOrchestrator:
 
     def __init__(
         self,
-        bot: Bot,
+        publish_bot: Bot,
         config: ChannelAgentSettings,
         api_key: str,
         session_maker: async_sessionmaker[AsyncSession],
+        *,
+        review_bot: Bot | None = None,
     ) -> None:
-        self.bot = bot
+        self.publish_bot = publish_bot
+        self.review_bot = review_bot or publish_bot
         self.config = config
         self.api_key = api_key
         self.session_maker = session_maker
         self._orchestrators: dict[str, SingleChannelOrchestrator] = {}
         self._refresh_task: asyncio.Task[None] | None = None
+
+    @property
+    def bot(self) -> Bot:
+        """Backward-compat alias — returns the publish bot."""
+        return self.publish_bot
 
     @property
     def orchestrators(self) -> list[SingleChannelOrchestrator]:
@@ -319,11 +328,12 @@ class ChannelOrchestrator:
                 existing.channel = ch
             else:
                 orch = SingleChannelOrchestrator(
-                    bot=self.bot,
+                    publish_bot=self.publish_bot,
                     config=self.config,
                     channel=ch,
                     api_key=self.api_key,
                     session_maker=self.session_maker,
+                    review_bot=self.review_bot,
                 )
                 self._orchestrators[ch.telegram_id] = orch
                 orch.start()

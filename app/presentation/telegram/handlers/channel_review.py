@@ -45,7 +45,7 @@ def _get_global_config() -> tuple[str, str]:
     """Get global settings: (generation_model, api_key)."""
     from app.core.config import settings
 
-    return settings.channel.generation_model, settings.agent.openrouter_api_key
+    return settings.channel.generation_model, settings.openrouter.api_key
 
 
 async def _get_channel_for_post(post_id: int, session_maker: Any) -> Channel | None:
@@ -107,7 +107,9 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
             if not channel:
                 await callback.answer("Post not found or channel not configured", show_alert=True)
                 return
-            result = await handle_approve(bot, post_id, channel.telegram_id, session_maker)
+            # Use moderator bot for publishing (callback.bot may be the assistant bot)
+            publish_bot = container.get_bot() or bot
+            result = await handle_approve(publish_bot, post_id, channel.telegram_id, session_maker)
             await callback.answer(result, show_alert=True)
 
             if "Published" in result:
@@ -419,7 +421,9 @@ async def on_publish_now(callback: CallbackQuery, callback_data: PublishNow) -> 
 
                 await cancel_scheduled_post(tc, session_maker, post_id, channel)
 
-        result = await handle_approve(bot, post_id, channel.telegram_id, session_maker)
+        # Use moderator bot for publishing (callback.bot may be the assistant bot)
+        publish_bot = container.get_bot() or bot
+        result = await handle_approve(publish_bot, post_id, channel.telegram_id, session_maker)
         await callback.answer(result, show_alert=True)
 
         if "Published" in result:

@@ -59,9 +59,9 @@ app/
 
 ### Key Files
 
-- `app/core/config.py` — Pydantic settings hierarchy (6 nested config classes)
+- `app/core/config.py` — Pydantic settings hierarchy (8 nested config classes)
 - `app/infrastructure/db/models.py` — 9 ORM models (including pgvector `Vector(768)` column)
-- `app/domain/value_objects.py` — `PostStatus`, `EscalationStatus` StrEnums
+- `app/domain/value_objects.py` — `PostStatus`, `EscalationStatus`, `ReviewDecision` StrEnums
 - `app/core/text.py` — `escape_html()` utility
 - `app/core/markdown.py` — `md_to_entities` / `md_to_entities_chunked` (telegramify-markdown)
 - `app/core/time.py` — `utc_now()` helper for naive UTC datetimes
@@ -74,8 +74,8 @@ app/
 |---|---|---|
 | Screening | `google/gemini-2.0-flash-001` | `CHANNEL_SCREENING_MODEL` |
 | Generation + review | `google/gemini-3.1-flash-lite-preview` | `CHANNEL_GENERATION_MODEL` |
-| Moderation | `google/gemini-3.1-flash-lite-preview` | `AGENT_MODERATION_MODEL` |
-| Assistant | `anthropic/claude-sonnet-4-6` | `AGENT_ASSISTANT_MODEL` |
+| Moderation | `google/gemini-3.1-flash-lite-preview` | `MODERATION_MODEL` |
+| Assistant | `anthropic/claude-sonnet-4-6` | `ASSISTANT_BOT_MODEL` |
 
 ## Important Patterns
 
@@ -103,7 +103,7 @@ Self-calibrating: injects last 5 admin corrections into system prompt. Escalates
 
 ## Testing
 
-- **700+ tests**, ~50s runtime
+- **600+ tests**, ~20s runtime
 - Unit: SQLite in-memory
 - Integration: testcontainers PostgreSQL
 - E2E: `FakeTelegramServer` (aiohttp-based Bot API simulator)
@@ -116,7 +116,9 @@ See `.env.example` for all variables. Key ones:
 ```bash
 BOT_TOKEN=                        # Moderator bot
 ADMIN_SUPER_ADMINS=123,456        # Comma-separated user IDs
-AGENT_OPENROUTER_API_KEY=         # OpenRouter for all LLM calls
-AGENT_ENABLED=true                # Enable moderation agent
+OPENROUTER_API_KEY=               # OpenRouter for all LLM calls
+MODERATION_ENABLED=true           # Enable moderation agent
+ASSISTANT_BOT_TOKEN=              # Assistant bot
+ASSISTANT_BOT_ENABLED=true        # Enable assistant bot
 DB_USER= DB_PASSWORD= DB_NAME=   # PostgreSQL
 ```

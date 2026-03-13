@@ -44,8 +44,6 @@ def channel() -> Channel:
 def agent_settings() -> ChannelAgentSettings:
     return ChannelAgentSettings(
         enabled=True,
-        channel_id=-1001234567890,
-        review_chat_id=0,
         discovery_enabled=False,
         source_discovery_enabled=False,
     )
@@ -82,7 +80,7 @@ def single_orch(
     mock_session_maker: MagicMock,
 ) -> SingleChannelOrchestrator:
     return SingleChannelOrchestrator(
-        bot=mock_bot,
+        publish_bot=mock_bot,
         config=agent_settings,
         channel=channel,
         api_key="test-key",
@@ -143,7 +141,7 @@ class TestSingleChannelOrchestrator:
     ):
         ch = _make_channel(telegram_id="")
         orch = SingleChannelOrchestrator(
-            bot=mock_bot,
+            publish_bot=mock_bot,
             config=agent_settings,
             channel=ch,
             api_key="test-key",
@@ -227,7 +225,7 @@ class TestChannelOrchestrator:
         mock_session_maker: MagicMock,
     ):
         settings = ChannelAgentSettings(enabled=False)
-        orch = ChannelOrchestrator(bot=mock_bot, config=settings, api_key="k", session_maker=mock_session_maker)
+        orch = ChannelOrchestrator(publish_bot=mock_bot, config=settings, api_key="k", session_maker=mock_session_maker)
         orch.start()
         assert len(orch.orchestrators) == 0
 
@@ -237,7 +235,7 @@ class TestChannelOrchestrator:
         mock_session_maker: MagicMock,
     ):
         settings = ChannelAgentSettings(enabled=True)
-        orch = ChannelOrchestrator(bot=mock_bot, config=settings, api_key="k", session_maker=mock_session_maker)
+        orch = ChannelOrchestrator(publish_bot=mock_bot, config=settings, api_key="k", session_maker=mock_session_maker)
 
         ch1 = _make_channel(telegram_id="@chan1", name="Chan1")
         ch2 = _make_channel(telegram_id="@chan2", name="Chan2")
@@ -258,7 +256,7 @@ class TestChannelOrchestrator:
         mock_session_maker: MagicMock,
     ):
         settings = ChannelAgentSettings(enabled=True)
-        orch = ChannelOrchestrator(bot=mock_bot, config=settings, api_key="k", session_maker=mock_session_maker)
+        orch = ChannelOrchestrator(publish_bot=mock_bot, config=settings, api_key="k", session_maker=mock_session_maker)
 
         ch1 = _make_channel(telegram_id="@chan1", name="Chan1")
         ch2 = _make_channel(telegram_id="@chan2", name="Chan2")
@@ -287,7 +285,7 @@ class TestChannelOrchestrator:
         mock_session_maker: MagicMock,
     ):
         settings = ChannelAgentSettings(enabled=True)
-        orch = ChannelOrchestrator(bot=mock_bot, config=settings, api_key="k", session_maker=mock_session_maker)
+        orch = ChannelOrchestrator(publish_bot=mock_bot, config=settings, api_key="k", session_maker=mock_session_maker)
 
         ch1 = _make_channel(telegram_id="@chan1", name="Chan1")
 
