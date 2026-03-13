@@ -1,7 +1,7 @@
 """Integration tests for user management service workflows."""
 
 import pytest
-from app.domain.exceptions import UserNotFoundException
+from app.core.exceptions import UserNotFoundException
 from app.infrastructure.db.models import User
 from app.infrastructure.db.repositories.user import UserRepository
 from app.moderation.user_service import UserService

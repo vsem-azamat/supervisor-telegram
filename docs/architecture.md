@@ -10,7 +10,7 @@ Key principles:
 - **ORM models are the domain models** where there's a single data source (which is most of the codebase)
 - **No abstract interfaces** unless there are multiple implementations
 - **Feature modules** (`moderation/`, `agent/channel/`, `assistant/`) own their vertical slice
-- **Backward-compat shims** at old import paths during migration (will be removed after stabilization)
+- **No backward-compat shims** — all migrations complete, no legacy re-export files
 
 ## Module Map
 
@@ -20,6 +20,7 @@ app/
 │   ├── config.py                  # Pydantic settings hierarchy (9 classes)
 │   ├── container.py               # Service locator / DI container
 │   ├── enums.py                   # PostStatus, EscalationStatus, ReviewDecision
+│   ├── exceptions.py              # DomainError, UserNotFoundException
 │   ├── logging.py                 # structlog setup
 │   ├── markdown.py                # Markdown → MessageEntity conversion
 │   ├── text.py                    # escape_html()
@@ -27,8 +28,10 @@ app/
 │
 ├── moderation/                    # AI moderation feature module
 │   ├── agent.py                   # PydanticAI moderation agent (Gemini Flash Lite)
+│   ├── blacklist.py               # Global blacklist add/remove across all chats
 │   ├── escalation.py              # HITL escalation with configurable timeout
 │   ├── memory.py                  # Decision log + cross-chat risk profiles
+│   ├── report.py                  # Report forwarding to moderators
 │   ├── spam_service.py            # Spam detection service
 │   ├── user_service.py            # User block/unblock, verification
 │   └── history_service.py         # Message history tracking
@@ -90,16 +93,7 @@ app/
 │       ├── bot.py                 # Main entry point, dispatcher setup
 │       ├── handlers/              # Command/callback handlers (7 routers)
 │       ├── middlewares/           # 6 middlewares (auth, history, deps, etc.)
-│       └── utils/                 # Filters, callback data, blacklist utils
-│
-├── application/                   # [Legacy — migrating away]
-│   └── services/
-│       ├── buttons.py             # Inline button builders (not yet migrated)
-│       ├── moderation.py          # Moderation action executor (not yet migrated)
-│       └── report.py              # Report forwarding (not yet migrated)
-│
-└── domain/                        # [Legacy — migrating away]
-    └── exceptions.py              # DomainError, UserNotFoundException
+│       └── utils/                 # Filters, callback data, buttons, blacklist utils
 ```
 
 ## Configuration Hierarchy
@@ -188,12 +182,7 @@ Service locator pattern in `app/core/container.py`. Provides:
 
 ### Enums
 
-All shared enums in `app/core/enums.py`: `PostStatus`, `EscalationStatus`, `ReviewDecision`. The old `app/domain/value_objects.py` is a backward-compat shim.
-
-### Backward-Compat Shims
-
-During the architecture migration, old import paths are preserved as thin re-export files:
-- `app/agent/channel/{review_agent,review_service}.py` → `app/agent/channel/review/*`
+All shared enums in `app/core/enums.py`: `PostStatus`, `EscalationStatus`, `ReviewDecision`.
 
 ## Testing
 

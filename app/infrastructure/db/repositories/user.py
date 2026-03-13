@@ -1,7 +1,7 @@
 from sqlalchemy import insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.exceptions import UserNotFoundException
+from app.core.exceptions import UserNotFoundException
 from app.infrastructure.db.models import User
 
 

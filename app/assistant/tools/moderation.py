@@ -142,7 +142,7 @@ def register_moderation_tools(agent: Agent[AssistantDeps, str]) -> None:
     @agent.tool
     async def blacklist_user(ctx: RunContext[AssistantDeps], user_id: int) -> str:
         """Add user to global blacklist and ban from all managed chats."""
-        from app.application.services.moderation import add_to_blacklist
+        from app.moderation.blacklist import add_to_blacklist
 
         try:
             async with ctx.deps.session_maker() as session:
@@ -155,7 +155,7 @@ def register_moderation_tools(agent: Agent[AssistantDeps, str]) -> None:
     @agent.tool
     async def unblacklist_user(ctx: RunContext[AssistantDeps], user_id: int) -> str:
         """Remove user from global blacklist and unban from all managed chats."""
-        from app.application.services.moderation import remove_from_blacklist
+        from app.moderation.blacklist import remove_from_blacklist
 
         try:
             async with ctx.deps.session_maker() as session:

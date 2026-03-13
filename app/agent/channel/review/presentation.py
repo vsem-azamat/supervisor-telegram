@@ -1,7 +1,7 @@
 """Review flow — Telegram presentation layer.
 
 Sends drafts to the review channel with inline buttons, handles callbacks.
-Business logic and DB operations are delegated to review_service.py.
+Business logic and DB operations are delegated to service.py.
 """
 
 from __future__ import annotations

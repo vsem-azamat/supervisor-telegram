@@ -296,7 +296,7 @@ class AgentCore:
 
     async def _do_blacklist(self, event: AgentEvent, bot: Bot, db: AsyncSession, revoke: bool) -> None:
         # Lazy import to avoid circular dependency (moderation → telegram.logger → bot → agent)
-        from app.application.services import moderation as moderation_services
+        from app.moderation import blacklist as moderation_services
 
         try:
             await moderation_services.add_to_blacklist(db, bot, event.target_user_id, revoke_messages=revoke)

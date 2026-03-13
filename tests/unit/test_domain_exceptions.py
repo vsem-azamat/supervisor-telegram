@@ -1,7 +1,7 @@
 """Tests for domain exceptions."""
 
 import pytest
-from app.domain.exceptions import (
+from app.core.exceptions import (
     DomainError,
     UserNotFoundException,
 )

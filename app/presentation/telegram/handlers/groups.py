@@ -1,7 +1,7 @@
 from aiogram import Bot, Router, types
 from aiogram.filters import Command
 
-from app.application.services import report as report_services
+from app.moderation import report as report_services
 from app.presentation.telegram.utils import other
 
 groups_router = Router()

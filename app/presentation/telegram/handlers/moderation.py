@@ -4,12 +4,12 @@ from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.services import moderation as moderation_services
 from app.core.text import escape_html
 from app.infrastructure.db.repositories import (
     ChatRepository,
     MessageRepository,
 )
+from app.moderation import blacklist as moderation_services
 from app.moderation import spam_service
 from app.moderation.user_service import UserService
 from app.presentation.telegram.logger import logger

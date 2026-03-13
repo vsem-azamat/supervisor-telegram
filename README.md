@@ -208,8 +208,8 @@ Messages revoked in 3 chats.
 
 ```
 app/
-├── core/                   # Config (9 Pydantic classes), logging, DI, enums
-├── moderation/             # AI moderation: agent, escalation, memory, services
+├── core/                   # Config (9 Pydantic classes), logging, DI, enums, exceptions
+├── moderation/             # AI moderation: agent, escalation, blacklist, report, services
 ├── agent/                  # AI agent infrastructure
 │   └── channel/            # Content pipeline
 │       ├── orchestrator.py # Per-channel orchestration + scheduling

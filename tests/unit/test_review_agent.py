@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from unittest.mock import MagicMock
 
-from app.agent.channel.review_agent import (
+from app.agent.channel.review.agent import (
     _MAX_REVIEW_CONVERSATIONS,
     _evict_review_conversations,
     _review_conversations,

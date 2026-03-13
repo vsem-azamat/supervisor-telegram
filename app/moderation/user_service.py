@@ -1,7 +1,7 @@
 """User domain service."""
 
+from app.core.exceptions import UserNotFoundException
 from app.core.logging import BotLogger
-from app.domain.exceptions import UserNotFoundException
 from app.infrastructure.db.models import User
 from app.infrastructure.db.repositories.user import UserRepository
 

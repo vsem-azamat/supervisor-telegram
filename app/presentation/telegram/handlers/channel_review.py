@@ -113,7 +113,7 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
             await callback.answer(result, show_alert=True)
 
             if "Published" in result:
-                from app.agent.channel.review_agent import clear_review_conversation
+                from app.agent.channel.review.agent import clear_review_conversation
 
                 clear_review_conversation(post_id)
                 with contextlib.suppress(Exception):
@@ -127,7 +127,7 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
         await callback.answer(result, show_alert=True)
 
         if "rejected" in result.lower():
-            from app.agent.channel.review_agent import clear_review_conversation
+            from app.agent.channel.review.agent import clear_review_conversation
 
             clear_review_conversation(post_id)
             with contextlib.suppress(Exception):
@@ -140,7 +140,7 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
             if "deleted" not in result.lower():
                 await callback.answer(result, show_alert=True)
             else:
-                from app.agent.channel.review_agent import clear_review_conversation
+                from app.agent.channel.review.agent import clear_review_conversation
 
                 clear_review_conversation(post_id)
                 await callback.answer("Post deleted")
@@ -206,7 +206,7 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
                 channel_username=channel.username,
             )
             logger.info("regen_result", post_id=post_id, result=result)
-            from app.agent.channel.review_agent import clear_review_conversation
+            from app.agent.channel.review.agent import clear_review_conversation
 
             clear_review_conversation(post_id)
         except Exception:
@@ -234,7 +234,7 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
                 channel_username=channel.username,
             )
             logger.info("shorter_result", post_id=post_id, result=result)
-            from app.agent.channel.review_agent import clear_review_conversation
+            from app.agent.channel.review.agent import clear_review_conversation
 
             clear_review_conversation(post_id)
         except Exception:
@@ -262,7 +262,7 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
                 channel_username=channel.username,
             )
             logger.info("longer_result", post_id=post_id, result=result)
-            from app.agent.channel.review_agent import clear_review_conversation
+            from app.agent.channel.review.agent import clear_review_conversation
 
             clear_review_conversation(post_id)
         except Exception:
@@ -292,7 +292,7 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
                 channel_username=channel.username,
             )
             logger.info("translate_result", post_id=post_id, result=result)
-            from app.agent.channel.review_agent import clear_review_conversation
+            from app.agent.channel.review.agent import clear_review_conversation
 
             clear_review_conversation(post_id)
         except Exception:
@@ -427,7 +427,7 @@ async def on_publish_now(callback: CallbackQuery, callback_data: PublishNow) -> 
         await callback.answer(result, show_alert=True)
 
         if "Published" in result:
-            from app.agent.channel.review_agent import clear_review_conversation
+            from app.agent.channel.review.agent import clear_review_conversation
 
             clear_review_conversation(post_id)
             with contextlib.suppress(Exception):
@@ -455,7 +455,7 @@ def _resolve_post_id_from_reply(reply_msg: Message) -> int | None:
                         pass
 
     # 2. Try message_id mapping (reply to an agent response in the conversation chain)
-    from app.agent.channel.review_agent import resolve_post_id
+    from app.agent.channel.review.agent import resolve_post_id
 
     return resolve_post_id(reply_msg.message_id)
 
@@ -493,7 +493,7 @@ async def on_review_reply(message: Message) -> None:
     review_chat_id: int | str = channel.review_chat_id or message.chat.id
 
     # Register the user's message in the chain so future replies to it also work
-    from app.agent.channel.review_agent import ReviewAgentDeps, register_message, review_agent_turn
+    from app.agent.channel.review.agent import ReviewAgentDeps, register_message, review_agent_turn
 
     register_message(message.message_id, post_id)
 

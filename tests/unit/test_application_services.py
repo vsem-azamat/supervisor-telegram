@@ -3,7 +3,8 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from app.application.services import buttons, report
+from app.moderation import report
+from app.presentation.telegram.utils import buttons
 
 
 @pytest.mark.unit
@@ -31,7 +32,7 @@ class TestButtonsService:
         """Test getting chat buttons when no chats exist."""
         mock_db = AsyncMock()
 
-        with patch("app.application.services.buttons.ChatLinkRepository") as mock_repo_class:
+        with patch("app.presentation.telegram.utils.buttons.ChatLinkRepository") as mock_repo_class:
             mock_repo = AsyncMock()
             mock_repo.get_chat_links.return_value = []
             mock_repo_class.return_value = mock_repo
@@ -52,7 +53,7 @@ class TestButtonsService:
         mock_chat2.text = "Chat 2"
         mock_chat2.link = "https://t.me/chat2"
 
-        with patch("app.application.services.buttons.ChatLinkRepository") as mock_repo_class:
+        with patch("app.presentation.telegram.utils.buttons.ChatLinkRepository") as mock_repo_class:
             mock_repo = AsyncMock()
             mock_repo.get_chat_links.return_value = [mock_chat1, mock_chat2]
             mock_repo_class.return_value = mock_repo
@@ -112,7 +113,7 @@ class TestReportService:
         mock_reporter.full_name = "John Reporter"
         mock_reported.full_name = "Jane Reported"
 
-        with patch("app.application.services.report.settings") as mock_settings:
+        with patch("app.moderation.report.settings") as mock_settings:
             mock_settings.admin.default_report_chat_id = -1001234567890
 
             await report.report_to_moderators(mock_bot, mock_reporter, mock_reported, mock_message)
