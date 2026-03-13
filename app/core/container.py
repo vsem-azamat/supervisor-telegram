@@ -82,6 +82,12 @@ class Container:
 
         raise ValueError(f"Service {interface} not registered")
 
+    def get_session_maker(self) -> async_sessionmaker[AsyncSession]:
+        """Get session maker."""
+        if not self._session_maker:
+            raise ValueError("Session maker not set")
+        return self._session_maker
+
     def get_session(self) -> AsyncSession:
         """Get database session."""
         if not self._session_maker:

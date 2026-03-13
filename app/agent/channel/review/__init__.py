@@ -1,6 +1,6 @@
 """Channel review submodule — review agent, presentation, and service.
 
-This package re-exports the full public API from all three submodules so that
+This package re-exports the public API from all three submodules so that
 existing ``from app.agent.channel.review import ...`` statements continue to work.
 """
 
@@ -16,9 +16,6 @@ from app.agent.channel.review.agent import (  # noqa: F401
 
 # ── Presentation (was review.py) ──
 from app.agent.channel.review.presentation import (  # noqa: F401
-    _edit_review_message,
-    _extract_source_urls,
-    _send_review_message,
     build_review_keyboard,
     build_schedule_picker_keyboard,
     handle_approve,
@@ -61,9 +58,6 @@ __all__ = [
     "resolve_post_id",
     "review_agent_turn",
     # presentation
-    "_edit_review_message",
-    "_extract_source_urls",
-    "_send_review_message",
     "build_review_keyboard",
     "build_schedule_picker_keyboard",
     "handle_approve",

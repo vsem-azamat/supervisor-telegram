@@ -217,7 +217,9 @@ class AgentCore:
         result = ModerationResult(
             action=action,
             reason="Admin decision",
-            **(params or {}),
+            duration_minutes=params.get("duration_minutes") if params else None,
+            warning_text=params.get("warning_text") if params else None,
+            revoke_messages=params.get("revoke_messages", False) if params else False,
         )
         await self._execute(result, event, bot, db)
 

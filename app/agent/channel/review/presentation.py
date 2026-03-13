@@ -28,7 +28,6 @@ from app.agent.channel.review.service import (
     delete_post,
     edit_post_text,
     extract_source_btn_data,
-    extract_source_urls,
     regen_post_text,
     reject_post,
 )
@@ -66,14 +65,8 @@ __all__ = [
     "send_for_review",
     # Helpers used by review agent
     "build_review_keyboard",
-    "_edit_review_message",
     "extract_source_btn_data",
-    "_extract_source_urls",
 ]
-
-# ── Backward-compatible aliases for helpers used by review_agent.py ──
-
-_extract_source_urls = extract_source_urls
 
 
 # ── Telegram keyboard builders ──

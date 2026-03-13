@@ -198,34 +198,31 @@ Messages revoked in 3 chats.
 | **State Machine** | Burr (checkpointable HITL workflow) |
 | **Database** | PostgreSQL 17 + pgvector, SQLAlchemy 2.x async, Alembic |
 | **Search** | Brave Search API (web + images), Perplexity Sonar (synthesis) |
-| **Architecture** | DDD (domain/application/infrastructure/presentation), dependency injection |
+| **Architecture** | Feature-based modular (moderation/channel/assistant), service locator DI |
 | **Quality** | ruff, mypy (strict), pytest, pre-commit, structlog |
 | **Infrastructure** | Docker multi-stage, uv package manager |
 
 ## Project Structure
 
+> See [`docs/architecture.md`](docs/architecture.md) for full module map, config hierarchy, data flow, and design decisions.
+
 ```
 app/
-├── agent/                  # AI agents
-│   ├── channel/            # Content pipeline
-│   │   ├── workflow.py     # Burr state machine (9 actions)
-│   │   ├── orchestrator.py # Per-channel orchestration + scheduling
-│   │   ├── generator.py    # LLM screening + post generation
-│   │   ├── review_agent.py # Conversational post editor
-│   │   ├── semantic_dedup.py
-│   │   ├── feedback.py     # Admin preference summarization
-│   │   ├── sources.py      # RSS fetching + health tracking
-│   │   └── http.py         # SSRF-protected HTTP client
-│   ├── core.py             # Moderation agent
-│   ├── escalation.py       # HITL escalation with timeout
-│   └── memory.py           # Decision log + risk profiles
+├── core/                   # Config (9 Pydantic classes), logging, DI, enums
+├── moderation/             # AI moderation: agent, escalation, memory, services
+├── agent/                  # AI agent infrastructure
+│   └── channel/            # Content pipeline
+│       ├── orchestrator.py # Per-channel orchestration + scheduling
+│       ├── workflow.py     # Burr state machine (9 actions)
+│       ├── generator.py    # LLM screening + post generation
+│       ├── review/         # Review submodule (agent, presentation, service)
+│       ├── semantic_dedup.py
+│       ├── sources.py      # RSS fetching + health tracking
+│       └── http.py         # SSRF-protected HTTP client
 ├── assistant/              # Conversational admin bot
 │   ├── agent.py            # PydanticAI agent (Claude Sonnet)
 │   ├── bot.py              # Conversation management
 │   └── tools/              # 30+ tools across 5 modules
-├── core/                   # Config, logging, DI
-├── domain/                 # Entities, value objects, interfaces
-├── application/            # Services (spam, history, users)
 ├── infrastructure/         # DB models, repositories, Telethon
 └── presentation/           # Telegram handlers, middlewares
 ```
@@ -236,12 +233,12 @@ app/
 # Clone and configure
 git clone https://github.com/vsem-azamat/supervisor-telegram.git
 cd supervisor-telegram
-cp .env.example .env  # fill in BOT_TOKEN, DB_*, AGENT_OPENROUTER_API_KEY
+cp .env.example .env  # fill in BOT_TOKEN, DB_*, OPENROUTER_API_KEY
 
-# Development (Docker)
-docker compose -f docker-compose.dev.yaml up --build
+# Docker (production)
+docker compose up -d
 
-# Or local
+# Or local development
 uv sync --dev
 uv run alembic upgrade head
 uv run -m app.presentation.telegram

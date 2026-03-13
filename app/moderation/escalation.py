@@ -272,7 +272,7 @@ class EscalationService:
             try:
                 await self.bot.send_message(
                     escalation.admin_chat_id,
-                    f"⏰ Эскалация #{escalation_id} истекла. Действие: <b>{default_action}</b>",
+                    f"⏰ Эскалация #{escalation_id} истекла. Действие: <b>{escape_html(default_action)}</b>",
                     reply_to_message_id=escalation.admin_message_id,
                 )
             except Exception as e:

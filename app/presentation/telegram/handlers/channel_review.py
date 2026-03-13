@@ -72,7 +72,7 @@ def _channel_language(channel: Channel | None) -> str:
 
 
 def _get_session_maker() -> Any:
-    return container.get("session_maker")
+    return container.get_session_maker()
 
 
 # ── Callback handlers using CallbackData factories ──

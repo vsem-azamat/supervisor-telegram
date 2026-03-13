@@ -28,41 +28,36 @@ alembic upgrade head
 ## Architecture
 
 Multi-agent Telegram platform: moderator bot + assistant bot + Telethon userbot.
+Feature-based modular architecture — ORM models as domain models, no entity/interface indirection.
+Full details: [`docs/architecture.md`](docs/architecture.md).
 
-### Layers (DDD)
+### Module Structure
 
 ```
 app/
-├── core/           # Config (Pydantic), logging, DI container
-├── domain/         # Entities (dataclasses), value objects, repository interfaces, exceptions
-├── application/    # Services (spam, history, users)
-├── infrastructure/ # DB models (SQLAlchemy), repositories, Telethon client
-├── presentation/   # Telegram handlers, middlewares
-├── agent/          # AI moderation agent + channel content pipeline
-│   ├── core.py         # PydanticAI moderation agent (Gemini Flash Lite)
-│   ├── escalation.py   # HITL escalation with timeout
-│   ├── memory.py       # Decision log + risk profiles
-│   └── channel/        # Content pipeline
-│       ├── workflow.py       # Burr state machine (9 actions)
+├── core/              # Config (Pydantic, 9 classes), logging, DI container, enums
+├── moderation/        # AI moderation feature: agent, escalation, memory, services
+├── agent/             # AI agent infrastructure (prompts, schemas, tool_trace)
+│   └── channel/       # Content pipeline feature module
 │       ├── orchestrator.py   # Per-channel scheduling + orchestration
+│       ├── workflow.py       # Burr state machine (9 actions)
 │       ├── generator.py      # LLM screening + post generation
-│       ├── review_agent.py   # Conversational post editor
+│       ├── review/           # Review submodule (agent, presentation, service)
 │       ├── semantic_dedup.py # pgvector cosine similarity
-│       ├── feedback.py       # Admin preference summarization
 │       ├── sources.py        # RSS + health tracking
 │       └── http.py           # SSRF-protected HTTP client
-└── assistant/      # Conversational admin bot
-    ├── agent.py        # PydanticAI agent (Claude Sonnet 4.6), 30+ tools
-    ├── bot.py          # Conversation management
-    └── tools/          # channel, moderation, chat, telethon, dedup
+├── assistant/         # Conversational admin bot (PydanticAI, Claude Sonnet, 30+ tools)
+├── infrastructure/    # DB models (SQLAlchemy), repositories, Telethon client
+├── presentation/      # Telegram handlers, middlewares
+├── domain/            # [Legacy shims] exceptions, value_objects → core.enums
+└── application/       # [Legacy shims] services → moderation/
 ```
 
 ### Key Files
 
-- `app/core/config.py` — Pydantic settings hierarchy (8 nested config classes)
+- `app/core/config.py` — Pydantic settings hierarchy (9 nested config classes)
+- `app/core/enums.py` — `PostStatus`, `EscalationStatus`, `ReviewDecision` StrEnums
 - `app/infrastructure/db/models.py` — 9 ORM models (including pgvector `Vector(768)` column)
-- `app/domain/value_objects.py` — `PostStatus`, `EscalationStatus`, `ReviewDecision` StrEnums
-- `app/core/text.py` — `escape_html()` utility
 - `app/core/markdown.py` — `md_to_entities` / `md_to_entities_chunked` (telegramify-markdown)
 - `app/core/time.py` — `utc_now()` helper for naive UTC datetimes
 - `app/presentation/telegram/bot.py` — main entry, dispatcher setup
