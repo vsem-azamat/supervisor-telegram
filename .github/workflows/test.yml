@@ -3,9 +3,9 @@ name: Tests
 on:
   workflow_call:
   push:
-    branches: [ main, master, develop ]
+    branches: [ main, dev ]
   pull_request:
-    branches: [ main, master, develop ]
+    branches: [ main, dev ]
 
 jobs:
   test:
@@ -55,9 +55,9 @@ jobs:
       run: |
         uv run ruff format --check app tests
 
-    - name: Run type checking with mypy
+    - name: Run type checking with ty
       run: |
-        uv run mypy app tests
+        uv run ty check app tests
 
     - name: Run unit tests
       run: |
@@ -125,7 +125,7 @@ jobs:
 
   performance-tests:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     services:
       postgres:
