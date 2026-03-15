@@ -101,12 +101,13 @@ app/
 All settings are Pydantic `BaseSettings` classes, loaded from `.env`:
 
 ```
-AppSettings                        # APP_DEBUG, APP_ENVIRONMENT
+AppSettings                        # APP_DEBUG, APP_ENVIRONMENT, APP_TIMEZONE
 ├── database: DatabaseSettings     # DB_USER, DB_PASSWORD, DB_HOST, DB_PORT, DB_NAME
-├── telegram: TelegramSettings     # BOT_TOKEN
+├── telegram: TelegramSettings     # MODERATOR_BOT_TOKEN
 ├── admin: AdminSettings           # ADMIN_SUPER_ADMINS, ADMIN_REPORT_CHAT_ID
 ├── logging: LoggingSettings       # LOG_LEVEL, LOG_FILE_PATH
-├── openrouter: OpenRouterSettings # OPENROUTER_API_KEY, OPENROUTER_BASE_URL, OPENROUTER_BRAVE_API_KEY
+├── openrouter: OpenRouterSettings # OPENROUTER_API_KEY, OPENROUTER_BASE_URL
+├── brave: BraveSettings           # BRAVE_API_KEY
 ├── moderation: ModerationSettings # MODERATION_MODEL, MODERATION_ENABLED, MODERATION_ESCALATION_TIMEOUT_MINUTES
 ├── assistant: AssistantSettings   # ASSISTANT_BOT_TOKEN, ASSISTANT_BOT_ENABLED, ASSISTANT_BOT_MODEL
 ├── telethon: TelethonSettings     # TELETHON_API_ID, TELETHON_API_HASH, TELETHON_ENABLED

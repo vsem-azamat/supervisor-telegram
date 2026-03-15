@@ -108,9 +108,10 @@ Self-calibrating: injects last 5 admin corrections into system prompt. Escalates
 See `.env.example` for all variables. Key ones:
 
 ```bash
-BOT_TOKEN=                        # Moderator bot
+MODERATOR_BOT_TOKEN=              # Moderator bot
 ADMIN_SUPER_ADMINS=123,456        # Comma-separated user IDs
 OPENROUTER_API_KEY=               # OpenRouter for all LLM calls
+BRAVE_API_KEY=                    # Brave Search API
 MODERATION_ENABLED=true           # Enable moderation agent
 ASSISTANT_BOT_TOKEN=              # Assistant bot
 ASSISTANT_BOT_ENABLED=true        # Enable assistant bot

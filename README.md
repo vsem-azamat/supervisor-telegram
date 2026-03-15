@@ -233,7 +233,7 @@ app/
 # Clone and configure
 git clone https://github.com/vsem-azamat/supervisor-telegram.git
 cd supervisor-telegram
-cp .env.example .env  # fill in BOT_TOKEN, DB_*, OPENROUTER_API_KEY
+cp .env.example .env  # fill in MODERATOR_BOT_TOKEN, DB_*, OPENROUTER_API_KEY
 
 # Docker (production)
 docker compose up -d

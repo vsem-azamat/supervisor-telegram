@@ -598,7 +598,7 @@ def create_pipeline_app(
     """Create a Burr Application for a single pipeline run."""
     graph = get_pipeline_graph()
 
-    resolved_brave_key = brave_api_key or settings.openrouter.brave_api_key
+    resolved_brave_key = brave_api_key or settings.brave.api_key
 
     initial_state = {
         "channel_id": channel_id,

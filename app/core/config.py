@@ -58,12 +58,12 @@ class DatabaseSettings(BaseSettings):
 
 
 class TelegramSettings(BaseSettings):
-    """Telegram bot configuration."""
+    """Moderator bot configuration."""
 
-    token: str = Field(..., description="Bot token from BotFather")
+    token: str = Field(..., description="Moderator bot token from BotFather")
 
     model_config = SettingsConfigDict(
-        env_prefix="BOT_",
+        env_prefix="MODERATOR_BOT_",
         case_sensitive=False,
         env_file=".env",
         env_file_encoding="utf-8",
@@ -126,10 +126,23 @@ class OpenRouterSettings(BaseSettings):
 
     api_key: str = Field(default="", description="OpenRouter API key")
     base_url: str = Field(default="https://openrouter.ai/api/v1", description="OpenRouter API base URL")
-    brave_api_key: str = Field(default="", description="Brave Search API key for web search")
 
     model_config = SettingsConfigDict(
         env_prefix="OPENROUTER_",
+        case_sensitive=False,
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
+class BraveSettings(BaseSettings):
+    """Brave Search API configuration."""
+
+    api_key: str = Field(default="", description="Brave Search API key for web search")
+
+    model_config = SettingsConfigDict(
+        env_prefix="BRAVE_",
         case_sensitive=False,
         env_file=".env",
         env_file_encoding="utf-8",
@@ -218,6 +231,7 @@ class AppSettings(BaseSettings):
     admin: AdminSettings = Field(default_factory=AdminSettings)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
     openrouter: OpenRouterSettings = Field(default_factory=OpenRouterSettings)
+    brave: BraveSettings = Field(default_factory=BraveSettings)
     moderation: ModerationSettings = Field(default_factory=ModerationSettings)
     assistant: AssistantSettings = Field(default_factory=AssistantSettings)
     telethon: TelethonSettings = Field(default_factory=TelethonSettings)
@@ -232,6 +246,7 @@ class AppSettings(BaseSettings):
         return self._channel_settings  # type: ignore[attr-defined]
 
     model_config = SettingsConfigDict(
+        env_prefix="APP_",
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,

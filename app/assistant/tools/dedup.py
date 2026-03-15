@@ -127,9 +127,9 @@ def register_dedup_tools(agent: Agent[AssistantDeps, str]) -> None:
     @agent.tool
     async def search_news(ctx: RunContext[AssistantDeps], query: str, count: int = 5, freshness: str = "pw") -> str:  # noqa: ARG001
         """Search the web for current news and information. Use this to find fresh content before generating posts. freshness: pd=past day, pw=past week, pm=past month."""
-        brave_key = settings.openrouter.brave_api_key
+        brave_key = settings.brave.api_key
         if not brave_key:
-            return "Brave API key not configured. Set OPENROUTER_BRAVE_API_KEY in .env."
+            return "Brave API key not configured. Set BRAVE_API_KEY in .env."
 
         if freshness not in {"pd", "pw", "pm", "py"}:
             freshness = "pw"

@@ -11,10 +11,10 @@ os.environ.update(
         "DB_NAME": "test",
         "DB_HOST": "localhost",
         "DB_PORT": "5432",
-        "BOT_TOKEN": "123456:ABC-DEF1234567890",
+        "MODERATOR_BOT_TOKEN": "123456:ABC-DEF1234567890",
         "ADMIN_SUPER_ADMINS": "[123456789, 987654321]",  # JSON format for list
-        "LOGGING_LEVEL": "ERROR",  # Reduce logging noise in tests
-        "ENVIRONMENT": "test",
+        "LOG_LEVEL": "ERROR",  # Reduce logging noise in tests
+        "APP_ENVIRONMENT": "test",
     }
 )
 
