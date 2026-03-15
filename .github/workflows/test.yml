@@ -26,6 +26,15 @@ jobs:
         ports:
           - 5432:5432
 
+    env:
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: test_moderator_bot
+      DB_HOST: localhost
+      DB_PORT: 5432
+      MODERATOR_BOT_TOKEN: "test_token"
+      ADMIN_SUPER_ADMINS: "123456789"
+
     strategy:
       matrix:
         python-version: ["3.12"]
@@ -62,50 +71,18 @@ jobs:
     - name: Run unit tests
       run: |
         uv run pytest tests/unit -v --tb=short
-      env:
-        DB_USER: postgres
-        DB_PASSWORD: postgres
-        DB_NAME: test_moderator_bot
-        DB_HOST: localhost
-        DB_PORT: 5432
-        BOT_TOKEN: "test_token"
-        ADMIN_SUPER_ADMINS: "123456789"
 
     - name: Run integration tests
       run: |
         uv run pytest tests/integration -v --tb=short
-      env:
-        DB_USER: postgres
-        DB_PASSWORD: postgres
-        DB_NAME: test_moderator_bot
-        DB_HOST: localhost
-        DB_PORT: 5432
-        BOT_TOKEN: "test_token"
-        ADMIN_SUPER_ADMINS: "123456789"
 
     - name: Run end-to-end tests
       run: |
         uv run pytest tests/e2e -v --tb=short
-      env:
-        DB_USER: postgres
-        DB_PASSWORD: postgres
-        DB_NAME: test_moderator_bot
-        DB_HOST: localhost
-        DB_PORT: 5432
-        BOT_TOKEN: "test_token"
-        ADMIN_SUPER_ADMINS: "123456789"
 
     - name: Run tests with coverage
       run: |
         uv run pytest --cov=app --cov-report=xml --cov-report=html --cov-fail-under=55
-      env:
-        DB_USER: postgres
-        DB_PASSWORD: postgres
-        DB_NAME: test_moderator_bot
-        DB_HOST: localhost
-        DB_PORT: 5432
-        BOT_TOKEN: "test_token"
-        ADMIN_SUPER_ADMINS: "123456789"
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
@@ -142,6 +119,15 @@ jobs:
         ports:
           - 5432:5432
 
+    env:
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: test_moderator_bot_perf
+      DB_HOST: localhost
+      DB_PORT: 5432
+      MODERATOR_BOT_TOKEN: "test_token"
+      ADMIN_SUPER_ADMINS: "123456789"
+
     steps:
     - uses: actions/checkout@v4
 
@@ -162,24 +148,8 @@ jobs:
     - name: Run performance tests
       run: |
         uv run pytest tests/performance -v --tb=short -m "performance and not slow"
-      env:
-        DB_USER: postgres
-        DB_PASSWORD: postgres
-        DB_NAME: test_moderator_bot_perf
-        DB_HOST: localhost
-        DB_PORT: 5432
-        BOT_TOKEN: "test_token"
-        ADMIN_SUPER_ADMINS: "123456789"
 
     - name: Run slow performance tests
       run: |
         uv run pytest tests/performance -v --tb=short -m "slow"
-      env:
-        DB_USER: postgres
-        DB_PASSWORD: postgres
-        DB_NAME: test_moderator_bot_perf
-        DB_HOST: localhost
-        DB_PORT: 5432
-        BOT_TOKEN: "test_token"
-        ADMIN_SUPER_ADMINS: "123456789"
-      continue-on-error: true  # Don't fail CI if performance tests are slow
+      continue-on-error: true
