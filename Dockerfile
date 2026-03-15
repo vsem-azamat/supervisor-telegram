@@ -16,7 +16,7 @@ WORKDIR /app
 COPY pyproject.toml uv.lock README.md ./
 
 # Install dependencies to virtual environment
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --relocatable
 
 # Development stage
 FROM ghcr.io/astral-sh/uv:0.8.11-alpine AS development
@@ -55,7 +55,9 @@ RUN chmod +x scripts/*.sh
 FROM python:3.12-alpine AS production
 
 # Install runtime dependencies only
-RUN apk add --no-cache postgresql-client procps
+# Symlink python3 to /usr/bin so relocated venv scripts resolve correctly
+RUN apk add --no-cache postgresql-client procps && \
+    ln -sf /usr/local/bin/python3 /usr/bin/python3
 
 WORKDIR /app
 
