@@ -16,7 +16,7 @@ WORKDIR /app
 COPY pyproject.toml uv.lock README.md ./
 
 # Install dependencies to virtual environment
-RUN uv sync --frozen --no-dev --relocatable
+RUN uv sync --frozen --no-dev
 
 # Development stage
 FROM ghcr.io/astral-sh/uv:0.8.11-alpine AS development
