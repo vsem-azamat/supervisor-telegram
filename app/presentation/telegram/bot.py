@@ -10,7 +10,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING, Any
 
-from aiogram import Bot, Dispatcher, Router
+from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.utils.callback_answer import CallbackAnswerMiddleware
 
@@ -90,12 +90,12 @@ async def on_shutdown(bot: Bot) -> None:
 def _setup_main_bot(
     session_maker: async_sessionmaker[AsyncSession],
     *,
-    exclude_review_router: bool = False,
+    include_review_router: bool = True,
 ) -> tuple[Bot, Dispatcher]:
     """Create and configure the main moderation bot.
 
-    When the assistant bot handles review callbacks, *exclude_review_router*
-    should be ``True`` so the main bot doesn't register duplicate handlers.
+    When the assistant bot handles review callbacks, *include_review_router*
+    should be ``False`` — the review router will be added to the assistant dispatcher instead.
     """
     bot = Bot(token=settings.telegram.token, default=DefaultBotProperties(parse_mode="HTML"))
     dp = Dispatcher()
@@ -106,17 +106,12 @@ def _setup_main_bot(
     dp.message.middleware(BlacklistMiddleware())
     dp.callback_query.middleware(CallbackAnswerMiddleware())
 
-    if exclude_review_router:
-        # Build a filtered copy of sub_routers for the dispatcher (don't mutate module-level router)
+    dp.include_router(router)
+
+    if include_review_router:
         from app.presentation.telegram.handlers.channel_review import channel_review_router
 
-        main_router = Router(name="main_filtered")
-        for sub in router.sub_routers:
-            if sub is not channel_review_router:
-                main_router.include_router(sub)
-        dp.include_router(main_router)
-    else:
-        dp.include_router(router)
+        dp.include_router(channel_review_router)
 
     dp.startup.register(on_startup)
     dp.shutdown.register(on_shutdown)
@@ -218,7 +213,7 @@ async def main() -> None:
     assistant_enabled = settings.assistant.enabled and settings.assistant.token
     main_bot, main_dp = _setup_main_bot(
         session_maker,
-        exclude_review_router=bool(assistant_enabled),
+        include_review_router=not assistant_enabled,
     )
     setup_container(session_maker, main_bot)
 
