@@ -77,7 +77,9 @@ async def fetch_sources(state: State) -> State:
 
         # Perplexity Sonar discovery (synthesized summaries, broader topics)
         if config.discovery_enabled:
-            query = channel.discovery_query or config.discovery_query
+            from app.agent.channel.config import DEFAULT_DISCOVERY_QUERY
+
+            query = channel.discovery_query or DEFAULT_DISCOVERY_QUERY
             discovered = await discover_content(
                 api_key=api_key,
                 query=query,
@@ -96,7 +98,9 @@ async def fetch_sources(state: State) -> State:
 
                 brave_key: str = state.get("brave_api_key", "")
                 if brave_key:
-                    brave_query = channel.discovery_query or config.brave_discovery_query
+                    from app.agent.channel.config import DEFAULT_BRAVE_DISCOVERY_QUERY
+
+                    brave_query = channel.discovery_query or DEFAULT_BRAVE_DISCOVERY_QUERY
                     brave_items = await discover_content_brave(
                         api_key=brave_key,
                         query=brave_query,
