@@ -7,7 +7,8 @@ RUN apk add --no-cache \
     gcc \
     python3-dev \
     musl-dev \
-    linux-headers
+    linux-headers \
+    protobuf-dev
 
 WORKDIR /app
 
