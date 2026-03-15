@@ -1,6 +1,9 @@
 #!/bin/sh
 set -e
 
+# Ensure venv is on PATH (set in Dockerfile but not always inherited by sh)
+export PATH="/app/.venv/bin:$PATH"
+
 echo "Running entrypoint..."
 
 # Wait for remote PostgreSQL to be ready

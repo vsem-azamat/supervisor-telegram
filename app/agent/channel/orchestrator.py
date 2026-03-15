@@ -156,7 +156,9 @@ class SingleChannelOrchestrator:
         if last and (utc_now() - last).total_seconds() < interval:
             return
 
-        query = self.channel.source_discovery_query or self.config.source_discovery_query
+        from app.agent.channel.config import DEFAULT_SOURCE_DISCOVERY_QUERY
+
+        query = self.channel.source_discovery_query or DEFAULT_SOURCE_DISCOVERY_QUERY
         logger.info("source_discovery_start", query=query[:60])
         added = await discover_and_add_sources(
             api_key=self.api_key,
