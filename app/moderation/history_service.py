@@ -16,6 +16,7 @@ async def save_message(db: AsyncSession, message: types.Message) -> None:
     message_id = message.message_id
     message_text = message.text or message.caption
     message_info = message.model_dump(
+        exclude_defaults=True,
         exclude_none=True,
         exclude={"contact", "location", "venue", "passport_data", "web_app_data"},
     )
