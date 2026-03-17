@@ -261,6 +261,8 @@ async def send_for_review(
                 embedding_model=embedding_model,
                 session_maker=session_maker,
             )
+            if db_post is None:
+                return None
             post_id = db_post.id
 
             source_btn_data: list[dict[str, str]] = []

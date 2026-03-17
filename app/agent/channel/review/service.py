@@ -9,6 +9,8 @@ from __future__ import annotations
 from hashlib import sha256
 from typing import TYPE_CHECKING, Any
 
+from sqlalchemy.exc import IntegrityError
+
 from app.agent.channel.embeddings import EMBEDDING_MODEL
 from app.agent.channel.generator import DEFAULT_FOOTER, enforce_footer_and_length
 from app.agent.channel.llm_client import openrouter_chat_completion
@@ -79,8 +81,12 @@ async def create_review_post(
     api_key: str = "",
     embedding_model: str = "",
     session_maker: async_sessionmaker[AsyncSession] | None = None,
-) -> ChannelPost:
-    """Create a ChannelPost record in DB, store embedding. Returns the ORM object (flushed, not committed)."""
+) -> ChannelPost | None:
+    """Create a ChannelPost record in DB, store embedding.
+
+    Returns the ORM object (flushed, not committed), or None if a post with
+    the same (channel_id, external_id) already exists.
+    """
     ext_id = source_items[0].external_id if source_items else sha256(post.text[:200].encode()).hexdigest()[:16]
 
     source_data = [
@@ -99,7 +105,12 @@ async def create_review_post(
         review_chat_id=int(review_chat_id) if review_chat_id else 0,
     )
     session.add(db_post)
-    await session.flush()
+    try:
+        await session.flush()
+    except IntegrityError:
+        await session.rollback()
+        logger.warning("duplicate_post_skipped", channel_id=channel_id, external_id=ext_id)
+        return None
 
     # Store embedding (non-blocking, best-effort)
     if api_key and session_maker:
