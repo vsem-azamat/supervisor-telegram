@@ -7,7 +7,8 @@ import datetime
 from datetime import UTC
 from typing import TYPE_CHECKING, Any
 
-from aiogram import F, Router
+from aiogram import Router
+from aiogram.filters import Filter
 
 from app.agent.channel.review import (
     build_review_keyboard,
@@ -514,23 +515,31 @@ def _resolve_post_id_from_reply(reply_msg: Message) -> int | None:
     return resolve_post_id(reply_msg.message_id)
 
 
-@channel_review_router.message(F.reply_to_message)
-async def on_review_reply(message: Message) -> None:
+class _IsReviewReply(Filter):
+    """Only match replies that resolve to a review post_id.
+
+    Returns False for non-review replies so they propagate to the next router
+    (e.g. the assistant bot's generic F.text handler).
+    """
+
+    async def __call__(self, message: Message) -> bool | dict[str, int]:
+        if not message.text or not message.reply_to_message:
+            return False
+        if not message.from_user or not _is_super_admin(message.from_user.id):
+            return False
+        post_id = _resolve_post_id_from_reply(message.reply_to_message)
+        if not post_id:
+            return False
+        return {"post_id": post_id}
+
+
+@channel_review_router.message(_IsReviewReply())
+async def on_review_reply(message: Message, post_id: int) -> None:
     """Handle replies in the discussion chat — admin editing posts via conversation.
 
     Supports reply chains: the user can reply to the original review post OR to any
-    agent response in the conversation. The post_id is resolved by following the
-    message_id mapping.
+    agent response in the conversation. The post_id is resolved by the _IsReviewReply filter.
     """
-    if not message.text or not message.reply_to_message:
-        return
-
-    if not message.from_user or not _is_super_admin(message.from_user.id):
-        return
-
-    post_id = _resolve_post_id_from_reply(message.reply_to_message)
-    if not post_id:
-        return
 
     bot = message.bot
     if not bot:
@@ -562,7 +571,7 @@ async def on_review_reply(message: Message) -> None:
             footer=channel.footer,
             review_chat_id=review_chat_id,
         )
-        result = await review_agent_turn(post_id, message.text, deps)
+        result = await review_agent_turn(post_id, message.text or "", deps)
     except Exception:
         logger.exception("review_agent_reply_error", post_id=post_id)
         result = "Failed to process edit request."

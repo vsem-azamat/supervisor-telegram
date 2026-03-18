@@ -172,7 +172,7 @@ async def approve_post(
             # Publish only the single image shown during review (not the full image_urls array).
             # The review message displays only image_url; publishing image_urls would
             # send photos the reviewer never saw.
-            reviewed_image = getattr(post, "image_url", None)
+            reviewed_image = post.image_url
             gen_post = GeneratedPost(
                 text=post.post_text,
                 image_url=reviewed_image,
