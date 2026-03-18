@@ -306,7 +306,8 @@ def setup_assistant(
     )
     _super_admins = set(settings.admin.super_admins)
     dp = Dispatcher()
-    dp.include_router(router)
+    # NOTE: do NOT include `router` here — bot.py adds channel_review_router
+    # first (it must win over the generic F.text handler), then adds `router`.
 
     logger.info("assistant_bot_setup", admins=len(_super_admins))
     return bot, dp
