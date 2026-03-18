@@ -10,6 +10,7 @@ class PostStatus(StrEnum):
     SCHEDULED = "scheduled"
     APPROVED = "approved"
     REJECTED = "rejected"
+    SKIPPED = "skipped"
 
 
 class EscalationStatus(StrEnum):

@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from app.agent.channel.generator import GeneratedPost
 from app.agent.channel.sources import ContentItem
+from app.core.enums import PostStatus
 from app.infrastructure.db.models import ChannelPost, ChannelSource
 from sqlalchemy import select
 
@@ -465,12 +466,13 @@ class TestReviewFlow:
             post_id = post.id
 
         result = await handle_delete(mock_bot, post_id, 123, 456, session_maker)
-        assert result == "Post deleted."
+        assert result == "Post skipped."
 
-        # Post should be gone from DB
+        # Post should still exist in DB with SKIPPED status
         async with session_maker() as session:
             saved = (await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))).scalar_one_or_none()
-            assert saved is None
+            assert saved is not None
+            assert saved.status == PostStatus.SKIPPED
 
         # Review message should have been deleted
         mock_bot.delete_message.assert_awaited_once_with(chat_id=123, message_id=456)
@@ -521,7 +523,7 @@ class TestReviewFlow:
             post_id = post.id
 
         result = await handle_delete(mock_bot, post_id, 123, None, session_maker)
-        assert result == "Post deleted."
+        assert result == "Post skipped."
         mock_bot.delete_message.assert_not_awaited()
 
     async def test_handle_delete_message_delete_fails_gracefully(
@@ -541,12 +543,13 @@ class TestReviewFlow:
 
         # Should still succeed even if message deletion fails
         result = await handle_delete(mock_bot, post_id, 123, 789, session_maker)
-        assert result == "Post deleted."
+        assert result == "Post skipped."
 
-        # Post should be gone
+        # Post should still exist with SKIPPED status
         async with session_maker() as session:
             saved = (await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))).scalar_one_or_none()
-            assert saved is None
+            assert saved is not None
+            assert saved.status == PostStatus.SKIPPED
 
     async def test_handle_approve_publish_fails(
         self,
