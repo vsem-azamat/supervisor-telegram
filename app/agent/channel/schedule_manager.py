@@ -78,7 +78,7 @@ def next_publish_slot(
 
 async def get_occupied_slots(
     session_maker: async_sessionmaker[AsyncSession],
-    channel_id: str,
+    channel_id: int,
 ) -> list[datetime]:
     """Query DB for all SCHEDULED posts' scheduled_at times for a channel."""
     from sqlalchemy import select
@@ -96,18 +96,9 @@ async def get_occupied_slots(
         return [row[0] for row in result.all() if row[0] is not None]
 
 
-async def _resolve_chat_id(channel: Channel, telethon_client: TelethonClient) -> int:
-    """Get numeric chat ID from channel telegram_id. Resolves @username via Telethon."""
-    tid = channel.telegram_id
-    if not tid.startswith("@"):
-        return int(tid)
-
-    if not telethon_client.is_available or telethon_client._client is None:  # noqa: SLF001
-        msg = f"Telethon not available to resolve {tid}"
-        raise ValueError(msg)
-
-    entity = await telethon_client._client.get_entity(tid)  # noqa: SLF001
-    return entity.id
+def _resolve_chat_id(channel: Channel) -> int:
+    """Get numeric chat ID from channel telegram_id."""
+    return channel.telegram_id
 
 
 async def schedule_post(
@@ -137,7 +128,7 @@ async def schedule_post(
             return "Post was skipped — cannot schedule."
 
         try:
-            chat_id = await _resolve_chat_id(channel, telethon_client)
+            chat_id = _resolve_chat_id(channel)
         except Exception:
             logger.exception("resolve_chat_id_failed", channel=channel.telegram_id)
             return f"Cannot resolve channel {channel.telegram_id}."
@@ -197,7 +188,7 @@ async def cancel_scheduled_post(
         # Delete from Telegram
         if post.scheduled_telegram_id:
             try:
-                chat_id = await _resolve_chat_id(channel, telethon_client)
+                chat_id = _resolve_chat_id(channel)
                 await telethon_client.delete_scheduled_messages(
                     chat_id,
                     [post.scheduled_telegram_id],
@@ -232,7 +223,7 @@ async def reschedule_post(
             return f"Post is not scheduled (status: {post.status})."
 
         try:
-            chat_id = await _resolve_chat_id(channel, telethon_client)
+            chat_id = _resolve_chat_id(channel)
         except Exception:
             logger.exception("resolve_chat_id_failed", channel=channel.telegram_id)
             return f"Cannot resolve channel {channel.telegram_id}."
@@ -284,7 +275,7 @@ async def update_scheduled_text(
         return False
 
     try:
-        chat_id = await _resolve_chat_id(channel, telethon_client)
+        chat_id = _resolve_chat_id(channel)
     except Exception:
         return False
 

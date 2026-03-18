@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 from aiogram import Router
 from aiogram.filters import Filter
+from aiogram.types import Message as TgMessage
 
 from app.agent.channel.review import (
     build_review_keyboard,
@@ -57,7 +58,7 @@ async def _get_channel_for_post(post_id: int, session_maker: Any) -> Channel | N
 
     async with session_maker() as session:
         result = await session.execute(select(ChannelPost.channel_id).where(ChannelPost.id == post_id))
-        channel_tid: str | None = result.scalar_one_or_none()
+        channel_tid: int | None = result.scalar_one_or_none()
         if not channel_tid:
             return None
         ch_result = await session.execute(select(Channel).where(Channel.telegram_id == channel_tid))
@@ -82,7 +83,7 @@ def _get_session_maker() -> Any:
 @channel_review_router.callback_query(ReviewAction.filter())
 async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction) -> None:
     """Handle all single-action review callbacks (approve, reject, delete, etc.)."""
-    if not callback.message:
+    if not isinstance(callback.message, TgMessage):
         return
     if not callback.from_user or not _is_super_admin(callback.from_user.id):
         await callback.answer("Access denied", show_alert=True)
@@ -347,7 +348,7 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
 @channel_review_router.callback_query(SchedulePick.filter())
 async def on_schedule_pick(callback: CallbackQuery, callback_data: SchedulePick) -> None:
     """Handle schedule time slot selection."""
-    if not callback.message:
+    if not isinstance(callback.message, TgMessage):
         return
     if not callback.from_user or not _is_super_admin(callback.from_user.id):
         await callback.answer("Access denied", show_alert=True)
@@ -394,7 +395,7 @@ async def on_schedule_pick(callback: CallbackQuery, callback_data: SchedulePick)
 @channel_review_router.callback_query(PublishNow.filter())
 async def on_publish_now(callback: CallbackQuery, callback_data: PublishNow) -> None:
     """Handle 'Publish now' from the schedule picker."""
-    if not callback.message:
+    if not isinstance(callback.message, TgMessage):
         return
     if not callback.from_user or not _is_super_admin(callback.from_user.id):
         await callback.answer("Access denied", show_alert=True)
@@ -453,7 +454,7 @@ async def on_publish_now(callback: CallbackQuery, callback_data: PublishNow) -> 
 @channel_review_router.callback_query(SchedulePreset.filter())
 async def on_schedule_preset(callback: CallbackQuery, callback_data: SchedulePreset) -> None:
     """Handle schedule time preset (e.g. +5m, +1h, +3h)."""
-    if not callback.message:
+    if not isinstance(callback.message, TgMessage):
         return
     if not callback.from_user or not _is_super_admin(callback.from_user.id):
         await callback.answer("Access denied", show_alert=True)

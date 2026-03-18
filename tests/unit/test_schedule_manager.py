@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 @pytest.fixture
 def mock_channel() -> MagicMock:
     ch = MagicMock()
-    ch.telegram_id = "-1001234567890"
+    ch.telegram_id = -1001234567890
     ch.name = "Test Channel"
     ch.username = "test_channel"
     ch.publish_schedule = ["09:00", "15:00", "21:00"]
@@ -109,37 +109,37 @@ class TestGetOccupiedSlots:
     async def test_returns_scheduled_times(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         scheduled_time = utc_now() + timedelta(hours=2)
         async with session_maker() as session:
-            post = ChannelPost(channel_id="@test", external_id="e1", title="T", post_text="text")
+            post = ChannelPost(channel_id=-1001234567890, external_id="e1", title="T", post_text="text")
             post.schedule(scheduled_time, 42)
             session.add(post)
             await session.commit()
 
-        slots = await get_occupied_slots(session_maker, "@test")
+        slots = await get_occupied_slots(session_maker, -1001234567890)
         assert len(slots) == 1
         assert slots[0] == scheduled_time
 
     async def test_ignores_non_scheduled(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         async with session_maker() as session:
-            p1 = ChannelPost(channel_id="@test", external_id="e1", title="T", post_text="text")
-            p2 = ChannelPost(channel_id="@test", external_id="e2", title="T2", post_text="text2")
+            p1 = ChannelPost(channel_id=-1001234567890, external_id="e1", title="T", post_text="text")
+            p2 = ChannelPost(channel_id=-1001234567890, external_id="e2", title="T2", post_text="text2")
             p2.approve(100)
             session.add_all([p1, p2])
             await session.commit()
 
-        slots = await get_occupied_slots(session_maker, "@test")
+        slots = await get_occupied_slots(session_maker, -1001234567890)
         assert len(slots) == 0
 
     async def test_filters_by_channel(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         t = utc_now() + timedelta(hours=2)
         async with session_maker() as session:
-            p1 = ChannelPost(channel_id="@ch1", external_id="e1", title="T", post_text="text")
+            p1 = ChannelPost(channel_id=-1001111111111, external_id="e1", title="T", post_text="text")
             p1.schedule(t, 42)
-            p2 = ChannelPost(channel_id="@ch2", external_id="e2", title="T", post_text="text")
+            p2 = ChannelPost(channel_id=-1002222222222, external_id="e2", title="T", post_text="text")
             p2.schedule(t, 43)
             session.add_all([p1, p2])
             await session.commit()
 
-        slots = await get_occupied_slots(session_maker, "@ch1")
+        slots = await get_occupied_slots(session_maker, -1001111111111)
         assert len(slots) == 1
 
 
@@ -154,7 +154,7 @@ class TestSchedulePost:
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
         async with session_maker() as session:
-            post = ChannelPost(channel_id="-1001234567890", external_id="e1", title="T", post_text="Hello world")
+            post = ChannelPost(channel_id=-1001234567890, external_id="e1", title="T", post_text="Hello world")
             session.add(post)
             await session.commit()
             post_id = post.id
@@ -179,7 +179,7 @@ class TestSchedulePost:
     ) -> None:
         async with session_maker() as session:
             post = ChannelPost(
-                channel_id="-1001234567890",
+                channel_id=-1001234567890,
                 external_id="e1",
                 title="T",
                 post_text="Photo post",
@@ -201,7 +201,7 @@ class TestSchedulePost:
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
         async with session_maker() as session:
-            post = ChannelPost(channel_id="-1001234567890", external_id="e1", title="T", post_text="text")
+            post = ChannelPost(channel_id=-1001234567890, external_id="e1", title="T", post_text="text")
             post.approve(100)
             session.add(post)
             await session.commit()
@@ -217,7 +217,7 @@ class TestSchedulePost:
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
         async with session_maker() as session:
-            post = ChannelPost(channel_id="-1001234567890", external_id="e1", title="T", post_text="text")
+            post = ChannelPost(channel_id=-1001234567890, external_id="e1", title="T", post_text="text")
             post.schedule(utc_now(), 99)
             session.add(post)
             await session.commit()
@@ -235,30 +235,25 @@ class TestSchedulePost:
         result = await schedule_post(mock_telethon, session_maker, 999, mock_channel, utc_now())
         assert result == "Post not found."
 
-    async def test_schedule_username_channel_fails(
+    async def test_schedule_uses_numeric_chat_id(
         self,
         mock_telethon: AsyncMock,
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
         ch = MagicMock()
-        ch.telegram_id = "@test_channel"
+        ch.telegram_id = -1009999999999
 
-        # Telethon resolves @username to entity with numeric id
-        entity = MagicMock()
-        entity.id = 123456
-        mock_telethon._client = MagicMock()
-        mock_telethon._client.get_entity = AsyncMock(return_value=entity)
         mock_telethon.send_scheduled_message = AsyncMock(return_value=MagicMock(message_id=99))
 
         async with session_maker() as session:
-            post = ChannelPost(channel_id="@test_channel", external_id="e1", title="T", post_text="text")
+            post = ChannelPost(channel_id=-1009999999999, external_id="e1", title="T", post_text="text")
             session.add(post)
             await session.commit()
             post_id = post.id
 
         result = await schedule_post(mock_telethon, session_maker, post_id, ch, utc_now())
         assert "Scheduled" in result
-        mock_telethon._client.get_entity.assert_awaited_once_with("@test_channel")
+        mock_telethon.send_scheduled_message.assert_awaited_once()
 
 
 # ── cancel_scheduled_post tests ──────────────────────────────────────
@@ -272,7 +267,7 @@ class TestCancelScheduledPost:
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
         async with session_maker() as session:
-            post = ChannelPost(channel_id="-1001234567890", external_id="e1", title="T", post_text="text")
+            post = ChannelPost(channel_id=-1001234567890, external_id="e1", title="T", post_text="text")
             post.schedule(utc_now() + timedelta(hours=2), 42)
             session.add(post)
             await session.commit()
@@ -296,7 +291,7 @@ class TestCancelScheduledPost:
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
         async with session_maker() as session:
-            post = ChannelPost(channel_id="-1001234567890", external_id="e1", title="T", post_text="text")
+            post = ChannelPost(channel_id=-1001234567890, external_id="e1", title="T", post_text="text")
             session.add(post)
             await session.commit()
             post_id = post.id
@@ -319,7 +314,7 @@ class TestReschedulePost:
         new_time = utc_now() + timedelta(hours=5)
 
         async with session_maker() as session:
-            post = ChannelPost(channel_id="-1001234567890", external_id="e1", title="T", post_text="text")
+            post = ChannelPost(channel_id=-1001234567890, external_id="e1", title="T", post_text="text")
             post.schedule(old_time, 10)
             session.add(post)
             await session.commit()
@@ -344,7 +339,7 @@ class TestReschedulePost:
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
         async with session_maker() as session:
-            post = ChannelPost(channel_id="-1001234567890", external_id="e1", title="T", post_text="text")
+            post = ChannelPost(channel_id=-1001234567890, external_id="e1", title="T", post_text="text")
             session.add(post)
             await session.commit()
             post_id = post.id
@@ -361,7 +356,7 @@ class TestReschedulePost:
         mock_telethon.send_scheduled_message.return_value = None
 
         async with session_maker() as session:
-            post = ChannelPost(channel_id="-1001234567890", external_id="e1", title="T", post_text="text")
+            post = ChannelPost(channel_id=-1001234567890, external_id="e1", title="T", post_text="text")
             post.schedule(utc_now() + timedelta(hours=2), 10)
             session.add(post)
             await session.commit()

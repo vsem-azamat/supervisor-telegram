@@ -184,6 +184,10 @@ async def split_topics(
             logger.warning("topic_split_empty_response")
             return items
 
+        if isinstance(response, dict):
+            import json
+
+            response = json.dumps(response)
         topics = _split_topics_adapter.validate_json(response)
         source_label = f"{ContentSource.SPLIT}:{model}"
         split_items = [_topic_to_content_item(t, source_label) for t in topics if t.title]
@@ -265,6 +269,10 @@ async def enrich_items(
                 if not response:
                     return item
 
+                if isinstance(response, dict):
+                    import json
+
+                    response = json.dumps(response)
                 topic = _enriched_topic_adapter.validate_json(response)
                 source_label = f"{ContentSource.ENRICHED}:{model}"
                 enriched_item = _topic_to_content_item(topic, source_label)

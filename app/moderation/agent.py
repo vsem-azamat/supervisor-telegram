@@ -34,7 +34,7 @@ def _create_pydantic_agent() -> Agent[AgentDeps, ModerationResult]:
     )
     model = OpenAIChatModel(settings.moderation.model, provider=provider)
 
-    agent: Agent[AgentDeps, ModerationResult] = Agent(
+    agent: Agent[AgentDeps, ModerationResult] = Agent(  # type: ignore[assignment]
         model,
         system_prompt=MODERATION_PROMPT,
         deps_type=AgentDeps,
@@ -214,12 +214,15 @@ class AgentCore:
         params: dict[str, str | int | bool | None] | None = None,
     ) -> None:
         """Execute a moderation action (used by escalation callbacks too)."""
+        _duration = params.get("duration_minutes") if params else None
+        _warning = params.get("warning_text") if params else None
+        _revoke = params.get("revoke_messages", False) if params else False
         result = ModerationResult(
-            action=action,
+            action=action,  # type: ignore[arg-type]
             reason="Admin decision",
-            duration_minutes=params.get("duration_minutes") if params else None,
-            warning_text=params.get("warning_text") if params else None,
-            revoke_messages=params.get("revoke_messages", False) if params else False,
+            duration_minutes=int(_duration) if _duration is not None else None,
+            warning_text=str(_warning) if _warning is not None else None,
+            revoke_messages=bool(_revoke),
         )
         await self._execute(result, event, bot, db)
 

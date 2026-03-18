@@ -72,7 +72,7 @@ def _build_router() -> Any:
         events.router,
     ]
     for sr in sub_routers:
-        sr._parent_router = None  # type: ignore[assignment]  # force detach
+        sr._parent_router = None  # force detach
 
     # Re-wire middlewares on sub-routers (same as handlers/__init__.py)
     agent_handler.agent_router.message.middleware(chat_type_mw.ChatTypeMiddleware(["group", "supergroup"]))

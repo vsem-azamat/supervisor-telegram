@@ -394,7 +394,7 @@ async def handle_blacklist_pagination(
     """Handle blacklist pagination callbacks."""
     await callback.answer()
 
-    if not callback.message:
+    if not isinstance(callback.message, types.Message):
         return
 
     blocked_users = await user_service.get_blocked_users()

@@ -241,11 +241,11 @@ class EscalationService:
             # Actually execute the timeout action (unless it's "ignore")
             if default_action != "ignore":
                 try:
-                    from app.agent.schemas import AgentEvent
+                    from app.agent.schemas import AgentEvent, EventType
                     from app.moderation.agent import AgentCore
 
                     event = AgentEvent(
-                        event_type="timeout",
+                        event_type=EventType.TIMEOUT,
                         chat_id=escalation.chat_id,
                         chat_title=None,
                         message_id=0,

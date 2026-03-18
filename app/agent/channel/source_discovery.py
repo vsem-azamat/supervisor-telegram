@@ -54,7 +54,7 @@ async def discover_rss_feeds(
         if not content:
             return []
 
-        feeds = json.loads(content)
+        feeds = content if isinstance(content, dict) else json.loads(content)
         if not isinstance(feeds, list):
             logger.warning("feed_discovery_unexpected_format", type=type(feeds).__name__)
             return []
@@ -77,7 +77,7 @@ async def validate_feed(url: str) -> bool:
 
 async def discover_and_add_sources(
     api_key: str,
-    channel_id: str,
+    channel_id: int,
     query: str,
     session_maker: async_sessionmaker[AsyncSession],
     model: str,

@@ -14,7 +14,7 @@ def register_chat_tools(agent: Agent[AssistantDeps, str]) -> None:
     @agent.tool
     async def send_message(ctx: RunContext[AssistantDeps], chat_id: str, text: str) -> str:
         """Send a message to any managed chat or known channel. Supports Markdown formatting."""
-        error = await _validate_channel_id(ctx, chat_id)
+        error = await _validate_channel_id(ctx, int(chat_id))
         if error:
             return error
 

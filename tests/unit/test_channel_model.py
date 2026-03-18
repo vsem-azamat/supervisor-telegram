@@ -16,35 +16,29 @@ from app.infrastructure.db.models import Channel, ChannelPost
 
 class TestChannelFooter:
     def test_footer_with_template(self) -> None:
-        ch = Channel(telegram_id="@test", name="Test", footer_template="Custom footer")
+        ch = Channel(telegram_id=-1001234567890, name="Test", footer_template="Custom footer")
         assert ch.footer == "Custom footer"
 
     def test_footer_without_template_uses_username(self) -> None:
-        ch = Channel(telegram_id="@test", name="MyChannel", username="mychan")
+        ch = Channel(telegram_id=-1001234567890, name="MyChannel", username="mychan")
         assert "MyChannel" in ch.footer
         assert "@mychan" in ch.footer
 
-    def test_footer_without_template_or_username(self) -> None:
-        ch = Channel(telegram_id="@testchan", name="TestChan")
+    def test_footer_without_username_uses_numeric_id(self) -> None:
+        ch = Channel(telegram_id=-1001234567890, name="TestChan")
         assert "TestChan" in ch.footer
-        assert "@testchan" in ch.footer
+        assert "@" not in ch.footer
 
     def test_footer_numeric_id_no_at_mention(self) -> None:
-        ch = Channel(telegram_id="-1001234567890", name="NumChannel")
+        ch = Channel(telegram_id=-1001234567890, name="NumChannel")
         assert "NumChannel" in ch.footer
         assert "@" not in ch.footer
 
     def test_footer_username_with_at_prefix_no_double_at(self) -> None:
         """Regression: username stored with @ prefix must not produce @@username."""
-        ch = Channel(telegram_id="@test_chan", name="TestChan", username="@test_chan")
+        ch = Channel(telegram_id=-1001234567890, name="TestChan", username="@test_chan")
         assert "@@" not in ch.footer
         assert "@test_chan" in ch.footer
-
-    def test_footer_telegram_id_with_at_prefix(self) -> None:
-        """Regression: telegram_id starting with @ must be stripped when used as fallback."""
-        ch = Channel(telegram_id="@mychannel", name="MyChan")
-        assert "@@" not in ch.footer
-        assert "@mychannel" in ch.footer
 
 
 # ---------------------------------------------------------------------------
@@ -54,7 +48,7 @@ class TestChannelFooter:
 
 class TestChannelPostScheduleMethods:
     def test_schedule(self) -> None:
-        post = ChannelPost(channel_id="@test", external_id="e1", title="T", post_text="text")
+        post = ChannelPost(channel_id=-1001234567890, external_id="e1", title="T", post_text="text")
         t = utc_now()
         post.schedule(t, 42)
         assert post.status == PostStatus.SCHEDULED
@@ -62,7 +56,7 @@ class TestChannelPostScheduleMethods:
         assert post.scheduled_telegram_id == 42
 
     def test_confirm_published(self) -> None:
-        post = ChannelPost(channel_id="@test", external_id="e1", title="T", post_text="text")
+        post = ChannelPost(channel_id=-1001234567890, external_id="e1", title="T", post_text="text")
         post.schedule(utc_now(), 42)
         post.confirm_published(100)
         assert post.status == PostStatus.APPROVED
@@ -70,7 +64,7 @@ class TestChannelPostScheduleMethods:
         assert post.published_at is not None
 
     def test_reschedule(self) -> None:
-        post = ChannelPost(channel_id="@test", external_id="e1", title="T", post_text="text")
+        post = ChannelPost(channel_id=-1001234567890, external_id="e1", title="T", post_text="text")
         t1 = utc_now()
         t2 = utc_now() + timedelta(hours=1)
         post.schedule(t1, 42)
@@ -79,7 +73,7 @@ class TestChannelPostScheduleMethods:
         assert post.scheduled_telegram_id == 99
 
     def test_unschedule(self) -> None:
-        post = ChannelPost(channel_id="@test", external_id="e1", title="T", post_text="text")
+        post = ChannelPost(channel_id=-1001234567890, external_id="e1", title="T", post_text="text")
         post.schedule(utc_now(), 42)
         post.unschedule()
         assert post.status == PostStatus.DRAFT
@@ -95,7 +89,7 @@ class TestChannelPostScheduleMethods:
 class TestChannelModel:
     def test_daily_count_reset(self):
         ch = Channel(
-            telegram_id="-1001234567890",
+            telegram_id=-1001234567890,
             name="Test Channel",
             description="Test channel for unit tests",
             language="en",
@@ -109,7 +103,7 @@ class TestChannelModel:
 
     def test_daily_count_no_reset_same_day(self):
         ch = Channel(
-            telegram_id="-1001234567890",
+            telegram_id=-1001234567890,
             name="Test Channel",
             description="Test channel for unit tests",
             language="en",
@@ -123,7 +117,7 @@ class TestChannelModel:
 
     def test_language_name(self):
         ch = Channel(
-            telegram_id="-1001234567890",
+            telegram_id=-1001234567890,
             name="Test Channel",
             description="Test channel for unit tests",
             language="en",

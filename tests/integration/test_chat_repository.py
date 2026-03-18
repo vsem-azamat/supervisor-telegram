@@ -77,6 +77,7 @@ class TestChatRepositoryIntegration:
 
         # Verify in database
         retrieved_chat = await chat_repository.get_by_id(chat.id)
+        assert retrieved_chat is not None
         assert retrieved_chat.title == "Updated Title"
         assert retrieved_chat.is_forum is True
         assert retrieved_chat.welcome_message == "Updated welcome"
@@ -94,6 +95,7 @@ class TestChatRepositoryIntegration:
 
         # Retrieve and verify
         retrieved_chat = await chat_repository.get_by_id(chat.id)
+        assert retrieved_chat is not None
         assert retrieved_chat.welcome_message == "Welcome to our chat!"
         assert retrieved_chat.time_delete == 120
         assert retrieved_chat.is_welcome_enabled is True
@@ -109,6 +111,7 @@ class TestChatRepositoryIntegration:
 
         # Retrieve and verify
         retrieved_chat = await chat_repository.get_by_id(chat.id)
+        assert retrieved_chat is not None
         assert retrieved_chat.is_forum is True
 
     async def test_get_all_chats_empty(self, chat_repository: ChatRepository):
@@ -161,6 +164,7 @@ class TestChatRepositoryIntegration:
 
         # Verify in database
         retrieved_chat = await chat_repository.get_by_id(chat.id)
+        assert retrieved_chat is not None
         assert retrieved_chat.is_captcha_enabled is False
 
     async def test_multiple_chats_different_ids(self, chat_repository: ChatRepository):
@@ -198,6 +202,7 @@ class TestChatRepositoryIntegration:
 
         # Retrieve and verify
         retrieved_chat = await chat_repository.get_by_id(chat.id)
+        assert retrieved_chat is not None
         assert retrieved_chat.is_welcome_enabled is True
         assert retrieved_chat.is_captcha_enabled is True
         assert retrieved_chat.time_delete == 120
@@ -227,6 +232,7 @@ class TestChatRepositoryEdgeCases:
 
         # Verify only one chat exists in database
         retrieved_chat = await chat_repository.get_by_id(chat_id)
+        assert retrieved_chat is not None
         assert retrieved_chat.title == "Second Chat"
         assert retrieved_chat.is_forum is True
 
@@ -273,6 +279,7 @@ class TestChatRepositoryEdgeCases:
 
         await chat_repository.save(chat)
         retrieved_chat = await chat_repository.get_by_id(chat.id)
+        assert retrieved_chat is not None
 
         assert retrieved_chat.title == "测试聊天室 🚀"
         assert retrieved_chat.welcome_message == "Bienvenido! 欢迎 👋"

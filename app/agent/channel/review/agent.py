@@ -34,7 +34,7 @@ class ReviewAgentDeps:
     session_maker: Any  # async_sessionmaker[AsyncSession]
     bot: Any  # aiogram.Bot
     post_id: int
-    channel_id: str
+    channel_id: int
     channel_name: str
     channel_username: str | None
     footer: str

@@ -64,7 +64,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
     @agent.tool
     async def add_channel(
         ctx: RunContext[AssistantDeps],
-        telegram_id: str,
+        telegram_id: int,
         name: str,
         description: str = "",
         language: str = "ru",
@@ -73,12 +73,10 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
         posting_schedule: str = "",
         discovery_query: str = "",
         source_discovery_query: str = "",
+        username: str = "",
     ) -> str:
-        """Create a new channel. telegram_id: @username or numeric ID. posting_schedule: comma-separated HH:MM."""
+        """Create a new channel. telegram_id: numeric Telegram chat ID (e.g. -1001234567890). posting_schedule: comma-separated HH:MM. username: optional @username without the @."""
         from app.agent.channel.channel_repo import create_channel
-
-        if not (telegram_id.startswith("@") or telegram_id.lstrip("-").isdigit()):
-            return "telegram_id должен быть @username или числовой ID."
 
         schedule_list = [t.strip() for t in posting_schedule.split(",") if t.strip()] or None
         try:
@@ -93,6 +91,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
                 posting_schedule=schedule_list,
                 discovery_query=discovery_query,
                 source_discovery_query=source_discovery_query,
+                username=username or None,
             )
             return f"Канал создан: {ch.telegram_id} — {ch.name} (id={ch.id})"
         except Exception:
@@ -102,7 +101,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
     @agent.tool
     async def edit_channel(
         ctx: RunContext[AssistantDeps],
-        telegram_id: str,
+        telegram_id: int,
         fields_json: str,
     ) -> str:
         """Update channel fields. fields_json is a JSON object with keys to update, e.g. '{"footer_template": "——\\n🔗 **Name** | @channel"}'. Valid keys: name, description, language, review_chat_id, max_posts_per_day, posting_schedule, publish_schedule, discovery_query, source_discovery_query, enabled, username, footer_template. Use footer_template for custom footer, publish_schedule for auto-scheduling (list of HH:MM UTC)."""
@@ -151,7 +150,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
             return "Не удалось обновить канал. Проверьте логи."
 
     @agent.tool
-    async def remove_channel(ctx: RunContext[AssistantDeps], telegram_id: str) -> str:
+    async def remove_channel(ctx: RunContext[AssistantDeps], telegram_id: int) -> str:
         """Delete a channel from the DB. The orchestrator will stop it on next refresh."""
         from app.agent.channel.channel_repo import delete_channel
 
@@ -161,7 +160,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
         return f"Канал {telegram_id} удалён. Оркестратор остановит его в течение 5 минут."
 
     @agent.tool
-    async def get_sources(ctx: RunContext[AssistantDeps], channel_id: str) -> str:
+    async def get_sources(ctx: RunContext[AssistantDeps], channel_id: int) -> str:
         """List RSS sources for a channel. Use list_channels first if unsure about channel_id."""
         from sqlalchemy import select
 
@@ -181,7 +180,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
         return "\n".join(lines)
 
     @agent.tool
-    async def add_source(ctx: RunContext[AssistantDeps], url: str, channel_id: str, title: str = "") -> str:
+    async def add_source(ctx: RunContext[AssistantDeps], url: str, channel_id: int, title: str = "") -> str:
         """Add a new RSS source for a channel."""
         error = await _validate_channel_id(ctx, channel_id)
         if error:
@@ -214,7 +213,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
             return "Не удалось добавить источник. Проверьте логи бота."
 
     @agent.tool
-    async def remove_source(ctx: RunContext[AssistantDeps], url: str, channel_id: str) -> str:
+    async def remove_source(ctx: RunContext[AssistantDeps], url: str, channel_id: int) -> str:
         """Remove an RSS source by URL for a specific channel. channel_id is required."""
         from sqlalchemy import select
 
@@ -236,8 +235,8 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
             return "Не удалось удалить источник. Проверьте логи бота."
 
     @agent.tool
-    async def run_pipeline(ctx: RunContext[AssistantDeps], channel_id: str = "") -> str:
-        """Run the automated content pipeline: fetches news from RSS, generates posts via LLM, sends drafts to review chat. Leave channel_id empty for all channels."""
+    async def run_pipeline(ctx: RunContext[AssistantDeps], channel_id: int = 0) -> str:
+        """Run the automated content pipeline: fetches news from RSS, generates posts via LLM, sends drafts to review chat. Leave channel_id as 0 for all channels."""
         orch = ctx.deps.channel_orchestrator
         if not orch:
             return "Channel orchestrator is not running."
@@ -249,7 +248,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
         return f"Pipeline cycle triggered for {channel_id or 'all channels'}."
 
     @agent.tool
-    async def get_recent_posts(ctx: RunContext[AssistantDeps], channel_id: str, limit: int = 5) -> str:
+    async def get_recent_posts(ctx: RunContext[AssistantDeps], channel_id: int, limit: int = 5) -> str:
         """Get recent posts from the database for a channel."""
         from sqlalchemy import select
 
@@ -316,7 +315,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
             return "Не удалось получить отчёт о расходах. Проверьте логи бота."
 
     @agent.tool
-    async def publish_text(ctx: RunContext[AssistantDeps], channel_id: str, text: str) -> str:
+    async def publish_text(ctx: RunContext[AssistantDeps], channel_id: int, text: str) -> str:
         """Publish text directly to a channel, skipping review. You compose the text yourself. Supports Markdown. IMPORTANT: This is a destructive action — ALWAYS ask the user for explicit confirmation before calling this tool. Explain what will be published and to which channel, and wait for a clear 'yes' or confirmation."""
         error = await _validate_channel_id(ctx, channel_id)
         if error:
@@ -334,7 +333,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
             return "Не удалось опубликовать сообщение. Проверьте логи бота."
 
     @agent.tool
-    async def set_schedule(ctx: RunContext[AssistantDeps], schedule: str, channel_id: str = "") -> str:
+    async def set_schedule(ctx: RunContext[AssistantDeps], schedule: str, channel_id: int = 0) -> str:
         """Set posting schedule. Format: comma-separated HH:MM times in UTC, e.g. '09:00,15:00,21:00'. Persists to DB."""
         times = [t.strip() for t in schedule.split(",") if t.strip()]
         for t in times:
@@ -359,7 +358,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
         if orch:
             targets = orch.orchestrators
             if channel_id:
-                targets = [o for o in targets if str(o.channel_id) == channel_id]
+                targets = [o for o in targets if o.channel_id == channel_id]
             for o in targets:
                 o.channel.posting_schedule = times
 
@@ -368,7 +367,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
     @agent.tool
     async def generate_and_review(
         ctx: RunContext[AssistantDeps],
-        channel_id: str,
+        channel_id: int,
         topic: str,
         source_url: str = "",
     ) -> str:
@@ -476,7 +475,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
         return f"Пост опубликован (нет review_chat_id). msg_id={msg_id}\n\nПревью:\n{preview}"
 
     @agent.tool
-    async def list_scheduled(ctx: RunContext[AssistantDeps], channel_id: str = "") -> str:
+    async def list_scheduled(ctx: RunContext[AssistantDeps], channel_id: int = 0) -> str:
         """List all currently scheduled (not yet published) posts. Leave channel_id empty for all channels."""
         from sqlalchemy import select
 
@@ -622,7 +621,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
     @agent.tool
     async def set_publish_schedule(
         ctx: RunContext[AssistantDeps],
-        channel_id: str,
+        channel_id: int,
         schedule: str,
     ) -> str:
         """Set when approved posts go live. Format: comma-separated HH:MM UTC, e.g. '09:00,13:00,18:00'. Empty string disables scheduling (posts publish immediately on approve)."""

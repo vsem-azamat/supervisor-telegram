@@ -235,7 +235,7 @@ async def _edit_review_message(
 async def send_for_review(
     bot: Bot,
     review_chat_id: int | str,
-    channel_id: str,
+    channel_id: int,
     post: GeneratedPost,
     source_items: list[ContentItem],
     session_maker: async_sessionmaker[AsyncSession],
@@ -297,7 +297,7 @@ async def handle_approve(
     """Approve and publish a post immediately. Returns status message."""
     from app.agent.channel.publisher import publish_post as _publish
 
-    async def _publish_fn(ch_id: int | str, gen_post: Any) -> int | None:
+    async def _publish_fn(ch_id: int, gen_post: Any) -> int | None:
         return await _publish(bot, ch_id, gen_post)
 
     status_msg, _ = await approve_post(post_id, channel_id, _publish_fn, session_maker)

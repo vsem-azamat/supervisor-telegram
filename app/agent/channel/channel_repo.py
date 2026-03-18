@@ -28,9 +28,9 @@ async def get_active_channels(
 
 async def get_channel_by_telegram_id(
     session_maker: async_sessionmaker[AsyncSession],
-    telegram_id: str,
+    telegram_id: int,
 ) -> Channel | None:
-    """Find a channel by its Telegram ID or @username."""
+    """Find a channel by its numeric Telegram chat ID."""
     async with session_maker() as session:
         result = await session.execute(select(Channel).where(Channel.telegram_id == telegram_id))
         return result.scalar_one_or_none()
@@ -38,7 +38,7 @@ async def get_channel_by_telegram_id(
 
 async def create_channel(
     session_maker: async_sessionmaker[AsyncSession],
-    telegram_id: str,
+    telegram_id: int,
     name: str,
     *,
     description: str = "",
@@ -73,7 +73,7 @@ async def create_channel(
 
 async def update_channel(
     session_maker: async_sessionmaker[AsyncSession],
-    telegram_id: str,
+    telegram_id: int,
     **fields: object,
 ) -> Channel | None:
     """Update channel fields. Returns None if not found."""
@@ -93,7 +93,7 @@ async def update_channel(
 
 async def delete_channel(
     session_maker: async_sessionmaker[AsyncSession],
-    telegram_id: str,
+    telegram_id: int,
 ) -> bool:
     """Delete a channel. Returns False if not found."""
     async with session_maker() as session:
@@ -109,7 +109,7 @@ async def delete_channel(
 
 async def reset_daily_count_if_needed(
     session_maker: async_sessionmaker[AsyncSession],
-    telegram_id: str,
+    telegram_id: int,
 ) -> None:
     """Reset daily post counter if the date has changed."""
     today = datetime.now(UTC).strftime("%Y-%m-%d")
@@ -123,7 +123,7 @@ async def reset_daily_count_if_needed(
 
 async def try_reserve_daily_slot(
     session_maker: async_sessionmaker[AsyncSession],
-    telegram_id: str,
+    telegram_id: int,
 ) -> bool:
     """Atomically check-and-increment the daily post count.
 
@@ -161,7 +161,7 @@ async def try_reserve_daily_slot(
 
 async def update_source_discovery_time(
     session_maker: async_sessionmaker[AsyncSession],
-    telegram_id: str,
+    telegram_id: int,
 ) -> None:
     """Record that source discovery was run for this channel."""
     async with session_maker() as session:

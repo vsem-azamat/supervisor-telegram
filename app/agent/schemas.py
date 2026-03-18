@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 class EventType(StrEnum):
     REPORT = "report"
     SPAM = "spam"
+    TIMEOUT = "timeout"
 
 
 class ActionType(StrEnum):

@@ -535,7 +535,7 @@ class TestGenerateAndReviewBotSelection:
 
     def _make_channel_mock(self, review_chat_id=-1001234567):
         ch = MagicMock()
-        ch.telegram_id = "@test_channel"
+        ch.telegram_id = -1001234567890
         ch.review_chat_id = review_chat_id
         ch.language = "ru"
         ch.footer = "test footer"

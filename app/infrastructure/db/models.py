@@ -2,7 +2,7 @@ import datetime
 from typing import Any
 
 import sqlalchemy as sa
-from pgvector.sqlalchemy import Vector  # type: ignore[import-untyped]
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import JSON, BigInteger, Boolean, DateTime, Float, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -255,7 +255,7 @@ class Channel(Base):
     __tablename__ = "channels"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    telegram_id: Mapped[str] = mapped_column(String, unique=True, index=True)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
     username: Mapped[str | None] = mapped_column(String, nullable=True)
     name: Mapped[str] = mapped_column(String)
     description: Mapped[str] = mapped_column(String, default="")
@@ -278,7 +278,7 @@ class Channel(Base):
 
     def __init__(
         self,
-        telegram_id: str,
+        telegram_id: int,
         name: str,
         description: str = "",
         language: str = "ru",
@@ -309,11 +309,11 @@ class Channel(Base):
         """Resolved footer text. Uses template if set, otherwise builds from name/username."""
         if self.footer_template:
             return self.footer_template
-        username = (self.username or self.telegram_id).lstrip("@")
-        # For numeric IDs (e.g. -1001234567890), skip the @ mention
-        if username.lstrip("-").isdigit():
-            return f"——\n🔗 **{self.name}**"
-        return self._DEFAULT_FOOTER.format(name=self.name, username=username)
+        if self.username:
+            username = self.username.lstrip("@")
+            return self._DEFAULT_FOOTER.format(name=self.name, username=username)
+        # No username — numeric ID only, skip the @ mention
+        return f"——\n🔗 **{self.name}**"
 
     def reset_daily_count(self, today: str) -> None:
         """Reset daily post counter if date has changed."""
@@ -336,7 +336,7 @@ class ChannelSource(Base):
     __table_args__ = (sa.UniqueConstraint("channel_id", "url", name="uq_channel_source_channel_url"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    channel_id: Mapped[str] = mapped_column(String, index=True)
+    channel_id: Mapped[int] = mapped_column(BigInteger, index=True)
     url: Mapped[str] = mapped_column(String, index=True)
     source_type: Mapped[str] = mapped_column(String(16), default="rss")
     title: Mapped[str | None] = mapped_column(String, nullable=True)
@@ -351,7 +351,7 @@ class ChannelSource(Base):
 
     def __init__(
         self,
-        channel_id: str,
+        channel_id: int,
         url: str,
         source_type: str = "rss",
         title: str | None = None,
@@ -398,7 +398,7 @@ class ChannelPost(Base):
     __tablename__ = "channel_posts"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    channel_id: Mapped[str] = mapped_column(String, index=True)
+    channel_id: Mapped[int] = mapped_column(BigInteger, index=True)
     external_id: Mapped[str] = mapped_column(String, index=True)
     source_url: Mapped[str | None] = mapped_column(String, nullable=True)
     title: Mapped[str] = mapped_column(String)
@@ -420,7 +420,7 @@ class ChannelPost(Base):
 
     def __init__(
         self,
-        channel_id: str,
+        channel_id: int,
         external_id: str,
         title: str,
         post_text: str,

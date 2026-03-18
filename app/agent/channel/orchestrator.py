@@ -89,7 +89,7 @@ class SingleChannelOrchestrator:
         return self.publish_bot
 
     @property
-    def channel_id(self) -> str:
+    def channel_id(self) -> int:
         return self.channel.telegram_id
 
     def start(self) -> None:
@@ -277,7 +277,7 @@ class ChannelOrchestrator:
         self.config = config
         self.api_key = api_key
         self.session_maker = session_maker
-        self._orchestrators: dict[str, SingleChannelOrchestrator] = {}
+        self._orchestrators: dict[int, SingleChannelOrchestrator] = {}
         self._refresh_task: asyncio.Task[None] | None = None
 
     @property
@@ -394,15 +394,14 @@ class ChannelOrchestrator:
             await orch.stop()
         logger.info("channel_orchestrator_stopped")
 
-    async def run_once(self, channel_id: int | str | None = None) -> None:
+    async def run_once(self, channel_id: int | None = None) -> None:
         """Run a single cycle for a specific channel, or all channels."""
         if not self._orchestrators:
             await self._refresh_channels()
 
         targets = list(self._orchestrators.values())
         if channel_id is not None:
-            cid = str(channel_id)
-            targets = [o for o in targets if o.channel_id == cid]
+            targets = [o for o in targets if o.channel_id == channel_id]
             if not targets:
                 logger.warning("run_once_channel_not_found", channel_id=channel_id)
                 return

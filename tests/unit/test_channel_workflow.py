@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -25,9 +26,9 @@ from burr.core import State
 # ---------------------------------------------------------------------------
 
 
-def _make_channel(**kwargs: object) -> Channel:
-    defaults = {
-        "telegram_id": "-1001234567890",
+def _make_channel(**kwargs: Any) -> Channel:
+    defaults: dict[str, Any] = {
+        "telegram_id": -1001234567890,
         "name": "Test Channel",
         "description": "Test channel",
         "language": "en",
@@ -35,7 +36,7 @@ def _make_channel(**kwargs: object) -> Channel:
         "max_posts_per_day": 3,
     }
     defaults.update(kwargs)
-    return Channel(**defaults)  # type: ignore[arg-type]
+    return Channel(**defaults)
 
 
 @pytest.fixture
@@ -203,7 +204,7 @@ class TestFetchSourcesAction:
 
             state = State(
                 {
-                    "channel_id": "test_channel",
+                    "channel_id": -1001234567890,
                     "config": agent_settings,
                     "channel": channel,
                     "api_key": "test-key",
@@ -233,7 +234,7 @@ class TestFetchSourcesAction:
             agent_settings.discovery_enabled = False
             state = State(
                 {
-                    "channel_id": "test_channel",
+                    "channel_id": -1001234567890,
                     "config": agent_settings,
                     "channel": channel,
                     "api_key": "test-key",
@@ -343,7 +344,7 @@ class TestSplitAndEnrichTopicsAction:
                     "api_key": "k",
                     "brave_api_key": "",
                     "config": agent_settings,
-                    "channel_id": "test",
+                    "channel_id": -1001234567890,
                     "session_maker": mock_session_maker,
                 }
             )
@@ -360,7 +361,7 @@ class TestSplitAndEnrichTopicsAction:
                 "api_key": "k",
                 "brave_api_key": "",
                 "config": agent_settings,
-                "channel_id": "test",
+                "channel_id": -1001234567890,
                 "session_maker": mock_session_maker,
             }
         )
@@ -380,7 +381,7 @@ class TestSplitAndEnrichTopicsAction:
                     "api_key": "k",
                     "brave_api_key": "",
                     "config": agent_settings,
-                    "channel_id": "test",
+                    "channel_id": -1001234567890,
                     "session_maker": mock_session_maker,
                 }
             )
@@ -397,7 +398,7 @@ class TestPublishPostAction:
         state = State(
             {
                 "post_id": None,
-                "channel_id": "test",
+                "channel_id": -1001234567890,
                 "channel": channel,
                 "publish_bot": mock_bot,
                 "session_maker": mock_session_maker,
@@ -417,7 +418,7 @@ class TestPublishPostAction:
             state = State(
                 {
                     "post_id": 42,
-                    "channel_id": "test",
+                    "channel_id": -1001234567890,
                     "channel": channel,
                     "publish_bot": mock_bot,
                     "session_maker": mock_session_maker,
@@ -445,7 +446,7 @@ class TestGeneratePostAction:
                     "api_key": "test-key",
                     "config": agent_settings,
                     "channel": channel,
-                    "channel_id": "test_channel",
+                    "channel_id": -1001234567890,
                     "session_maker": mock_session_maker,
                     "generated_post": None,
                     "error": None,
@@ -465,7 +466,7 @@ class TestGeneratePostAction:
 class TestAppFactory:
     def test_creates_app(self, channel, agent_settings, mock_bot, mock_session_maker):
         app = create_pipeline_app(
-            channel_id="test_channel",
+            channel_id=-1001234567890,
             session_maker=mock_session_maker,
             publish_bot=mock_bot,
             api_key="test-key",
@@ -474,12 +475,12 @@ class TestAppFactory:
         )
         assert app is not None
         assert app.graph is not None
-        assert app.state["channel_id"] == "test_channel"
+        assert app.state["channel_id"] == -1001234567890
         assert app.state["api_key"] == "test-key"
 
     def test_creates_app_with_resume_state(self, channel, agent_settings, mock_bot, mock_session_maker):
         app = create_pipeline_app(
-            channel_id="test_channel",
+            channel_id=-1001234567890,
             session_maker=mock_session_maker,
             publish_bot=mock_bot,
             api_key="test-key",
@@ -507,7 +508,7 @@ class TestFullPipeline:
         ):
             agent_settings.discovery_enabled = True
             app = create_pipeline_app(
-                channel_id="test_channel",
+                channel_id=-1001234567890,
                 session_maker=mock_session_maker,
                 publish_bot=mock_bot,
                 api_key="test-key",
@@ -537,7 +538,7 @@ class TestFullPipeline:
         ):
             agent_settings.discovery_enabled = True
             app = create_pipeline_app(
-                channel_id="test_channel",
+                channel_id=-1001234567890,
                 session_maker=mock_session_maker,
                 publish_bot=mock_bot,
                 api_key="test-key",
@@ -551,7 +552,7 @@ class TestFullPipeline:
     async def test_pipeline_resume_approve(self, channel, agent_settings, mock_bot, mock_session_maker):
         with patch("app.agent.channel.review.handle_approve", return_value="Published! (msg #42)"):
             app = create_pipeline_app(
-                channel_id="test_channel",
+                channel_id=-1001234567890,
                 session_maker=mock_session_maker,
                 publish_bot=mock_bot,
                 api_key="test-key",
@@ -566,7 +567,7 @@ class TestFullPipeline:
     async def test_pipeline_resume_reject(self, channel, agent_settings, mock_bot, mock_session_maker):
         with patch("app.agent.channel.review.handle_reject", return_value="Post rejected."):
             app = create_pipeline_app(
-                channel_id="test_channel",
+                channel_id=-1001234567890,
                 session_maker=mock_session_maker,
                 publish_bot=mock_bot,
                 api_key="test-key",
@@ -602,7 +603,7 @@ class TestFullPipeline:
         ):
             agent_settings.discovery_enabled = True
             app = create_pipeline_app(
-                channel_id="test_channel",
+                channel_id=-1001234567890,
                 session_maker=mock_session_maker,
                 publish_bot=mock_bot,
                 api_key="test-key",
