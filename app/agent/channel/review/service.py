@@ -169,10 +169,14 @@ async def approve_post(
 
             from app.agent.channel.generator import GeneratedPost
 
+            # Publish only the single image shown during review (not the full image_urls array).
+            # The review message displays only image_url; publishing image_urls would
+            # send photos the reviewer never saw.
+            reviewed_image = getattr(post, "image_url", None)
             gen_post = GeneratedPost(
                 text=post.post_text,
-                image_url=getattr(post, "image_url", None),
-                image_urls=getattr(post, "image_urls", None) or [],
+                image_url=reviewed_image,
+                image_urls=[reviewed_image] if reviewed_image else [],
             )
             msg_id = await publish_fn(channel_id, gen_post)
             if not msg_id:

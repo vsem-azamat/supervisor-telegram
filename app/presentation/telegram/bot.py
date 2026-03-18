@@ -241,10 +241,14 @@ async def main() -> None:
         if assistant_pair:
             assistant_bot, assistant_dp = assistant_pair
 
-            # Add channel_review_router to the assistant bot's dispatcher
+            # Register routers in priority order:
+            # 1. channel_review_router (F.reply_to_message) — must come before generic F.text
+            # 2. assistant router (generic F.text catch-all)
+            from app.assistant.bot import router as assistant_router
             from app.presentation.telegram.handlers.channel_review import channel_review_router
 
             assistant_dp.include_router(channel_review_router)
+            assistant_dp.include_router(assistant_router)
 
             # Wire assistant bot as review_bot into orchestrator
             if channel_orchestrator:

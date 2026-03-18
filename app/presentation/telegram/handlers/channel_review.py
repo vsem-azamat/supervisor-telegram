@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import datetime
 from datetime import UTC
 from typing import TYPE_CHECKING, Any
 
@@ -102,6 +103,33 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
     chat_id = callback.message.chat.id
 
     if action == "approve":
+        # Show confirmation keyboard: "Publish now" vs "Schedule +5min"
+        from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+
+        confirm_kb = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="🚀 Publish now",
+                        callback_data=ReviewAction(action="confirm_publish", post_id=post_id).pack(),
+                    ),
+                    InlineKeyboardButton(
+                        text="⏱ +5 min",
+                        callback_data=ReviewAction(action="schedule_5min", post_id=post_id).pack(),
+                    ),
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="⬅️ Back",
+                        callback_data=ReviewAction(action="back", post_id=post_id).pack(),
+                    ),
+                ],
+            ]
+        )
+        await callback.message.edit_reply_markup(reply_markup=confirm_kb)
+        await callback.answer()
+
+    elif action == "confirm_publish":
         try:
             channel = await _get_channel_for_post(post_id, session_maker)
             if not channel:
@@ -121,6 +149,32 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
         except Exception:
             logger.exception("approve_callback_error", post_id=post_id)
             await callback.answer("Internal error", show_alert=True)
+
+    elif action == "schedule_5min":
+        try:
+            channel = await _get_channel_for_post(post_id, session_maker)
+            if not channel:
+                await callback.answer("Channel not found", show_alert=True)
+                return
+
+            tc = container.get_telethon_client()
+            if not tc or not tc.is_available:
+                await callback.answer("Scheduling unavailable (Telethon not connected)", show_alert=True)
+                return
+
+            from app.agent.channel.schedule_manager import schedule_post
+            from app.core.time import utc_now
+
+            schedule_time = utc_now() + datetime.timedelta(minutes=5)
+            result = await schedule_post(tc, session_maker, post_id, channel, schedule_time)
+            await callback.answer(result, show_alert=True)
+
+            if "Scheduled" in result:
+                with contextlib.suppress(Exception):
+                    await callback.message.edit_reply_markup(reply_markup=None)
+        except Exception:
+            logger.exception("schedule_5min_error", post_id=post_id)
+            await callback.answer("Scheduling failed", show_alert=True)
 
     elif action == "reject":
         result = await handle_reject(post_id, session_maker)
