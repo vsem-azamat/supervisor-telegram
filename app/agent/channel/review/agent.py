@@ -280,12 +280,15 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
     )
     model = OpenAIChatModel(model_name, provider=provider)
 
+    from app.agent.tool_trace import make_history_processor
+
     agent: Agent[ReviewAgentDeps, str] = Agent(
         model,
         deps_type=ReviewAgentDeps,
         output_type=str,
         retries=3,
         end_strategy="exhaustive",
+        history_processors=[make_history_processor(_MAX_HISTORY)],
     )
 
     # Dynamic system prompt that injects the footer from deps
@@ -652,16 +655,10 @@ async def _review_agent_turn_inner(
     if usage:
         await log_usage(usage)
 
-    # Save conversation for continuity
+    # Save conversation for continuity (trimming handled by history_processors)
     all_msgs = list(result.all_messages())
     _review_conversations[post_id] = all_msgs
     _review_last_access[post_id] = time.monotonic()
-
-    # Trim long history — respect tool call boundaries
-    if len(all_msgs) > _MAX_HISTORY:
-        from app.agent.tool_trace import trim_history
-
-        _review_conversations[post_id] = trim_history(all_msgs, _MAX_HISTORY)
 
     logger.info(
         "review_agent_turn_done",

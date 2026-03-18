@@ -14,12 +14,16 @@ from app.core.logging import get_logger
 
 if TYPE_CHECKING:
     from aiogram import Bot
+    from pydantic_ai.tools import ToolDefinition
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
     from app.agent.channel.orchestrator import ChannelOrchestrator
     from app.infrastructure.telegram.telethon_client import TelethonClient
 
 logger = get_logger("assistant.agent")
+
+# Conversation limits (centralized)
+_MAX_ASSISTANT_HISTORY = 100  # max messages in assistant conversation history
 
 SYSTEM_PROMPT = """\
 You are **Konnekt Assistant** — the central AI managing the Konnekt Telegram ecosystem \
@@ -154,8 +158,33 @@ async def _validate_channel_id(ctx: RunContext[AssistantDeps], channel_id: int) 
     return f"Отказано: канал/чат {channel_id} не найден среди управляемых."
 
 
+_TELETHON_TOOLS = frozenset(
+    {
+        "get_chat_history",
+        "search_messages",
+        "get_chat_members",
+        "schedule_post_tool",
+        "reschedule_post_tool",
+        "cancel_scheduled_post_tool",
+    }
+)
+
+
+async def _filter_unavailable_tools(
+    ctx: RunContext[AssistantDeps],
+    tool_defs: list[ToolDefinition],
+) -> list[ToolDefinition]:
+    """Hide Telethon-dependent tools when the Telethon client is unavailable."""
+    tc = ctx.deps.telethon
+    if tc and tc.is_available:
+        return tool_defs
+    return [t for t in tool_defs if t.name not in _TELETHON_TOOLS]
+
+
 def create_assistant_agent(model_name: str = "") -> Agent[AssistantDeps, str]:
     """Create the PydanticAI assistant agent with all tools."""
+    from app.agent.tool_trace import make_history_processor
+
     model_name = model_name or settings.assistant.model
 
     provider = OpenAIProvider(
@@ -171,6 +200,9 @@ def create_assistant_agent(model_name: str = "") -> Agent[AssistantDeps, str]:
         output_type=str,
         retries=3,
         end_strategy="exhaustive",
+        history_processors=[make_history_processor(_MAX_ASSISTANT_HISTORY)],
+        prepare_tools=_filter_unavailable_tools,
+        tool_timeout=30,
     )
 
     from app.assistant.tools import register_all_tools

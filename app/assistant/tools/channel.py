@@ -520,8 +520,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
         from app.infrastructure.db.models import Channel, ChannelPost
 
         tc = ctx.deps.telethon
-        if not tc or not tc.is_available:
-            return "Telethon client not available for scheduling."
+        assert tc is not None  # guaranteed by prepare_tools
 
         async with ctx.deps.session_maker() as session:
             result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))
@@ -571,8 +570,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
         from app.infrastructure.db.models import Channel, ChannelPost
 
         tc = ctx.deps.telethon
-        if not tc or not tc.is_available:
-            return "Telethon client not available."
+        assert tc is not None  # guaranteed by prepare_tools
 
         try:
             publish_time = dt.strptime(new_time, "%Y-%m-%d %H:%M")
@@ -605,8 +603,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
         from app.infrastructure.db.models import Channel, ChannelPost
 
         tc = ctx.deps.telethon
-        if not tc or not tc.is_available:
-            return "Telethon client not available."
+        assert tc is not None  # guaranteed by prepare_tools
 
         async with ctx.deps.session_maker() as session:
             result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))

@@ -27,6 +27,8 @@ async def brave_web_search(
     *,
     count: int = 10,
     freshness: str = "pw",
+    country: str = "",
+    search_lang: str = "",
     timeout: int = 15,
 ) -> list[dict[str, str]]:
     """Execute a Brave Web Search and return raw results.
@@ -36,6 +38,8 @@ async def brave_web_search(
         query: Search query string.
         count: Number of results (max 20).
         freshness: Time filter — pd (past day), pw (past week), pm (past month), py (past year).
+        country: Country code (e.g. "CZ", "US") for geo-biased results.
+        search_lang: Language code (e.g. "cs", "en") for language-biased results.
         timeout: HTTP timeout in seconds.
 
     Returns:
@@ -49,6 +53,17 @@ async def brave_web_search(
 
     count = max(1, min(count, 20))
 
+    params: dict[str, str | int] = {
+        "q": query,
+        "count": count,
+        "freshness": freshness,
+        "text_decorations": "false",
+    }
+    if country:
+        params["country"] = country
+    if search_lang:
+        params["search_lang"] = search_lang
+
     client = get_http_client(timeout=timeout)
     resp = await client.get(
         BRAVE_SEARCH_URL,
@@ -57,12 +72,7 @@ async def brave_web_search(
             "Accept-Encoding": "gzip",
             "X-Subscription-Token": api_key,
         },
-        params={
-            "q": query,
-            "count": count,
-            "freshness": freshness,
-            "text_decorations": "false",
-        },
+        params=params,
         timeout=httpx.Timeout(timeout),
     )
     resp.raise_for_status()
@@ -193,10 +203,14 @@ async def brave_search_for_assistant(
     *,
     count: int = 5,
     freshness: str = "pw",
+    country: str = "",
+    search_lang: str = "",
 ) -> str:
     """Run a Brave search and return formatted results for the assistant agent."""
     try:
-        results = await brave_web_search(api_key, query, count=count, freshness=freshness)
+        results = await brave_web_search(
+            api_key, query, count=count, freshness=freshness, country=country, search_lang=search_lang
+        )
         if not results:
             return f"No results found for: {query}"
 
