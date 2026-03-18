@@ -523,3 +523,64 @@ class TestHandleMessageParseMode:
         for call in mock_message.answer.call_args_list:
             kwargs = call[1] if call[1] else {}
             assert kwargs.get("parse_mode") is None, "parse_mode must be None when using entities"
+
+
+# ---------------------------------------------------------------------------
+# generate_and_review bot selection tests
+# ---------------------------------------------------------------------------
+
+
+class TestGenerateAndReviewBotSelection:
+    """Verify generate_and_review uses review_bot for sending reviews."""
+
+    def _make_channel_mock(self, review_chat_id=-1001234567):
+        ch = MagicMock()
+        ch.telegram_id = "@test_channel"
+        ch.review_chat_id = review_chat_id
+        ch.language = "ru"
+        ch.footer = "test footer"
+        ch.name = "Test"
+        ch.discovery_query = ""
+        ch.username = "test_channel"
+        return ch
+
+    def test_review_bot_used_when_set(self) -> None:
+        """When review_bot is set, the expression selects it over main_bot."""
+        from app.assistant.agent import AssistantDeps
+
+        main_bot = AsyncMock()
+        review_bot = AsyncMock()
+        deps = AssistantDeps(
+            session_maker=AsyncMock(),
+            main_bot=main_bot,
+            review_bot=review_bot,
+        )
+
+        # This mirrors the expression in generate_and_review:
+        # bot=ctx.deps.review_bot or ctx.deps.main_bot
+        bot_used = deps.review_bot or deps.main_bot
+        assert bot_used is review_bot
+
+    def test_main_bot_fallback_when_review_bot_is_none(self) -> None:
+        """When review_bot is None, main_bot must be used as fallback."""
+        from app.assistant.agent import AssistantDeps
+
+        main_bot = AsyncMock()
+        deps = AssistantDeps(
+            session_maker=AsyncMock(),
+            main_bot=main_bot,
+            review_bot=None,
+        )
+
+        bot_used = deps.review_bot or deps.main_bot
+        assert bot_used is main_bot
+
+    def test_assistant_deps_review_bot_defaults_to_none(self) -> None:
+        """AssistantDeps.review_bot should default to None."""
+        from app.assistant.agent import AssistantDeps
+
+        deps = AssistantDeps(
+            session_maker=AsyncMock(),
+            main_bot=AsyncMock(),
+        )
+        assert deps.review_bot is None

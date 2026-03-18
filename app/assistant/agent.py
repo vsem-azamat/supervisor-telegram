@@ -104,6 +104,7 @@ class AssistantDeps:
 
     session_maker: async_sessionmaker[AsyncSession]
     main_bot: Bot
+    review_bot: Bot | None = None
     channel_orchestrator: ChannelOrchestrator | None = None
     telethon: TelethonClient | None = None
 
