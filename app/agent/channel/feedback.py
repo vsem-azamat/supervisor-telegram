@@ -19,7 +19,7 @@ logger = get_logger("channel.feedback")
 
 async def get_feedback_summary(
     session_maker: async_sessionmaker[AsyncSession],
-    channel_id: str,
+    channel_id: int,
     api_key: str,
     model: str,
     *,
@@ -96,7 +96,7 @@ async def get_feedback_summary(
                 {"role": "user", "content": context},
             ],
             operation="feedback",
-            channel_id=channel_id,
+            channel_id=str(channel_id),
             temperature=temperature,
             timeout=http_timeout,
             strip_code_fences=False,

@@ -76,6 +76,7 @@ class TestUserRepositoryIntegration:
 
         # Verify in database
         retrieved_user = await user_repository.get_by_id(user.id)
+        assert retrieved_user is not None
         assert retrieved_user.username == "updated_username"
         assert retrieved_user.first_name == "Updated"
 
@@ -93,6 +94,7 @@ class TestUserRepositoryIntegration:
 
         # Verify in database
         retrieved_user = await user_repository.get_by_id(user.id)
+        assert retrieved_user is not None
         assert retrieved_user.is_blocked is True
 
         # Unblock user
@@ -103,6 +105,7 @@ class TestUserRepositoryIntegration:
 
         # Verify in database
         retrieved_user = await user_repository.get_by_id(user.id)
+        assert retrieved_user is not None
         assert retrieved_user.is_blocked is False
 
     async def test_get_blocked_users_empty(self, user_repository: UserRepository):
@@ -189,6 +192,7 @@ class TestUserRepositoryIntegration:
 
         # Retrieve and verify
         retrieved_user = await user_repository.get_by_id(user.id)
+        assert retrieved_user is not None
         assert retrieved_user.is_verified is False
         assert retrieved_user.is_blocked is True
 
@@ -216,6 +220,7 @@ class TestUserRepositoryEdgeCases:
 
         # Verify only one user exists in database
         retrieved_user = await user_repository.get_by_id(user_id)
+        assert retrieved_user is not None
         assert retrieved_user.username == "user2"
         assert retrieved_user.first_name == "Second"
 
@@ -266,6 +271,7 @@ class TestUserRepositoryEdgeCases:
 
         await user_repository.save(user)
         retrieved_user = await user_repository.get_by_id(user.id)
+        assert retrieved_user is not None
 
         assert retrieved_user.username == "用户名_123"
         assert retrieved_user.first_name == "José"

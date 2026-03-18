@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 logger = get_logger("channel.publisher")
 
 
-async def publish_post(bot: Bot, channel_id: int | str, post: GeneratedPost) -> int | None:
+async def publish_post(bot: Bot, channel_id: int, post: GeneratedPost) -> int | None:
     """Publish a post to a Telegram channel. Returns message_id on success.
 
     Sends as:
@@ -43,7 +43,7 @@ async def publish_post(bot: Bot, channel_id: int | str, post: GeneratedPost) -> 
     return await _send_text_post(bot, channel_id, post)
 
 
-async def _send_media_group(bot: Bot, channel_id: int | str, post: GeneratedPost, image_urls: list[str]) -> int | None:
+async def _send_media_group(bot: Bot, channel_id: int, post: GeneratedPost, image_urls: list[str]) -> int | None:
     """Send post as a media group (album) — caption on first photo."""
     try:
         plain, entities = md_to_entities(post.text)
@@ -89,7 +89,7 @@ async def _send_media_group(bot: Bot, channel_id: int | str, post: GeneratedPost
         return None
 
 
-async def _send_photo_post(bot: Bot, channel_id: int | str, post: GeneratedPost, image_url: str) -> int | None:
+async def _send_photo_post(bot: Bot, channel_id: int, post: GeneratedPost, image_url: str) -> int | None:
     """Send post as a single photo with caption."""
     try:
         plain, entities = md_to_entities(post.text)
@@ -119,7 +119,7 @@ async def _send_photo_post(bot: Bot, channel_id: int | str, post: GeneratedPost,
         return None
 
 
-async def _send_text_post(bot: Bot, channel_id: int | str, post: GeneratedPost) -> int | None:
+async def _send_text_post(bot: Bot, channel_id: int, post: GeneratedPost) -> int | None:
     """Send post as plain text message."""
     try:
         plain, entities = md_to_entities(post.text)

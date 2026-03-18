@@ -8,7 +8,7 @@ no HTML escaping, no MarkdownV2 escaping headaches.
 from __future__ import annotations
 
 from aiogram.types import MessageEntity
-from telegramify_markdown import convert, split_entities  # type: ignore[import-untyped]
+from telegramify_markdown import convert, split_entities
 
 
 def md_to_entities(text: str) -> tuple[str, list[MessageEntity]]:

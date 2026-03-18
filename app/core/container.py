@@ -68,17 +68,17 @@ class Container:
             if interface == "session_maker":
                 if self._session_maker is None:
                     raise ValueError("Session maker not initialized")
-                return self._session_maker
+                return self._session_maker  # type: ignore[return-value]
             raise ValueError(f"Unknown string key: {interface}")
 
         # Check singletons first
         if interface in self._singletons:
-            return self._singletons[interface]  # type: ignore
+            return self._singletons[interface]
 
         # Check transient services
         if interface in self._services:
             factory = self._services[interface]
-            return factory()  # type: ignore
+            return factory()
 
         raise ValueError(f"Service {interface} not registered")
 

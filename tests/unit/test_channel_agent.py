@@ -76,7 +76,7 @@ class TestChannelPostModel:
     async def test_create_post(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         async with session_maker() as session:
             post = ChannelPost(
-                channel_id="@test_channel",
+                channel_id=-1001234567890,
                 external_id="ext123",
                 title="Test Post",
                 post_text="<b>Hello</b>",
@@ -87,13 +87,13 @@ class TestChannelPostModel:
 
             result = await session.execute(select(ChannelPost))
             saved = result.scalar_one()
-            assert saved.channel_id == "@test_channel"
+            assert saved.channel_id == -1001234567890
             assert saved.status == "draft"
             assert saved.title == "Test Post"
 
     async def test_approve_sets_status_and_message_id(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         async with session_maker() as session:
-            post = ChannelPost(channel_id="@test", external_id="e1", title="T", post_text="text")
+            post = ChannelPost(channel_id=-1001234567890, external_id="e1", title="T", post_text="text")
             session.add(post)
             await session.flush()
 
@@ -104,7 +104,7 @@ class TestChannelPostModel:
 
     async def test_reject_sets_status_and_feedback(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         async with session_maker() as session:
-            post = ChannelPost(channel_id="@test", external_id="e1", title="T", post_text="text")
+            post = ChannelPost(channel_id=-1001234567890, external_id="e1", title="T", post_text="text")
             session.add(post)
             await session.flush()
 
@@ -115,7 +115,9 @@ class TestChannelPostModel:
 
     async def test_update_text_resets_to_draft(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         async with session_maker() as session:
-            post = ChannelPost(channel_id="@test", external_id="e1", title="T", post_text="old", status="approved")
+            post = ChannelPost(
+                channel_id=-1001234567890, external_id="e1", title="T", post_text="old", status="approved"
+            )
             session.add(post)
             await session.flush()
 
@@ -127,7 +129,7 @@ class TestChannelPostModel:
         sources = [{"title": "Art", "url": "https://x.com/art"}]
         async with session_maker() as session:
             post = ChannelPost(
-                channel_id="@test",
+                channel_id=-1001234567890,
                 external_id="e1",
                 title="T",
                 post_text="text",
@@ -150,7 +152,7 @@ class TestChannelSourceModel:
     async def test_create_source(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         async with session_maker() as session:
             source = ChannelSource(
-                channel_id="@test",
+                channel_id=-1001234567890,
                 url="https://example.com/feed",
                 title="Example Feed",
                 added_by="agent",
@@ -166,7 +168,7 @@ class TestChannelSourceModel:
 
     async def test_record_success_resets_errors(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         async with session_maker() as session:
-            source = ChannelSource(channel_id="@test", url="https://x.com/feed", added_by="test")
+            source = ChannelSource(channel_id=-1001234567890, url="https://x.com/feed", added_by="test")
             source.error_count = 3
             session.add(source)
             await session.flush()
@@ -177,7 +179,7 @@ class TestChannelSourceModel:
 
     async def test_record_error_increments_and_disables(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         async with session_maker() as session:
-            source = ChannelSource(channel_id="@test", url="https://x.com/feed", added_by="test")
+            source = ChannelSource(channel_id=-1001234567890, url="https://x.com/feed", added_by="test")
             session.add(source)
             await session.flush()
 
@@ -196,7 +198,7 @@ class TestSourceManager:
     async def test_add_source(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         from app.agent.channel.source_manager import add_source
 
-        result = await add_source(session_maker, "@ch", "https://feed.example.com/rss")
+        result = await add_source(session_maker, -1001111111111, "https://feed.example.com/rss")
         assert result is True
 
         async with session_maker() as session:
@@ -207,30 +209,30 @@ class TestSourceManager:
     async def test_add_duplicate_source_returns_false(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         from app.agent.channel.source_manager import add_source
 
-        await add_source(session_maker, "@ch", "https://feed.example.com/rss")
-        result = await add_source(session_maker, "@ch", "https://feed.example.com/rss")
+        await add_source(session_maker, -1001111111111, "https://feed.example.com/rss")
+        result = await add_source(session_maker, -1001111111111, "https://feed.example.com/rss")
         assert result is False
 
     async def test_get_active_sources(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         from app.agent.channel.source_manager import add_source, get_active_sources
 
-        await add_source(session_maker, "@ch", "https://active.com/feed")
+        await add_source(session_maker, -1001111111111, "https://active.com/feed")
         # Add and disable a source
-        await add_source(session_maker, "@ch", "https://broken.com/feed")
+        await add_source(session_maker, -1001111111111, "https://broken.com/feed")
         async with session_maker() as session:
             res = await session.execute(select(ChannelSource).where(ChannelSource.url == "https://broken.com/feed"))
             source = res.scalar_one()
             source.enabled = False
             await session.commit()
 
-        active = await get_active_sources(session_maker, "@ch")
+        active = await get_active_sources(session_maker, -1001111111111)
         assert len(active) == 1
         assert active[0].url == "https://active.com/feed"
 
     async def test_remove_source(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         from app.agent.channel.source_manager import add_source, remove_source
 
-        await add_source(session_maker, "@ch", "https://feed.example.com/rss")
+        await add_source(session_maker, -1001111111111, "https://feed.example.com/rss")
         result = await remove_source(session_maker, "https://feed.example.com/rss")
         assert result is True
 
@@ -247,7 +249,7 @@ class TestSourceManager:
     async def test_record_fetch_success(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         from app.agent.channel.source_manager import add_source, record_fetch_success
 
-        await add_source(session_maker, "@ch", "https://feed.example.com/rss")
+        await add_source(session_maker, -1001111111111, "https://feed.example.com/rss")
         await record_fetch_success(session_maker, "https://feed.example.com/rss")
 
         async with session_maker() as session:
@@ -258,7 +260,7 @@ class TestSourceManager:
     async def test_record_fetch_error_auto_disables(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         from app.agent.channel.source_manager import add_source, record_fetch_error
 
-        await add_source(session_maker, "@ch", "https://feed.example.com/rss")
+        await add_source(session_maker, -1001111111111, "https://feed.example.com/rss")
         for i in range(5):
             await record_fetch_error(session_maker, "https://feed.example.com/rss", f"err{i}")
 
@@ -270,11 +272,13 @@ class TestSourceManager:
     async def test_seed_sources_from_env(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         from app.agent.channel.source_manager import seed_sources_from_env
 
-        added = await seed_sources_from_env(session_maker, "@ch", ["https://a.com/feed", "https://b.com/feed"])
+        added = await seed_sources_from_env(session_maker, -1001111111111, ["https://a.com/feed", "https://b.com/feed"])
         assert added == 2
 
         # Second seed should add 0
-        added2 = await seed_sources_from_env(session_maker, "@ch", ["https://a.com/feed", "https://b.com/feed"])
+        added2 = await seed_sources_from_env(
+            session_maker, -1001111111111, ["https://a.com/feed", "https://b.com/feed"]
+        )
         assert added2 == 0
 
 
@@ -325,7 +329,7 @@ class TestReviewFlow:
         post_id = await send_for_review(
             bot=mock_bot,
             review_chat_id=-1001234,
-            channel_id="@test",
+            channel_id=-1001234567890,
             post=sample_post,
             source_items=sample_content_items,
             session_maker=session_maker,
@@ -345,7 +349,7 @@ class TestReviewFlow:
         # Verify DB record
         async with session_maker() as session:
             saved = (await session.execute(select(ChannelPost))).scalar_one()
-            assert saved.channel_id == "@test"
+            assert saved.channel_id == -1001234567890
             assert saved.status == "draft"
             assert saved.review_message_id == 100
             assert saved.source_items is not None
@@ -361,7 +365,7 @@ class TestReviewFlow:
         # Create a post first
         async with session_maker() as session:
             post = ChannelPost(
-                channel_id="@test",
+                channel_id=-1001234567890,
                 external_id="ext1",
                 title="Test",
                 post_text="<b>Hello</b>",
@@ -388,12 +392,14 @@ class TestReviewFlow:
         from app.agent.channel.review import handle_approve
 
         async with session_maker() as session:
-            post = ChannelPost(channel_id="@test", external_id="ext1", title="T", post_text="text", status="approved")
+            post = ChannelPost(
+                channel_id=-1001234567890, external_id="ext1", title="T", post_text="text", status="approved"
+            )
             session.add(post)
             await session.commit()
             post_id = post.id
 
-        result = await handle_approve(mock_bot, post_id, "@ch", session_maker)
+        result = await handle_approve(mock_bot, post_id, -1001111111111, session_maker)
         assert result == "Already published."
         mock_bot.send_message.assert_not_called()
 
@@ -404,14 +410,14 @@ class TestReviewFlow:
     ) -> None:
         from app.agent.channel.review import handle_approve
 
-        result = await handle_approve(mock_bot, 999, "@ch", session_maker)
+        result = await handle_approve(mock_bot, 999, -1001111111111, session_maker)
         assert result == "Post not found."
 
     async def test_handle_reject(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         from app.agent.channel.review import handle_reject
 
         async with session_maker() as session:
-            post = ChannelPost(channel_id="@test", external_id="ext1", title="T", post_text="text")
+            post = ChannelPost(channel_id=-1001234567890, external_id="ext1", title="T", post_text="text")
             session.add(post)
             await session.commit()
             post_id = post.id
@@ -434,7 +440,7 @@ class TestReviewFlow:
         from app.agent.channel.review import handle_reject
 
         async with session_maker() as session:
-            post = ChannelPost(channel_id="@test", external_id="ext1", title="T", post_text="text")
+            post = ChannelPost(channel_id=-1001234567890, external_id="ext1", title="T", post_text="text")
             session.add(post)
             await session.commit()
             post_id = post.id
@@ -455,7 +461,7 @@ class TestReviewFlow:
 
         async with session_maker() as session:
             post = ChannelPost(
-                channel_id="@test",
+                channel_id=-1001234567890,
                 external_id="ext1",
                 title="T",
                 post_text="text",
@@ -495,7 +501,7 @@ class TestReviewFlow:
         from app.agent.channel.review import handle_delete
 
         async with session_maker() as session:
-            post = ChannelPost(channel_id="@test", external_id="ext1", title="T", post_text="text")
+            post = ChannelPost(channel_id=-1001234567890, external_id="ext1", title="T", post_text="text")
             post.approve(100)
             session.add(post)
             await session.commit()
@@ -517,7 +523,7 @@ class TestReviewFlow:
         from app.agent.channel.review import handle_delete
 
         async with session_maker() as session:
-            post = ChannelPost(channel_id="@test", external_id="ext1", title="T", post_text="text")
+            post = ChannelPost(channel_id=-1001234567890, external_id="ext1", title="T", post_text="text")
             session.add(post)
             await session.commit()
             post_id = post.id
@@ -536,7 +542,7 @@ class TestReviewFlow:
         mock_bot.delete_message.side_effect = Exception("Telegram error")
 
         async with session_maker() as session:
-            post = ChannelPost(channel_id="@test", external_id="ext1", title="T", post_text="text")
+            post = ChannelPost(channel_id=-1001234567890, external_id="ext1", title="T", post_text="text")
             session.add(post)
             await session.commit()
             post_id = post.id
@@ -559,13 +565,13 @@ class TestReviewFlow:
         from app.agent.channel.review import handle_approve
 
         async with session_maker() as session:
-            post = ChannelPost(channel_id="@test", external_id="ext1", title="T", post_text="text")
+            post = ChannelPost(channel_id=-1001234567890, external_id="ext1", title="T", post_text="text")
             session.add(post)
             await session.commit()
             post_id = post.id
 
         mock_bot.send_message.side_effect = Exception("Telegram API error")
-        result = await handle_approve(mock_bot, post_id, "@ch", session_maker)
+        result = await handle_approve(mock_bot, post_id, -1001111111111, session_maker)
         assert result == "Failed to publish."
 
     async def test_send_for_review_bot_error_returns_none(
@@ -582,7 +588,7 @@ class TestReviewFlow:
         post_id = await send_for_review(
             bot=mock_bot,
             review_chat_id=-1001234,
-            channel_id="@test",
+            channel_id=-1001234567890,
             post=sample_post,
             source_items=sample_content_items,
             session_maker=session_maker,
@@ -602,7 +608,7 @@ class TestReviewFlow:
         post_id = await send_for_review(
             bot=mock_bot,
             review_chat_id=-1001234,
-            channel_id="@test",
+            channel_id=-1001234567890,
             post=sample_post,
             source_items=[],
             session_maker=session_maker,
@@ -627,7 +633,7 @@ class TestReviewFlow:
 
         async with session_maker() as session:
             post = ChannelPost(
-                channel_id="@test",
+                channel_id=-1001234567890,
                 external_id="ext1",
                 title="T",
                 post_text="<b>Original</b>",
@@ -660,7 +666,7 @@ class TestReviewFlow:
         from app.agent.channel.review import handle_edit_request
 
         async with session_maker() as session:
-            post = ChannelPost(channel_id="@test", external_id="ext1", title="T", post_text="old")
+            post = ChannelPost(channel_id=-1001234567890, external_id="ext1", title="T", post_text="old")
             session.add(post)
             await session.commit()
             post_id = post.id
@@ -694,7 +700,7 @@ class TestReviewFlow:
         from app.agent.channel.review import handle_edit_request
 
         async with session_maker() as session:
-            post = ChannelPost(channel_id="@test", external_id="ext1", title="T", post_text="old")
+            post = ChannelPost(channel_id=-1001234567890, external_id="ext1", title="T", post_text="old")
             session.add(post)
             await session.commit()
             post_id = post.id
@@ -714,7 +720,7 @@ class TestReviewFlow:
 
         async with session_maker() as session:
             post = ChannelPost(
-                channel_id="@test",
+                channel_id=-1001234567890,
                 external_id="ext1",
                 title="T",
                 post_text="old",
@@ -742,7 +748,9 @@ class TestReviewFlow:
         from app.agent.channel.review import handle_regen
 
         async with session_maker() as session:
-            post = ChannelPost(channel_id="@test", external_id="ext1", title="T", post_text="old", source_items=None)
+            post = ChannelPost(
+                channel_id=-1001234567890, external_id="ext1", title="T", post_text="old", source_items=None
+            )
             session.add(post)
             await session.commit()
             post_id = post.id
@@ -769,7 +777,7 @@ class TestReviewFlow:
 
         async with session_maker() as session:
             post = ChannelPost(
-                channel_id="@test",
+                channel_id=-1001234567890,
                 external_id="ext1",
                 title="T",
                 post_text="old",
@@ -797,7 +805,7 @@ class TestReviewFlow:
 
         async with session_maker() as session:
             post = ChannelPost(
-                channel_id="@test",
+                channel_id=-1001234567890,
                 external_id="ext1",
                 title="T",
                 post_text="text",
@@ -807,7 +815,7 @@ class TestReviewFlow:
             await session.commit()
             post_id = post.id
 
-        result = await handle_approve(mock_bot, post_id, "@ch", session_maker)
+        result = await handle_approve(mock_bot, post_id, -1001111111111, session_maker)
         assert result == "Post is scheduled. Use 'Publish now' to send immediately."
         mock_bot.send_message.assert_not_called()
 
@@ -821,7 +829,7 @@ class TestReviewFlow:
 
         async with session_maker() as session:
             post = ChannelPost(
-                channel_id="@test",
+                channel_id=-1001234567890,
                 external_id="ext1",
                 title="T",
                 post_text="text",
@@ -844,7 +852,7 @@ class TestReviewFlow:
 
         async with session_maker() as session:
             post = ChannelPost(
-                channel_id="@test",
+                channel_id=-1001234567890,
                 external_id="ext1",
                 title="T",
                 post_text="text",
@@ -867,7 +875,7 @@ class TestReviewFlow:
 
         async with session_maker() as session:
             post = ChannelPost(
-                channel_id="@test",
+                channel_id=-1001234567890,
                 external_id="ext1",
                 title="T",
                 post_text="text",
@@ -891,7 +899,7 @@ class TestReviewFlow:
 
         async with session_maker() as session:
             post = ChannelPost(
-                channel_id="@test",
+                channel_id=-1001234567890,
                 external_id="ext1",
                 title="T",
                 post_text="text",
@@ -918,7 +926,7 @@ class TestReviewFlow:
 
         async with session_maker() as session:
             post = ChannelPost(
-                channel_id="@test",
+                channel_id=-1001234567890,
                 external_id="ext1",
                 title="T",
                 post_text="<b>Original</b>",
@@ -955,7 +963,7 @@ class TestReviewFlow:
 
         async with session_maker() as session:
             post = ChannelPost(
-                channel_id="@test",
+                channel_id=-1001234567890,
                 external_id="ext1",
                 title="T",
                 post_text="old",
@@ -985,7 +993,7 @@ class TestReviewFlow:
 class TestChannelSourceEnableDisable:
     async def test_enable_resets_error_count(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         async with session_maker() as session:
-            source = ChannelSource(channel_id="@test", url="https://x.com/feed", added_by="test")
+            source = ChannelSource(channel_id=-1001234567890, url="https://x.com/feed", added_by="test")
             source.error_count = 4
             source.enabled = False
             session.add(source)
@@ -997,7 +1005,7 @@ class TestChannelSourceEnableDisable:
 
     async def test_disable(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         async with session_maker() as session:
-            source = ChannelSource(channel_id="@test", url="https://x.com/feed", added_by="test")
+            source = ChannelSource(channel_id=-1001234567890, url="https://x.com/feed", added_by="test")
             session.add(source)
             await session.flush()
 
@@ -1006,7 +1014,7 @@ class TestChannelSourceEnableDisable:
 
     async def test_error_at_boundary_still_enabled(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         async with session_maker() as session:
-            source = ChannelSource(channel_id="@test", url="https://x.com/feed", added_by="test")
+            source = ChannelSource(channel_id=-1001234567890, url="https://x.com/feed", added_by="test")
             session.add(source)
             await session.flush()
 
@@ -1084,7 +1092,9 @@ class TestSourceDiscovery:
             ]
             mock_validate.side_effect = [True, False]  # first valid, second broken
 
-            added = await discover_and_add_sources("key", "@ch", "query", session_maker, model="perplexity/sonar")
+            added = await discover_and_add_sources(
+                "key", -1001111111111, "query", session_maker, model="perplexity/sonar"
+            )
             assert added == 1
 
             async with session_maker() as session:
@@ -1100,7 +1110,9 @@ class TestFeedbackSummary:
     async def test_no_posts_returns_none(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         from app.agent.channel.feedback import get_feedback_summary
 
-        result = await get_feedback_summary(session_maker, "@ch", "key", model="google/gemini-3.1-flash-lite-preview")
+        result = await get_feedback_summary(
+            session_maker, -1001111111111, "key", model="google/gemini-3.1-flash-lite-preview"
+        )
         assert result is None
 
     async def test_summarizes_feedback(
@@ -1111,7 +1123,7 @@ class TestFeedbackSummary:
         async with session_maker() as session:
             for i in range(3):
                 post = ChannelPost(
-                    channel_id="@ch",
+                    channel_id=-1001111111111,
                     external_id=f"ext{i}",
                     title=f"Post {i}",
                     post_text=f"text {i}",
@@ -1125,7 +1137,7 @@ class TestFeedbackSummary:
         with patch("httpx.AsyncClient") as mock_cls:
             mock_cls.return_value = mock_httpx_client("- Approves education content\n- Rejects offtopic")  # type: ignore[operator]
             summary = await get_feedback_summary(
-                session_maker, "@ch", "key", model="google/gemini-3.1-flash-lite-preview"
+                session_maker, -1001111111111, "key", model="google/gemini-3.1-flash-lite-preview"
             )
             assert summary is not None
             assert "Approves" in summary
@@ -1143,14 +1155,14 @@ class TestFeedbackSummary:
         from app.agent.channel.feedback import get_feedback_summary
 
         async with session_maker() as session:
-            post = ChannelPost(channel_id="@ch", external_id="e1", title="T", post_text="t", status="approved")
+            post = ChannelPost(channel_id=-1001111111111, external_id="e1", title="T", post_text="t", status="approved")
             session.add(post)
             await session.commit()
 
         with patch("httpx.AsyncClient") as mock_cls:
             mock_cls.return_value = mock_httpx_client(raise_error=True)  # type: ignore[operator]
             result = await get_feedback_summary(
-                session_maker, "@ch", "key", model="google/gemini-3.1-flash-lite-preview"
+                session_maker, -1001111111111, "key", model="google/gemini-3.1-flash-lite-preview"
             )
             assert result is None
 
@@ -1293,7 +1305,7 @@ class TestContentItem:
 class TestRelevanceScoring:
     async def test_boost_relevance_increases_score(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         async with session_maker() as session:
-            source = ChannelSource(channel_id="@test", url="https://x.com/feed", added_by="test")
+            source = ChannelSource(channel_id=-1001234567890, url="https://x.com/feed", added_by="test")
             session.add(source)
             await session.flush()
 
@@ -1303,7 +1315,7 @@ class TestRelevanceScoring:
 
     async def test_boost_relevance_caps_at_2(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         async with session_maker() as session:
-            source = ChannelSource(channel_id="@test", url="https://x.com/feed", added_by="test")
+            source = ChannelSource(channel_id=-1001234567890, url="https://x.com/feed", added_by="test")
             source.relevance_score = 1.95
             session.add(source)
             await session.flush()
@@ -1317,7 +1329,7 @@ class TestRelevanceScoring:
 
     async def test_penalize_relevance_decreases_score(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         async with session_maker() as session:
-            source = ChannelSource(channel_id="@test", url="https://x.com/feed", added_by="test")
+            source = ChannelSource(channel_id=-1001234567890, url="https://x.com/feed", added_by="test")
             session.add(source)
             await session.flush()
 
@@ -1327,7 +1339,7 @@ class TestRelevanceScoring:
 
     async def test_penalize_relevance_floors_at_0(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         async with session_maker() as session:
-            source = ChannelSource(channel_id="@test", url="https://x.com/feed", added_by="test")
+            source = ChannelSource(channel_id=-1001234567890, url="https://x.com/feed", added_by="test")
             source.relevance_score = 0.1
             session.add(source)
             await session.flush()
@@ -1340,7 +1352,7 @@ class TestRelevanceScoring:
         self, session_maker: async_sessionmaker[AsyncSession]
     ) -> None:
         async with session_maker() as session:
-            source = ChannelSource(channel_id="@test", url="https://x.com/feed", added_by="test")
+            source = ChannelSource(channel_id=-1001234567890, url="https://x.com/feed", added_by="test")
             source.relevance_score = 0.4
             session.add(source)
             await session.flush()
@@ -1353,7 +1365,7 @@ class TestRelevanceScoring:
     async def test_update_source_relevance_approved(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         from app.agent.channel.source_manager import add_source, update_source_relevance
 
-        await add_source(session_maker, "@ch", "https://good.com/feed")
+        await add_source(session_maker, -1001111111111, "https://good.com/feed")
         await update_source_relevance(session_maker, ["https://good.com/feed"], approved=True)
 
         async with session_maker() as session:
@@ -1363,7 +1375,7 @@ class TestRelevanceScoring:
     async def test_update_source_relevance_rejected(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         from app.agent.channel.source_manager import add_source, update_source_relevance
 
-        await add_source(session_maker, "@ch", "https://bad.com/feed")
+        await add_source(session_maker, -1001111111111, "https://bad.com/feed")
         await update_source_relevance(session_maker, ["https://bad.com/feed"], approved=False)
 
         async with session_maker() as session:
@@ -1384,16 +1396,16 @@ class TestRelevanceScoring:
         from app.agent.channel.source_manager import get_active_sources
 
         async with session_maker() as session:
-            s1 = ChannelSource(channel_id="@ch", url="https://low.com/feed", added_by="test")
+            s1 = ChannelSource(channel_id=-1001111111111, url="https://low.com/feed", added_by="test")
             s1.relevance_score = 0.5
-            s2 = ChannelSource(channel_id="@ch", url="https://high.com/feed", added_by="test")
+            s2 = ChannelSource(channel_id=-1001111111111, url="https://high.com/feed", added_by="test")
             s2.relevance_score = 1.8
-            s3 = ChannelSource(channel_id="@ch", url="https://mid.com/feed", added_by="test")
+            s3 = ChannelSource(channel_id=-1001111111111, url="https://mid.com/feed", added_by="test")
             s3.relevance_score = 1.0
             session.add_all([s1, s2, s3])
             await session.commit()
 
-        sources = await get_active_sources(session_maker, "@ch")
+        sources = await get_active_sources(session_maker, -1001111111111)
         assert len(sources) == 3
         assert sources[0].url == "https://high.com/feed"
         assert sources[1].url == "https://mid.com/feed"

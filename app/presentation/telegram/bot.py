@@ -131,6 +131,52 @@ def _init_escalation_recovery(session_maker: async_sessionmaker[AsyncSession]) -
     logger.info("escalation_service_configured")
 
 
+async def _resolve_channel_ids(
+    bot: Bot,
+    session_maker: async_sessionmaker[AsyncSession],
+) -> None:
+    """Auto-resolve channel @usernames to numeric IDs via Bot API on startup."""
+    from sqlalchemy import select, update
+
+    from app.infrastructure.db.models import Channel, ChannelPost, ChannelSource
+
+    async with session_maker() as session:
+        result = await session.execute(select(Channel))
+        channels = list(result.scalars().all())
+
+    for channel in channels:
+        # Skip if already numeric (normal case after migration)
+        if isinstance(channel.telegram_id, int) and channel.telegram_id != 0:
+            continue
+
+        # Try to resolve via username
+        username = channel.username
+        if not username:
+            logger.warning("channel_no_username_to_resolve", channel_id=channel.telegram_id)
+            continue
+
+        try:
+            chat_info = await bot.get_chat(f"@{username}")
+            numeric_id = chat_info.id
+        except Exception:
+            logger.exception("channel_resolve_failed", username=username)
+            continue
+
+        old_id = channel.telegram_id
+        async with session_maker() as session:
+            await session.execute(update(Channel).where(Channel.id == channel.id).values(telegram_id=numeric_id))
+            # Update FK references
+            await session.execute(
+                update(ChannelPost).where(ChannelPost.channel_id == old_id).values(channel_id=numeric_id)
+            )
+            await session.execute(
+                update(ChannelSource).where(ChannelSource.channel_id == old_id).values(channel_id=numeric_id)
+            )
+            await session.commit()
+
+        logger.info("channel_id_resolved", username=username, old_id=old_id, new_id=numeric_id)
+
+
 def _init_channel_orchestrator(
     main_bot: Bot,
     session_maker: async_sessionmaker[AsyncSession],
@@ -216,6 +262,9 @@ async def main() -> None:
         include_review_router=not assistant_enabled,
     )
     setup_container(session_maker, main_bot)
+
+    # Phase 2b: Auto-resolve channel telegram_ids via Bot API
+    await _resolve_channel_ids(main_bot, session_maker)
 
     # Phase 3: Initialize channel orchestrator
     # We need to know the assistant bot for review_bot, but assistant needs

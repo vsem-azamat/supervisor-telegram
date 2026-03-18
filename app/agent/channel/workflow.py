@@ -54,7 +54,7 @@ async def fetch_sources(state: State) -> State:
     )
     from app.agent.channel.sources import fetch_all_sources
 
-    channel_id: str = str(state["channel_id"])
+    channel_id: int = state["channel_id"]
     config: ChannelAgentSettings = state["config"]
     channel: Channel = state["channel"]
     api_key: str = state["api_key"]
@@ -157,7 +157,7 @@ async def split_and_enrich_topics(state: State) -> State:
 
     api_key: str = state["api_key"]
     config: ChannelAgentSettings = state["config"]
-    channel_id: str = str(state["channel_id"])
+    channel_id: int = state["channel_id"]
     session_maker: async_sessionmaker[AsyncSession] = state["session_maker"]
     brave_key: str = state.get("brave_api_key", "")
 
@@ -243,7 +243,7 @@ async def generate_post(state: State) -> State:
     api_key: str = state["api_key"]
     config: ChannelAgentSettings = state["config"]
     channel: Channel = state["channel"]
-    channel_id: str = str(state["channel_id"])
+    channel_id: int = state["channel_id"]
     session_maker: async_sessionmaker[AsyncSession] = state["session_maker"]
 
     from app.agent.channel.config import language_name
@@ -352,7 +352,7 @@ async def send_for_review(state: State) -> State:
 
     review_bot: Bot = state["review_bot"]
     publish_bot: Bot = state["publish_bot"]
-    channel_id: str = str(state["channel_id"])
+    channel_id: int = state["channel_id"]
     channel: Channel = state["channel"]
     session_maker: async_sessionmaker[AsyncSession] = state["session_maker"]
     relevant = state["relevant_items"]
@@ -534,7 +534,7 @@ def build_content_pipeline_graph() -> Any:
     is_rejected = Condition.lmda(_is_rejected, ["review_decision"])
 
     return (
-        GraphBuilder()  # type: ignore[no-untyped-call]
+        GraphBuilder()
         .with_actions(
             fetch_sources=fetch_sources,
             split_and_enrich_topics=split_and_enrich_topics,
@@ -586,7 +586,7 @@ def get_pipeline_graph() -> Any:
 
 
 def create_pipeline_app(
-    channel_id: str,
+    channel_id: int,
     session_maker: async_sessionmaker[AsyncSession],
     publish_bot: Bot,
     api_key: str,
@@ -625,7 +625,7 @@ def create_pipeline_app(
     if resume_state:
         initial_state.update(resume_state)
 
-    builder: Any = ApplicationBuilder().with_graph(graph).with_state(**initial_state).with_entrypoint(entrypoint)  # type: ignore[no-untyped-call]
+    builder: Any = ApplicationBuilder().with_graph(graph).with_state(**initial_state).with_entrypoint(entrypoint)
 
     if app_id:
         builder = builder.with_identifiers(app_id=app_id)

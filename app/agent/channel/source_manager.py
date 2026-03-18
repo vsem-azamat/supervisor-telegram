@@ -19,7 +19,7 @@ MAX_ERRORS_BEFORE_DISABLE = 5
 
 async def get_active_sources(
     session_maker: async_sessionmaker[AsyncSession],
-    channel_id: str,
+    channel_id: int,
 ) -> list[ChannelSource]:
     """Get all enabled sources for a channel, ordered by relevance score descending."""
     async with session_maker() as session:
@@ -71,7 +71,7 @@ async def record_fetch_error(
 
 async def add_source(
     session_maker: async_sessionmaker[AsyncSession],
-    channel_id: str,
+    channel_id: int,
     url: str,
     title: str | None = None,
     added_by: str = "agent",
@@ -98,7 +98,7 @@ async def add_source(
 async def remove_source(
     session_maker: async_sessionmaker[AsyncSession],
     url: str,
-    channel_id: str | None = None,
+    channel_id: int | None = None,
 ) -> bool:
     """Remove a source by URL (optionally scoped to channel). Returns True if found and deleted."""
     async with session_maker() as session:
@@ -118,7 +118,7 @@ async def remove_source(
 
 async def seed_sources_from_env(
     session_maker: async_sessionmaker[AsyncSession],
-    channel_id: str,
+    channel_id: int,
     rss_urls: list[str],
 ) -> int:
     """Seed sources from env config (only adds new ones). Returns count added."""

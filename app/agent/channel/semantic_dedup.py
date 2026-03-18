@@ -30,7 +30,7 @@ def format_vector(embedding: list[float]) -> str:
 async def filter_semantic_duplicates(
     items: list[ContentItem],
     *,
-    channel_id: str,
+    channel_id: int,
     api_key: str,
     session_maker: async_sessionmaker[AsyncSession],
     model: str = EMBEDDING_MODEL,
@@ -92,7 +92,7 @@ async def filter_semantic_duplicates(
 async def _find_similar_indices(
     *,
     embeddings: list[list[float]],
-    channel_id: str,
+    channel_id: int,
     session_maker: async_sessionmaker[AsyncSession],
     threshold: float,
     lookback_days: int,
@@ -141,7 +141,7 @@ async def _find_similar_indices(
 async def find_nearest_posts(
     text_for_embedding: str,
     *,
-    channel_id: str,
+    channel_id: int,
     api_key: str,
     session_maker: async_sessionmaker[AsyncSession],
     model: str = EMBEDDING_MODEL,

@@ -13,7 +13,7 @@ def register_dedup_tools(agent: Agent[AssistantDeps, str]) -> None:
     """Register dedup, search & analytics tools on the agent."""
 
     @agent.tool
-    async def check_duplicate(ctx: RunContext[AssistantDeps], channel_id: str, text: str) -> str:
+    async def check_duplicate(ctx: RunContext[AssistantDeps], channel_id: int, text: str) -> str:
         """Check if a text is semantically similar to recent posts. Returns similarity score."""
         error = await _validate_channel_id(ctx, channel_id)
         if error:
@@ -42,7 +42,7 @@ def register_dedup_tools(agent: Agent[AssistantDeps, str]) -> None:
             return "Не удалось проверить дубликаты. Проверьте логи."
 
     @agent.tool
-    async def list_recent_topics(ctx: RunContext[AssistantDeps], channel_id: str, days: int = 7) -> str:
+    async def list_recent_topics(ctx: RunContext[AssistantDeps], channel_id: int, days: int = 7) -> str:
         """List recent post topics for a channel to avoid repetition. Shows titles and dates."""
         error = await _validate_channel_id(ctx, channel_id)
         if error:
@@ -77,7 +77,7 @@ def register_dedup_tools(agent: Agent[AssistantDeps, str]) -> None:
             return "Не удалось получить список тем. Проверьте логи."
 
     @agent.tool
-    async def backfill_embeddings(ctx: RunContext[AssistantDeps], channel_id: str, limit: int = 50) -> str:
+    async def backfill_embeddings(ctx: RunContext[AssistantDeps], channel_id: int, limit: int = 50) -> str:
         """Generate embeddings for posts that don't have them yet. Useful after enabling semantic dedup."""
         error = await _validate_channel_id(ctx, channel_id)
         if error:

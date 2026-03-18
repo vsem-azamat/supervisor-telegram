@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 from datetime import UTC, datetime
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -21,10 +22,10 @@ from app.infrastructure.db.models import Channel
 # ---------------------------------------------------------------------------
 
 
-def _make_channel(**kwargs: object) -> Channel:
+def _make_channel(**kwargs: Any) -> Channel:
     """Create a Channel model instance without DB."""
-    defaults = {
-        "telegram_id": "-1001234567890",
+    defaults: dict[str, Any] = {
+        "telegram_id": -1001234567890,
         "name": "Test Channel",
         "description": "Test channel for unit tests",
         "language": "en",
@@ -32,7 +33,7 @@ def _make_channel(**kwargs: object) -> Channel:
         "max_posts_per_day": 3,
     }
     defaults.update(kwargs)
-    return Channel(**defaults)  # type: ignore[arg-type]
+    return Channel(**defaults)
 
 
 @pytest.fixture
@@ -139,7 +140,7 @@ class TestSingleChannelOrchestrator:
         agent_settings: ChannelAgentSettings,
         mock_session_maker: MagicMock,
     ):
-        ch = _make_channel(telegram_id="")
+        ch = _make_channel(telegram_id=0)
         orch = SingleChannelOrchestrator(
             publish_bot=mock_bot,
             config=agent_settings,
@@ -209,8 +210,8 @@ class TestChannelOrchestrator:
         settings = ChannelAgentSettings(enabled=True)
         orch = ChannelOrchestrator(publish_bot=mock_bot, config=settings, api_key="k", session_maker=mock_session_maker)
 
-        ch1 = _make_channel(telegram_id="@chan1", name="Chan1")
-        ch2 = _make_channel(telegram_id="@chan2", name="Chan2")
+        ch1 = _make_channel(telegram_id=-1001111111111, name="Chan1")
+        ch2 = _make_channel(telegram_id=-1002222222222, name="Chan2")
 
         with patch(
             "app.agent.channel.orchestrator.get_active_channels", new_callable=AsyncMock, return_value=[ch1, ch2]
@@ -220,7 +221,7 @@ class TestChannelOrchestrator:
 
         assert len(orch.orchestrators) == 2
         ids = sorted(o.channel_id for o in orch.orchestrators)
-        assert ids == ["@chan1", "@chan2"]
+        assert ids == [-1002222222222, -1001111111111]
 
     async def test_refresh_stops_removed_channels(
         self,
@@ -230,8 +231,8 @@ class TestChannelOrchestrator:
         settings = ChannelAgentSettings(enabled=True)
         orch = ChannelOrchestrator(publish_bot=mock_bot, config=settings, api_key="k", session_maker=mock_session_maker)
 
-        ch1 = _make_channel(telegram_id="@chan1", name="Chan1")
-        ch2 = _make_channel(telegram_id="@chan2", name="Chan2")
+        ch1 = _make_channel(telegram_id=-1001111111111, name="Chan1")
+        ch2 = _make_channel(telegram_id=-1002222222222, name="Chan2")
 
         with patch(
             "app.agent.channel.orchestrator.get_active_channels", new_callable=AsyncMock, return_value=[ch1, ch2]
@@ -249,7 +250,7 @@ class TestChannelOrchestrator:
             await orch._refresh_channels()
 
         assert len(orch.orchestrators) == 1
-        assert orch.orchestrators[0].channel_id == "@chan1"
+        assert orch.orchestrators[0].channel_id == -1001111111111
 
     async def test_stop_stops_all(
         self,
@@ -259,7 +260,7 @@ class TestChannelOrchestrator:
         settings = ChannelAgentSettings(enabled=True)
         orch = ChannelOrchestrator(publish_bot=mock_bot, config=settings, api_key="k", session_maker=mock_session_maker)
 
-        ch1 = _make_channel(telegram_id="@chan1", name="Chan1")
+        ch1 = _make_channel(telegram_id=-1001111111111, name="Chan1")
 
         with patch("app.agent.channel.orchestrator.get_active_channels", new_callable=AsyncMock, return_value=[ch1]):
             with patch.object(SingleChannelOrchestrator, "start"):
@@ -281,7 +282,7 @@ class TestChannelOrchestrator:
 class TestTwoBotOrchestrator:
     def test_review_bot_defaults_to_publish_bot(self):
         bot = AsyncMock()
-        ch = Channel(telegram_id="-100123", name="Test", language="en")  # type: ignore[call-arg]
+        ch = Channel(telegram_id=-100123, name="Test", language="en")
         orch = SingleChannelOrchestrator(
             publish_bot=bot,
             config=ChannelAgentSettings(enabled=True),
@@ -295,7 +296,7 @@ class TestTwoBotOrchestrator:
     def test_separate_review_bot(self):
         pub_bot = AsyncMock()
         rev_bot = AsyncMock()
-        ch = Channel(telegram_id="-100123", name="Test", language="en")  # type: ignore[call-arg]
+        ch = Channel(telegram_id=-100123, name="Test", language="en")
         orch = SingleChannelOrchestrator(
             publish_bot=pub_bot,
             config=ChannelAgentSettings(enabled=True),
@@ -312,7 +313,7 @@ class TestTwoBotOrchestrator:
         from app.core.enums import ReviewDecision
 
         bot = AsyncMock()
-        ch = Channel(telegram_id="-100123", name="Test", language="en")  # type: ignore[call-arg]
+        ch = Channel(telegram_id=-100123, name="Test", language="en")
         orch = SingleChannelOrchestrator(
             publish_bot=bot,
             config=ChannelAgentSettings(enabled=True),
@@ -322,7 +323,7 @@ class TestTwoBotOrchestrator:
         )
 
         # Inject a pending review
-        orch._pending_reviews[42] = {"channel_id": "-100123", "post_id": 42}
+        orch._pending_reviews[42] = {"channel_id": -100123, "post_id": 42}
 
         # Mock create_pipeline_app to capture the resume_state
         captured_state: dict = {}

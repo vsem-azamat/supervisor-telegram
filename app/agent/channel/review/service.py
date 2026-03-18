@@ -72,7 +72,7 @@ def extract_source_urls(post: ChannelPost) -> list[str]:
 
 
 async def create_review_post(
-    channel_id: str,
+    channel_id: int,
     post: GeneratedPost,
     source_items: list[ContentItem],
     review_chat_id: int | str,
@@ -235,7 +235,7 @@ async def reject_post(
                     if ch:
                         from app.agent.channel.schedule_manager import _resolve_chat_id
 
-                        chat_id = await _resolve_chat_id(ch, tc)
+                        chat_id = _resolve_chat_id(ch)
                         await tc.delete_scheduled_messages(chat_id, [scheduled_tg_id])
             except Exception:
                 logger.warning("cancel_scheduled_on_reject_failed", post_id=post_id, exc_info=True)
@@ -344,6 +344,8 @@ async def edit_post_text(
             if not new_text:
                 return "Edit failed.", None
 
+            if not isinstance(new_text, str):
+                new_text = str(new_text)
             new_text = enforce_footer_and_length(new_text, effective_footer)
             post.update_text(new_text)
 

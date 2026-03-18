@@ -1,14 +1,15 @@
 """Telegram testing helpers for simulating bot events and messages."""
 
 from datetime import UTC, datetime
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from aiogram import Bot
+from aiogram.enums import ChatMemberStatus
 from aiogram.types import (
     CallbackQuery,
     Chat,
-    ChatMember,
     ChatMemberLeft,
     ChatMemberMember,
     ChatMemberUpdated,
@@ -17,6 +18,9 @@ from aiogram.types import (
     Update,
     User,
 )
+
+# Union of all ChatMember subtypes, matching aiogram's ChatMemberUnion
+ChatMemberUnion = ChatMemberLeft | ChatMemberMember
 
 
 class TelegramObjectFactory:
@@ -84,10 +88,10 @@ class TelegramObjectFactory:
         chat: Chat | None = None,
         date: datetime | None = None,
         text: str | None = "Test message",
-        reply_to_message: Message | None = None,
+        reply_to_message: Any = None,
         entities: list[MessageEntity] | None = None,
-        **kwargs,
-    ) -> Message:
+        **kwargs: Any,
+    ) -> Any:
         """Create a mock Telegram Message object."""
         if user is None:
             user = TelegramObjectFactory.create_user()
@@ -124,8 +128,8 @@ class TelegramObjectFactory:
 
     @staticmethod
     def create_command_message(
-        command: str, args: str = "", user: User | None = None, chat: Chat | None = None, **kwargs
-    ) -> Message:
+        command: str, args: str = "", user: User | None = None, chat: Chat | None = None, **kwargs: Any
+    ) -> Any:
         """Create a message with a bot command."""
         text = f"/{command}"
         if args:
@@ -142,8 +146,8 @@ class TelegramObjectFactory:
         replied_user: User | None = None,
         replying_user: User | None = None,
         chat: Chat | None = None,
-        **kwargs,
-    ) -> Message:
+        **kwargs: Any,
+    ) -> Any:
         """Create a message that replies to another message."""
         if replied_user is None:
             replied_user = TelegramObjectFactory.create_user(id=987654321, username="replieduser")
@@ -158,10 +162,10 @@ class TelegramObjectFactory:
     def create_callback_query(
         id: str = "callback_123",
         user: User | None = None,
-        message: Message | None = None,
+        message: Any = None,
         data: str | None = "test_callback",
-        **kwargs,
-    ) -> CallbackQuery:
+        **kwargs: Any,
+    ) -> Any:
         """Create a mock CallbackQuery object."""
         if user is None:
             user = TelegramObjectFactory.create_user()
@@ -184,8 +188,8 @@ class TelegramObjectFactory:
     def create_chat_member_updated(
         chat: Chat | None = None,
         user: User | None = None,
-        old_chat_member: ChatMember | None = None,
-        new_chat_member: ChatMember | None = None,
+        old_chat_member: ChatMemberUnion | None = None,
+        new_chat_member: ChatMemberUnion | None = None,
         date: datetime | None = None,
         **kwargs,
     ) -> ChatMemberUpdated:
@@ -199,9 +203,9 @@ class TelegramObjectFactory:
 
         # Create default chat members if not provided
         if old_chat_member is None:
-            old_chat_member = ChatMemberLeft(user=user, status="left")
+            old_chat_member = ChatMemberLeft(user=user, status=ChatMemberStatus.LEFT)
         if new_chat_member is None:
-            new_chat_member = ChatMemberMember(user=user, status="member")
+            new_chat_member = ChatMemberMember(user=user, status=ChatMemberStatus.MEMBER)
 
         return ChatMemberUpdated(
             chat=chat,
@@ -277,8 +281,8 @@ class TelegramEventSimulator:
         return self.factory.create_chat_member_updated(
             chat=chat,
             user=inviter,
-            old_chat_member=ChatMemberLeft(user=user),
-            new_chat_member=ChatMemberMember(user=user),
+            old_chat_member=ChatMemberLeft(user=user, status=ChatMemberStatus.LEFT),
+            new_chat_member=ChatMemberMember(user=user, status=ChatMemberStatus.MEMBER),
         )
 
     async def simulate_moderation_action(
@@ -288,7 +292,7 @@ class TelegramEventSimulator:
         target_user: User | None = None,
         chat: Chat | None = None,
         args: str = "",
-    ) -> Message:
+    ) -> Any:
         """Simulate a moderation command."""
         if admin is None:
             admin = self.factory.create_user(id=888888888, username="admin")

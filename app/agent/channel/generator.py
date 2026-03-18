@@ -191,7 +191,7 @@ def _create_generation_agent(
         channel_name=channel_name or "Konnekt",
         channel_context=channel_context or _DEFAULT_GENERATION_CONTEXT,
     )
-    return Agent(llm, system_prompt=prompt, output_type=GeneratedPost, model_settings={"temperature": 0.3})
+    return Agent(llm, system_prompt=prompt, output_type=GeneratedPost, model_settings={"temperature": 0.3})  # type: ignore[return-value]
 
 
 async def screen_items(
@@ -241,7 +241,7 @@ async def screen_items(
 
         import json
 
-        scores_raw = json.loads(content)
+        scores_raw = content if isinstance(content, dict) else json.loads(content)
         if not isinstance(scores_raw, dict):
             raise ScreeningError(f"Expected dict, got {type(scores_raw).__name__}")
         scores: dict[str, int] = scores_raw
