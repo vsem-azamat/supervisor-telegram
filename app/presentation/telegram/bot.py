@@ -145,8 +145,8 @@ async def _resolve_channel_ids(
         channels = list(result.scalars().all())
 
     for channel in channels:
-        # Skip if already numeric (normal case after migration)
-        if isinstance(channel.telegram_id, int) and channel.telegram_id != 0:
+        # Skip if already resolved (valid Telegram ID)
+        if channel.telegram_id is not None:
             continue
 
         # Try to resolve via username
