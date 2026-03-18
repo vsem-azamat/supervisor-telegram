@@ -243,6 +243,13 @@ class TestSchedulePost:
         ch = MagicMock()
         ch.telegram_id = "@test_channel"
 
+        # Telethon resolves @username to entity with numeric id
+        entity = MagicMock()
+        entity.id = 123456
+        mock_telethon._client = MagicMock()
+        mock_telethon._client.get_entity = AsyncMock(return_value=entity)
+        mock_telethon.send_scheduled_message = AsyncMock(return_value=MagicMock(message_id=99))
+
         async with session_maker() as session:
             post = ChannelPost(channel_id="@test_channel", external_id="e1", title="T", post_text="text")
             session.add(post)
@@ -250,7 +257,8 @@ class TestSchedulePost:
             post_id = post.id
 
         result = await schedule_post(mock_telethon, session_maker, post_id, ch, utc_now())
-        assert "numeric ID" in result
+        assert "Scheduled" in result
+        mock_telethon._client.get_entity.assert_awaited_once_with("@test_channel")
 
 
 # ── cancel_scheduled_post tests ──────────────────────────────────────
