@@ -120,7 +120,7 @@ async def schedule_post(
     from app.infrastructure.db.models import ChannelPost
 
     async with session_maker() as session:
-        result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))
+        result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id).with_for_update())
         post: ChannelPost | None = result.scalar_one_or_none()
         if not post:
             return "Post not found."
