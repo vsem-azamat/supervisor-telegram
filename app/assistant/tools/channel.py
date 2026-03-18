@@ -78,6 +78,14 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
         """Create a new channel. telegram_id: numeric Telegram chat ID (e.g. -1001234567890). posting_schedule: comma-separated HH:MM. username: optional @username without the @."""
         from app.agent.channel.channel_repo import create_channel
 
+        # Auto-resolve username from Bot API if not provided
+        if not username:
+            try:
+                chat_info = await ctx.deps.main_bot.get_chat(telegram_id)
+                username = (chat_info.username or "").lstrip("@")
+            except Exception:
+                logger.warning("add_channel_username_resolve_failed", telegram_id=telegram_id)
+
         schedule_list = [t.strip() for t in posting_schedule.split(",") if t.strip()] or None
         try:
             ch = await create_channel(
