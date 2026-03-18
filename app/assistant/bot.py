@@ -296,15 +296,15 @@ def setup_assistant(
         return None
 
     _agent = create_assistant_agent()
+    bot = Bot(token=assistant_settings.token)
     _deps = AssistantDeps(
         session_maker=session_maker,
         main_bot=main_bot,
+        review_bot=bot,
         channel_orchestrator=channel_orchestrator,
         telethon=telethon_client,
     )
     _super_admins = set(settings.admin.super_admins)
-
-    bot = Bot(token=assistant_settings.token)
     dp = Dispatcher()
     dp.include_router(router)
 

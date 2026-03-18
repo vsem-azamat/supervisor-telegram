@@ -441,7 +441,7 @@ def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:
 
             try:
                 post_id = await _send_review(
-                    bot=ctx.deps.main_bot,
+                    bot=ctx.deps.review_bot or ctx.deps.main_bot,
                     review_chat_id=review_chat_id,
                     channel_id=channel_id,
                     post=post,
