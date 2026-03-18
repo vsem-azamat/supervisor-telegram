@@ -17,7 +17,7 @@ from app.agent.schemas import ActionType, AgentEvent, EventType
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.text import escape_html
-from app.presentation.telegram.utils.other import sleep_and_delete
+from app.presentation.telegram.utils.other import get_chat_link, get_message_link, sleep_and_delete
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -78,25 +78,28 @@ async def handle_report(
     if len(msg_text) > 500:
         msg_text = msg_text[:500] + "..."
 
-    chat_label = escape_html(message.chat.title) if message.chat.title else str(message.chat.id)
+    chat_title = escape_html(message.chat.title) if message.chat.title else str(message.chat.id)
+    chat_link = get_chat_link(message)
+    message_link = get_message_link(target)
     username_part = f" (@{escape_html(target_user.username)})" if target_user.username else ""
+    user_link = f'<a href="tg://user?id={target_user.id}">{escape_html(display_name)}</a>'
 
     summary = (
         f"📢 <b>{event_label}</b>\n\n"
-        f"💬 Чат: {chat_label}\n"
-        f"👤 Пользователь: {escape_html(display_name)}{username_part}\n"
+        f'💬 Чат: <a href="{chat_link}">{chat_title}</a>\n'
+        f"👤 Пользователь: {user_link}{username_part}\n"
         f"🆔 ID: <code>{target_user.id}</code>\n"
-        f"📝 Отправил: {escape_html(reporter_name)}\n\n"
+        f"📝 Отправил: {escape_html(reporter_name)}\n"
+        f'🔗 <a href="{message_link}">Перейти к сообщению</a>\n\n'
         f"📄 Сообщение:\n<blockquote>{escape_html(msg_text)}</blockquote>"
     )
 
-    # Send to first super admin
-    if settings.admin.super_admins:
-        admin_chat_id = settings.admin.super_admins[0]
-        try:
-            await bot.send_message(admin_chat_id, summary)
-        except Exception as e:
-            logger.error("Failed to forward report to admin", error=str(e))
+    # Send to admin report chat
+    try:
+        admin_chat_id = settings.admin.default_report_chat_id
+        await bot.send_message(admin_chat_id, summary)
+    except Exception as e:
+        logger.error("Failed to forward report to admin", error=str(e))
 
     # Acknowledge in chat
     answer = await message.answer("📢 Жалоба отправлена администратору.")

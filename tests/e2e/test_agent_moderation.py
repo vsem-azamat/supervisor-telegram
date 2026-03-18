@@ -293,6 +293,8 @@ class TestReportCommand:
         admin_text = admin_msg.params.get("text", "")
         assert "Report" in admin_text
         assert "Target" in admin_text or str(TARGET_USER_ID) in admin_text
+        assert "t.me/" in admin_text  # chat and message links present
+        assert "Перейти к сообщению" in admin_text
 
         # Chat acknowledgment
         chat_msg = next(

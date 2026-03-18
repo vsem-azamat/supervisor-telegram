@@ -13,6 +13,7 @@ os.environ.update(
         "DB_PORT": "5432",
         "MODERATOR_BOT_TOKEN": "123456:ABC-DEF1234567890",
         "ADMIN_SUPER_ADMINS": "[123456789, 987654321]",  # JSON format for list
+        "ADMIN_REPORT_CHAT_ID": "123456789",
         "LOG_LEVEL": "ERROR",  # Reduce logging noise in tests
         "APP_ENVIRONMENT": "test",
     }
