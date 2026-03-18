@@ -128,6 +128,10 @@ async def schedule_post(
             return "Already published."
         if post.status == PostStatus.SCHEDULED:
             return "Already scheduled."
+        if post.status == PostStatus.REJECTED:
+            return "Post was rejected — cannot schedule."
+        if post.status == PostStatus.SKIPPED:
+            return "Post was skipped — cannot schedule."
 
         try:
             chat_id = _resolve_chat_id(channel)

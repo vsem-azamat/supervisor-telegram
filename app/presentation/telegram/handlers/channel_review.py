@@ -128,7 +128,7 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
             ]
         )
         await callback.message.edit_reply_markup(reply_markup=confirm_kb)
-        await callback.answer()
+        await callback.answer("Choose publish method")
 
     elif action == "confirm_publish":
         try:
@@ -171,6 +171,9 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
             await callback.answer(result, show_alert=True)
 
             if "Scheduled" in result:
+                from app.agent.channel.review.agent import clear_review_conversation
+
+                clear_review_conversation(post_id)
                 with contextlib.suppress(Exception):
                     await callback.message.edit_reply_markup(reply_markup=None)
         except Exception:
@@ -504,8 +507,7 @@ def _resolve_post_id_from_reply(reply_msg: Message) -> int | None:
                 if btn.callback_data:
                     try:
                         rv = ReviewAction.unpack(btn.callback_data)
-                        if rv.action == "approve":
-                            return rv.post_id
+                        return rv.post_id
                     except (ValueError, KeyError):
                         pass
 
