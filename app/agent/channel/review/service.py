@@ -246,7 +246,7 @@ async def delete_post(
     post_id: int,
     session_maker: async_sessionmaker[AsyncSession],
 ) -> tuple[str, ChannelPost | None]:
-    """Delete a post from DB. Returns (status_message, deleted_post_or_None).
+    """Soft-delete a post (set status=SKIPPED). Keeps it in DB for dedup.
 
     The caller is responsible for removing the Telegram review message.
     """
@@ -259,16 +259,14 @@ async def delete_post(
             return "Post not found.", None
         if post.status == PostStatus.APPROVED:
             return "Already published — cannot delete.", None
+        if post.status == PostStatus.SKIPPED:
+            return "Already skipped.", None
 
-        review_msg_id = post.review_message_id
-        # Create a minimal copy of info needed before deletion
-        deleted_info = type("DeletedPostInfo", (), {"review_message_id": review_msg_id})()  # noqa: E501
-
-        await session.delete(post)
+        post.skip()
         await session.commit()
-        logger.info("post_deleted", post_id=post_id)
+        logger.info("post_skipped", post_id=post_id)
 
-        return "Post deleted.", deleted_info
+        return "Post skipped.", post
 
 
 async def edit_post_text(
@@ -297,6 +295,8 @@ async def edit_post_text(
             return "Already published — cannot edit.", None
         if post.status == PostStatus.REJECTED:
             return "Post was rejected — cannot edit.", None
+        if post.status == PostStatus.SKIPPED:
+            return "Post was skipped — cannot edit.", None
 
         effective_footer = footer.strip() or DEFAULT_FOOTER
 
@@ -399,6 +399,8 @@ async def regen_post_text(
             return "Already published — cannot regenerate.", None
         if post.status == PostStatus.REJECTED:
             return "Post was rejected — cannot regenerate.", None
+        if post.status == PostStatus.SKIPPED:
+            return "Post was skipped — cannot regenerate.", None
 
         items = []
         if post.source_items:

@@ -320,11 +320,11 @@ async def handle_delete(
     review_message_id: int | None,
     session_maker: async_sessionmaker[AsyncSession],
 ) -> str:
-    """Delete a post from DB and remove the review message from chat."""
-    status_msg, deleted_info = await delete_post(post_id, session_maker)
+    """Skip a post (soft-delete) and remove the review message from chat."""
+    status_msg, skipped_post = await delete_post(post_id, session_maker)
 
     # Remove review message from chat (Telegram-specific)
-    if deleted_info and review_message_id:
+    if skipped_post and review_message_id:
         try:
             await bot.delete_message(chat_id=review_chat_id, message_id=review_message_id)
         except Exception:

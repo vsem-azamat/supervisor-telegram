@@ -137,13 +137,13 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
         try:
             review_message_id = callback.message.message_id
             result = await handle_delete(bot, post_id, chat_id, review_message_id, session_maker)
-            if "deleted" not in result.lower():
+            if "skipped" not in result.lower():
                 await callback.answer(result, show_alert=True)
             else:
                 from app.agent.channel.review.agent import clear_review_conversation
 
                 clear_review_conversation(post_id)
-                await callback.answer("Post deleted")
+                await callback.answer("Post skipped")
         except Exception:
             logger.exception("delete_callback_error", post_id=post_id)
             await callback.answer("Delete failed", show_alert=True)

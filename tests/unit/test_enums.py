@@ -21,6 +21,7 @@ class TestPostStatus:
             PostStatus.SCHEDULED,
             PostStatus.APPROVED,
             PostStatus.REJECTED,
+            PostStatus.SKIPPED,
         }
 
 

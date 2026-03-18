@@ -481,6 +481,10 @@ class ChannelPost(Base):
         if feedback:
             self.admin_feedback = feedback
 
+    def skip(self) -> None:
+        """Mark post as skipped — keeps it in DB for dedup but removes from review."""
+        self.status = PostStatus.SKIPPED
+
     def update_text(self, new_text: str) -> None:
         self.post_text = new_text
         if self.status != PostStatus.SCHEDULED:
