@@ -235,7 +235,7 @@ async def reject_post(
                     if ch:
                         from app.agent.channel.schedule_manager import _resolve_chat_id
 
-                        chat_id = _resolve_chat_id(ch)
+                        chat_id = await _resolve_chat_id(ch, tc)
                         await tc.delete_scheduled_messages(chat_id, [scheduled_tg_id])
             except Exception:
                 logger.warning("cancel_scheduled_on_reject_failed", post_id=post_id, exc_info=True)
