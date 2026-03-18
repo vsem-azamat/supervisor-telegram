@@ -24,7 +24,11 @@ _TABLES = [
 
 
 def upgrade() -> None:
-    # Phase 1: Set non-numeric values (e.g. @username) to NULL
+    # Phase 1: Make columns nullable first (so we can SET NULL)
+    for table, column in _TABLES:
+        op.alter_column(table, column, existing_type=sa.String(), nullable=True)
+
+    # Phase 2: Set non-numeric values (e.g. @username) to NULL
     for table, column in _TABLES:
         op.execute(
             sa.text(
@@ -33,7 +37,7 @@ def upgrade() -> None:
             )
         )
 
-    # Phase 2: Drop unique constraint temporarily, alter type, re-add
+    # Phase 3: Drop unique index, alter type to BigInteger, re-create index
     op.drop_index("ix_channels_telegram_id", table_name="channels")
     for table, column in _TABLES:
         op.alter_column(
