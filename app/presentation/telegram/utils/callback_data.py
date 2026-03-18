@@ -39,3 +39,10 @@ class PublishNow(CallbackData, prefix="rvpub"):
     """Publish a scheduled post immediately."""
 
     post_id: int
+
+
+class SchedulePreset(CallbackData, prefix="rvsch"):
+    """Schedule a post with a time offset preset."""
+
+    post_id: int
+    minutes: int  # offset from now in minutes

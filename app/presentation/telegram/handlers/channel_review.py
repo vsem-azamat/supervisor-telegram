@@ -12,7 +12,6 @@ from aiogram.filters import Filter
 
 from app.agent.channel.review import (
     build_review_keyboard,
-    build_schedule_picker_keyboard,
     handle_approve,
     handle_delete,
     handle_edit_request,
@@ -21,7 +20,7 @@ from app.agent.channel.review import (
 )
 from app.core.container import container
 from app.core.logging import get_logger
-from app.presentation.telegram.utils.callback_data import PublishNow, ReviewAction, SchedulePick
+from app.presentation.telegram.utils.callback_data import PublishNow, ReviewAction, SchedulePick, SchedulePreset
 
 if TYPE_CHECKING:
     from aiogram.types import CallbackQuery, Message
@@ -104,39 +103,11 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
     chat_id = callback.message.chat.id
 
     if action == "approve":
-        # Show confirmation keyboard: "Publish now" vs "Schedule +5min"
-        from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-
-        confirm_kb = InlineKeyboardMarkup(
-            inline_keyboard=[
-                [
-                    InlineKeyboardButton(
-                        text="🚀 Publish now",
-                        callback_data=ReviewAction(action="confirm_publish", post_id=post_id).pack(),
-                    ),
-                    InlineKeyboardButton(
-                        text="⏱ +5 min",
-                        callback_data=ReviewAction(action="schedule_5min", post_id=post_id).pack(),
-                    ),
-                ],
-                [
-                    InlineKeyboardButton(
-                        text="⬅️ Back",
-                        callback_data=ReviewAction(action="back", post_id=post_id).pack(),
-                    ),
-                ],
-            ]
-        )
-        await callback.message.edit_reply_markup(reply_markup=confirm_kb)
-        await callback.answer("Choose publish method")
-
-    elif action == "confirm_publish":
         try:
             channel = await _get_channel_for_post(post_id, session_maker)
             if not channel:
                 await callback.answer("Post not found or channel not configured", show_alert=True)
                 return
-            # Use moderator bot for publishing (callback.bot may be the assistant bot)
             publish_bot = container.try_get_bot() or bot
             result = await handle_approve(publish_bot, post_id, channel.telegram_id, session_maker)
             await callback.answer(result, show_alert=True)
@@ -150,35 +121,6 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
         except Exception:
             logger.exception("approve_callback_error", post_id=post_id)
             await callback.answer("Internal error", show_alert=True)
-
-    elif action == "schedule_5min":
-        try:
-            channel = await _get_channel_for_post(post_id, session_maker)
-            if not channel:
-                await callback.answer("Channel not found", show_alert=True)
-                return
-
-            tc = container.get_telethon_client()
-            if not tc or not tc.is_available:
-                await callback.answer("Scheduling unavailable (Telethon not connected)", show_alert=True)
-                return
-
-            from app.agent.channel.schedule_manager import schedule_post
-            from app.core.time import utc_now
-
-            schedule_time = utc_now() + datetime.timedelta(minutes=5)
-            result = await schedule_post(tc, session_maker, post_id, channel, schedule_time)
-            await callback.answer(result, show_alert=True)
-
-            if "Scheduled" in result:
-                from app.agent.channel.review.agent import clear_review_conversation
-
-                clear_review_conversation(post_id)
-                with contextlib.suppress(Exception):
-                    await callback.message.edit_reply_markup(reply_markup=None)
-        except Exception:
-            logger.exception("schedule_5min_error", post_id=post_id)
-            await callback.answer("Scheduling failed", show_alert=True)
 
     elif action == "reject":
         result = await handle_reject(post_id, session_maker)
@@ -207,40 +149,53 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
             await callback.answer("Delete failed", show_alert=True)
 
     elif action == "schedule":
-        try:
-            channel = await _get_channel_for_post(post_id, session_maker)
-            if not channel:
-                await callback.answer("Channel not found", show_alert=True)
-                return
-            if not channel.publish_schedule:
-                await callback.answer("No publish schedule configured for this channel", show_alert=True)
-                return
+        # Show time preset picker
+        from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-            from app.agent.channel.schedule_manager import get_occupied_slots, next_publish_slot
-            from app.core.time import utc_now
-
-            occupied = await get_occupied_slots(session_maker, channel.telegram_id)
-            slots = []
-            now = utc_now()
-            temp_occupied = list(occupied)
-            for _ in range(5):
-                try:
-                    slot = next_publish_slot(channel.publish_schedule, temp_occupied, now)
-                    slots.append(slot)
-                    temp_occupied.append(slot)
-                except ValueError:
-                    break
-
-            if not slots:
-                await callback.answer("No available slots found", show_alert=True)
-                return
-
-            keyboard = build_schedule_picker_keyboard(post_id, slots)
-            await callback.message.edit_reply_markup(reply_markup=keyboard)
-            await callback.answer()
-        except Exception:
-            logger.exception("schedule_callback_error", post_id=post_id)
-            await callback.answer("Schedule failed", show_alert=True)
+        presets = [
+            ("5m", 5),
+            ("15m", 15),
+            ("30m", 30),
+            ("1h", 60),
+            ("2h", 120),
+            ("3h", 180),
+            ("6h", 360),
+            ("12h", 720),
+            ("24h", 1440),
+        ]
+        schedule_kb = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text=f"⏱ {label}",
+                        callback_data=SchedulePreset(post_id=post_id, minutes=mins).pack(),
+                    )
+                    for label, mins in presets[:3]
+                ],
+                [
+                    InlineKeyboardButton(
+                        text=f"⏱ {label}",
+                        callback_data=SchedulePreset(post_id=post_id, minutes=mins).pack(),
+                    )
+                    for label, mins in presets[3:6]
+                ],
+                [
+                    InlineKeyboardButton(
+                        text=f"⏱ {label}",
+                        callback_data=SchedulePreset(post_id=post_id, minutes=mins).pack(),
+                    )
+                    for label, mins in presets[6:]
+                ],
+                [
+                    InlineKeyboardButton(
+                        text="⬅️ Back",
+                        callback_data=ReviewAction(action="back", post_id=post_id).pack(),
+                    ),
+                ],
+            ]
+        )
+        await callback.message.edit_reply_markup(reply_markup=schedule_kb)
+        await callback.answer()
 
     elif action == "regen":
         try:
@@ -493,6 +448,56 @@ async def on_publish_now(callback: CallbackQuery, callback_data: PublishNow) -> 
     except Exception:
         logger.exception("publish_now_error", post_id=post_id)
         await callback.answer("Publish failed", show_alert=True)
+
+
+@channel_review_router.callback_query(SchedulePreset.filter())
+async def on_schedule_preset(callback: CallbackQuery, callback_data: SchedulePreset) -> None:
+    """Handle schedule time preset (e.g. +5m, +1h, +3h)."""
+    if not callback.message:
+        return
+    if not callback.from_user or not _is_super_admin(callback.from_user.id):
+        await callback.answer("Access denied", show_alert=True)
+        return
+
+    bot = callback.bot
+    if not bot:
+        return
+
+    session_maker = _get_session_maker()
+    if not session_maker:
+        await callback.answer("Internal error: no DB session", show_alert=True)
+        return
+
+    post_id = callback_data.post_id
+    minutes = callback_data.minutes
+
+    try:
+        channel = await _get_channel_for_post(post_id, session_maker)
+        if not channel:
+            await callback.answer("Channel not found", show_alert=True)
+            return
+
+        tc = container.get_telethon_client()
+        if not tc or not tc.is_available:
+            await callback.answer("Scheduling unavailable (Telethon not connected)", show_alert=True)
+            return
+
+        from app.agent.channel.schedule_manager import schedule_post
+        from app.core.time import utc_now
+
+        schedule_time = utc_now() + datetime.timedelta(minutes=minutes)
+        result = await schedule_post(tc, session_maker, post_id, channel, schedule_time)
+        await callback.answer(result, show_alert=True)
+
+        if "Scheduled" in result:
+            from app.agent.channel.review.agent import clear_review_conversation
+
+            clear_review_conversation(post_id)
+            with contextlib.suppress(Exception):
+                await callback.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        logger.exception("schedule_preset_error", post_id=post_id, minutes=minutes)
+        await callback.answer("Scheduling failed", show_alert=True)
 
 
 # ── Reply handler for review agent conversation ──
