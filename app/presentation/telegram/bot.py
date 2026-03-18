@@ -145,33 +145,35 @@ async def _resolve_channel_ids(
         channels = list(result.scalars().all())
 
     for channel in channels:
-        # Skip if already resolved (valid Telegram ID)
-        if channel.telegram_id is not None:
+        # Skip if already a valid Telegram ID (large negative like -100XXXXXXXXXX)
+        # Migration uses small negative placeholders (-1, -2, ...) = negative Channel.id
+        if channel.telegram_id is not None and channel.telegram_id < -1000:
             continue
 
-        # Try to resolve via username
         username = channel.username
         if not username:
             logger.warning("channel_no_username_to_resolve", channel_id=channel.telegram_id)
             continue
 
         try:
-            chat_info = await bot.get_chat(f"@{username}")
+            chat_info = await bot.get_chat(f"@{username.lstrip('@')}")
             numeric_id = chat_info.id
         except Exception:
             logger.exception("channel_resolve_failed", username=username)
             continue
 
+        # The placeholder in child tables is the same as channel.telegram_id
+        # (set by migration as -Channel.id). Use it for targeted UPDATE.
         old_id = channel.telegram_id
         async with session_maker() as session:
             await session.execute(update(Channel).where(Channel.id == channel.id).values(telegram_id=numeric_id))
-            # Update FK references
-            await session.execute(
-                update(ChannelPost).where(ChannelPost.channel_id == old_id).values(channel_id=numeric_id)
-            )
-            await session.execute(
-                update(ChannelSource).where(ChannelSource.channel_id == old_id).values(channel_id=numeric_id)
-            )
+            if old_id is not None:
+                await session.execute(
+                    update(ChannelPost).where(ChannelPost.channel_id == old_id).values(channel_id=numeric_id)
+                )
+                await session.execute(
+                    update(ChannelSource).where(ChannelSource.channel_id == old_id).values(channel_id=numeric_id)
+                )
             await session.commit()
 
         logger.info("channel_id_resolved", username=username, old_id=old_id, new_id=numeric_id)
