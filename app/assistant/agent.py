@@ -170,6 +170,7 @@ def create_assistant_agent(model_name: str = "") -> Agent[AssistantDeps, str]:
         deps_type=AssistantDeps,
         output_type=str,
         retries=3,
+        end_strategy="exhaustive",
     )
 
     from app.assistant.tools import register_all_tools

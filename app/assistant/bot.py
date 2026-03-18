@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any
 
 from aiogram import BaseMiddleware, Bot, Dispatcher, F, Router
 from aiogram.enums import ChatType
-from aiogram.filters import CommandStart
+from aiogram.filters import Command, CommandStart
 from aiogram.methods import SendMessageDraft
 from aiogram.types import Message, MessageEntity, TelegramObject  # noqa: TC002
 
@@ -254,6 +254,21 @@ async def cmd_start(message: Message) -> None:
         "- Показывать статистику и расходы\n\n"
         "Просто напиши что нужно — я пойму.",
     )
+
+
+@router.message(Command("new"))
+async def cmd_new(message: Message) -> None:
+    """Clear conversation history for the user."""
+    if not message.from_user:
+        return
+    uid = message.from_user.id
+    async with _conv_lock:
+        removed = _conversations.pop(uid, None)
+        _conversation_last_access.pop(uid, None)
+    if removed:
+        await message.answer("Контекст очищен. Начинаем с чистого листа.")
+    else:
+        await message.answer("Контекст и так пустой.")
 
 
 @router.message(F.text)

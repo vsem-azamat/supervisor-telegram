@@ -285,6 +285,7 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
         deps_type=ReviewAgentDeps,
         output_type=str,
         retries=3,
+        end_strategy="exhaustive",
     )
 
     # Dynamic system prompt that injects the footer from deps
