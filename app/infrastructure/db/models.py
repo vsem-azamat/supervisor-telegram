@@ -255,7 +255,7 @@ class Channel(Base):
     __tablename__ = "channels"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True, nullable=True)
     username: Mapped[str | None] = mapped_column(String, nullable=True)
     name: Mapped[str] = mapped_column(String)
     description: Mapped[str] = mapped_column(String, default="")
