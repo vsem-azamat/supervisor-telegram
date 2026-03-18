@@ -414,6 +414,7 @@ class ChannelPost(Base):
     scheduled_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     scheduled_telegram_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     published_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    reply_chain_message_ids: Mapped[list[int] | None] = mapped_column(JSON, nullable=True)
     embedding: Mapped[Any | None] = mapped_column(Vector(768), nullable=True)
     embedding_model: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
@@ -447,6 +448,7 @@ class ChannelPost(Base):
         self.image_url = image_url
         self.image_urls = image_urls
         self.status = status
+        self.reply_chain_message_ids: list[int] | None = None
         self.embedding = embedding
         self.embedding_model = embedding_model
 

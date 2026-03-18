@@ -13,6 +13,7 @@ import time
 from typing import TYPE_CHECKING, Any
 
 from aiogram import BaseMiddleware, Bot, Dispatcher, F, Router
+from aiogram.enums import ChatType
 from aiogram.filters import CommandStart
 from aiogram.methods import SendMessageDraft
 from aiogram.types import Message, MessageEntity, TelegramObject  # noqa: TC002
@@ -54,6 +55,8 @@ class _SuperAdminOnlyMiddleware(BaseMiddleware):
 
 
 router.message.middleware(_SuperAdminOnlyMiddleware())
+# Assistant chat is private-only — review channel messages are handled by channel_review_router
+router.message.filter(F.chat.type == ChatType.PRIVATE)
 
 # Module-level references set during startup
 _agent: Agent[AssistantDeps, str] | None = None

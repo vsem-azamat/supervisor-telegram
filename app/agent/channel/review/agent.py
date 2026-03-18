@@ -94,13 +94,98 @@ def clear_review_conversation(post_id: int) -> None:
 
 
 def register_message(message_id: int, post_id: int) -> None:
-    """Register a Telegram message_id as belonging to a post's conversation."""
+    """Register a Telegram message_id as belonging to a post's conversation (in-memory)."""
     _message_to_post[message_id] = post_id
 
 
 def resolve_post_id(message_id: int) -> int | None:
-    """Look up which post_id a Telegram message belongs to."""
+    """Look up which post_id a Telegram message belongs to (in-memory only)."""
     return _message_to_post.get(message_id)
+
+
+_MAX_REPLY_CHAIN = 100  # cap per post to prevent unbounded growth
+
+
+async def persist_message_to_db(session_maker: Any, post_id: int, message_id: int) -> None:
+    """Persist a message_id → post_id mapping in the DB for restart resilience."""
+    from sqlalchemy import select
+
+    from app.infrastructure.db.models import ChannelPost
+
+    try:
+        async with session_maker() as session:
+            result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))
+            post = result.scalar_one_or_none()
+            if not post:
+                return
+            chain: list[int] = list(post.reply_chain_message_ids or [])
+            if message_id not in chain:
+                chain.append(message_id)
+                # Keep only the most recent entries
+                if len(chain) > _MAX_REPLY_CHAIN:
+                    chain = chain[-_MAX_REPLY_CHAIN:]
+                post.reply_chain_message_ids = chain
+                await session.commit()
+    except Exception:
+        logger.warning("persist_message_to_db_failed", post_id=post_id, message_id=message_id, exc_info=True)
+
+
+async def clear_reply_chain_from_db(session_maker: Any, post_id: int) -> None:
+    """Null out reply_chain_message_ids when a post is finalized (approve/reject/skip)."""
+    from sqlalchemy import update
+
+    from app.infrastructure.db.models import ChannelPost
+
+    try:
+        async with session_maker() as session:
+            await session.execute(
+                update(ChannelPost).where(ChannelPost.id == post_id).values(reply_chain_message_ids=None)
+            )
+            await session.commit()
+    except Exception:
+        logger.warning("clear_reply_chain_failed", post_id=post_id, exc_info=True)
+
+
+async def resolve_post_id_from_db(session_maker: Any, message_id: int, chat_id: int) -> int | None:
+    """Fallback: resolve post_id from DB when in-memory mapping is empty (e.g. after restart).
+
+    Checks review_message_id first, then reply_chain_message_ids.
+    Filters by chat_id and active statuses to avoid false matches.
+    """
+    from sqlalchemy import select
+
+    from app.core.enums import PostStatus
+    from app.infrastructure.db.models import ChannelPost
+
+    active_statuses = [PostStatus.DRAFT, PostStatus.SCHEDULED]
+
+    try:
+        async with session_maker() as session:
+            # 1. Direct hit: review_message_id
+            result = await session.execute(
+                select(ChannelPost.id)
+                .where(ChannelPost.review_message_id == message_id)
+                .where(ChannelPost.review_chat_id == chat_id)
+                .where(ChannelPost.status.in_(active_statuses))
+            )
+            post_id = result.scalar_one_or_none()
+            if post_id:
+                return post_id
+
+            # 2. Search reply_chain_message_ids (JSON array)
+            result = await session.execute(
+                select(ChannelPost.id, ChannelPost.reply_chain_message_ids)
+                .where(ChannelPost.review_chat_id == chat_id)
+                .where(ChannelPost.status.in_(active_statuses))
+                .where(ChannelPost.reply_chain_message_ids.isnot(None))
+            )
+            for row_post_id, chain_ids in result.all():
+                if chain_ids and message_id in chain_ids:
+                    return row_post_id
+    except Exception:
+        logger.warning("resolve_post_id_from_db_failed", message_id=message_id, chat_id=chat_id, exc_info=True)
+
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -396,7 +481,7 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
                 post.image_url,
             )
 
-            # Update review_message_id in DB
+            # Update review_message_id in DB + register in reply chain
             async with ctx.deps.session_maker() as session:
                 from sqlalchemy import select as sa_select
 
@@ -407,6 +492,10 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
                 if db_post:
                     db_post.review_message_id = new_msg.message_id
                     await session.commit()
+
+            # Register new message in reply chain (in-memory + DB)
+            register_message(new_msg.message_id, ctx.deps.post_id)
+            await persist_message_to_db(ctx.deps.session_maker, ctx.deps.post_id, new_msg.message_id)
 
             return None
         except Exception:
