@@ -69,7 +69,7 @@ class ChannelAgentSettings(BaseSettings):
     )
     backfill_batch_size: int = Field(default=32, description="Batch size for scripts/backfill_embeddings.py")
     # NOTE: `body_chars` (default 100) that truncates item body for the embedding
-    # input lives in app/agent/channel/semantic_dedup.py::DEFAULT_EMBED_BODY_CHARS.
+    # input lives in app/channel/semantic_dedup.py::DEFAULT_EMBED_BODY_CHARS.
     # It is a schema-like constant — changing it invalidates every stored vector
     # and requires re-running scripts/backfill_embeddings.py.
 

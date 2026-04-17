@@ -7,7 +7,7 @@ when a scheduled post is deleted. Both are needed to keep the "reject" and
 split a single logical transition across two layers. Accepted trade-off.
 
 Telegram-specific rendering (keyboards, send/edit, button layouts) still lives
-in presentation.py.
+in telegram_io.py.
 """
 
 from __future__ import annotations

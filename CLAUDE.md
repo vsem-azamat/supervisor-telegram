@@ -41,7 +41,7 @@ app/
 │   ├── orchestrator.py   # Per-channel scheduling + orchestration
 │   ├── workflow.py       # Burr state machine (9 actions)
 │   ├── generator.py      # LLM screening + post generation
-│   ├── review/           # Review submodule (agent, presentation, service)
+│   ├── review/           # Review submodule (agent, telegram_io, service)
 │   ├── semantic_dedup.py # pgvector cosine similarity
 │   ├── sources.py        # RSS + health tracking
 │   └── http.py           # SSRF-protected HTTP client

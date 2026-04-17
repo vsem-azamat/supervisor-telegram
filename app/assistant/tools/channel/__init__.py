@@ -2,20 +2,17 @@
 
 from __future__ import annotations
 
-import re
 from typing import TYPE_CHECKING
 
 from app.assistant.tools.channel.channels import register_channels_tools
 from app.assistant.tools.channel.pipeline import register_pipeline_tools
-from app.assistant.tools.channel.schedule import register_schedule_tools
+from app.assistant.tools.channel.schedule import _SCHEDULE_TIME_RE, register_schedule_tools
 from app.assistant.tools.channel.sources import register_sources_tools
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
 
     from app.assistant.agent import AssistantDeps
-
-_SCHEDULE_TIME_RE = re.compile(r"^([01]\d|2[0-3]):([0-5]\d)$")
 
 
 def register_channel_tools(agent: Agent[AssistantDeps, str]) -> None:

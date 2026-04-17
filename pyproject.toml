@@ -115,9 +115,9 @@ replace-imports-with-any = [
     "testcontainers.**",
 ]
 
-# Agent + moderation modules — PydanticAI dynamic patterns, framework constructors
+# Agent-heavy modules — PydanticAI dynamic patterns, framework constructors
 [[tool.ty.overrides]]
-include = ["app/agent/**", "app/moderation/**"]
+include = ["app/channel/**", "app/assistant/**", "app/moderation/**"]
 
 [tool.ty.overrides.rules]
 invalid-argument-type = "warn"       # PydanticAI/Pydantic constructor patterns
