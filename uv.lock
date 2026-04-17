@@ -1756,7 +1756,7 @@ requires-dist = [
     { name = "python-dotenv" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0" },
     { name = "structlog", specifier = ">=23.2" },
-    { name = "telegramify-markdown", specifier = "==1.0.0rc5" },
+    { name = "telegramify-markdown", specifier = ">=1.1,<2" },
     { name = "telethon", specifier = ">=1.42.0" },
 ]
 
@@ -3416,14 +3416,14 @@ wheels = [
 
 [[package]]
 name = "telegramify-markdown"
-version = "1.0.0rc5"
+version = "1.1.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pyromark" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/96/b6/690dc2bb0d49305af368db9298694506e919bd0c0fead9e3a66f42048ac0/telegramify_markdown-1.0.0rc5.tar.gz", hash = "sha256:145d054bc73cc58f00e738d2c4a04577a163180109fcd03323270e0f63e622ca", size = 56634, upload-time = "2026-03-03T07:22:30.955Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f7/ac/7bd28e908c64695a6fd3412a35d8090ba9891389dc0437e06a5f6a1e1d81/telegramify_markdown-1.1.2.tar.gz", hash = "sha256:6d506b597d74d6113e9ec511dd6870a8f75b5653cfba697d942c1cbaca0aa415", size = 59634, upload-time = "2026-04-06T09:27:56.962Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/31/c0/603c0e3f71320df84df4be1d206542bbd7bf6fb4d5cbf4c2ae4c464f8920/telegramify_markdown-1.0.0rc5-py3-none-any.whl", hash = "sha256:8044f969ddb8383ca72f0518b4f0ce973ba7812139e1f809358209162a092b96", size = 39522, upload-time = "2026-03-03T07:22:30.003Z" },
+    { url = "https://files.pythonhosted.org/packages/2c/73/2793f1f2347e6e088232fc5f0a754d93202f220a14b710f2a468141c687e/telegramify_markdown-1.1.2-py3-none-any.whl", hash = "sha256:9383790067e99ae31a5fc595412030c5b8317e0e4933ae9db9c27c5de49c6337", size = 41796, upload-time = "2026-04-06T09:27:54.856Z" },
 ]
 
 [[package]]
