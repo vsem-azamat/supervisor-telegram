@@ -24,7 +24,6 @@ dependencies = [
     "asyncpg>=0.29",
     "python-dotenv",
     "structlog>=23.2",
-    "pytz>=2024.1",
     "pydantic-ai[openai]>=1.84",
     "httpx>=0.27",
     "feedparser>=6.0.12",
@@ -123,6 +122,8 @@ include = ["app/channel/**", "app/assistant/**", "app/moderation/**"]
 invalid-argument-type = "warn"       # PydanticAI/Pydantic constructor patterns
 invalid-return-type = "warn"         # dynamic returns from agent frameworks
 invalid-assignment = "warn"          # PydanticAI agent type variance
+unresolved-attribute = "warn"        # feedparser.entries, SA Result.rowcount surface typing
+call-non-callable = "warn"           # feedparser entries iteration on object type
 
 # Presentation layer — aiogram Message | InaccessibleMessage union patterns
 [[tool.ty.overrides]]
@@ -145,9 +146,11 @@ include = ["tests/**"]
 
 [tool.ty.overrides.rules]
 invalid-argument-type = "warn"       # mock/fixture type mismatches
+invalid-assignment = "warn"          # AsyncMock replacing concrete async methods
 unresolved-attribute = "warn"        # mock object dynamic attributes
 invalid-return-type = "warn"         # test helpers
 no-matching-overload = "warn"        # mock constructor patterns
+call-non-callable = "warn"           # mocked object callable patterns
 
 [dependency-groups]
 dev = [
@@ -167,6 +170,7 @@ dev = [
 [tool.pytest.ini_options]
 minversion = "8.0"
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 addopts = "-ra -q --strict-markers --strict-config"
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]

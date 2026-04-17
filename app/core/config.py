@@ -243,7 +243,7 @@ class AppSettings(BaseSettings):
             from app.channel.config import ChannelAgentSettings
 
             object.__setattr__(self, "_channel_settings", ChannelAgentSettings())
-        return self._channel_settings  # type: ignore[attr-defined]
+        return self._channel_settings  # ty: ignore[unresolved-attribute]
 
     model_config = SettingsConfigDict(
         env_prefix="APP_",
