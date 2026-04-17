@@ -61,6 +61,7 @@ class _FakeGeneratedPost:
         self.image_urls: list[str] = []
         self.image_candidates: list[dict] | None = None
         self.image_phashes: list[str] = []
+        self.pre_critic_text: str | None = None
 
 
 # ---- Fixtures ----

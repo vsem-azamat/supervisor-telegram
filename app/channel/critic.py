@@ -11,7 +11,7 @@ import unicodedata
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from app.core.config import Settings
+    from app.core.config import AppSettings
     from app.db.models import Channel
 
 from pydantic_ai import Agent
@@ -227,7 +227,7 @@ async def polish_post(
     raise CriticError(f"invariants violated after retry: {violations}")
 
 
-def resolve_critic_enabled(channel: Channel, settings_obj: Settings) -> bool:
+def resolve_critic_enabled(channel: Channel, settings_obj: AppSettings) -> bool:
     """Resolve the effective critic-enabled flag.
 
     Per-channel value wins when set (True/False). None falls back to
