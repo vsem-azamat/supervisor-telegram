@@ -196,6 +196,10 @@ async def approve_post(
             return "Already published.", None
         if post.status == PostStatus.SCHEDULED:
             return "Post is scheduled. Use 'Publish now' to send immediately.", None
+        if post.status == PostStatus.REJECTED:
+            return "Post was rejected — cannot publish.", None
+        if post.status == PostStatus.SKIPPED:
+            return "Post was skipped — cannot publish.", None
 
         source_urls = extract_source_urls(post)
 
@@ -254,6 +258,8 @@ async def reject_post(
             return "Already rejected."
         if post.status == PostStatus.APPROVED:
             return "Already published — cannot reject."
+        if post.status == PostStatus.SKIPPED:
+            return "Post was skipped — cannot reject."
 
         was_scheduled = post.status == PostStatus.SCHEDULED
         scheduled_tg_id = post.scheduled_telegram_id if was_scheduled else None
@@ -306,6 +312,8 @@ async def delete_post(
             return "Already published — cannot delete.", None
         if post.status == PostStatus.SKIPPED:
             return "Already skipped.", None
+        if post.status == PostStatus.REJECTED:
+            return "Post was rejected — cannot delete.", None
 
         post.skip()
         await session.commit()

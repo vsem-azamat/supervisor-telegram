@@ -819,6 +819,83 @@ class TestReviewFlow:
         assert result == "Post is scheduled. Use 'Publish now' to send immediately."
         mock_bot.send_message.assert_not_called()
 
+    async def test_handle_approve_post_rejected(
+        self,
+        mock_bot: AsyncMock,
+        session_maker: async_sessionmaker[AsyncSession],
+    ) -> None:
+        """Approving a REJECTED post must not publish — guards a delete/reject-then-approve race."""
+        from app.channel.review import handle_approve
+
+        async with session_maker() as session:
+            post = ChannelPost(
+                channel_id=-1001234567890, external_id="ext1", title="T", post_text="text", status="rejected"
+            )
+            session.add(post)
+            await session.commit()
+            post_id = post.id
+
+        result = await handle_approve(mock_bot, post_id, -1001111111111, session_maker)
+        assert result == "Post was rejected — cannot publish."
+        mock_bot.send_message.assert_not_called()
+
+    async def test_handle_approve_post_skipped(
+        self,
+        mock_bot: AsyncMock,
+        session_maker: async_sessionmaker[AsyncSession],
+    ) -> None:
+        """Approving a SKIPPED (soft-deleted) post must not publish."""
+        from app.channel.review import handle_approve
+
+        async with session_maker() as session:
+            post = ChannelPost(
+                channel_id=-1001234567890, external_id="ext1", title="T", post_text="text", status="skipped"
+            )
+            session.add(post)
+            await session.commit()
+            post_id = post.id
+
+        result = await handle_approve(mock_bot, post_id, -1001111111111, session_maker)
+        assert result == "Post was skipped — cannot publish."
+        mock_bot.send_message.assert_not_called()
+
+    async def test_handle_reject_post_skipped(
+        self,
+        session_maker: async_sessionmaker[AsyncSession],
+    ) -> None:
+        """Rejecting a SKIPPED post is a no-op — nothing to reject once deleted."""
+        from app.channel.review import handle_reject
+
+        async with session_maker() as session:
+            post = ChannelPost(
+                channel_id=-1001234567890, external_id="ext1", title="T", post_text="text", status="skipped"
+            )
+            session.add(post)
+            await session.commit()
+            post_id = post.id
+
+        result = await handle_reject(post_id, session_maker, reason="late")
+        assert result == "Post was skipped — cannot reject."
+
+    async def test_handle_delete_post_rejected(
+        self,
+        mock_bot: AsyncMock,
+        session_maker: async_sessionmaker[AsyncSession],
+    ) -> None:
+        """Deleting a REJECTED post is redundant — reject is already terminal."""
+        from app.channel.review import handle_delete
+
+        async with session_maker() as session:
+            post = ChannelPost(
+                channel_id=-1001234567890, external_id="ext1", title="T", post_text="text", status="rejected"
+            )
+            session.add(post)
+            await session.commit()
+            post_id = post.id
+
+        result = await handle_delete(mock_bot, post_id, -1001111111111, None, session_maker)
+        assert result == "Post was rejected — cannot delete."
+
     async def test_handle_edit_request_already_approved(
         self,
         mock_bot: AsyncMock,
