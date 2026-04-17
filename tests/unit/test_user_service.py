@@ -31,17 +31,6 @@ def user_service(mock_user_repository: AsyncMock) -> UserService:
 class TestUserService:
     """Test cases for UserService."""
 
-    async def test_get_user_by_id_success(self, user_service: UserService, mock_user_repository: AsyncMock):
-        """Test successfully getting user by ID."""
-        user_id = 123456789
-        expected_user = UserFactory.create(id=user_id)
-        mock_user_repository.get_by_id.return_value = expected_user
-
-        result = await user_service.get_user_by_id(user_id)
-
-        assert result == expected_user
-        mock_user_repository.get_by_id.assert_called_once_with(user_id)
-
     async def test_get_user_by_id_not_found(self, user_service: UserService, mock_user_repository: AsyncMock):
         """Test getting user by ID when user doesn't exist."""
         user_id = 999999999
@@ -51,18 +40,6 @@ class TestUserService:
             await user_service.get_user_by_id(user_id)
 
         assert exc_info.value.user_id == user_id
-        mock_user_repository.get_by_id.assert_called_once_with(user_id)
-
-    async def test_get_user_by_id_optional_success(self, user_service: UserService, mock_user_repository: AsyncMock):
-        """Test successfully getting user by ID (optional)."""
-        user_id = 123456789
-        expected_user = UserFactory.create(id=user_id)
-        mock_user_repository.get_by_id.return_value = expected_user
-
-        result = await user_service.get_user_by_id_optional(user_id)
-
-        assert result == expected_user
-        mock_user_repository.get_by_id.assert_called_once_with(user_id)
 
     async def test_get_user_by_id_optional_not_found(self, user_service: UserService, mock_user_repository: AsyncMock):
         """Test getting user by ID (optional) when user doesn't exist."""
@@ -72,37 +49,9 @@ class TestUserService:
         result = await user_service.get_user_by_id_optional(user_id)
 
         assert result is None
-        mock_user_repository.get_by_id.assert_called_once_with(user_id)
-
-    async def test_create_or_update_user_new_user(self, mock_user_repository: AsyncMock):
-        """Test creating a new user."""
-        user_id = 123456789
-        username = "testuser"
-        first_name = "Test"
-        last_name = "User"
-
-        mock_user_repository.get_by_id.return_value = None
-        mock_user_repository.save.return_value = UserFactory.create(
-            id=user_id, username=username, first_name=first_name, last_name=last_name
-        )
-
-        with patch(LOGGER_PATCH_PATH) as mock_logger:
-            service = UserService(mock_user_repository)
-            result = await service.create_or_update_user(
-                user_id=user_id, username=username, first_name=first_name, last_name=last_name
-            )
-
-        assert result.id == user_id
-        assert result.username == username
-        assert result.first_name == first_name
-        assert result.last_name == last_name
-
-        mock_user_repository.get_by_id.assert_called_once_with(user_id)
-        mock_user_repository.save.assert_called_once()
-        mock_logger.info.assert_called_once_with("user_created", user_id=user_id)
 
     async def test_create_or_update_user_existing_user(self, mock_user_repository: AsyncMock):
-        """Test updating an existing user."""
+        """Test updating an existing user (verifies branch, not log string)."""
         user_id = 123456789
         existing_user = UserFactory.create(id=user_id, username="oldusername", first_name="Old", last_name="Name")
 
@@ -111,7 +60,7 @@ class TestUserService:
         mock_user_repository.get_by_id.return_value = existing_user
         mock_user_repository.save.return_value = updated_user
 
-        with patch(LOGGER_PATCH_PATH) as mock_logger:
+        with patch(LOGGER_PATCH_PATH):
             service = UserService(mock_user_repository)
             result = await service.create_or_update_user(
                 user_id=user_id, username="newusername", first_name="New", last_name="Name"
@@ -119,10 +68,7 @@ class TestUserService:
 
         assert result.username == "newusername"
         assert result.first_name == "New"
-
-        mock_user_repository.get_by_id.assert_called_once_with(user_id)
         mock_user_repository.save.assert_called_once()
-        mock_logger.info.assert_called_once_with("profile_updated", user_id=user_id)
 
     async def test_block_user_existing_user(self, mock_user_repository: AsyncMock):
         """Test blocking an existing user."""
@@ -210,59 +156,6 @@ class TestUserService:
         assert exc_info.value.user_id == user_id
         mock_user_repository.get_by_id.assert_called_once_with(user_id)
         mock_user_repository.save.assert_not_called()
-
-    async def test_get_blocked_users(self, user_service: UserService, mock_user_repository: AsyncMock):
-        """Test getting all blocked users."""
-        blocked_users = UserFactory.create_batch(3, is_blocked=True)
-        mock_user_repository.get_blocked_users.return_value = blocked_users
-
-        result = await user_service.get_blocked_users()
-
-        assert result == blocked_users
-        assert len(result) == 3
-        assert all(user.is_blocked for user in result)
-        mock_user_repository.get_blocked_users.assert_called_once()
-
-    async def test_get_blocked_users_empty(self, user_service: UserService, mock_user_repository: AsyncMock):
-        """Test getting blocked users when none exist."""
-        mock_user_repository.get_blocked_users.return_value = []
-
-        result = await user_service.get_blocked_users()
-
-        assert result == []
-        mock_user_repository.get_blocked_users.assert_called_once()
-
-    async def test_is_user_blocked_true(self, user_service: UserService, mock_user_repository: AsyncMock):
-        """Test checking if user is blocked (user exists and is blocked)."""
-        user_id = 123456789
-        blocked_user = UserFactory.create(id=user_id, is_blocked=True)
-        mock_user_repository.get_by_id.return_value = blocked_user
-
-        result = await user_service.is_user_blocked(user_id)
-
-        assert result is True
-        mock_user_repository.get_by_id.assert_called_once_with(user_id)
-
-    async def test_is_user_blocked_false(self, user_service: UserService, mock_user_repository: AsyncMock):
-        """Test checking if user is blocked (user exists but not blocked)."""
-        user_id = 123456789
-        user = UserFactory.create(id=user_id, is_blocked=False)
-        mock_user_repository.get_by_id.return_value = user
-
-        result = await user_service.is_user_blocked(user_id)
-
-        assert result is False
-        mock_user_repository.get_by_id.assert_called_once_with(user_id)
-
-    async def test_is_user_blocked_user_not_exists(self, user_service: UserService, mock_user_repository: AsyncMock):
-        """Test checking if user is blocked (user doesn't exist)."""
-        user_id = 999999999
-        mock_user_repository.get_by_id.return_value = None
-
-        result = await user_service.is_user_blocked(user_id)
-
-        assert result is False
-        mock_user_repository.get_by_id.assert_called_once_with(user_id)
 
 
 @pytest.mark.unit

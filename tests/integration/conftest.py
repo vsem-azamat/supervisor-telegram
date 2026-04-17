@@ -47,16 +47,22 @@ def pg_url(pg_container) -> str:
 
 @pytest_asyncio.fixture()
 async def pg_engine(pg_url: str):
-    """Create async engine per-test to avoid event loop issues."""
+    """Create async engine per-test to avoid event loop issues.
+
+    Using TRUNCATE RESTART IDENTITY CASCADE for cleanup (faster than
+    iterating Base.metadata.sorted_tables with delete). create_all still
+    runs per-test because a session-scoped engine fails with
+    'Event loop is closed' once pytest-asyncio closes the function-scoped
+    loop (asyncpg connections are tied to the loop that created them)."""
     engine = create_async_engine(pg_url, echo=False)
     async with engine.begin() as conn:
         await conn.execute(sa_text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.run_sync(Base.metadata.create_all)
     yield engine
-    # Clean up all tables
     async with engine.begin() as conn:
-        for table in reversed(Base.metadata.sorted_tables):
-            await conn.execute(table.delete())
+        table_names = ", ".join(f'"{t.name}"' for t in Base.metadata.sorted_tables)
+        if table_names:
+            await conn.execute(sa_text(f"TRUNCATE {table_names} RESTART IDENTITY CASCADE"))
     await engine.dispose()
 
 
