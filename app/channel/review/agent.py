@@ -45,62 +45,106 @@ class ReviewAgentDeps:
 # Conversation memory
 # ---------------------------------------------------------------------------
 
-_review_conversations: dict[int, list[ModelMessage]] = {}  # post_id -> message history
-_review_last_access: dict[int, float] = {}
-# Maps Telegram message_id -> post_id so reply chains can resolve the post
-_message_to_post: dict[int, int] = {}  # message_id -> post_id
 _MAX_REVIEW_CONVERSATIONS = 200
 _REVIEW_CONVERSATION_TTL = 14400  # 4 hours
 _MAX_HISTORY = 40
 _AGENT_TIMEOUT_SECONDS = 60
 
 
-def _evict_review_conversations() -> None:
-    """Evict conversations idle for >TTL, then enforce max cap (LRU)."""
-    now = time.monotonic()
+class ReviewConversationRegistry:
+    """In-memory registry for per-post review conversations.
 
-    # 1. Evict idle conversations
-    expired = [pid for pid, ts in _review_last_access.items() if now - ts > _REVIEW_CONVERSATION_TTL]
-    for pid in expired:
-        _review_conversations.pop(pid, None)
-        _review_last_access.pop(pid, None)
-        # Clean up message mappings
-        stale = [mid for mid, p in _message_to_post.items() if p == pid]
+    Holds four pieces of state that must stay consistent: message history,
+    last-access timestamps, Telegram-message → post-id lookup, and per-post
+    asyncio locks. Eviction and cleanup update all four atomically, so
+    callers don't have to remember the cross-cutting invariants.
+    """
+
+    def __init__(self, *, max_conversations: int = _MAX_REVIEW_CONVERSATIONS, ttl: int = _REVIEW_CONVERSATION_TTL):
+        self._max_conversations = max_conversations
+        self._ttl = ttl
+        self._conversations: dict[int, list[ModelMessage]] = {}
+        self._last_access: dict[int, float] = {}
+        self._message_to_post: dict[int, int] = {}
+        self._post_locks: dict[int, asyncio.Lock] = {}
+
+    # ── History read/write ──
+
+    def get_history(self, post_id: int) -> list[ModelMessage] | None:
+        return self._conversations.get(post_id)
+
+    def set_history(self, post_id: int, messages: list[ModelMessage]) -> None:
+        self._conversations[post_id] = messages
+        self._last_access[post_id] = time.monotonic()
+
+    def history_length(self, post_id: int) -> int:
+        return len(self._conversations.get(post_id) or [])
+
+    # ── Telegram message ↔ post mapping ──
+
+    def register_message(self, message_id: int, post_id: int) -> None:
+        self._message_to_post[message_id] = post_id
+
+    def resolve_post_id(self, message_id: int) -> int | None:
+        return self._message_to_post.get(message_id)
+
+    # ── Locks ──
+
+    def get_post_lock(self, post_id: int) -> asyncio.Lock:
+        if post_id not in self._post_locks:
+            self._post_locks[post_id] = asyncio.Lock()
+        return self._post_locks[post_id]
+
+    # ── Cleanup ──
+
+    def _forget(self, post_id: int) -> None:
+        """Remove all state for a post. Keeps the four dicts consistent."""
+        self._conversations.pop(post_id, None)
+        self._last_access.pop(post_id, None)
+        self._post_locks.pop(post_id, None)
+        stale = [mid for mid, pid in self._message_to_post.items() if pid == post_id]
         for mid in stale:
-            _message_to_post.pop(mid, None)
+            self._message_to_post.pop(mid, None)
 
-    # 2. Enforce max cap — evict least recently used
-    if len(_review_conversations) > _MAX_REVIEW_CONVERSATIONS:
-        sorted_by_access = sorted(_review_last_access.items(), key=lambda x: x[1])
-        to_remove = len(_review_conversations) - _MAX_REVIEW_CONVERSATIONS
-        for pid, _ in sorted_by_access[:to_remove]:
-            _review_conversations.pop(pid, None)
-            _review_last_access.pop(pid, None)
-            stale = [mid for mid, p in _message_to_post.items() if p == pid]
-            for mid in stale:
-                _message_to_post.pop(mid, None)
+    def clear(self, post_id: int) -> None:
+        """Called on approve/reject/delete when the review session is done."""
+        self._forget(post_id)
+        logger.debug("review_conversation_cleared", post_id=post_id)
+
+    def evict_stale(self) -> None:
+        """Evict conversations idle for >TTL, then enforce max cap (LRU)."""
+        now = time.monotonic()
+
+        expired = [pid for pid, ts in self._last_access.items() if now - ts > self._ttl]
+        for pid in expired:
+            self._forget(pid)
+
+        if len(self._conversations) > self._max_conversations:
+            sorted_by_access = sorted(self._last_access.items(), key=lambda x: x[1])
+            to_remove = len(self._conversations) - self._max_conversations
+            for pid, _ in sorted_by_access[:to_remove]:
+                self._forget(pid)
+
+
+_registry = ReviewConversationRegistry()
+
+
+# Public API kept as free functions (external callers don't touch the class).
 
 
 def clear_review_conversation(post_id: int) -> None:
     """Clear conversation, lock, and message mappings for a post (call on approve/reject)."""
-    _review_conversations.pop(post_id, None)
-    _review_last_access.pop(post_id, None)
-    _post_locks.pop(post_id, None)
-    # Clean up message_id -> post_id mappings for this post
-    stale = [mid for mid, pid in _message_to_post.items() if pid == post_id]
-    for mid in stale:
-        _message_to_post.pop(mid, None)
-    logger.debug("review_conversation_cleared", post_id=post_id)
+    _registry.clear(post_id)
 
 
 def register_message(message_id: int, post_id: int) -> None:
     """Register a Telegram message_id as belonging to a post's conversation (in-memory)."""
-    _message_to_post[message_id] = post_id
+    _registry.register_message(message_id, post_id)
 
 
 def resolve_post_id(message_id: int) -> int | None:
     """Look up which post_id a Telegram message belongs to (in-memory only)."""
-    return _message_to_post.get(message_id)
+    return _registry.resolve_post_id(message_id)
 
 
 _MAX_REPLY_CHAIN = 100  # cap per post to prevent unbounded growth
@@ -259,14 +303,9 @@ Respond in Russian. Be concise — the admin is in a chat, not reading an essay.
 """
 
 
-_post_locks: dict[int, asyncio.Lock] = {}
-
-
 def _get_post_lock(post_id: int) -> asyncio.Lock:
     """Get or create an asyncio lock for a specific post to serialize turns."""
-    if post_id not in _post_locks:
-        _post_locks[post_id] = asyncio.Lock()
-    return _post_locks[post_id]
+    return _registry.get_post_lock(post_id)
 
 
 @functools.lru_cache(maxsize=4)
@@ -607,9 +646,9 @@ async def _review_agent_turn_inner(
 ) -> str:
     from app.core.tool_trace import format_response_with_trace
 
-    _evict_review_conversations()
+    _registry.evict_stale()
 
-    history = _review_conversations.get(post_id)
+    history = _registry.get_history(post_id)
     history_len = len(history) if history else 0
     agent = create_review_agent(model)
 
@@ -657,13 +696,12 @@ async def _review_agent_turn_inner(
 
     # Save conversation for continuity (trimming handled by history_processors)
     all_msgs = list(result.all_messages())
-    _review_conversations[post_id] = all_msgs
-    _review_last_access[post_id] = time.monotonic()
+    _registry.set_history(post_id, all_msgs)
 
     logger.info(
         "review_agent_turn_done",
         post_id=post_id,
-        history_len=len(_review_conversations[post_id]),
+        history_len=_registry.history_length(post_id),
     )
 
     # Format response with tool call trace for user visibility

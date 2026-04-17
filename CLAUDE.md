@@ -97,7 +97,7 @@ Self-calibrating: injects last 5 admin corrections into system prompt. Escalates
 
 ## Testing
 
-- **600+ tests**, ~20s runtime
+- **640 tests**, ~27s runtime
 - Unit: SQLite in-memory
 - Integration: testcontainers PostgreSQL
 - E2E: `FakeTelegramServer` (aiohttp-based Bot API simulator)

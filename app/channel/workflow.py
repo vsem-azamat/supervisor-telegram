@@ -10,7 +10,7 @@ Each pipeline run is modeled as a state machine with the following steps:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
 from burr.core import ApplicationBuilder, GraphBuilder, Result, State, action, default
 from burr.core.action import Condition
@@ -34,6 +34,36 @@ if TYPE_CHECKING:
     from app.db.models import Channel
 
 logger = get_logger("channel.workflow")
+
+
+class PipelineState(TypedDict, total=False):
+    """Logical shape of the Burr state dict for the channel pipeline.
+
+    Burr's State is dynamically typed at runtime — this TypedDict is purely
+    documentation for reviewers and IDE autocomplete. Fields are declared here
+    once so the set of valid keys doesn't drift across action definitions.
+    `total=False` because initial_state + per-action updates mean no single
+    point in the lifecycle has all keys populated.
+    """
+
+    # Inputs / long-lived
+    channel_id: int
+    session_maker: async_sessionmaker[AsyncSession]
+    publish_bot: Bot
+    review_bot: Bot
+    api_key: str
+    brave_api_key: str
+    config: ChannelAgentSettings
+    channel: Channel
+
+    # Produced by pipeline stages
+    content_items: list[Any]
+    relevant_items: list[Any]
+    generated_post: dict[str, Any] | None
+    post_id: int | None
+    review_decision: Literal["approved", "rejected"] | None
+    result_message: str
+    error: str | None
 
 
 # ---------------------------------------------------------------------------

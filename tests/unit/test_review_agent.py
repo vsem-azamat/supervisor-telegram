@@ -7,9 +7,8 @@ from unittest.mock import MagicMock
 
 from app.channel.review.agent import (
     _MAX_REVIEW_CONVERSATIONS,
-    _evict_review_conversations,
-    _review_conversations,
-    _review_last_access,
+    ReviewConversationRegistry,
+    _registry,
     clear_review_conversation,
     create_review_agent,
 )
@@ -48,17 +47,17 @@ class TestCreateReviewAgent:
 
 class TestReviewConversationMemory:
     def setup_method(self) -> None:
-        """Clear conversation state before each test."""
-        _review_conversations.clear()
-        _review_last_access.clear()
+        """Clear the singleton registry before each test."""
+        _registry._conversations.clear()
+        _registry._last_access.clear()
+        _registry._message_to_post.clear()
+        _registry._post_locks.clear()
 
     def test_clear_conversation_removes_entry(self) -> None:
         """clear_review_conversation removes the entry for a post_id."""
-        _review_conversations[42] = [MagicMock()]
-        _review_last_access[42] = time.monotonic()
+        _registry.set_history(42, [MagicMock()])
         clear_review_conversation(42)
-        assert 42 not in _review_conversations
-        assert 42 not in _review_last_access
+        assert _registry.get_history(42) is None
 
     def test_clear_nonexistent_is_noop(self) -> None:
         """Clearing a nonexistent post_id doesn't raise."""
@@ -66,30 +65,30 @@ class TestReviewConversationMemory:
 
     def test_eviction_removes_old_entries(self) -> None:
         """Old conversations (beyond TTL) are evicted."""
+        registry = ReviewConversationRegistry(max_conversations=100, ttl=10_000)
         now = time.monotonic()
-        # Old entry — way past TTL
-        _review_conversations[1] = [MagicMock()]
-        _review_last_access[1] = now - 20000
-        # Fresh entry
-        _review_conversations[2] = [MagicMock()]
-        _review_last_access[2] = now
+        registry._conversations[1] = [MagicMock()]
+        registry._last_access[1] = now - 20_000
+        registry._conversations[2] = [MagicMock()]
+        registry._last_access[2] = now
 
-        _evict_review_conversations()
+        registry.evict_stale()
 
-        assert 1 not in _review_conversations
-        assert 2 in _review_conversations
+        assert registry.get_history(1) is None
+        assert registry.get_history(2) is not None
 
     def test_eviction_lru_when_over_max(self) -> None:
         """When over max conversations, LRU entries are dropped."""
+        registry = ReviewConversationRegistry()
         now = time.monotonic()
         overflow = _MAX_REVIEW_CONVERSATIONS + 10
         for i in range(overflow):
-            _review_conversations[i] = [MagicMock()]
-            _review_last_access[i] = now - (overflow - i)
+            registry._conversations[i] = [MagicMock()]
+            registry._last_access[i] = now - (overflow - i)
 
-        _evict_review_conversations()
+        registry.evict_stale()
 
-        assert len(_review_conversations) <= _MAX_REVIEW_CONVERSATIONS
+        assert len(registry._conversations) <= _MAX_REVIEW_CONVERSATIONS
 
 
 # ---------------------------------------------------------------------------
