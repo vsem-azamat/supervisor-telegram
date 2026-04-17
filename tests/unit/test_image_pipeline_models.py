@@ -64,8 +64,10 @@ class TestVisionScore:
         assert v.description == "photo of a building"
 
     def test_requires_all_fields(self):
+        # Use model_validate so ty doesn't flag the statically-missing args —
+        # the test's point is that Pydantic raises ValidationError at runtime.
         with pytest.raises(ValidationError):
-            VisionScore(index=0)  # type: ignore[call-arg]
+            VisionScore.model_validate({"index": 0})
 
 
 class TestCompositionDecision:

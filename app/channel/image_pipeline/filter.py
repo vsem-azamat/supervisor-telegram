@@ -27,12 +27,6 @@ MIN_FILE_SIZE_FOR_LARGE_IMAGES = 20_000
 LARGE_IMAGE_AREA = 500_000
 DOWNLOAD_TIMEOUT_SECONDS = 10
 
-# Support both Pillow 12+ (Image.Palette.ADAPTIVE) and older (Image.ADAPTIVE)
-try:
-    _ADAPTIVE = Image.Palette.ADAPTIVE
-except AttributeError:
-    _ADAPTIVE = Image.ADAPTIVE  # type: ignore[attr-defined]
-
 
 @dataclass(slots=True)
 class FilteredImage:
@@ -103,7 +97,7 @@ async def _check_one(url: str) -> FilteredImage | None:
         return None
 
     # Palette mode supports max 256 colors; quantize to that and count unique entries
-    palette = img.convert("P", palette=_ADAPTIVE, colors=256)
+    palette = img.convert("P", palette=Image.Palette.ADAPTIVE, colors=256)
     uniques = palette.getcolors(maxcolors=256)
     if uniques is None or len(uniques) < MIN_UNIQUE_COLORS:
         logger.debug("image_filter_low_entropy", url=url[:120], uniques=len(uniques or []))
