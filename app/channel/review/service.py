@@ -139,6 +139,8 @@ async def create_review_post(
         post_text=post.text,
         image_url=post.image_url,
         image_urls=post.image_urls or None,
+        image_candidates=post.image_candidates,
+        image_phashes=post.image_phashes or None,
         source_items=source_data,
         review_chat_id=int(review_chat_id) if review_chat_id else 0,
     )

@@ -458,6 +458,8 @@ async def send_for_review(state: State) -> State:
                             post_text=post.text,
                             image_url=post.image_url,
                             image_urls=post.image_urls or None,
+                            image_candidates=post.image_candidates,
+                            image_phashes=post.image_phashes or None,
                             status=PostStatus.APPROVED,
                             telegram_message_id=msg_id,
                         )

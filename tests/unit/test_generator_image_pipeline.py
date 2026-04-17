@@ -138,3 +138,37 @@ async def test_generator_handles_pipeline_failure(mock_agent_factory, mock_usage
     assert post is not None
     assert post.image_urls == []
     assert post.image_candidates is None
+
+
+@patch("app.channel.generator.extract_usage_from_pydanticai_result", return_value=None)
+@patch("app.channel.generator._create_generation_agent")
+async def test_channel_post_persists_candidates_via_review_service(mock_agent_factory, mock_usage, session_maker):
+    """review.service creates ChannelPost with image_candidates from GeneratedPost."""
+    from app.channel.generator import GeneratedPost
+    from app.channel.review.service import create_review_post
+    from app.channel.sources import ContentItem
+    from app.db.models import ChannelPost
+    from sqlalchemy import select
+
+    post = GeneratedPost(
+        text="Body.",
+        image_urls=["https://x/a.jpg"],
+        image_candidates=[{"url": "https://x/a.jpg", "source": "og_image", "selected": True}],
+        image_phashes=["aaaa"],
+    )
+    source_items = [ContentItem(source_url="https://src/a", external_id="e1", title="T", body="Body.")]
+
+    async with session_maker() as session:
+        db_post = await create_review_post(
+            channel_id=-100,
+            post=post,
+            source_items=source_items,
+            review_chat_id=0,
+            session=session,
+        )
+        assert db_post is not None
+        await session.commit()
+
+        row = (await session.execute(select(ChannelPost).where(ChannelPost.id == db_post.id))).scalar_one()
+        assert row.image_candidates == [{"url": "https://x/a.jpg", "source": "og_image", "selected": True}]
+        assert row.image_phashes == ["aaaa"]
