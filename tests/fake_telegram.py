@@ -11,6 +11,7 @@ Usage:
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Any
 
@@ -153,12 +154,10 @@ class FakeTelegramServer:
 
     def _handle_sendMediaGroup(self, params: dict[str, Any]) -> web.Response:
         """Return one minimal Message per item in the media list, with distinct ids."""
-        import json as _json
-
         media_raw = params.get("media", "[]")
         try:
-            media = _json.loads(media_raw) if isinstance(media_raw, str) else list(media_raw)
-        except Exception:
+            media = json.loads(media_raw) if isinstance(media_raw, str) else list(media_raw)
+        except (TypeError, ValueError):
             media = []
         chat_id = int(params.get("chat_id", 0))
         messages: list[dict[str, Any]] = []
