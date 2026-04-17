@@ -344,6 +344,17 @@ async def generate_post(state: State) -> State:
     if channel.discovery_query:
         channel_context = f"Channel focus: {channel.discovery_query}"
 
+    from app.channel.critic import resolve_critic_enabled
+
+    # Wrap `config` (ChannelAgentSettings) in a shim so resolve_critic_enabled
+    # can access settings_obj.channel.critic_enabled using the state config,
+    # not the global singleton (which may differ in tests and staging).
+    class _SettingsShim:
+        channel = config
+
+    critic_enabled = resolve_critic_enabled(channel, _SettingsShim())  # type: ignore[arg-type]
+    critic_model = config.critic_model
+
     try:
         post = await _generate(
             relevant[:1],  # 1 news = 1 post
@@ -359,6 +370,8 @@ async def generate_post(state: State) -> State:
             vision_model=config.vision_model,
             phash_threshold=config.image_phash_threshold,
             phash_lookback=config.image_phash_lookback_posts,
+            critic_enabled=critic_enabled,
+            critic_model=critic_model,
         )
         if post is None:
             return state.update(generated_post=None, error="generation_failed")
@@ -462,6 +475,7 @@ async def send_for_review(state: State) -> State:
                             image_phashes=post.image_phashes or None,
                             status=PostStatus.APPROVED,
                             telegram_message_id=msg_id,
+                            pre_critic_text=post.pre_critic_text,
                         )
                         session.add(db_post)
                         await session.commit()

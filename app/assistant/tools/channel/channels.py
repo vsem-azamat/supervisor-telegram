@@ -155,3 +155,34 @@ def register_channels_tools(agent: Agent[AssistantDeps, str]) -> None:
         if not ok:
             return f"Канал {telegram_id} не найден."
         return f"Канал {telegram_id} удалён. Оркестратор остановит его в течение 5 минут."
+
+    @agent.tool
+    async def set_channel_critic(
+        ctx: RunContext[AssistantDeps],
+        telegram_id: int,
+        enabled: bool | None,
+    ) -> str:
+        """Set per-channel critic override. enabled=True forces the critic on for
+        this channel, False forces it off, None resets the override so the channel
+        follows the global CHANNEL_CRITIC_ENABLED setting."""
+        from sqlalchemy import select
+
+        from app.core.config import settings
+        from app.db.models import Channel
+
+        async with ctx.deps.session_maker() as session:
+            row = (
+                await session.execute(select(Channel).where(Channel.telegram_id == telegram_id))
+            ).scalar_one_or_none()
+            if row is None:
+                return f"Канал {telegram_id} не найден."
+            row.critic_enabled = enabled
+            await session.commit()
+
+        global_val = settings.channel.critic_enabled
+        effective = enabled if enabled is not None else global_val
+        if enabled is None:
+            return (
+                f"Канал {telegram_id}: override сброшен, теперь следует глобальной настройке (effective={effective})."
+            )
+        return f"Канал {telegram_id}: critic_enabled={enabled} (global={global_val}, effective={effective})."

@@ -271,6 +271,7 @@ class Channel(Base):
     last_source_discovery_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     footer_template: Mapped[str | None] = mapped_column(String, nullable=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    critic_enabled: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
     modified_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
 
@@ -290,6 +291,7 @@ class Channel(Base):
         username: str | None = None,
         footer_template: str | None = None,
         enabled: bool = True,
+        critic_enabled: bool | None = None,
     ) -> None:
         self.telegram_id = telegram_id
         self.name = name
@@ -303,6 +305,7 @@ class Channel(Base):
         self.username = username
         self.footer_template = footer_template
         self.enabled = enabled
+        self.critic_enabled = critic_enabled
 
     @property
     def footer(self) -> str:
@@ -413,6 +416,7 @@ class ChannelPost(Base):
     image_phashes: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     status: Mapped[str] = mapped_column(String(16), default=PostStatus.DRAFT, index=True)
     admin_feedback: Mapped[str | None] = mapped_column(String, nullable=True)
+    pre_critic_text: Mapped[str | None] = mapped_column(String, nullable=True)
     scheduled_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     scheduled_telegram_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     published_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
@@ -441,6 +445,7 @@ class ChannelPost(Base):
         status: str = PostStatus.DRAFT,
         embedding: Any | None = None,
         embedding_model: str | None = None,
+        pre_critic_text: str | None = None,
     ) -> None:
         self.channel_id = channel_id
         self.external_id = external_id
@@ -460,6 +465,7 @@ class ChannelPost(Base):
         self.review_album_message_ids = review_album_message_ids
         self.embedding = embedding
         self.embedding_model = embedding_model
+        self.pre_critic_text = pre_critic_text
 
     def approve(self, message_id: int) -> None:
         self.status = PostStatus.APPROVED

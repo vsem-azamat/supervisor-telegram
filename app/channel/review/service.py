@@ -143,6 +143,7 @@ async def create_review_post(
         image_phashes=post.image_phashes or None,
         source_items=source_data,
         review_chat_id=int(review_chat_id) if review_chat_id else 0,
+        pre_critic_text=post.pre_critic_text,
     )
     session.add(db_post)
     try:
@@ -477,7 +478,20 @@ async def regen_post_text(
         if not items:
             return "No source data to regenerate from.", None
 
+        from app.channel.critic import resolve_critic_enabled
         from app.core.config import settings
+        from app.db.models import Channel
+
+        # Resolve per-channel override for the critic flag. post.channel_id is
+        # the Telegram id; load the Channel row. If not found, fall back to global.
+        ch_row = (
+            await session.execute(select(Channel).where(Channel.telegram_id == post.channel_id))
+        ).scalar_one_or_none()
+        if ch_row is not None:
+            critic_enabled = resolve_critic_enabled(ch_row, settings)
+        else:
+            critic_enabled = settings.channel.critic_enabled
+        critic_model = settings.channel.critic_model
 
         new_post = await generate_post(
             items,
@@ -490,11 +504,14 @@ async def regen_post_text(
             vision_model=settings.channel.vision_model,
             phash_threshold=settings.channel.image_phash_threshold,
             phash_lookback=settings.channel.image_phash_lookback_posts,
+            critic_enabled=critic_enabled,
+            critic_model=critic_model,
         )
         if not new_post:
             return "Regeneration failed.", None
 
         post.update_text(new_post.text)
+        post.pre_critic_text = new_post.pre_critic_text
         # Also refresh image fields from the new pipeline run — otherwise the
         # post's text and image pool diverge (old images stay attached to new text).
         post.image_url = new_post.image_url
