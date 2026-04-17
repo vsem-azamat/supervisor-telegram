@@ -527,7 +527,7 @@ async def handle_regen(
     channel_name: str = "",
     channel_username: str | None = None,
 ) -> str:
-    """Regenerate a post from its original sources."""
+    """Regenerate a post from its original sources. Always rebuilds the review message."""
     status_msg, updated_post = await regen_post_text(
         post_id=post_id,
         api_key=api_key,
@@ -537,7 +537,6 @@ async def handle_regen(
         footer=footer,
     )
 
-    # Update Telegram review message if regen succeeded
     if updated_post and updated_post.review_message_id:
         source_btn_data = extract_source_btn_data(updated_post)
         keyboard = build_review_keyboard(
@@ -547,16 +546,8 @@ async def handle_regen(
             channel_username=channel_username,
         )
         try:
-            regen_plain, regen_entities = md_to_entities(updated_post.post_text)
-            await _edit_review_message(
-                bot,
-                review_chat_id,
-                updated_post.review_message_id,
-                regen_plain,
-                regen_entities,
-                keyboard,
-            )
+            await _rebuild_review_message(bot, review_chat_id, post_id, session_maker, keyboard)
         except Exception:
-            logger.exception("review_update_error")
+            logger.exception("review_regen_rebuild_error")
 
     return status_msg
