@@ -38,12 +38,12 @@ This spec addresses those five gaps with a minimal, low-risk pipeline on top of 
 app/channel/
 ├── images.py                    # existing — extraction, UNCHANGED
 ├── image_pipeline/              # NEW package
-│   ├── __init__.py              # build_candidates(item, channel_id, session_maker) orchestrator
+│   ├── __init__.py              # build_candidates orchestrator (lands in PR #2; empty package marker after PR #1)
 │   ├── models.py                # ImageCandidate, VisionScore, CompositionDecision (Pydantic)
 │   ├── filter.py                # cheap_filter(urls) — Pillow-based heuristics
-│   ├── score.py                 # vision_score(candidates, title) — OpenRouter multimodal
+│   ├── score.py                 # vision_score(candidates, title) — OpenRouter multimodal (PR #2)
 │   ├── dedup.py                 # phash_dedup(candidates, channel_id, session_maker)
-│   └── compose.py               # pick_composition(text, candidates) + fallback
+│   └── compose.py               # pick_composition(text, candidates) + fallback (PR #2)
 ├── generator.py                 # MODIFIED — calls image_pipeline.build_candidates + pick_composition
 ├── exceptions.py                # +ImagePipelineError
 └── review/
@@ -186,7 +186,7 @@ return CompositionDecision(composition="single", selected_indices=[0], reason="f
 
 ## Review agent tool contract
 
-**Removed** (coarse): `replace_images(urls)`, `remove_images()`, `find_new_images(query)`.
+**Removed:** `replace_images(urls)` and `remove_images()` (coarse — replace-all / remove-all only); `find_new_images(query)` (returned URLs to the agent as free-form text, bypassing the pool).
 
 **Added** (granular):
 
@@ -260,7 +260,7 @@ No real LLM or Telegram API calls in any automated test. Manual smoke via `/gene
 **Changes:**
 - Alembic migration: `+image_candidates: JSON`, `+image_phashes: JSON` on `ChannelPost`
 - `pyproject.toml`: `+imagehash>=4.3`
-- New package `app/channel/image_pipeline/` with `models.py`, `filter.py`, `dedup.py`, `__init__.py`
+- New package `app/channel/image_pipeline/` with `models.py`, `filter.py`, `dedup.py`, and an empty `__init__.py` (orchestrator body lands in PR #2)
 - `app/channel/exceptions.py`: `+ImagePipelineError`
 - `app/core/config.py`: `ChannelAgentSettings.vision_model`, `image_phash_lookback_posts`, `image_phash_threshold`
 - `tests/fixtures/images.py`: `make_test_image()` helper
