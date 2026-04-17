@@ -11,6 +11,7 @@ Usage:
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Any
 
@@ -149,6 +150,40 @@ class FakeTelegramServer:
         )
 
     def _handle_deleteMessage(self, params: dict[str, Any]) -> web.Response:
+        return web.json_response({"ok": True, "result": True})
+
+    def _handle_sendMediaGroup(self, params: dict[str, Any]) -> web.Response:
+        """Return one minimal Message per item in the media list, with distinct ids."""
+        media_raw = params.get("media", "[]")
+        try:
+            media = json.loads(media_raw) if isinstance(media_raw, str) else list(media_raw)
+        except (TypeError, ValueError):
+            media = []
+        chat_id = int(params.get("chat_id", 0))
+        messages: list[dict[str, Any]] = []
+        for _ in media:
+            self._message_id_counter += 1
+            messages.append(
+                {
+                    "message_id": self._message_id_counter,
+                    "from": {"id": 5145935834, "is_bot": True, "first_name": "Test Bot"},
+                    "chat": {"id": chat_id, "type": "supergroup", "title": "Test Chat"},
+                    "date": 1700000000,
+                    "photo": [
+                        {
+                            "file_id": f"photo-{self._message_id_counter}",
+                            "file_unique_id": f"u-{self._message_id_counter}",
+                            "width": 800,
+                            "height": 600,
+                            "file_size": 1024,
+                        }
+                    ],
+                }
+            )
+        return web.json_response({"ok": True, "result": messages})
+
+    def _handle_deleteMessages(self, params: dict[str, Any]) -> web.Response:
+        """Bulk delete. Accept and record the list; return success."""
         return web.json_response({"ok": True, "result": True})
 
     def _handle_restrictChatMember(self, params: dict[str, Any]) -> web.Response:

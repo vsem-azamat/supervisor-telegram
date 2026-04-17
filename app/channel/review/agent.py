@@ -5,7 +5,6 @@ that has tools and memory, enabling multi-turn editing sessions per post.
 """
 
 import asyncio
-import contextlib
 import functools
 import time
 from dataclasses import dataclass
@@ -458,58 +457,48 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
         return msg
 
     async def _refresh_review_message(ctx: RunContext[ReviewAgentDeps], post: Any) -> str | None:
-        """Delete old review message and send a new one with updated image/text.
+        """Delegate to the telegram_io rebuild helper.
 
-        Returns a warning string if refresh failed, None on success.
+        The ``post`` argument is unused — the helper re-fetches from DB to avoid
+        stale state. Kept for API compatibility with earlier callers.
         """
-        from app.channel.review.telegram_io import (
-            _send_review_message,
-            build_review_keyboard,
-            extract_source_btn_data,
-        )
+        del post
+        from sqlalchemy import select as _select
 
-        if not post.review_message_id:
-            return None
-
-        bot = ctx.deps.bot
-        review_chat_id = ctx.deps.review_chat_id
+        from app.channel.review.service import extract_source_btn_data
+        from app.channel.review.telegram_io import _rebuild_review_message, build_review_keyboard
+        from app.db.models import ChannelPost
 
         try:
-            # Delete old message
-            with contextlib.suppress(Exception):
-                await bot.delete_message(chat_id=review_chat_id, message_id=post.review_message_id)
+            async with ctx.deps.session_maker() as session:
+                r = await session.execute(_select(ChannelPost).where(ChannelPost.id == ctx.deps.post_id))
+                fresh_post = r.scalar_one_or_none()
 
-            # Send new message with current image
-            source_btn_data = extract_source_btn_data(post)
+            if fresh_post is None:
+                return "Warning: post not found during refresh."
+
             keyboard = build_review_keyboard(
                 ctx.deps.post_id,
-                source_items=source_btn_data,
+                source_items=extract_source_btn_data(fresh_post),
                 channel_name=ctx.deps.channel_name,
                 channel_username=ctx.deps.channel_username,
             )
-            new_msg = await _send_review_message(
-                bot,
-                review_chat_id,
-                post.post_text,
+            await _rebuild_review_message(
+                ctx.deps.bot,
+                ctx.deps.review_chat_id,
+                ctx.deps.post_id,
+                ctx.deps.session_maker,
                 keyboard,
-                post.image_url,
             )
 
-            # Update review_message_id in DB + register in reply chain
+            # Register the new pult in the reply chain (post.review_message_id was
+            # updated inside _rebuild_review_message).
             async with ctx.deps.session_maker() as session:
-                from sqlalchemy import select as sa_select
-
-                from app.db.models import ChannelPost
-
-                r = await session.execute(sa_select(ChannelPost).where(ChannelPost.id == ctx.deps.post_id))
-                db_post = r.scalar_one_or_none()
-                if db_post:
-                    db_post.review_message_id = new_msg.message_id
-                    await session.commit()
-
-            # Register new message in reply chain (in-memory + DB)
-            register_message(new_msg.message_id, ctx.deps.post_id)
-            await persist_message_to_db(ctx.deps.session_maker, ctx.deps.post_id, new_msg.message_id)
+                r = await session.execute(_select(ChannelPost).where(ChannelPost.id == ctx.deps.post_id))
+                refreshed = r.scalar_one_or_none()
+            if refreshed and refreshed.review_message_id:
+                register_message(refreshed.review_message_id, ctx.deps.post_id)
+                await persist_message_to_db(ctx.deps.session_maker, ctx.deps.post_id, refreshed.review_message_id)
 
             return None
         except Exception:
@@ -592,16 +581,8 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
         return out
 
     async def _refresh_after_change(ctx: RunContext[ReviewAgentDeps]) -> None:
-        """Re-fetch the post and call the existing _refresh_review_message helper."""
-        from sqlalchemy import select as _select
-
-        from app.db.models import ChannelPost
-
-        async with ctx.deps.session_maker() as session:
-            r = await session.execute(_select(ChannelPost).where(ChannelPost.id == ctx.deps.post_id))
-            post = r.scalar_one_or_none()
-        if post:
-            await _refresh_review_message(ctx, post)
+        """Re-fetch the post and rebuild the review message."""
+        await _refresh_review_message(ctx, None)
 
     return agent
 

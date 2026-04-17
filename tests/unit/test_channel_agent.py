@@ -1035,7 +1035,7 @@ class TestReviewFlow:
         mock_bot: AsyncMock,
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
-        """When review_message_id is set, regen should update the review message."""
+        """When review_message_id is set, regen should rebuild the review message."""
         from app.channel.review import handle_regen
 
         async with session_maker() as session:
@@ -1052,16 +1052,20 @@ class TestReviewFlow:
             await session.commit()
             post_id = post.id
 
-        with patch("app.channel.generator.generate_post", new_callable=AsyncMock) as mock_gen:
+        with (
+            patch("app.channel.generator.generate_post", new_callable=AsyncMock) as mock_gen,
+            patch("app.channel.review.telegram_io._rebuild_review_message", new_callable=AsyncMock) as mock_rebuild,
+        ):
             mock_gen.return_value = GeneratedPost(text="<b>Regenerated</b>", is_sensitive=False)
             result = await handle_regen(mock_bot, post_id, "key", "model", "Russian", -100, session_maker)
 
         assert result == "Post regenerated."
-        # Review message should be updated
-        mock_bot.edit_message_text.assert_called_once()
-        edit_kwargs = mock_bot.edit_message_text.call_args[1]
-        assert edit_kwargs["message_id"] == 50
-        assert edit_kwargs.get("parse_mode") is None
+        # Review message should be rebuilt (new-first-then-delete), not edited in place
+        mock_rebuild.assert_awaited_once()
+        rebuild_args = mock_rebuild.call_args
+        # Positional args: (bot, chat_id, post_id, session_maker, keyboard)
+        assert rebuild_args.args[1] == -100
+        assert rebuild_args.args[2] == post_id
 
 
 # ── ChannelSource enable/disable tests ───────────────────────────────

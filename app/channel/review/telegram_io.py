@@ -23,7 +23,7 @@ from __future__ import annotations
 import calendar
 from typing import TYPE_CHECKING, Any
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, URLInputFile
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, Message, URLInputFile
 
 from app.channel.review.service import (
     CB_APPROVE,
@@ -170,24 +170,54 @@ def build_schedule_picker_keyboard(
 # ── Telegram message send/edit helpers ──
 
 
-async def _send_review_message(
+async def _render_review_message(
     bot: Bot,
     chat_id: int | str,
-    text: str,
+    post_text: str,
+    image_urls: list[str] | None,
     keyboard: InlineKeyboardMarkup,
-    image_url: str | None = None,
-) -> Message:
-    """Send review message — photo with caption if image available, else text.
+) -> tuple[int, list[int] | None]:
+    """Send a review message in the right mode based on image count.
 
-    NOTE: parse_mode=None is required to override the bot's default parse_mode="HTML",
-    otherwise caption_entities / entities are silently ignored by Telegram.
+    Returns (pult_message_id, album_message_ids | None).
+    - 0 images → text message (pult = that message; album = None)
+    - 1 image, caption ≤ 1024 → photo with caption (pult = that photo; album = None)
+    - 1 image, caption > 1024 → text-only fallback (image dropped; pult = text msg)
+    - 2+ images → media group + separate pult text message as reply to first photo
+
+    parse_mode=None is required everywhere to preserve entities past the bot's
+    default HTML mode.
     """
-    plain, entities = md_to_entities(text)
+    plain, entities = md_to_entities(post_text)
+    urls = list(image_urls or [])
 
-    if image_url and len(plain) <= 1024:
+    if len(urls) >= 2:
+        input_media = [InputMediaPhoto(media=URLInputFile(u)) for u in urls[:10]]
         try:
-            photo = URLInputFile(image_url)
-            return await bot.send_photo(
+            photos = await bot.send_media_group(chat_id=chat_id, media=input_media)
+        except Exception:
+            logger.exception("review_album_send_failed_fallback_to_single")
+            photos = []
+
+        if photos:
+            pult_msg = await bot.send_message(
+                chat_id=chat_id,
+                text=plain,
+                entities=entities,
+                reply_markup=keyboard,
+                reply_to_message_id=photos[0].message_id,
+                disable_web_page_preview=True,
+                parse_mode=None,
+            )
+            return pult_msg.message_id, [m.message_id for m in photos]
+
+        # album failed — fall through to single-image path using the first url
+
+    first_url = urls[0] if urls else None
+    if first_url and len(plain) <= 1024:
+        try:
+            photo = URLInputFile(first_url)
+            msg = await bot.send_photo(
                 chat_id=chat_id,
                 photo=photo,
                 caption=plain,
@@ -195,10 +225,11 @@ async def _send_review_message(
                 reply_markup=keyboard,
                 parse_mode=None,
             )
+            return msg.message_id, None
         except Exception:
             logger.exception("review_photo_failed_fallback_to_text")
 
-    return await bot.send_message(
+    msg = await bot.send_message(
         chat_id=chat_id,
         text=plain,
         entities=entities,
@@ -206,6 +237,72 @@ async def _send_review_message(
         disable_web_page_preview=True,
         parse_mode=None,
     )
+    return msg.message_id, None
+
+
+async def _rebuild_review_message(
+    bot: Bot,
+    chat_id: int | str,
+    post_id: int,
+    session_maker: async_sessionmaker[AsyncSession],
+    keyboard: InlineKeyboardMarkup,
+) -> None:
+    """Rebuild the review message for ``post_id``: new-first-then-delete.
+
+    1. Fetch current post + old (pult_id, album_ids) from DB.
+    2. Call ``_render_review_message`` with the post's current text/images.
+    3. Commit the new ids to DB (callbacks on the new pult work immediately).
+    4. Best-effort delete all old messages. Delete failures are logged, not raised.
+
+    No-op when the post has no existing ``review_message_id``.
+    """
+    from sqlalchemy import select
+
+    from app.db.models import ChannelPost
+
+    async with session_maker() as session:
+        r = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))
+        post = r.scalar_one_or_none()
+        if post is None or not post.review_message_id:
+            return
+        old_ids: list[int] = [post.review_message_id]
+        old_ids.extend(post.review_album_message_ids or [])
+        post_text = post.post_text
+        image_urls = list(post.image_urls or [])
+
+    new_pult_id, new_album_ids = await _render_review_message(bot, chat_id, post_text, image_urls, keyboard)
+
+    async with session_maker() as session:
+        r = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))
+        post = r.scalar_one_or_none()
+        if post is not None:
+            post.review_message_id = new_pult_id
+            post.review_album_message_ids = new_album_ids
+            await session.commit()
+
+    try:
+        await bot.delete_messages(chat_id=chat_id, message_ids=old_ids)
+    except Exception:
+        logger.warning("review_rebuild_delete_failed", post_id=post_id, old_ids=old_ids, exc_info=True)
+
+
+async def _send_review_message(
+    bot: Bot,
+    chat_id: int | str,
+    text: str,
+    keyboard: InlineKeyboardMarkup,
+    image_url: str | None = None,
+) -> Message:
+    """Back-compat wrapper that returns the pult Message only.
+
+    Callers that still use this helper get single-message semantics (they cannot
+    support album mode — they get the old behaviour). New code should use
+    `_render_review_message` directly.
+    """
+    image_urls = [image_url] if image_url else []
+    pult_id, _ = await _render_review_message(bot, chat_id, text, image_urls, keyboard)
+    # Synthesise a minimal Message-like object; callers only use .message_id.
+    return type("_StubMsg", (), {"message_id": pult_id})()  # type: ignore[return-value]
 
 
 async def _edit_review_message(
@@ -295,10 +392,19 @@ async def send_for_review(
                 channel_username=channel_username,
             )
 
-            msg = await _send_review_message(bot, review_chat_id, post.text, keyboard, post.image_url)
-            db_post.review_message_id = msg.message_id
+            image_urls = post.image_urls or ([post.image_url] if post.image_url else [])
+            msg_pult_id, msg_album_ids = await _render_review_message(
+                bot, review_chat_id, post.text, image_urls, keyboard
+            )
+            db_post.review_message_id = msg_pult_id
+            db_post.review_album_message_ids = msg_album_ids
             await session.commit()
-            logger.info("review_sent", post_id=post_id, review_msg=msg.message_id)
+            logger.info(
+                "review_sent",
+                post_id=post_id,
+                review_msg=msg_pult_id,
+                album=len(msg_album_ids) if msg_album_ids else 0,
+            )
             return post_id
         except EmbeddingError as exc:
             # create_review_post already rolled back the session; surface as None
@@ -343,15 +449,33 @@ async def handle_delete(
     review_message_id: int | None,
     session_maker: async_sessionmaker[AsyncSession],
 ) -> str:
-    """Skip a post (soft-delete) and remove the review message from chat."""
+    """Skip a post (soft-delete) and remove the review messages from chat."""
+    from sqlalchemy import select
+
+    from app.db.models import ChannelPost
+
+    album_ids: list[int] = []
+    async with session_maker() as session:
+        r = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))
+        post = r.scalar_one_or_none()
+        if post and post.review_album_message_ids:
+            album_ids = list(post.review_album_message_ids)
+
     status_msg, skipped_post = await delete_post(post_id, session_maker)
 
-    # Remove review message from chat (Telegram-specific)
-    if skipped_post and review_message_id:
-        try:
-            await bot.delete_message(chat_id=review_chat_id, message_id=review_message_id)
-        except Exception:
-            logger.warning("review_message_delete_failed", post_id=post_id, exc_info=True)
+    if skipped_post:
+        # Delete album photos in bulk (best-effort).
+        if album_ids:
+            try:
+                await bot.delete_messages(chat_id=review_chat_id, message_ids=album_ids)
+            except Exception:
+                logger.warning("review_album_delete_failed", post_id=post_id, exc_info=True)
+        # Delete pult.
+        if review_message_id:
+            try:
+                await bot.delete_message(chat_id=review_chat_id, message_id=review_message_id)
+            except Exception:
+                logger.warning("review_message_delete_failed", post_id=post_id, exc_info=True)
 
     return status_msg
 
@@ -421,7 +545,7 @@ async def handle_regen(
     channel_name: str = "",
     channel_username: str | None = None,
 ) -> str:
-    """Regenerate a post from its original sources."""
+    """Regenerate a post from its original sources. Always rebuilds the review message."""
     status_msg, updated_post = await regen_post_text(
         post_id=post_id,
         api_key=api_key,
@@ -431,7 +555,6 @@ async def handle_regen(
         footer=footer,
     )
 
-    # Update Telegram review message if regen succeeded
     if updated_post and updated_post.review_message_id:
         source_btn_data = extract_source_btn_data(updated_post)
         keyboard = build_review_keyboard(
@@ -441,16 +564,8 @@ async def handle_regen(
             channel_username=channel_username,
         )
         try:
-            regen_plain, regen_entities = md_to_entities(updated_post.post_text)
-            await _edit_review_message(
-                bot,
-                review_chat_id,
-                updated_post.review_message_id,
-                regen_plain,
-                regen_entities,
-                keyboard,
-            )
+            await _rebuild_review_message(bot, review_chat_id, post_id, session_maker, keyboard)
         except Exception:
-            logger.exception("review_update_error")
+            logger.exception("review_regen_rebuild_error")
 
     return status_msg
