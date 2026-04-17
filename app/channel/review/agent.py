@@ -345,7 +345,7 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
         from sqlalchemy import select
 
         from app.channel.generator import enforce_footer_and_length
-        from app.channel.review.presentation import (
+        from app.channel.review.telegram_io import (
             _edit_review_message,
             build_review_keyboard,
             extract_source_btn_data,
@@ -452,7 +452,7 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
 
         Returns a warning string if refresh failed, None on success.
         """
-        from app.channel.review.presentation import (
+        from app.channel.review.telegram_io import (
             _send_review_message,
             build_review_keyboard,
             extract_source_btn_data,

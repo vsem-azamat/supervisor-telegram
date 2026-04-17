@@ -1,7 +1,21 @@
-"""Review flow — Telegram presentation layer.
+"""Review flow — Telegram I/O glue for the review feature.
 
-Sends drafts to the review channel with inline buttons, handles callbacks.
-Business logic and DB operations are delegated to service.py.
+Lives inside the feature module (not `app/presentation/`) because the review
+LLM agent in `agent.py` directly edits the Telegram review message from its
+`update_post` / `replace_images` / `remove_images` tools. Extracting this to
+the presentation layer would require also refactoring the agent to return
+edits declaratively — deferred to avoid a much larger scope.
+
+Responsibilities:
+- Keyboard builders (`build_review_keyboard`, `build_schedule_picker_keyboard`)
+- Send/edit primitives (`_send_review_message`, `_edit_review_message`) —
+  both pass `parse_mode=None` to work around the bot's default HTML mode
+- High-level flows (`send_for_review`, `handle_approve/reject/delete/...`)
+  that the presentation-layer handler (`app/presentation/.../channel_review.py`)
+  and the review agent both call into.
+
+Callback handlers for admin button clicks live in the presentation layer.
+Business logic + DB state transitions live in `service.py`.
 """
 
 from __future__ import annotations

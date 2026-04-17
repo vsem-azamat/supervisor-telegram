@@ -14,18 +14,6 @@ from app.channel.review.agent import (  # noqa: F401
     review_agent_turn,
 )
 
-# ── Presentation (was review.py) ──
-from app.channel.review.presentation import (  # noqa: F401
-    build_review_keyboard,
-    build_schedule_picker_keyboard,
-    handle_approve,
-    handle_delete,
-    handle_edit_request,
-    handle_regen,
-    handle_reject,
-    send_for_review,
-)
-
 # ── Service ──
 from app.channel.review.service import (  # noqa: F401
     CB_APPROVE,
@@ -47,6 +35,18 @@ from app.channel.review.service import (  # noqa: F401
     extract_source_urls,
     regen_post_text,
     reject_post,
+)
+
+# ── Presentation (was review.py) ──
+from app.channel.review.telegram_io import (  # noqa: F401
+    build_review_keyboard,
+    build_schedule_picker_keyboard,
+    handle_approve,
+    handle_delete,
+    handle_edit_request,
+    handle_regen,
+    handle_reject,
+    send_for_review,
 )
 
 __all__ = [
