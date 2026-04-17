@@ -12,7 +12,7 @@ from app.infrastructure.db.models import AgentDecision
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
-    from app.agent.schemas import AgentEvent
+    from app.moderation.schemas import AgentEvent
 
 
 @dataclass

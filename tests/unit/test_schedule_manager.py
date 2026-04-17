@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from app.agent.channel.schedule_manager import (
+from app.channel.schedule_manager import (
     cancel_scheduled_post,
     get_occupied_slots,
     next_publish_slot,

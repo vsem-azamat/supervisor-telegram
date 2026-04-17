@@ -11,7 +11,7 @@ from aiogram import Router
 from aiogram.filters import Filter
 from aiogram.types import Message as TgMessage
 
-from app.agent.channel.review import (
+from app.channel.review import (
     build_review_keyboard,
     handle_approve,
     handle_delete,
@@ -68,7 +68,7 @@ async def _get_channel_for_post(post_id: int, session_maker: Any) -> Channel | N
 
 def _channel_language(channel: Channel | None) -> str:
     """Get the full language name for a channel, defaulting to Russian."""
-    from app.agent.channel.config import language_name
+    from app.channel.config import language_name
 
     return language_name(channel.language if channel else "ru")
 
@@ -114,7 +114,7 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
             await callback.answer(result, show_alert=True)
 
             if "Published" in result:
-                from app.agent.channel.review.agent import clear_reply_chain_from_db, clear_review_conversation
+                from app.channel.review.agent import clear_reply_chain_from_db, clear_review_conversation
 
                 clear_review_conversation(post_id)
                 await clear_reply_chain_from_db(session_maker, post_id)
@@ -129,7 +129,7 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
         await callback.answer(result, show_alert=True)
 
         if "rejected" in result.lower():
-            from app.agent.channel.review.agent import clear_reply_chain_from_db, clear_review_conversation
+            from app.channel.review.agent import clear_reply_chain_from_db, clear_review_conversation
 
             clear_review_conversation(post_id)
             await clear_reply_chain_from_db(session_maker, post_id)
@@ -143,7 +143,7 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
             if "skipped" not in result.lower():
                 await callback.answer(result, show_alert=True)
             else:
-                from app.agent.channel.review.agent import clear_reply_chain_from_db, clear_review_conversation
+                from app.channel.review.agent import clear_reply_chain_from_db, clear_review_conversation
 
                 clear_review_conversation(post_id)
                 await clear_reply_chain_from_db(session_maker, post_id)
@@ -223,7 +223,7 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
                 channel_username=channel.username,
             )
             logger.info("regen_result", post_id=post_id, result=result)
-            from app.agent.channel.review.agent import clear_review_conversation
+            from app.channel.review.agent import clear_review_conversation
 
             clear_review_conversation(post_id)
         except Exception:
@@ -251,7 +251,7 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
                 channel_username=channel.username,
             )
             logger.info("shorter_result", post_id=post_id, result=result)
-            from app.agent.channel.review.agent import clear_review_conversation
+            from app.channel.review.agent import clear_review_conversation
 
             clear_review_conversation(post_id)
         except Exception:
@@ -279,7 +279,7 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
                 channel_username=channel.username,
             )
             logger.info("longer_result", post_id=post_id, result=result)
-            from app.agent.channel.review.agent import clear_review_conversation
+            from app.channel.review.agent import clear_review_conversation
 
             clear_review_conversation(post_id)
         except Exception:
@@ -309,7 +309,7 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
                 channel_username=channel.username,
             )
             logger.info("translate_result", post_id=post_id, result=result)
-            from app.agent.channel.review.agent import clear_review_conversation
+            from app.channel.review.agent import clear_review_conversation
 
             clear_review_conversation(post_id)
         except Exception:
@@ -324,7 +324,7 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
                 return
             from sqlalchemy import select
 
-            from app.agent.channel.review import extract_source_btn_data
+            from app.channel.review import extract_source_btn_data
             from app.infrastructure.db.models import ChannelPost
 
             async with session_maker() as session:
@@ -382,7 +382,7 @@ async def on_schedule_pick(callback: CallbackQuery, callback_data: SchedulePick)
             await callback.answer("Scheduling unavailable (Telethon not connected)", show_alert=True)
             return
 
-        from app.agent.channel.schedule_manager import schedule_post
+        from app.channel.schedule_manager import schedule_post
 
         result = await schedule_post(tc, session_maker, post_id, channel, schedule_time)
         await callback.answer(result, show_alert=True)
@@ -434,7 +434,7 @@ async def on_publish_now(callback: CallbackQuery, callback_data: PublishNow) -> 
         if post and post.status == PostStatus.SCHEDULED:
             tc = container.get_telethon_client()
             if tc and tc.is_available:
-                from app.agent.channel.schedule_manager import cancel_scheduled_post
+                from app.channel.schedule_manager import cancel_scheduled_post
 
                 await cancel_scheduled_post(tc, session_maker, post_id, channel)
 
@@ -444,7 +444,7 @@ async def on_publish_now(callback: CallbackQuery, callback_data: PublishNow) -> 
         await callback.answer(result, show_alert=True)
 
         if "Published" in result:
-            from app.agent.channel.review.agent import clear_review_conversation
+            from app.channel.review.agent import clear_review_conversation
 
             clear_review_conversation(post_id)
             with contextlib.suppress(Exception):
@@ -486,7 +486,7 @@ async def on_schedule_preset(callback: CallbackQuery, callback_data: SchedulePre
             await callback.answer("Scheduling unavailable (Telethon not connected)", show_alert=True)
             return
 
-        from app.agent.channel.schedule_manager import schedule_post
+        from app.channel.schedule_manager import schedule_post
         from app.core.time import utc_now
 
         schedule_time = utc_now() + datetime.timedelta(minutes=minutes)
@@ -494,7 +494,7 @@ async def on_schedule_preset(callback: CallbackQuery, callback_data: SchedulePre
         await callback.answer(result, show_alert=True)
 
         if "Scheduled" in result:
-            from app.agent.channel.review.agent import clear_review_conversation
+            from app.channel.review.agent import clear_review_conversation
 
             clear_review_conversation(post_id)
             with contextlib.suppress(Exception):
@@ -521,7 +521,7 @@ def _resolve_post_id_from_reply(reply_msg: Message) -> int | None:
                         pass
 
     # 2. Try message_id mapping (reply to an agent response in the conversation chain)
-    from app.agent.channel.review.agent import resolve_post_id
+    from app.channel.review.agent import resolve_post_id
 
     return resolve_post_id(reply_msg.message_id)
 
@@ -551,7 +551,7 @@ class _IsReviewReply(Filter):
         if not post_id:
             session_maker = _get_session_maker()
             if session_maker:
-                from app.agent.channel.review.agent import register_message, resolve_post_id_from_db
+                from app.channel.review.agent import register_message, resolve_post_id_from_db
 
                 post_id = await resolve_post_id_from_db(
                     session_maker, message.reply_to_message.message_id, message.chat.id
@@ -588,7 +588,7 @@ async def on_review_reply(message: Message, post_id: int) -> None:
     review_chat_id: int | str = channel.review_chat_id or message.chat.id
 
     # Register the user's message in the chain so future replies to it also work
-    from app.agent.channel.review.agent import (
+    from app.channel.review.agent import (
         ReviewAgentDeps,
         persist_message_to_db,
         register_message,

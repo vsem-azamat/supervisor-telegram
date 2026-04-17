@@ -9,7 +9,7 @@ from __future__ import annotations
 import httpx
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
-from app.agent.channel.http import get_http_client
+from app.channel.http import get_http_client
 from app.core.config import settings
 from app.core.logging import get_logger
 

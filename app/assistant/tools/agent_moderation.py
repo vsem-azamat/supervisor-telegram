@@ -45,8 +45,8 @@ def register_agent_moderation_tools(agent: Agent[AssistantDeps, str]) -> None:
             reporter_id: User ID who reported the message (optional).
             event_type: Either "report" or "spam".
         """
-        from app.agent.schemas import AgentEvent, EventType
         from app.moderation.agent import AgentCore
+        from app.moderation.schemas import AgentEvent, EventType
 
         try:
             evt_type = EventType.SPAM if event_type == "spam" else EventType.REPORT

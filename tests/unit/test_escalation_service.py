@@ -15,9 +15,9 @@ if TYPE_CHECKING:
 import pytest
 import pytest_asyncio
 from aiogram import Bot
-from app.agent.schemas import AgentEvent, EventType
 from app.infrastructure.db.models import AgentEscalation
 from app.moderation.escalation import EscalationService, _timeout_tasks
+from app.moderation.schemas import AgentEvent, EventType
 from sqlalchemy import select
 
 # ---- Fixtures ----

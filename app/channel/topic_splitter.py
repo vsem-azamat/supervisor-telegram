@@ -13,13 +13,13 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, TypeAdapter
 
-from app.agent.channel.llm_client import openrouter_chat_completion
-from app.agent.channel.sanitize import sanitize_external_text, substitute_template
+from app.channel.llm_client import openrouter_chat_completion
+from app.channel.sanitize import sanitize_external_text, substitute_template
 from app.core.logging import get_logger
 from app.core.time import utc_now
 
 if TYPE_CHECKING:
-    from app.agent.channel.sources import ContentItem
+    from app.channel.sources import ContentItem
 
 logger = get_logger("channel.topic_splitter")
 
@@ -121,7 +121,7 @@ def _topic_to_content_item(
     source_label: str,
 ) -> ContentItem:
     """Convert a Pydantic topic model to a ContentItem."""
-    from app.agent.channel.sources import ContentItem as ContentItemClass
+    from app.channel.sources import ContentItem as ContentItemClass
 
     ext_id = sha256(f"{source_label}:{topic.title}{topic.url or ''}".encode()).hexdigest()[:16]
     return ContentItemClass(
@@ -222,7 +222,7 @@ async def enrich_items(
 
     import asyncio
 
-    from app.agent.channel.brave_search import brave_web_search
+    from app.channel.brave_search import brave_web_search
 
     has_url = [item for item in items if item.url]
     needs_url = [item for item in items if not item.url]

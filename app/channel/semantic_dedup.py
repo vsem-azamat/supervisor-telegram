@@ -23,14 +23,14 @@ from typing import TYPE_CHECKING
 import httpx
 from sqlalchemy import text
 
-from app.agent.channel.embeddings import EMBEDDING_MODEL, get_embeddings
-from app.agent.channel.exceptions import EmbeddingError
+from app.channel.embeddings import EMBEDDING_MODEL, get_embeddings
+from app.channel.exceptions import EmbeddingError
 from app.core.logging import get_logger
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-    from app.agent.channel.sources import ContentItem
+    from app.channel.sources import ContentItem
 
 logger = get_logger("channel.semantic_dedup")
 

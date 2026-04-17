@@ -9,8 +9,8 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from app.agent.channel.config import ChannelAgentSettings
-from app.agent.channel.orchestrator import (
+from app.channel.config import ChannelAgentSettings
+from app.channel.orchestrator import (
     ChannelOrchestrator,
     SingleChannelOrchestrator,
     _next_scheduled_time,
@@ -171,7 +171,7 @@ class TestSingleChannelOrchestrator:
 
     async def test_maybe_discover_sources_disabled_is_noop(self, single_orch: SingleChannelOrchestrator):
         single_orch.config.source_discovery_enabled = False
-        with patch("app.agent.channel.orchestrator.discover_and_add_sources", new_callable=AsyncMock) as mock_disc:
+        with patch("app.channel.orchestrator.discover_and_add_sources", new_callable=AsyncMock) as mock_disc:
             await single_orch._maybe_discover_sources()
             mock_disc.assert_not_called()
 
@@ -181,7 +181,7 @@ class TestSingleChannelOrchestrator:
         from app.core.time import utc_now
 
         single_orch.channel.last_source_discovery_at = utc_now()
-        with patch("app.agent.channel.orchestrator.discover_and_add_sources", new_callable=AsyncMock) as mock_disc:
+        with patch("app.channel.orchestrator.discover_and_add_sources", new_callable=AsyncMock) as mock_disc:
             await single_orch._maybe_discover_sources()
             mock_disc.assert_not_called()
 
@@ -213,9 +213,7 @@ class TestChannelOrchestrator:
         ch1 = _make_channel(telegram_id=-1001111111111, name="Chan1")
         ch2 = _make_channel(telegram_id=-1002222222222, name="Chan2")
 
-        with patch(
-            "app.agent.channel.orchestrator.get_active_channels", new_callable=AsyncMock, return_value=[ch1, ch2]
-        ):
+        with patch("app.channel.orchestrator.get_active_channels", new_callable=AsyncMock, return_value=[ch1, ch2]):
             with patch.object(SingleChannelOrchestrator, "start"):
                 await orch._refresh_channels()
 
@@ -234,9 +232,7 @@ class TestChannelOrchestrator:
         ch1 = _make_channel(telegram_id=-1001111111111, name="Chan1")
         ch2 = _make_channel(telegram_id=-1002222222222, name="Chan2")
 
-        with patch(
-            "app.agent.channel.orchestrator.get_active_channels", new_callable=AsyncMock, return_value=[ch1, ch2]
-        ):
+        with patch("app.channel.orchestrator.get_active_channels", new_callable=AsyncMock, return_value=[ch1, ch2]):
             with patch.object(SingleChannelOrchestrator, "start"):
                 await orch._refresh_channels()
 
@@ -246,7 +242,7 @@ class TestChannelOrchestrator:
         for sub in orch.orchestrators:
             sub.stop = AsyncMock()  # type: ignore[method-assign]
 
-        with patch("app.agent.channel.orchestrator.get_active_channels", new_callable=AsyncMock, return_value=[ch1]):
+        with patch("app.channel.orchestrator.get_active_channels", new_callable=AsyncMock, return_value=[ch1]):
             await orch._refresh_channels()
 
         assert len(orch.orchestrators) == 1
@@ -262,7 +258,7 @@ class TestChannelOrchestrator:
 
         ch1 = _make_channel(telegram_id=-1001111111111, name="Chan1")
 
-        with patch("app.agent.channel.orchestrator.get_active_channels", new_callable=AsyncMock, return_value=[ch1]):
+        with patch("app.channel.orchestrator.get_active_channels", new_callable=AsyncMock, return_value=[ch1]):
             with patch.object(SingleChannelOrchestrator, "start"):
                 await orch._refresh_channels()
 
@@ -334,7 +330,7 @@ class TestTwoBotOrchestrator:
             mock_app.arun = AsyncMock(return_value=(None, None, MagicMock(get=lambda _k, d="": d)))
             return mock_app
 
-        with patch("app.agent.channel.workflow.create_pipeline_app", side_effect=fake_create):
+        with patch("app.channel.workflow.create_pipeline_app", side_effect=fake_create):
             await orch.resume_review(42, "approved")
 
         assert captured_state["review_decision"] == ReviewDecision.APPROVED

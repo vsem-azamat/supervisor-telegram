@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING
 
 import httpx
 
-from app.agent.channel.http import get_http_client
+from app.channel.http import get_http_client
 from app.core.logging import get_logger
 from app.core.time import utc_now
 
 if TYPE_CHECKING:
-    from app.agent.channel.sources import ContentItem
+    from app.channel.sources import ContentItem
 
 logger = get_logger("channel.brave_search")
 
@@ -106,7 +106,7 @@ async def discover_content_brave(
     Brave is better for: specific factual queries, recent news, URL-based results.
     Perplexity is better for: synthesized summaries, broader topic exploration.
     """
-    from app.agent.channel.sources import ContentItem
+    from app.channel.sources import ContentItem
 
     try:
         raw_results = await brave_web_search(api_key, query, count=count, freshness=freshness, timeout=timeout)

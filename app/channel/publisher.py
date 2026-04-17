@@ -12,7 +12,7 @@ from app.core.markdown import md_to_entities
 if TYPE_CHECKING:
     from aiogram import Bot
 
-    from app.agent.channel.generator import GeneratedPost
+    from app.channel.generator import GeneratedPost
 
 logger = get_logger("channel.publisher")
 

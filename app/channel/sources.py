@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 import feedparser
 import httpx
 
-from app.agent.channel.http import get_http_client, is_safe_url
+from app.channel.http import get_http_client, is_safe_url
 from app.core.logging import get_logger
 from app.core.time import utc_now
 
@@ -50,7 +50,7 @@ def _strip_html(text: str) -> str:
 
 def _parse_feed_entries(feed: object, source_url: str, max_items: int = 10) -> list[ContentItem]:
     """Parse feedparser entries into ContentItem list."""
-    from app.agent.channel.images import extract_rss_media_url
+    from app.channel.images import extract_rss_media_url
 
     items: list[ContentItem] = []
     for entry in feed.entries[:max_items]:  # type: ignore[attr-defined]

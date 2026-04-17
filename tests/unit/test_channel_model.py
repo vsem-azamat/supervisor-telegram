@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from app.agent.channel.config import language_name
+from app.channel.config import language_name
 from app.core.enums import PostStatus
 from app.core.time import utc_now
 from app.infrastructure.db.models import Channel, ChannelPost

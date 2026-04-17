@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, URLInputFile
 
-from app.agent.channel.review.service import (
+from app.channel.review.service import (
     CB_APPROVE,
     CB_BACK,
     CB_DELETE,
@@ -40,8 +40,8 @@ if TYPE_CHECKING:
     from aiogram import Bot
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-    from app.agent.channel.generator import GeneratedPost
-    from app.agent.channel.sources import ContentItem
+    from app.channel.generator import GeneratedPost
+    from app.channel.sources import ContentItem
 
 logger = get_logger("channel.review")
 
@@ -251,7 +251,7 @@ async def send_for_review(
 
     Creates a ChannelPost record in DB and returns its ID.
     """
-    from app.agent.channel.exceptions import EmbeddingError
+    from app.channel.exceptions import EmbeddingError
 
     async with session_maker() as session:
         try:
@@ -304,7 +304,7 @@ async def handle_approve(
     session_maker: async_sessionmaker[AsyncSession],
 ) -> str:
     """Approve and publish a post immediately. Returns status message."""
-    from app.agent.channel.publisher import publish_post as _publish
+    from app.channel.publisher import publish_post as _publish
 
     async def _publish_fn(ch_id: int, gen_post: Any) -> int | None:
         return await _publish(bot, ch_id, gen_post)

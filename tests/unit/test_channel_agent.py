@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from app.agent.channel.generator import GeneratedPost
-from app.agent.channel.sources import ContentItem
+from app.channel.generator import GeneratedPost
+from app.channel.sources import ContentItem
 from app.core.enums import PostStatus
 from app.infrastructure.db.models import ChannelPost, ChannelSource
 from sqlalchemy import select
@@ -196,7 +196,7 @@ class TestChannelSourceModel:
 
 class TestSourceManager:
     async def test_add_source(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
-        from app.agent.channel.source_manager import add_source
+        from app.channel.source_manager import add_source
 
         result = await add_source(session_maker, -1001111111111, "https://feed.example.com/rss")
         assert result is True
@@ -207,14 +207,14 @@ class TestSourceManager:
             assert sources[0].url == "https://feed.example.com/rss"
 
     async def test_add_duplicate_source_returns_false(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
-        from app.agent.channel.source_manager import add_source
+        from app.channel.source_manager import add_source
 
         await add_source(session_maker, -1001111111111, "https://feed.example.com/rss")
         result = await add_source(session_maker, -1001111111111, "https://feed.example.com/rss")
         assert result is False
 
     async def test_get_active_sources(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
-        from app.agent.channel.source_manager import add_source, get_active_sources
+        from app.channel.source_manager import add_source, get_active_sources
 
         await add_source(session_maker, -1001111111111, "https://active.com/feed")
         # Add and disable a source
@@ -230,7 +230,7 @@ class TestSourceManager:
         assert active[0].url == "https://active.com/feed"
 
     async def test_remove_source(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
-        from app.agent.channel.source_manager import add_source, remove_source
+        from app.channel.source_manager import add_source, remove_source
 
         await add_source(session_maker, -1001111111111, "https://feed.example.com/rss")
         result = await remove_source(session_maker, "https://feed.example.com/rss")
@@ -241,13 +241,13 @@ class TestSourceManager:
             assert count == 0
 
     async def test_remove_nonexistent_returns_false(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
-        from app.agent.channel.source_manager import remove_source
+        from app.channel.source_manager import remove_source
 
         result = await remove_source(session_maker, "https://nope.com/feed")
         assert result is False
 
     async def test_record_fetch_success(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
-        from app.agent.channel.source_manager import add_source, record_fetch_success
+        from app.channel.source_manager import add_source, record_fetch_success
 
         await add_source(session_maker, -1001111111111, "https://feed.example.com/rss")
         await record_fetch_success(session_maker, "https://feed.example.com/rss")
@@ -258,7 +258,7 @@ class TestSourceManager:
             assert source.last_fetched_at is not None
 
     async def test_record_fetch_error_auto_disables(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
-        from app.agent.channel.source_manager import add_source, record_fetch_error
+        from app.channel.source_manager import add_source, record_fetch_error
 
         await add_source(session_maker, -1001111111111, "https://feed.example.com/rss")
         for i in range(5):
@@ -270,7 +270,7 @@ class TestSourceManager:
             assert source.error_count == 5
 
     async def test_seed_sources_from_env(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
-        from app.agent.channel.source_manager import seed_sources_from_env
+        from app.channel.source_manager import seed_sources_from_env
 
         added = await seed_sources_from_env(session_maker, -1001111111111, ["https://a.com/feed", "https://b.com/feed"])
         assert added == 2
@@ -287,7 +287,7 @@ class TestSourceManager:
 
 class TestReviewFlow:
     async def test_build_review_keyboard(self) -> None:
-        from app.agent.channel.review import build_review_keyboard
+        from app.channel.review import build_review_keyboard
         from app.presentation.telegram.utils.callback_data import ReviewAction
 
         kb = build_review_keyboard(42)
@@ -300,7 +300,7 @@ class TestReviewFlow:
         assert kb.inline_keyboard[0][3].callback_data == ReviewAction(action="delete", post_id=42).pack()
 
     async def test_build_review_keyboard_with_channel_and_sources(self) -> None:
-        from app.agent.channel.review import build_review_keyboard
+        from app.channel.review import build_review_keyboard
 
         kb = build_review_keyboard(
             42,
@@ -322,7 +322,7 @@ class TestReviewFlow:
         sample_content_items: list[ContentItem],
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
-        from app.agent.channel.review import send_for_review
+        from app.channel.review import send_for_review
 
         mock_bot.send_message.return_value = MagicMock(message_id=100)
 
@@ -360,7 +360,7 @@ class TestReviewFlow:
         mock_bot: AsyncMock,
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
-        from app.agent.channel.review import handle_approve
+        from app.channel.review import handle_approve
 
         # Create a post first
         async with session_maker() as session:
@@ -389,7 +389,7 @@ class TestReviewFlow:
         mock_bot: AsyncMock,
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
-        from app.agent.channel.review import handle_approve
+        from app.channel.review import handle_approve
 
         async with session_maker() as session:
             post = ChannelPost(
@@ -408,13 +408,13 @@ class TestReviewFlow:
         mock_bot: AsyncMock,
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
-        from app.agent.channel.review import handle_approve
+        from app.channel.review import handle_approve
 
         result = await handle_approve(mock_bot, 999, -1001111111111, session_maker)
         assert result == "Post not found."
 
     async def test_handle_reject(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
-        from app.agent.channel.review import handle_reject
+        from app.channel.review import handle_reject
 
         async with session_maker() as session:
             post = ChannelPost(channel_id=-1001234567890, external_id="ext1", title="T", post_text="text")
@@ -431,13 +431,13 @@ class TestReviewFlow:
             assert saved.admin_feedback == "Bad quality"
 
     async def test_handle_reject_not_found(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
-        from app.agent.channel.review import handle_reject
+        from app.channel.review import handle_reject
 
         result = await handle_reject(999, session_maker)
         assert result == "Post not found."
 
     async def test_handle_reject_without_reason(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
-        from app.agent.channel.review import handle_reject
+        from app.channel.review import handle_reject
 
         async with session_maker() as session:
             post = ChannelPost(channel_id=-1001234567890, external_id="ext1", title="T", post_text="text")
@@ -457,7 +457,7 @@ class TestReviewFlow:
         mock_bot: AsyncMock,
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
-        from app.agent.channel.review import handle_delete
+        from app.channel.review import handle_delete
 
         async with session_maker() as session:
             post = ChannelPost(
@@ -488,7 +488,7 @@ class TestReviewFlow:
         mock_bot: AsyncMock,
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
-        from app.agent.channel.review import handle_delete
+        from app.channel.review import handle_delete
 
         result = await handle_delete(mock_bot, 999, 123, None, session_maker)
         assert result == "Post not found."
@@ -498,7 +498,7 @@ class TestReviewFlow:
         mock_bot: AsyncMock,
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
-        from app.agent.channel.review import handle_delete
+        from app.channel.review import handle_delete
 
         async with session_maker() as session:
             post = ChannelPost(channel_id=-1001234567890, external_id="ext1", title="T", post_text="text")
@@ -520,7 +520,7 @@ class TestReviewFlow:
         mock_bot: AsyncMock,
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
-        from app.agent.channel.review import handle_delete
+        from app.channel.review import handle_delete
 
         async with session_maker() as session:
             post = ChannelPost(channel_id=-1001234567890, external_id="ext1", title="T", post_text="text")
@@ -537,7 +537,7 @@ class TestReviewFlow:
         mock_bot: AsyncMock,
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
-        from app.agent.channel.review import handle_delete
+        from app.channel.review import handle_delete
 
         mock_bot.delete_message.side_effect = Exception("Telegram error")
 
@@ -562,7 +562,7 @@ class TestReviewFlow:
         mock_bot: AsyncMock,
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
-        from app.agent.channel.review import handle_approve
+        from app.channel.review import handle_approve
 
         async with session_maker() as session:
             post = ChannelPost(channel_id=-1001234567890, external_id="ext1", title="T", post_text="text")
@@ -581,7 +581,7 @@ class TestReviewFlow:
         sample_content_items: list[ContentItem],
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
-        from app.agent.channel.review import send_for_review
+        from app.channel.review import send_for_review
 
         mock_bot.send_message.side_effect = Exception("Bot error")
 
@@ -601,7 +601,7 @@ class TestReviewFlow:
         sample_post: GeneratedPost,
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
-        from app.agent.channel.review import send_for_review
+        from app.channel.review import send_for_review
 
         mock_bot.send_message.return_value = MagicMock(message_id=101)
 
@@ -629,7 +629,7 @@ class TestReviewFlow:
         mock_httpx_client: object,
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
-        from app.agent.channel.review import handle_edit_request
+        from app.channel.review import handle_edit_request
 
         async with session_maker() as session:
             post = ChannelPost(
@@ -663,7 +663,7 @@ class TestReviewFlow:
         mock_httpx_client: object,
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
-        from app.agent.channel.review import handle_edit_request
+        from app.channel.review import handle_edit_request
 
         async with session_maker() as session:
             post = ChannelPost(channel_id=-1001234567890, external_id="ext1", title="T", post_text="old")
@@ -686,7 +686,7 @@ class TestReviewFlow:
         mock_bot: AsyncMock,
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
-        from app.agent.channel.review import handle_edit_request
+        from app.channel.review import handle_edit_request
 
         result = await handle_edit_request(mock_bot, 999, "edit", "key", "model", -100, session_maker)
         assert result == "Post not found."
@@ -697,7 +697,7 @@ class TestReviewFlow:
         mock_httpx_client: object,
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
-        from app.agent.channel.review import handle_edit_request
+        from app.channel.review import handle_edit_request
 
         async with session_maker() as session:
             post = ChannelPost(channel_id=-1001234567890, external_id="ext1", title="T", post_text="old")
@@ -716,7 +716,7 @@ class TestReviewFlow:
         mock_bot: AsyncMock,
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
-        from app.agent.channel.review import handle_regen
+        from app.channel.review import handle_regen
 
         async with session_maker() as session:
             post = ChannelPost(
@@ -731,7 +731,7 @@ class TestReviewFlow:
             await session.commit()
             post_id = post.id
 
-        with patch("app.agent.channel.generator.generate_post", new_callable=AsyncMock) as mock_gen:
+        with patch("app.channel.generator.generate_post", new_callable=AsyncMock) as mock_gen:
             mock_gen.return_value = GeneratedPost(text="<b>Regenerated</b>", is_sensitive=False)
             result = await handle_regen(mock_bot, post_id, "key", "model", "Russian", -100, session_maker)
 
@@ -745,7 +745,7 @@ class TestReviewFlow:
         mock_bot: AsyncMock,
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
-        from app.agent.channel.review import handle_regen
+        from app.channel.review import handle_regen
 
         async with session_maker() as session:
             post = ChannelPost(
@@ -763,7 +763,7 @@ class TestReviewFlow:
         mock_bot: AsyncMock,
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
-        from app.agent.channel.review import handle_regen
+        from app.channel.review import handle_regen
 
         result = await handle_regen(mock_bot, 999, "key", "model", "Russian", -100, session_maker)
         assert result == "Post not found."
@@ -773,7 +773,7 @@ class TestReviewFlow:
         mock_bot: AsyncMock,
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
-        from app.agent.channel.review import handle_regen
+        from app.channel.review import handle_regen
 
         async with session_maker() as session:
             post = ChannelPost(
@@ -787,7 +787,7 @@ class TestReviewFlow:
             await session.commit()
             post_id = post.id
 
-        with patch("app.agent.channel.generator.generate_post", new_callable=AsyncMock) as mock_gen:
+        with patch("app.channel.generator.generate_post", new_callable=AsyncMock) as mock_gen:
             mock_gen.return_value = None
             result = await handle_regen(mock_bot, post_id, "key", "model", "Russian", -100, session_maker)
 
@@ -801,7 +801,7 @@ class TestReviewFlow:
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
         """Approving a SCHEDULED post should return a specific message instead of publishing."""
-        from app.agent.channel.review import handle_approve
+        from app.channel.review import handle_approve
 
         async with session_maker() as session:
             post = ChannelPost(
@@ -825,7 +825,7 @@ class TestReviewFlow:
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
         """Editing an APPROVED post should return an error."""
-        from app.agent.channel.review import handle_edit_request
+        from app.channel.review import handle_edit_request
 
         async with session_maker() as session:
             post = ChannelPost(
@@ -848,7 +848,7 @@ class TestReviewFlow:
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
         """Editing a REJECTED post should return an error."""
-        from app.agent.channel.review import handle_edit_request
+        from app.channel.review import handle_edit_request
 
         async with session_maker() as session:
             post = ChannelPost(
@@ -871,7 +871,7 @@ class TestReviewFlow:
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
         """Regen on APPROVED post should return an error."""
-        from app.agent.channel.review import handle_regen
+        from app.channel.review import handle_regen
 
         async with session_maker() as session:
             post = ChannelPost(
@@ -895,7 +895,7 @@ class TestReviewFlow:
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
         """Regen on REJECTED post should return an error."""
-        from app.agent.channel.review import handle_regen
+        from app.channel.review import handle_regen
 
         async with session_maker() as session:
             post = ChannelPost(
@@ -922,7 +922,7 @@ class TestReviewFlow:
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
         """When review_message_id is set, edit should update the review message via _edit_review_message."""
-        from app.agent.channel.review import handle_edit_request
+        from app.channel.review import handle_edit_request
 
         async with session_maker() as session:
             post = ChannelPost(
@@ -959,7 +959,7 @@ class TestReviewFlow:
         session_maker: async_sessionmaker[AsyncSession],
     ) -> None:
         """When review_message_id is set, regen should update the review message."""
-        from app.agent.channel.review import handle_regen
+        from app.channel.review import handle_regen
 
         async with session_maker() as session:
             post = ChannelPost(
@@ -975,7 +975,7 @@ class TestReviewFlow:
             await session.commit()
             post_id = post.id
 
-        with patch("app.agent.channel.generator.generate_post", new_callable=AsyncMock) as mock_gen:
+        with patch("app.channel.generator.generate_post", new_callable=AsyncMock) as mock_gen:
             mock_gen.return_value = GeneratedPost(text="<b>Regenerated</b>", is_sensitive=False)
             result = await handle_regen(mock_bot, post_id, "key", "model", "Russian", -100, session_maker)
 
@@ -1030,31 +1030,31 @@ class TestChannelSourceEnableDisable:
 
 class TestSourceDiscovery:
     async def test_validate_feed_success(self) -> None:
-        from app.agent.channel.source_discovery import validate_feed
+        from app.channel.source_discovery import validate_feed
 
-        with patch("app.agent.channel.source_discovery.fetch_rss", new_callable=AsyncMock) as mock_fetch:
+        with patch("app.channel.source_discovery.fetch_rss", new_callable=AsyncMock) as mock_fetch:
             mock_fetch.return_value = [ContentItem(source_url="url", external_id="1", title="T", body="B")]
             result = await validate_feed("https://example.com/feed")
             assert result is True
 
     async def test_validate_feed_empty(self) -> None:
-        from app.agent.channel.source_discovery import validate_feed
+        from app.channel.source_discovery import validate_feed
 
-        with patch("app.agent.channel.source_discovery.fetch_rss", new_callable=AsyncMock) as mock_fetch:
+        with patch("app.channel.source_discovery.fetch_rss", new_callable=AsyncMock) as mock_fetch:
             mock_fetch.return_value = []
             result = await validate_feed("https://broken.com/feed")
             assert result is False
 
     async def test_validate_feed_error(self) -> None:
-        from app.agent.channel.source_discovery import validate_feed
+        from app.channel.source_discovery import validate_feed
 
-        with patch("app.agent.channel.source_discovery.fetch_rss", new_callable=AsyncMock) as mock_fetch:
+        with patch("app.channel.source_discovery.fetch_rss", new_callable=AsyncMock) as mock_fetch:
             mock_fetch.side_effect = Exception("Network error")
             result = await validate_feed("https://error.com/feed")
             assert result is False
 
     async def test_discover_rss_feeds_parses_json(self, mock_httpx_client: object) -> None:
-        from app.agent.channel.source_discovery import discover_rss_feeds
+        from app.channel.source_discovery import discover_rss_feeds
 
         with patch("httpx.AsyncClient") as mock_cls:
             mock_cls.return_value = mock_httpx_client('[{"url": "https://a.com/feed", "title": "Feed A"}]')  # type: ignore[operator]
@@ -1063,7 +1063,7 @@ class TestSourceDiscovery:
             assert feeds[0]["url"] == "https://a.com/feed"
 
     async def test_discover_rss_feeds_handles_code_fences(self, mock_httpx_client: object) -> None:
-        from app.agent.channel.source_discovery import discover_rss_feeds
+        from app.channel.source_discovery import discover_rss_feeds
 
         with patch("httpx.AsyncClient") as mock_cls:
             mock_cls.return_value = mock_httpx_client('```json\n[{"url": "https://b.com/feed", "title": "B"}]\n```')  # type: ignore[operator]
@@ -1072,7 +1072,7 @@ class TestSourceDiscovery:
             assert feeds[0]["url"] == "https://b.com/feed"
 
     async def test_discover_rss_feeds_api_error(self, mock_httpx_client: object) -> None:
-        from app.agent.channel.source_discovery import discover_rss_feeds
+        from app.channel.source_discovery import discover_rss_feeds
 
         with patch("httpx.AsyncClient") as mock_cls:
             mock_cls.return_value = mock_httpx_client(raise_error=True)  # type: ignore[operator]
@@ -1080,11 +1080,11 @@ class TestSourceDiscovery:
             assert feeds == []
 
     async def test_discover_and_add_sources(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
-        from app.agent.channel.source_discovery import discover_and_add_sources
+        from app.channel.source_discovery import discover_and_add_sources
 
         with (
-            patch("app.agent.channel.source_discovery.discover_rss_feeds", new_callable=AsyncMock) as mock_discover,
-            patch("app.agent.channel.source_discovery.validate_feed", new_callable=AsyncMock) as mock_validate,
+            patch("app.channel.source_discovery.discover_rss_feeds", new_callable=AsyncMock) as mock_discover,
+            patch("app.channel.source_discovery.validate_feed", new_callable=AsyncMock) as mock_validate,
         ):
             mock_discover.return_value = [
                 {"url": "https://valid.com/feed", "title": "Valid"},
@@ -1108,7 +1108,7 @@ class TestSourceDiscovery:
 
 class TestFeedbackSummary:
     async def test_no_posts_returns_none(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
-        from app.agent.channel.feedback import get_feedback_summary
+        from app.channel.feedback import get_feedback_summary
 
         result = await get_feedback_summary(
             session_maker, -1001111111111, "key", model="google/gemini-3.1-flash-lite-preview"
@@ -1118,7 +1118,7 @@ class TestFeedbackSummary:
     async def test_summarizes_feedback(
         self, session_maker: async_sessionmaker[AsyncSession], mock_httpx_client: object
     ) -> None:
-        from app.agent.channel.feedback import get_feedback_summary
+        from app.channel.feedback import get_feedback_summary
 
         async with session_maker() as session:
             for i in range(3):
@@ -1152,7 +1152,7 @@ class TestFeedbackSummary:
     async def test_returns_none_on_llm_error(
         self, session_maker: async_sessionmaker[AsyncSession], mock_httpx_client: object
     ) -> None:
-        from app.agent.channel.feedback import get_feedback_summary
+        from app.channel.feedback import get_feedback_summary
 
         async with session_maker() as session:
             post = ChannelPost(channel_id=-1001111111111, external_id="e1", title="T", post_text="t", status="approved")
@@ -1201,7 +1201,7 @@ class TestGeneratePostFeedbackContext:
 
     async def test_generate_post_without_feedback_context(self, sample_content_items: list[ContentItem]) -> None:
         """generate_post works with feedback_context=None (default, existing behavior)."""
-        from app.agent.channel.generator import generate_post
+        from app.channel.generator import generate_post
 
         mock_result = MagicMock()
         mock_result.output = GeneratedPost(text="<b>Post</b>", is_sensitive=False)
@@ -1209,7 +1209,7 @@ class TestGeneratePostFeedbackContext:
         mock_agent = AsyncMock()
         mock_agent.run.return_value = mock_result
 
-        with patch("app.agent.channel.generator._create_generation_agent", return_value=mock_agent):
+        with patch("app.channel.generator._create_generation_agent", return_value=mock_agent):
             post = await generate_post(sample_content_items, api_key="key", model="model")
 
         assert post is not None
@@ -1222,7 +1222,7 @@ class TestGeneratePostFeedbackContext:
 
     async def test_generate_post_with_feedback_context(self, sample_content_items: list[ContentItem]) -> None:
         """generate_post includes feedback context in the LLM prompt when provided."""
-        from app.agent.channel.generator import generate_post
+        from app.channel.generator import generate_post
 
         mock_result = MagicMock()
         mock_result.output = GeneratedPost(text="<b>Post</b>", is_sensitive=False)
@@ -1232,7 +1232,7 @@ class TestGeneratePostFeedbackContext:
 
         feedback = "- Approves education content\n- Rejects memes"
 
-        with patch("app.agent.channel.generator._create_generation_agent", return_value=mock_agent):
+        with patch("app.channel.generator._create_generation_agent", return_value=mock_agent):
             post = await generate_post(
                 sample_content_items,
                 api_key="key",
@@ -1248,7 +1248,7 @@ class TestGeneratePostFeedbackContext:
 
     async def test_generate_post_with_empty_string_feedback(self, sample_content_items: list[ContentItem]) -> None:
         """generate_post treats empty string feedback_context same as None."""
-        from app.agent.channel.generator import generate_post
+        from app.channel.generator import generate_post
 
         mock_result = MagicMock()
         mock_result.output = GeneratedPost(text="<b>Post</b>", is_sensitive=False)
@@ -1256,7 +1256,7 @@ class TestGeneratePostFeedbackContext:
         mock_agent = AsyncMock()
         mock_agent.run.return_value = mock_result
 
-        with patch("app.agent.channel.generator._create_generation_agent", return_value=mock_agent):
+        with patch("app.channel.generator._create_generation_agent", return_value=mock_agent):
             post = await generate_post(
                 sample_content_items,
                 api_key="key",
@@ -1363,7 +1363,7 @@ class TestRelevanceScoring:
             assert source.enabled is False
 
     async def test_update_source_relevance_approved(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
-        from app.agent.channel.source_manager import add_source, update_source_relevance
+        from app.channel.source_manager import add_source, update_source_relevance
 
         await add_source(session_maker, -1001111111111, "https://good.com/feed")
         await update_source_relevance(session_maker, ["https://good.com/feed"], approved=True)
@@ -1373,7 +1373,7 @@ class TestRelevanceScoring:
             assert abs(source.relevance_score - 1.1) < 1e-9
 
     async def test_update_source_relevance_rejected(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
-        from app.agent.channel.source_manager import add_source, update_source_relevance
+        from app.channel.source_manager import add_source, update_source_relevance
 
         await add_source(session_maker, -1001111111111, "https://bad.com/feed")
         await update_source_relevance(session_maker, ["https://bad.com/feed"], approved=False)
@@ -1385,7 +1385,7 @@ class TestRelevanceScoring:
     async def test_update_source_relevance_unknown_url_ignored(
         self, session_maker: async_sessionmaker[AsyncSession]
     ) -> None:
-        from app.agent.channel.source_manager import update_source_relevance
+        from app.channel.source_manager import update_source_relevance
 
         # Should not raise
         await update_source_relevance(session_maker, ["https://nonexistent.com/feed"], approved=True)
@@ -1393,7 +1393,7 @@ class TestRelevanceScoring:
     async def test_get_active_sources_ordered_by_relevance(
         self, session_maker: async_sessionmaker[AsyncSession]
     ) -> None:
-        from app.agent.channel.source_manager import get_active_sources
+        from app.channel.source_manager import get_active_sources
 
         async with session_maker() as session:
             s1 = ChannelSource(channel_id=-1001111111111, url="https://low.com/feed", added_by="test")
@@ -1419,12 +1419,12 @@ class TestCostTracker:
     """Tests for the LLM cost tracking module."""
 
     def setup_method(self) -> None:
-        from app.agent.channel.cost_tracker import reset_usage_history
+        from app.channel.cost_tracker import reset_usage_history
 
         reset_usage_history()
 
     def test_extract_usage_from_openrouter_response_valid(self) -> None:
-        from app.agent.channel.cost_tracker import extract_usage_from_openrouter_response
+        from app.channel.cost_tracker import extract_usage_from_openrouter_response
 
         response = {
             "choices": [{"message": {"content": "hello"}}],
@@ -1446,14 +1446,14 @@ class TestCostTracker:
         assert usage.estimated_cost_usd > 0
 
     def test_extract_usage_from_openrouter_response_missing_usage(self) -> None:
-        from app.agent.channel.cost_tracker import extract_usage_from_openrouter_response
+        from app.channel.cost_tracker import extract_usage_from_openrouter_response
 
         response = {"choices": [{"message": {"content": "hello"}}]}
         usage = extract_usage_from_openrouter_response(response, "perplexity/sonar", "discovery")
         assert usage is None
 
     def test_cost_estimation_known_model(self) -> None:
-        from app.agent.channel.cost_tracker import _estimate_cost
+        from app.channel.cost_tracker import _estimate_cost
 
         # google/gemini-2.0-flash-001: input=0.0001, output=0.0004 per 1k tokens
         cost, savings = _estimate_cost("google/gemini-2.0-flash-001", 1000, 1000)
@@ -1462,7 +1462,7 @@ class TestCostTracker:
         assert savings == 0.0  # No cache tokens → no savings
 
     def test_cost_estimation_unknown_model(self) -> None:
-        from app.agent.channel.cost_tracker import _estimate_cost
+        from app.channel.cost_tracker import _estimate_cost
 
         # Unknown model defaults to input=0.001, output=0.001 per 1k tokens
         cost, savings = _estimate_cost("unknown/model-xyz", 500, 200)
@@ -1470,7 +1470,7 @@ class TestCostTracker:
         assert abs(cost - expected) < 1e-8
 
     def test_cost_estimation_with_cache(self) -> None:
-        from app.agent.channel.cost_tracker import _estimate_cost
+        from app.channel.cost_tracker import _estimate_cost
 
         # Claude Sonnet: input=0.003, cache_read=0.0003 per 1k
         # 1000 total input, 500 from cache read → 500 regular + 500 cached
@@ -1479,7 +1479,7 @@ class TestCostTracker:
         assert cost < (1000 / 1000) * 0.003 + (100 / 1000) * 0.015  # Cheaper than full price
 
     def test_extract_usage_from_pydanticai_result(self) -> None:
-        from app.agent.channel.cost_tracker import extract_usage_from_pydanticai_result
+        from app.channel.cost_tracker import extract_usage_from_pydanticai_result
 
         # Mock PydanticAI result with usage()
         mock_usage = MagicMock()
@@ -1499,7 +1499,7 @@ class TestCostTracker:
         assert usage.operation == "screening"
 
     def test_extract_usage_from_pydanticai_result_no_usage(self) -> None:
-        from app.agent.channel.cost_tracker import extract_usage_from_pydanticai_result
+        from app.channel.cost_tracker import extract_usage_from_pydanticai_result
 
         mock_result = MagicMock()
         mock_result.usage.return_value = None
@@ -1508,7 +1508,7 @@ class TestCostTracker:
         assert usage is None
 
     async def test_log_usage_and_session_summary(self) -> None:
-        from app.agent.channel.cost_tracker import LLMUsage, get_session_summary, log_usage
+        from app.channel.cost_tracker import LLMUsage, get_session_summary, log_usage
 
         await log_usage(
             LLMUsage(

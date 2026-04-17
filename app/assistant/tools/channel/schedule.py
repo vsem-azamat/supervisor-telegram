@@ -28,7 +28,7 @@ def register_schedule_tools(agent: Agent[AssistantDeps, str]) -> None:
             if not _SCHEDULE_TIME_RE.match(t):
                 return f"Неверный формат времени: {t}. Используйте HH:MM (00:00-23:59)."
 
-        from app.agent.channel.channel_repo import get_active_channels, update_channel
+        from app.channel.channel_repo import get_active_channels, update_channel
 
         if channel_id:
             ch = await update_channel(ctx.deps.session_maker, channel_id, posting_schedule=times)
@@ -112,7 +112,7 @@ def register_schedule_tools(agent: Agent[AssistantDeps, str]) -> None:
             except ValueError:
                 return "Invalid time format. Use 'YYYY-MM-DD HH:MM' UTC."
         elif channel.publish_schedule:
-            from app.agent.channel.schedule_manager import get_occupied_slots, next_publish_slot
+            from app.channel.schedule_manager import get_occupied_slots, next_publish_slot
 
             occupied = await get_occupied_slots(ctx.deps.session_maker, channel.telegram_id)
             try:
@@ -122,7 +122,7 @@ def register_schedule_tools(agent: Agent[AssistantDeps, str]) -> None:
         else:
             return "No time specified and no publish_schedule configured for this channel."
 
-        from app.agent.channel.schedule_manager import schedule_post
+        from app.channel.schedule_manager import schedule_post
 
         return await schedule_post(tc, ctx.deps.session_maker, post_id, channel, publish_time)
 
@@ -161,7 +161,7 @@ def register_schedule_tools(agent: Agent[AssistantDeps, str]) -> None:
         if not channel:
             return f"Channel {post.channel_id} not found."
 
-        from app.agent.channel.schedule_manager import reschedule_post
+        from app.channel.schedule_manager import reschedule_post
 
         return await reschedule_post(tc, ctx.deps.session_maker, post_id, channel, publish_time)
 
@@ -189,7 +189,7 @@ def register_schedule_tools(agent: Agent[AssistantDeps, str]) -> None:
         if not channel:
             return f"Channel {post.channel_id} not found."
 
-        from app.agent.channel.schedule_manager import cancel_scheduled_post
+        from app.channel.schedule_manager import cancel_scheduled_post
 
         return await cancel_scheduled_post(tc, ctx.deps.session_maker, post_id, channel)
 
@@ -200,7 +200,7 @@ def register_schedule_tools(agent: Agent[AssistantDeps, str]) -> None:
         schedule: str,
     ) -> str:
         """Set when approved posts go live. Format: comma-separated HH:MM UTC, e.g. '09:00,13:00,18:00'. Empty string disables scheduling (posts publish immediately on approve)."""
-        from app.agent.channel.channel_repo import update_channel
+        from app.channel.channel_repo import update_channel
 
         times = [t.strip() for t in schedule.split(",") if t.strip()] if schedule else []
         for t in times:

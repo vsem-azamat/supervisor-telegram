@@ -65,7 +65,7 @@ def register_channels_tools(agent: Agent[AssistantDeps, str]) -> None:
         username: str = "",
     ) -> str:
         """Create a new channel. telegram_id: numeric Telegram chat ID (e.g. -1001234567890). posting_schedule: comma-separated HH:MM. username: optional @username without the @."""
-        from app.agent.channel.channel_repo import create_channel
+        from app.channel.channel_repo import create_channel
 
         # Auto-resolve username from Bot API if not provided
         if not username:
@@ -104,7 +104,7 @@ def register_channels_tools(agent: Agent[AssistantDeps, str]) -> None:
         """Update channel fields. fields_json is a JSON object with keys to update, e.g. '{"footer_template": "——\\n🔗 **Name** | @channel"}'. Valid keys: name, description, language, review_chat_id, max_posts_per_day, posting_schedule, publish_schedule, discovery_query, source_discovery_query, enabled, username, footer_template. Use footer_template for custom footer, publish_schedule for auto-scheduling (list of HH:MM UTC)."""
         import json
 
-        from app.agent.channel.channel_repo import update_channel
+        from app.channel.channel_repo import update_channel
 
         try:
             fields = json.loads(fields_json)
@@ -149,7 +149,7 @@ def register_channels_tools(agent: Agent[AssistantDeps, str]) -> None:
     @agent.tool
     async def remove_channel(ctx: RunContext[AssistantDeps], telegram_id: int) -> str:
         """Delete a channel from the DB. The orchestrator will stop it on next refresh."""
-        from app.agent.channel.channel_repo import delete_channel
+        from app.channel.channel_repo import delete_channel
 
         ok = await delete_channel(ctx.deps.session_maker, telegram_id)
         if not ok:

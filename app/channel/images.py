@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 
 import httpx
 
-from app.agent.channel.http import SSRFError, get_http_client, is_safe_url
+from app.channel.http import SSRFError, get_http_client, is_safe_url
 from app.core.logging import get_logger
 
 logger = get_logger("channel.images")
@@ -285,6 +285,6 @@ def extract_rss_media_url(entry: object) -> str | None:
     return None
 
 
-# _is_safe_url has been moved to app.agent.channel.http.is_safe_url (async).
+# _is_safe_url has been moved to app.channel.http.is_safe_url (async).
 # Re-export for backward compatibility with external callers / tests.
 _is_safe_url = is_safe_url

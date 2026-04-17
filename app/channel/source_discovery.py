@@ -5,9 +5,9 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
-from app.agent.channel.llm_client import openrouter_chat_completion
-from app.agent.channel.source_manager import add_source
-from app.agent.channel.sources import fetch_rss
+from app.channel.llm_client import openrouter_chat_completion
+from app.channel.source_manager import add_source
+from app.channel.sources import fetch_rss
 from app.core.logging import get_logger
 
 if TYPE_CHECKING:
@@ -99,7 +99,7 @@ async def discover_and_add_sources(
             continue
 
         # SSRF check: LLM-returned URLs are untrusted
-        from app.agent.channel.http import is_safe_url
+        from app.channel.http import is_safe_url
 
         if not await is_safe_url(url):
             logger.warning("discovery_ssrf_blocked", url=url)

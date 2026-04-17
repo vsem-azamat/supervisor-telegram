@@ -21,7 +21,7 @@ from app.core.logging import get_logger, setup_logging
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-    from app.agent.channel.orchestrator import ChannelOrchestrator
+    from app.channel.orchestrator import ChannelOrchestrator
     from app.infrastructure.telegram.telethon_client import TelethonClient
 from app.infrastructure.db.session import close_db, create_session_maker, insert_chat_link
 from app.presentation.telegram.handlers import router
@@ -70,7 +70,7 @@ async def on_shutdown(bot: Bot) -> None:
         if telethon_client:
             await telethon_client.stop()
 
-        from app.agent.channel.llm_client import close_client as close_llm_client
+        from app.channel.llm_client import close_client as close_llm_client
 
         await close_llm_client()
 
@@ -187,7 +187,7 @@ def _init_channel_orchestrator(
     try:
         config = settings.channel
         if config.enabled:
-            from app.agent.channel.orchestrator import ChannelOrchestrator
+            from app.channel.orchestrator import ChannelOrchestrator
 
             orchestrator = ChannelOrchestrator(
                 publish_bot=main_bot,

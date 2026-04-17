@@ -17,10 +17,10 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.exc import IntegrityError
 
-from app.agent.channel.embeddings import EMBEDDING_MODEL
-from app.agent.channel.exceptions import EmbeddingError
-from app.agent.channel.generator import DEFAULT_FOOTER, enforce_footer_and_length
-from app.agent.channel.llm_client import openrouter_chat_completion
+from app.channel.embeddings import EMBEDDING_MODEL
+from app.channel.exceptions import EmbeddingError
+from app.channel.generator import DEFAULT_FOOTER, enforce_footer_and_length
+from app.channel.llm_client import openrouter_chat_completion
 from app.core.enums import PostStatus
 from app.core.logging import get_logger
 from app.infrastructure.db.models import ChannelPost
@@ -28,8 +28,8 @@ from app.infrastructure.db.models import ChannelPost
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-    from app.agent.channel.generator import GeneratedPost
-    from app.agent.channel.sources import ContentItem
+    from app.channel.generator import GeneratedPost
+    from app.channel.sources import ContentItem
 
 logger = get_logger("channel.review_service")
 
@@ -151,7 +151,7 @@ async def create_review_post(
         return None
 
     if api_key:
-        from app.agent.channel.semantic_dedup import build_embedding_text, compute_embedding
+        from app.channel.semantic_dedup import build_embedding_text, compute_embedding
 
         if source_items:
             embed_text = build_embedding_text(source_items[0].title, source_items[0].body)
@@ -185,7 +185,7 @@ async def approve_post(
     """
     from sqlalchemy import select
 
-    from app.agent.channel.source_manager import update_source_relevance
+    from app.channel.source_manager import update_source_relevance
 
     async with session_maker() as session:
         result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id).with_for_update())
@@ -201,14 +201,14 @@ async def approve_post(
 
         try:
             # Atomically reserve a daily slot BEFORE publishing
-            from app.agent.channel.channel_repo import try_reserve_daily_slot
+            from app.channel.channel_repo import try_reserve_daily_slot
 
             slot_reserved = await try_reserve_daily_slot(session_maker, post.channel_id)
             if not slot_reserved:
                 logger.warning("daily_limit_reached_at_approve", post_id=post_id, channel_id=post.channel_id)
                 return "Daily post limit reached. Try again tomorrow.", None
 
-            from app.agent.channel.generator import GeneratedPost
+            from app.channel.generator import GeneratedPost
 
             # Publish only the single image shown during review (not the full image_urls array).
             # The review message displays only image_url; publishing image_urls would
@@ -243,7 +243,7 @@ async def reject_post(
     """Reject a post. Returns status message."""
     from sqlalchemy import select
 
-    from app.agent.channel.source_manager import update_source_relevance
+    from app.channel.source_manager import update_source_relevance
 
     async with session_maker() as session:
         result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id).with_for_update())
@@ -274,7 +274,7 @@ async def reject_post(
                     ch_result = await session.execute(select(Channel).where(Channel.telegram_id == post.channel_id))
                     ch = ch_result.scalar_one_or_none()
                     if ch:
-                        from app.agent.channel.schedule_manager import _resolve_chat_id
+                        from app.channel.schedule_manager import _resolve_chat_id
 
                         chat_id = _resolve_chat_id(ch)
                         await tc.delete_scheduled_messages(chat_id, [scheduled_tg_id])
@@ -395,7 +395,7 @@ async def edit_post_text(
                 try:
                     from sqlalchemy import select as sa_select
 
-                    from app.agent.channel.schedule_manager import update_scheduled_text
+                    from app.channel.schedule_manager import update_scheduled_text
                     from app.core.container import container
                     from app.infrastructure.db.models import Channel
 
@@ -434,8 +434,8 @@ async def regen_post_text(
     """
     from sqlalchemy import select
 
-    from app.agent.channel.generator import generate_post
-    from app.agent.channel.sources import ContentItem
+    from app.channel.generator import generate_post
+    from app.channel.sources import ContentItem
 
     async with session_maker() as session:
         result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id).with_for_update())

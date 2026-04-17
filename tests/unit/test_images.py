@@ -5,7 +5,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from app.agent.channel.images import (
+from app.channel.images import (
     _has_small_width_hint,
     _is_valid_image_url,
     _normalize_image_url,
@@ -185,8 +185,8 @@ class TestFindImagesForPost:
         """Shared patch context for HTTP client and SSRF check."""
         self._mock_client = AsyncMock()
         with (
-            patch("app.agent.channel.images.get_http_client", return_value=self._mock_client),
-            patch("app.agent.channel.images.is_safe_url", new=AsyncMock(return_value=True)),
+            patch("app.channel.images.get_http_client", return_value=self._mock_client),
+            patch("app.channel.images.is_safe_url", new=AsyncMock(return_value=True)),
         ):
             yield
 
@@ -242,7 +242,7 @@ class TestFindImagesForPost:
 class TestFindImageForPost:
     async def test_backward_compat_returns_single(self) -> None:
         with patch(
-            "app.agent.channel.images.find_images_for_post",
+            "app.channel.images.find_images_for_post",
             new=AsyncMock(return_value=["https://example.com/img.jpg"]),
         ):
             result = await find_image_for_post(keywords="test", source_urls=["https://example.com"])
@@ -250,7 +250,7 @@ class TestFindImageForPost:
 
     async def test_backward_compat_returns_none_when_empty(self) -> None:
         with patch(
-            "app.agent.channel.images.find_images_for_post",
+            "app.channel.images.find_images_for_post",
             new=AsyncMock(return_value=[]),
         ):
             result = await find_image_for_post(keywords="test", source_urls=["https://example.com"])

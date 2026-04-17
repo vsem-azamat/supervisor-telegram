@@ -35,17 +35,16 @@ Full details: [`docs/architecture.md`](docs/architecture.md).
 
 ```
 app/
-├── core/              # Config (9 Pydantic classes), logging, DI container, enums, exceptions
-├── moderation/        # AI moderation: agent, escalation, memory, blacklist, report, services
-├── agent/             # AI agent infrastructure (prompts, schemas, tool_trace)
-│   └── channel/       # Content pipeline feature module
-│       ├── orchestrator.py   # Per-channel scheduling + orchestration
-│       ├── workflow.py       # Burr state machine (9 actions)
-│       ├── generator.py      # LLM screening + post generation
-│       ├── review/           # Review submodule (agent, presentation, service)
-│       ├── semantic_dedup.py # pgvector cosine similarity
-│       ├── sources.py        # RSS + health tracking
-│       └── http.py           # SSRF-protected HTTP client
+├── core/              # Config (9 Pydantic classes), logging, DI container, enums, exceptions, tool_trace
+├── moderation/        # Moderation agent (schemas, prompts, escalation, memory, blacklist, report, services)
+├── channel/           # Content pipeline feature module
+│   ├── orchestrator.py   # Per-channel scheduling + orchestration
+│   ├── workflow.py       # Burr state machine (9 actions)
+│   ├── generator.py      # LLM screening + post generation
+│   ├── review/           # Review submodule (agent, presentation, service)
+│   ├── semantic_dedup.py # pgvector cosine similarity
+│   ├── sources.py        # RSS + health tracking
+│   └── http.py           # SSRF-protected HTTP client
 ├── assistant/         # Conversational admin bot (PydanticAI, Claude Sonnet, 30+ tools)
 ├── infrastructure/    # DB models (SQLAlchemy), repositories, Telethon client
 └── presentation/      # Telegram handlers, middlewares, utils (buttons, blacklist)

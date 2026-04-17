@@ -80,7 +80,7 @@ def register_pipeline_tools(agent: Agent[AssistantDeps, str]) -> None:
     async def get_cost_report(ctx: RunContext[AssistantDeps]) -> str:  # noqa: ARG001
         """Get LLM spending summary for current session."""
         try:
-            from app.agent.channel.cost_tracker import get_session_summary
+            from app.channel.cost_tracker import get_session_summary
 
             summary = get_session_summary()
             cache_read = summary.get("cache_read_tokens", 0)
@@ -146,10 +146,10 @@ def register_pipeline_tools(agent: Agent[AssistantDeps, str]) -> None:
 
         from sqlalchemy import select
 
-        from app.agent.channel.config import language_name
-        from app.agent.channel.exceptions import GenerationError
-        from app.agent.channel.generator import generate_post as _generate
-        from app.agent.channel.sources import ContentItem
+        from app.channel.config import language_name
+        from app.channel.exceptions import GenerationError
+        from app.channel.generator import generate_post as _generate
+        from app.channel.sources import ContentItem
         from app.core.config import settings
         from app.infrastructure.db.models import Channel
 
@@ -206,7 +206,7 @@ def register_pipeline_tools(agent: Agent[AssistantDeps, str]) -> None:
 
         review_chat_id = channel.review_chat_id
         if review_chat_id:
-            from app.agent.channel.review import send_for_review as _send_review
+            from app.channel.review import send_for_review as _send_review
 
             try:
                 post_id = await _send_review(
@@ -230,7 +230,7 @@ def register_pipeline_tools(agent: Agent[AssistantDeps, str]) -> None:
 
             preview = post.text[:300] + ("..." if len(post.text) > 300 else "")
             return f"Пост #{post_id} отправлен на ревью.\n\nПревью:\n{preview}"
-        from app.agent.channel.publisher import publish_post as _publish
+        from app.channel.publisher import publish_post as _publish
 
         try:
             msg_id = await _publish(ctx.deps.main_bot, channel.telegram_id, post)

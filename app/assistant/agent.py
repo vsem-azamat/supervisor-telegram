@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from pydantic_ai.tools import ToolDefinition
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-    from app.agent.channel.orchestrator import ChannelOrchestrator
+    from app.channel.orchestrator import ChannelOrchestrator
     from app.infrastructure.telegram.telethon_client import TelethonClient
 
 logger = get_logger("assistant.agent")
@@ -183,7 +183,7 @@ async def _filter_unavailable_tools(
 
 def create_assistant_agent(model_name: str = "") -> Agent[AssistantDeps, str]:
     """Create the PydanticAI assistant agent with all tools."""
-    from app.agent.tool_trace import make_history_processor
+    from app.core.tool_trace import make_history_processor
 
     model_name = model_name or settings.assistant.model
 

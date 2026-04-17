@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from unittest.mock import MagicMock
 
-from app.agent.channel.review.agent import (
+from app.channel.review.agent import (
     _MAX_REVIEW_CONVERSATIONS,
     _evict_review_conversations,
     _review_conversations,
@@ -101,7 +101,7 @@ class TestBuildSchedulePickerKeyboard:
     def test_builds_keyboard_with_slots(self) -> None:
         from datetime import datetime
 
-        from app.agent.channel.review import build_schedule_picker_keyboard
+        from app.channel.review import build_schedule_picker_keyboard
 
         slots = [
             datetime(2026, 3, 8, 9, 0, 0),
@@ -117,7 +117,7 @@ class TestBuildSchedulePickerKeyboard:
     def test_limits_to_5_slots(self) -> None:
         from datetime import datetime
 
-        from app.agent.channel.review import build_schedule_picker_keyboard
+        from app.channel.review import build_schedule_picker_keyboard
 
         slots = [datetime(2026, 3, 8, h, 0, 0) for h in range(8)]
         kb = build_schedule_picker_keyboard(1, slots)

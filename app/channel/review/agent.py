@@ -280,7 +280,7 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
     )
     model = OpenAIChatModel(model_name, provider=provider)
 
-    from app.agent.tool_trace import make_history_processor
+    from app.core.tool_trace import make_history_processor
 
     agent: Agent[ReviewAgentDeps, str] = Agent(
         model,
@@ -326,7 +326,7 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
     @agent.tool
     async def web_search(ctx: RunContext[ReviewAgentDeps], query: str, count: int = 5) -> str:  # noqa: ARG001
         """Search the web for facts or context to enrich the post."""
-        from app.agent.channel.brave_search import brave_search_for_assistant
+        from app.channel.brave_search import brave_search_for_assistant
 
         api_key = settings.brave.api_key
         if not api_key:
@@ -344,8 +344,8 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
         """Replace the post text. Enforces footer and length limit. Updates the review message in Telegram."""
         from sqlalchemy import select
 
-        from app.agent.channel.generator import enforce_footer_and_length
-        from app.agent.channel.review.presentation import (
+        from app.channel.generator import enforce_footer_and_length
+        from app.channel.review.presentation import (
             _edit_review_message,
             build_review_keyboard,
             extract_source_btn_data,
@@ -411,8 +411,8 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
         Falls back to extracting images from web search result pages if image search
         returns nothing.
         """
-        from app.agent.channel.brave_search import brave_image_search, brave_web_search
-        from app.agent.channel.images import find_images_for_post
+        from app.channel.brave_search import brave_image_search, brave_web_search
+        from app.channel.images import find_images_for_post
 
         brave_api_key = settings.brave.api_key
         images: list[str] = []
@@ -452,7 +452,7 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
 
         Returns a warning string if refresh failed, None on success.
         """
-        from app.agent.channel.review.presentation import (
+        from app.channel.review.presentation import (
             _send_review_message,
             build_review_keyboard,
             extract_source_btn_data,
@@ -605,7 +605,7 @@ async def _review_agent_turn_inner(
     deps: ReviewAgentDeps,
     model: str,
 ) -> str:
-    from app.agent.tool_trace import format_response_with_trace
+    from app.core.tool_trace import format_response_with_trace
 
     _evict_review_conversations()
 
@@ -648,7 +648,7 @@ async def _review_agent_turn_inner(
             logger.exception("review_agent_retry_error", post_id=post_id)
 
     # Track usage/cost
-    from app.agent.channel.cost_tracker import extract_usage_from_pydanticai_result, log_usage
+    from app.channel.cost_tracker import extract_usage_from_pydanticai_result, log_usage
 
     model_name = model or settings.channel.generation_model
     usage = extract_usage_from_pydanticai_result(result, model_name, "review_agent")

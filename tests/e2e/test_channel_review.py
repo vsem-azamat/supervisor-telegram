@@ -15,12 +15,12 @@ import pytest_asyncio
 from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
 from aiogram.client.session.aiohttp import AiohttpSession
-from app.agent.channel.review import (
+from app.channel.review import (
     handle_approve,
     handle_reject,
     send_for_review,
 )
-from app.agent.channel.sources import ContentItem
+from app.channel.sources import ContentItem
 from app.infrastructure.db.models import ChannelPost, ChannelSource
 from sqlalchemy import select
 

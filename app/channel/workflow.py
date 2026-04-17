@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 from burr.core import ApplicationBuilder, GraphBuilder, Result, State, action, default
 from burr.core.action import Condition
 
-from app.agent.channel.exceptions import (
+from app.channel.exceptions import (
     ChannelPipelineError,
     EmbeddingError,
     GenerationError,
@@ -30,7 +30,7 @@ if TYPE_CHECKING:
     from aiogram import Bot
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-    from app.agent.channel.config import ChannelAgentSettings
+    from app.channel.config import ChannelAgentSettings
     from app.infrastructure.db.models import Channel
 
 logger = get_logger("channel.workflow")
@@ -47,13 +47,13 @@ logger = get_logger("channel.workflow")
 )
 async def fetch_sources(state: State) -> State:
     """Fetch RSS content and discover fresh items from all configured sources."""
-    from app.agent.channel.discovery import discover_content
-    from app.agent.channel.source_manager import (
+    from app.channel.discovery import discover_content
+    from app.channel.source_manager import (
         get_active_sources,
         record_fetch_error,
         record_fetch_success,
     )
-    from app.agent.channel.sources import fetch_all_sources
+    from app.channel.sources import fetch_all_sources
 
     channel_id: int = state["channel_id"]
     config: ChannelAgentSettings = state["config"]
@@ -78,7 +78,7 @@ async def fetch_sources(state: State) -> State:
 
         # Perplexity Sonar discovery (synthesized summaries, broader topics)
         if config.discovery_enabled:
-            from app.agent.channel.config import DEFAULT_DISCOVERY_QUERY
+            from app.channel.config import DEFAULT_DISCOVERY_QUERY
 
             query = channel.discovery_query or DEFAULT_DISCOVERY_QUERY
             discovered = await discover_content(
@@ -95,11 +95,11 @@ async def fetch_sources(state: State) -> State:
         # Brave Web Search discovery (factual, URL-based, recent news)
         if config.brave_discovery_enabled:
             try:
-                from app.agent.channel.brave_search import discover_content_brave
+                from app.channel.brave_search import discover_content_brave
 
                 brave_key: str = state.get("brave_api_key", "")
                 if brave_key:
-                    from app.agent.channel.config import DEFAULT_BRAVE_DISCOVERY_QUERY
+                    from app.channel.config import DEFAULT_BRAVE_DISCOVERY_QUERY
 
                     brave_query = channel.discovery_query or DEFAULT_BRAVE_DISCOVERY_QUERY
                     brave_items = await discover_content_brave(
@@ -150,7 +150,7 @@ async def fetch_sources(state: State) -> State:
 )
 async def split_and_enrich_topics(state: State) -> State:
     """Split multi-topic items into individual topics, enrich with Brave, then semantic dedup."""
-    from app.agent.channel.topic_splitter import split_and_enrich
+    from app.channel.topic_splitter import split_and_enrich
 
     items = state["content_items"]
     if not items:
@@ -181,7 +181,7 @@ async def split_and_enrich_topics(state: State) -> State:
     # Fail-loud: if embeddings are unavailable we halt this cycle rather than publish
     # unfiltered content.
     if enriched:
-        from app.agent.channel.semantic_dedup import filter_semantic_duplicates
+        from app.channel.semantic_dedup import filter_semantic_duplicates
 
         try:
             enriched = await filter_semantic_duplicates(
@@ -206,7 +206,7 @@ async def split_and_enrich_topics(state: State) -> State:
 @action(reads=["content_items", "api_key", "config", "channel"], writes=["relevant_items", "error"])
 async def screen_content(state: State) -> State:
     """Screen fetched items for relevance using an LLM."""
-    from app.agent.channel.generator import screen_items
+    from app.channel.generator import screen_items
 
     items = state["content_items"]
     if not items:
@@ -241,8 +241,8 @@ async def screen_content(state: State) -> State:
 )
 async def generate_post(state: State) -> State:
     """Generate a Telegram post from relevant items."""
-    from app.agent.channel.feedback import get_feedback_summary
-    from app.agent.channel.generator import generate_post as _generate
+    from app.channel.feedback import get_feedback_summary
+    from app.channel.generator import generate_post as _generate
 
     relevant = state["relevant_items"]
     if not relevant:
@@ -254,14 +254,14 @@ async def generate_post(state: State) -> State:
     channel_id: int = state["channel_id"]
     session_maker: async_sessionmaker[AsyncSession] = state["session_maker"]
 
-    from app.agent.channel.config import language_name
+    from app.channel.config import language_name
 
     language = language_name(channel.language)
     footer = channel.footer
 
     # Pre-generation dedup: skip items whose title is too similar to recent posts.
     # If embeddings are unavailable we abort this cycle (no silent fallback).
-    from app.agent.channel.semantic_dedup import build_embedding_text, find_nearest_posts
+    from app.channel.semantic_dedup import build_embedding_text, find_nearest_posts
 
     try:
         deduplicated: list[Any] = []
@@ -355,8 +355,8 @@ async def generate_post(state: State) -> State:
 )
 async def send_for_review(state: State) -> State:
     """Send the generated post for admin review (or publish directly if no review channel)."""
-    from app.agent.channel.generator import GeneratedPost
-    from app.agent.channel.review import send_for_review as _send_review
+    from app.channel.generator import GeneratedPost
+    from app.channel.review import send_for_review as _send_review
 
     post_dict = state["generated_post"]
     if not post_dict:
@@ -397,7 +397,7 @@ async def send_for_review(state: State) -> State:
             return state.update(post_id=None, result_message="review_error", error=str(exc))
     else:
         # Direct publish (no review channel) — also create a ChannelPost record for audit trail
-        from app.agent.channel.publisher import publish_post as _publish
+        from app.channel.publisher import publish_post as _publish
 
         try:
             msg_id = await _publish(publish_bot, channel.telegram_id, post)
@@ -406,7 +406,7 @@ async def send_for_review(state: State) -> State:
                 try:
                     from hashlib import sha256
 
-                    from app.agent.channel.review.service import (
+                    from app.channel.review.service import (
                         EXT_ID_HASH_INPUT_CHARS,
                         EXT_ID_HASH_LENGTH,
                         REVIEW_TITLE_MAX_CHARS,
@@ -453,7 +453,7 @@ async def await_review(state: State) -> State:
 @action(reads=["post_id", "channel_id", "channel", "publish_bot", "session_maker"], writes=["result_message", "error"])
 async def publish_post(state: State) -> State:
     """Publish an approved post to the channel."""
-    from app.agent.channel.review import handle_approve
+    from app.channel.review import handle_approve
 
     post_id: int | None = state["post_id"]
     if not post_id:
@@ -480,7 +480,7 @@ async def publish_post(state: State) -> State:
 @action(reads=["post_id", "session_maker"], writes=["result_message", "error"])
 async def handle_rejection(state: State) -> State:
     """Handle a rejected post."""
-    from app.agent.channel.review import handle_reject
+    from app.channel.review import handle_reject
 
     post_id: int | None = state["post_id"]
     if not post_id:

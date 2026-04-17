@@ -5,12 +5,12 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
-from app.agent.channel.llm_client import openrouter_chat_completion
-from app.agent.channel.sanitize import substitute_template
+from app.channel.llm_client import openrouter_chat_completion
+from app.channel.sanitize import substitute_template
 from app.core.logging import get_logger
 
 if TYPE_CHECKING:
-    from app.agent.channel.sources import ContentItem
+    from app.channel.sources import ContentItem
 
 logger = get_logger("channel.discovery")
 
@@ -64,7 +64,7 @@ async def discover_content(
     """
     from hashlib import sha256
 
-    from app.agent.channel.sources import ContentItem
+    from app.channel.sources import ContentItem
     from app.core.time import utc_now
 
     try:

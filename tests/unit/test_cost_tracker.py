@@ -1,10 +1,10 @@
-"""Tests for app.agent.channel.cost_tracker — LLMUsage timestamp behavior."""
+"""Tests for app.channel.cost_tracker — LLMUsage timestamp behavior."""
 
 from __future__ import annotations
 
 from datetime import datetime
 
-from app.agent.channel.cost_tracker import LLMUsage
+from app.channel.cost_tracker import LLMUsage
 from app.core.time import utc_now
 
 

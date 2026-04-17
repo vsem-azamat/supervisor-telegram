@@ -11,13 +11,13 @@ from pydantic_ai import Agent, RunContext
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
-from app.agent.prompts import MODERATION_PROMPT
-from app.agent.schemas import ActionType, AgentDeps, AgentEvent, ModerationResult
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.text import escape_html
 from app.moderation.escalation import EscalationService
 from app.moderation.memory import AgentMemory
+from app.moderation.prompts import MODERATION_PROMPT
+from app.moderation.schemas import ActionType, AgentDeps, AgentEvent, ModerationResult
 
 if TYPE_CHECKING:
     from pydantic_ai.agent import AgentRunResult

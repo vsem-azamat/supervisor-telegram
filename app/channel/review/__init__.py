@@ -1,11 +1,11 @@
 """Channel review submodule — review agent, presentation, and service.
 
 This package re-exports the public API from all three submodules so that
-existing ``from app.agent.channel.review import ...`` statements continue to work.
+existing ``from app.channel.review import ...`` statements continue to work.
 """
 
 # ── Agent ──
-from app.agent.channel.review.agent import (  # noqa: F401
+from app.channel.review.agent import (  # noqa: F401
     ReviewAgentDeps,
     clear_review_conversation,
     create_review_agent,
@@ -15,7 +15,7 @@ from app.agent.channel.review.agent import (  # noqa: F401
 )
 
 # ── Presentation (was review.py) ──
-from app.agent.channel.review.presentation import (  # noqa: F401
+from app.channel.review.presentation import (  # noqa: F401
     build_review_keyboard,
     build_schedule_picker_keyboard,
     handle_approve,
@@ -27,7 +27,7 @@ from app.agent.channel.review.presentation import (  # noqa: F401
 )
 
 # ── Service ──
-from app.agent.channel.review.service import (  # noqa: F401
+from app.channel.review.service import (  # noqa: F401
     CB_APPROVE,
     CB_BACK,
     CB_DELETE,

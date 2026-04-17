@@ -29,7 +29,7 @@ class TestPublishPost:
     """Tests for the top-level publish_post routing."""
 
     async def test_text_only_no_images(self) -> None:
-        from app.agent.channel.publisher import publish_post
+        from app.channel.publisher import publish_post
 
         bot = _make_bot()
         post = _FakePost(text="Hello world")
@@ -41,7 +41,7 @@ class TestPublishPost:
         bot.send_media_group.assert_not_awaited()
 
     async def test_single_image_short_caption(self) -> None:
-        from app.agent.channel.publisher import publish_post
+        from app.channel.publisher import publish_post
 
         bot = _make_bot()
         post = _FakePost(text="Short caption", image_urls=["https://example.com/img.jpg"])
@@ -53,7 +53,7 @@ class TestPublishPost:
         assert call_kwargs.kwargs.get("caption") == "Short caption"
 
     async def test_single_image_long_caption(self) -> None:
-        from app.agent.channel.publisher import publish_post
+        from app.channel.publisher import publish_post
 
         bot = _make_bot()
         long_text = "A" * 1025
@@ -66,7 +66,7 @@ class TestPublishPost:
         bot.send_message.assert_awaited_once()
 
     async def test_multi_image_media_group(self) -> None:
-        from app.agent.channel.publisher import publish_post
+        from app.channel.publisher import publish_post
 
         bot = _make_bot()
         post = _FakePost(
@@ -79,7 +79,7 @@ class TestPublishPost:
         bot.send_media_group.assert_awaited_once()
 
     async def test_multi_image_long_caption_sends_text_reply(self) -> None:
-        from app.agent.channel.publisher import publish_post
+        from app.channel.publisher import publish_post
 
         msg = MagicMock()
         msg.message_id = 42
@@ -97,7 +97,7 @@ class TestPublishPost:
         bot.send_message.assert_awaited_once()
 
     async def test_media_group_failure_falls_back_to_photo(self) -> None:
-        from app.agent.channel.publisher import publish_post
+        from app.channel.publisher import publish_post
 
         bot = _make_bot(send_media_group=AsyncMock(side_effect=Exception("Telegram error")))
         post = _FakePost(
@@ -112,7 +112,7 @@ class TestPublishPost:
         bot.send_photo.assert_awaited_once()
 
     async def test_photo_failure_falls_back_to_text(self) -> None:
-        from app.agent.channel.publisher import publish_post
+        from app.channel.publisher import publish_post
 
         bot = _make_bot(
             send_photo=AsyncMock(side_effect=Exception("Photo error")),
@@ -126,7 +126,7 @@ class TestPublishPost:
 
     async def test_image_url_backward_compat(self) -> None:
         """image_url (singular) is used when image_urls is empty."""
-        from app.agent.channel.publisher import publish_post
+        from app.channel.publisher import publish_post
 
         bot = _make_bot()
         post = _FakePost(text="Compat", image_url="https://example.com/old.jpg", image_urls=[])
@@ -136,7 +136,7 @@ class TestPublishPost:
         bot.send_photo.assert_awaited_once()
 
     async def test_returns_none_on_total_failure(self) -> None:
-        from app.agent.channel.publisher import publish_post
+        from app.channel.publisher import publish_post
 
         bot = _make_bot(
             send_message=AsyncMock(side_effect=Exception("All failed")),
@@ -147,7 +147,7 @@ class TestPublishPost:
         assert msg_id is None
 
     async def test_media_group_respects_10_image_limit(self) -> None:
-        from app.agent.channel.publisher import publish_post
+        from app.channel.publisher import publish_post
 
         bot = _make_bot()
         post = _FakePost(

@@ -13,13 +13,13 @@ import contextlib
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
-from app.agent.channel.channel_repo import (
+from app.channel.channel_repo import (
     get_active_channels,
     reset_daily_count_if_needed,
     try_reserve_daily_slot,
     update_source_discovery_time,
 )
-from app.agent.channel.source_discovery import discover_and_add_sources
+from app.channel.source_discovery import discover_and_add_sources
 from app.core.enums import ReviewDecision
 from app.core.logging import get_logger
 from app.core.time import utc_now
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from aiogram import Bot
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-    from app.agent.channel.config import ChannelAgentSettings
+    from app.channel.config import ChannelAgentSettings
     from app.infrastructure.db.models import Channel
 
 logger = get_logger("channel.orchestrator")
@@ -156,7 +156,7 @@ class SingleChannelOrchestrator:
         if last and (utc_now() - last).total_seconds() < interval:
             return
 
-        from app.agent.channel.config import DEFAULT_SOURCE_DISCOVERY_QUERY
+        from app.channel.config import DEFAULT_SOURCE_DISCOVERY_QUERY
 
         query = self.channel.source_discovery_query or DEFAULT_SOURCE_DISCOVERY_QUERY
         logger.info("source_discovery_start", query=query[:60])
@@ -179,7 +179,7 @@ class SingleChannelOrchestrator:
         await reset_daily_count_if_needed(self.session_maker, self.channel.telegram_id)
 
         # Re-read daily count from DB (persisted across restarts)
-        from app.agent.channel.channel_repo import get_channel_by_telegram_id
+        from app.channel.channel_repo import get_channel_by_telegram_id
 
         refreshed = await get_channel_by_telegram_id(self.session_maker, self.channel.telegram_id)
         if refreshed:
@@ -198,7 +198,7 @@ class SingleChannelOrchestrator:
 
     async def _run_cycle_burr(self) -> None:
         """Run the pipeline via a Burr state-machine workflow."""
-        from app.agent.channel.workflow import create_pipeline_app
+        from app.channel.workflow import create_pipeline_app
 
         channel_id = self.channel.telegram_id
         app = create_pipeline_app(
@@ -225,7 +225,7 @@ class SingleChannelOrchestrator:
 
     async def resume_review(self, post_id: int, decision: str | ReviewDecision) -> str:
         """Resume a halted Burr workflow after admin review."""
-        from app.agent.channel.workflow import create_pipeline_app
+        from app.channel.workflow import create_pipeline_app
 
         saved_state = self._pending_reviews.pop(post_id, None)
         if not saved_state:

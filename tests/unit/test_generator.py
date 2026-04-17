@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from app.agent.channel.generator import _sanitize_content, generate_post, screen_items
+from app.channel.generator import _sanitize_content, generate_post, screen_items
 
 # ---------------------------------------------------------------------------
 # _sanitize_content
@@ -53,7 +53,7 @@ class TestScreenItems:
         items = [MagicMock(title="Good", summary="relevant content", external_id="1")]
 
         with patch(
-            "app.agent.channel.llm_client.openrouter_chat_completion",
+            "app.channel.llm_client.openrouter_chat_completion",
             new_callable=AsyncMock,
             return_value=json.dumps({"0": 8}),
         ):
@@ -66,7 +66,7 @@ class TestScreenItems:
         items = [MagicMock(title="Bad", summary="irrelevant", external_id="1")]
 
         with patch(
-            "app.agent.channel.llm_client.openrouter_chat_completion",
+            "app.channel.llm_client.openrouter_chat_completion",
             new_callable=AsyncMock,
             return_value=json.dumps({"0": 2}),
         ):
@@ -82,7 +82,7 @@ class TestScreenItems:
         ]
 
         with patch(
-            "app.agent.channel.llm_client.openrouter_chat_completion",
+            "app.channel.llm_client.openrouter_chat_completion",
             new_callable=AsyncMock,
             return_value=json.dumps({"0": 9, "1": 2, "2": 6}),
         ):
@@ -100,12 +100,12 @@ class TestScreenItems:
 
         with (
             patch(
-                "app.agent.channel.llm_client.openrouter_chat_completion",
+                "app.channel.llm_client.openrouter_chat_completion",
                 new_callable=AsyncMock,
                 side_effect=RuntimeError("API error"),
             ),
-            patch("app.agent.channel.generator._create_screening_agent") as mock_agent_factory,
-            patch("app.agent.channel.generator.extract_usage_from_pydanticai_result", return_value=None),
+            patch("app.channel.generator._create_screening_agent") as mock_agent_factory,
+            patch("app.channel.generator.extract_usage_from_pydanticai_result", return_value=None),
         ):
             mock_agent = MagicMock()
             mock_agent.run = AsyncMock(return_value=mock_result)
@@ -125,12 +125,12 @@ class TestScreenItems:
 
         with (
             patch(
-                "app.agent.channel.llm_client.openrouter_chat_completion",
+                "app.channel.llm_client.openrouter_chat_completion",
                 new_callable=AsyncMock,
                 side_effect=RuntimeError("batch failed"),
             ),
-            patch("app.agent.channel.generator._create_screening_agent") as mock_agent_factory,
-            patch("app.agent.channel.generator.extract_usage_from_pydanticai_result", return_value=None),
+            patch("app.channel.generator._create_screening_agent") as mock_agent_factory,
+            patch("app.channel.generator.extract_usage_from_pydanticai_result", return_value=None),
         ):
             mock_agent = MagicMock()
             mock_agent.run = AsyncMock(return_value=mock_result)
@@ -151,12 +151,12 @@ class TestScreenItems:
 
         with (
             patch(
-                "app.agent.channel.llm_client.openrouter_chat_completion",
+                "app.channel.llm_client.openrouter_chat_completion",
                 new_callable=AsyncMock,
                 side_effect=RuntimeError("batch failed"),
             ),
-            patch("app.agent.channel.generator._create_screening_agent") as mock_agent_factory,
-            patch("app.agent.channel.generator.extract_usage_from_pydanticai_result", return_value=None),
+            patch("app.channel.generator._create_screening_agent") as mock_agent_factory,
+            patch("app.channel.generator.extract_usage_from_pydanticai_result", return_value=None),
         ):
             mock_agent = MagicMock()
             mock_agent.run = AsyncMock(side_effect=[Exception("LLM error"), mock_result_ok])
@@ -194,9 +194,9 @@ class TestGeneratePost:
         mock_result.output = mock_post
 
         with (
-            patch("app.agent.channel.generator._create_generation_agent") as mock_agent_factory,
-            patch("app.agent.channel.generator.extract_usage_from_pydanticai_result", return_value=None),
-            patch("app.agent.channel.images.find_images_for_post", new=AsyncMock(return_value=[])),
+            patch("app.channel.generator._create_generation_agent") as mock_agent_factory,
+            patch("app.channel.generator.extract_usage_from_pydanticai_result", return_value=None),
+            patch("app.channel.images.find_images_for_post", new=AsyncMock(return_value=[])),
         ):
             mock_agent = MagicMock()
             mock_agent.run = AsyncMock(return_value=mock_result)
@@ -219,20 +219,20 @@ class TestGeneratePost:
 
 class TestEnforceFooterAndLength:
     def test_appends_footer_when_missing(self) -> None:
-        from app.agent.channel.generator import enforce_footer_and_length
+        from app.channel.generator import enforce_footer_and_length
 
         result = enforce_footer_and_length("Hello world", "——\nFooter")
         assert result.endswith("——\nFooter")
 
     def test_preserves_footer_when_present(self) -> None:
-        from app.agent.channel.generator import enforce_footer_and_length
+        from app.channel.generator import enforce_footer_and_length
 
         text = "Hello world\n\n——\nFooter"
         result = enforce_footer_and_length(text, "——\nFooter")
         assert result.count("——\nFooter") == 1
 
     def test_truncates_to_max_length(self) -> None:
-        from app.agent.channel.generator import enforce_footer_and_length
+        from app.channel.generator import enforce_footer_and_length
 
         long_text = "A" * 1000
         footer = "——\nFooter"
@@ -241,7 +241,7 @@ class TestEnforceFooterAndLength:
         assert result.endswith(footer)
 
     def test_uses_default_footer_when_empty(self) -> None:
-        from app.agent.channel.generator import DEFAULT_FOOTER, enforce_footer_and_length
+        from app.channel.generator import DEFAULT_FOOTER, enforce_footer_and_length
 
         result = enforce_footer_and_length("Hello", "")
         assert DEFAULT_FOOTER in result

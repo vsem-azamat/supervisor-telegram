@@ -10,13 +10,13 @@ from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
-from app.agent.channel.cost_tracker import extract_usage_from_pydanticai_result, log_usage
-from app.agent.channel.sanitize import sanitize_external_text, substitute_template
+from app.channel.cost_tracker import extract_usage_from_pydanticai_result, log_usage
+from app.channel.sanitize import sanitize_external_text, substitute_template
 from app.core.config import settings
 from app.core.logging import get_logger
 
 if TYPE_CHECKING:
-    from app.agent.channel.sources import ContentItem
+    from app.channel.sources import ContentItem
 
 logger = get_logger("channel.generator")
 
@@ -211,8 +211,8 @@ async def screen_items(
     if not items:
         return []
 
-    from app.agent.channel.exceptions import ScreeningError
-    from app.agent.channel.llm_client import openrouter_chat_completion
+    from app.channel.exceptions import ScreeningError
+    from app.channel.llm_client import openrouter_chat_completion
 
     system_prompt = build_screening_prompt(channel_name or "Konnekt", discovery_query)
     sanitized = [_sanitize_content(item.summary) for item in items]
@@ -343,7 +343,7 @@ async def generate_post(
     if feedback_context:
         prompt += f"\n\n---\nAdmin preferences (use to guide your writing):\n{feedback_context}"
 
-    from app.agent.channel.exceptions import GenerationError
+    from app.channel.exceptions import GenerationError
 
     try:
         result = await agent.run(prompt)
@@ -384,7 +384,7 @@ async def generate_post(
         # Resolve images: find multiple high-quality images from the source article
         # Images are optional — failures must not break post generation
         try:
-            from app.agent.channel.images import find_images_for_post
+            from app.channel.images import find_images_for_post
 
             source_urls = [item.url] if item.url else []
             image_urls = await find_images_for_post(

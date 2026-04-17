@@ -18,8 +18,8 @@ from aiogram.filters import Command, CommandStart
 from aiogram.methods import SendMessageDraft
 from aiogram.types import Message, MessageEntity, TelegramObject  # noqa: TC002
 
-from app.agent.channel.cost_tracker import extract_usage_from_pydanticai_result, log_usage
 from app.assistant.agent import AssistantDeps, create_assistant_agent
+from app.channel.cost_tracker import extract_usage_from_pydanticai_result, log_usage
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.markdown import md_to_entities_chunked
@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from pydantic_ai.messages import ModelMessage
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-    from app.agent.channel.orchestrator import ChannelOrchestrator
+    from app.channel.orchestrator import ChannelOrchestrator
     from app.infrastructure.telegram.telethon_client import TelethonClient
 
 logger = get_logger("assistant.bot")
@@ -143,7 +143,7 @@ async def _chat_stream(bot: Bot, chat_id: int, user_id: int, user_message: str) 
         """Stream tool call activity to the user via drafts in real-time."""
         from pydantic_ai.messages import FunctionToolCallEvent, FunctionToolResultEvent
 
-        from app.agent.tool_trace import TOOL_LABELS
+        from app.core.tool_trace import TOOL_LABELS
 
         async for event in events:
             if isinstance(event, FunctionToolCallEvent):
@@ -251,7 +251,7 @@ async def _chat(user_id: int, user_message: str) -> str:
         _conversations[user_id] = all_msgs
         _conversation_last_access[user_id] = time.monotonic()
 
-    from app.agent.tool_trace import format_response_with_trace
+    from app.core.tool_trace import format_response_with_trace
 
     new_msgs = list(result.new_messages())
     return format_response_with_trace(new_msgs, result.output)
