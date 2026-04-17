@@ -240,6 +240,52 @@ async def _render_review_message(
     return msg.message_id, None
 
 
+async def _rebuild_review_message(
+    bot: Bot,
+    chat_id: int | str,
+    post_id: int,
+    session_maker: async_sessionmaker[AsyncSession],
+    keyboard: InlineKeyboardMarkup,
+) -> None:
+    """Rebuild the review message for ``post_id``: new-first-then-delete.
+
+    1. Fetch current post + old (pult_id, album_ids) from DB.
+    2. Call ``_render_review_message`` with the post's current text/images.
+    3. Commit the new ids to DB (callbacks on the new pult work immediately).
+    4. Best-effort delete all old messages. Delete failures are logged, not raised.
+
+    No-op when the post has no existing ``review_message_id``.
+    """
+    from sqlalchemy import select
+
+    from app.db.models import ChannelPost
+
+    async with session_maker() as session:
+        r = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))
+        post = r.scalar_one_or_none()
+        if post is None or not post.review_message_id:
+            return
+        old_ids: list[int] = [post.review_message_id]
+        old_ids.extend(post.review_album_message_ids or [])
+        post_text = post.post_text
+        image_urls = list(post.image_urls or [])
+
+    new_pult_id, new_album_ids = await _render_review_message(bot, chat_id, post_text, image_urls, keyboard)
+
+    async with session_maker() as session:
+        r = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))
+        post = r.scalar_one_or_none()
+        if post is not None:
+            post.review_message_id = new_pult_id
+            post.review_album_message_ids = new_album_ids
+            await session.commit()
+
+    try:
+        await bot.delete_messages(chat_id=chat_id, message_ids=old_ids)
+    except Exception:
+        logger.warning("review_rebuild_delete_failed", post_id=post_id, old_ids=old_ids, exc_info=True)
+
+
 async def _send_review_message(
     bot: Bot,
     chat_id: int | str,
