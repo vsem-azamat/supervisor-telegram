@@ -8,6 +8,11 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.core.config import Settings
+    from app.db.models import Channel
 
 from pydantic_ai import Agent
 from pydantic_ai.models.openai import OpenAIChatModel
@@ -220,3 +225,14 @@ async def polish_post(
         return polished
 
     raise CriticError(f"invariants violated after retry: {violations}")
+
+
+def resolve_critic_enabled(channel: Channel, settings_obj: Settings) -> bool:
+    """Resolve the effective critic-enabled flag.
+
+    Per-channel value wins when set (True/False). None falls back to
+    `settings.channel.critic_enabled`.
+    """
+    if channel.critic_enabled is not None:
+        return channel.critic_enabled
+    return settings_obj.channel.critic_enabled
