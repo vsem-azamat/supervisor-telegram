@@ -43,6 +43,18 @@ class ChannelAgentSettings(BaseSettings):
     generation_model: str = Field(
         default="google/gemini-3.1-flash-lite-preview", description="Model for post generation"
     )
+    vision_model: str = Field(
+        default="google/gemini-2.5-flash",
+        description="Multimodal model for scoring candidate images (OpenRouter slug)",
+    )
+    image_phash_lookback_posts: int = Field(
+        default=30,
+        description="How many recent approved posts to compare pHash against for dedup",
+    )
+    image_phash_threshold: int = Field(
+        default=10,
+        description="Hamming distance threshold for pHash duplicate detection (0-64)",
+    )
     http_timeout: int = Field(default=30, description="HTTP client timeout in seconds")
     screening_threshold: int = Field(default=5, description="Minimum relevance score (0-10) to pass screening")
     temperature: float = Field(default=0.3, description="LLM temperature for content generation")
