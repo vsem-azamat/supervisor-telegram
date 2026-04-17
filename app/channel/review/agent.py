@@ -268,7 +268,6 @@ Not too formal, not too casual.
 3. ALWAYS call `update_post` with the FULL edited text to save changes.
 4. After `update_post` succeeds, briefly confirm what you changed.
 5. If the admin asks to search for information, use `web_search`.
-6. If the admin asks about images, use `find_new_images` and then `replace_images`.
 
 ## MANDATORY: You MUST call tools
 If the admin asks to edit, change, fix, shorten, rewrite, translate, or modify \
@@ -292,12 +291,27 @@ CORRECT:
   ✅ RIGHT — tools were called, changes saved.
 
 ## Tools available
-- `get_current_post` — read the current post text and images from DB (ALWAYS call first)
+- `get_current_post` — read the current post text from DB (ALWAYS call first)
 - `web_search` — search the web for facts or context
-- `update_post` — save the edited text (MUST call to apply any changes)
-- `find_new_images` — search for images by keywords
-- `replace_images` — replace the post's images with new URLs (refreshes the review message)
-- `remove_images` — remove all images from the post
+- `update_post` — save the edited text (MUST call to apply text changes)
+- `list_images` — show current images and the candidate pool with scores
+- `use_candidate` — promote a pooled candidate to the post
+- `add_image_url` — add an external URL (validated before accepting)
+- `find_and_add_image` — search Brave Images, add best result to the pool
+- `remove_image` — remove one image from the post by position
+- `reorder_images` — change the order of images in the post
+- `clear_images` — remove all images (pool preserved)
+
+## Images workflow
+- Use `list_images` first to see what's already in the post and in the pool.
+- To add an image:
+    * from the pool → `use_candidate(pool_index)`
+    * from a fresh search → `find_and_add_image(query)` then `use_candidate(...)`
+    * from an external URL → `add_image_url(url)`
+- To remove → `remove_image(position)`.
+- To change order → `reorder_images([2, 0, 1])`.
+- Never go over 4 images in one post — quality > quantity.
+- If the admin wants coherent images (album), compare descriptions in the pool first before searching.
 
 Respond in Russian. Be concise — the admin is in a chat, not reading an essay.
 """
@@ -443,49 +457,6 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
             msg += " Warning: review message in chat could not be refreshed."
         return msg
 
-    @agent.tool
-    async def find_new_images(ctx: RunContext[ReviewAgentDeps], query: str) -> str:  # noqa: ARG001
-        """Search for images by keywords using Brave Image Search.
-
-        Falls back to extracting images from web search result pages if image search
-        returns nothing.
-        """
-        from app.channel.brave_search import brave_image_search, brave_web_search
-        from app.channel.images import find_images_for_post
-
-        brave_api_key = settings.brave.api_key
-        images: list[str] = []
-
-        # Strategy 1: Brave Image Search API
-        if brave_api_key:
-            results = await brave_image_search(brave_api_key, query, count=6)
-            for r in results:
-                url = r.get("url", "")
-                if url and url not in images:
-                    images.append(url)
-                if len(images) >= 5:
-                    break
-
-        # Strategy 2: Extract OG/article images from web search result pages
-        if len(images) < 3 and brave_api_key:
-            web_results = await brave_web_search(brave_api_key, query, count=5, freshness="pm")
-            source_urls = [r["url"] for r in web_results if r.get("url")]
-            if source_urls:
-                article_images = await find_images_for_post(keywords=query, source_urls=source_urls)
-                for url in article_images:
-                    if url not in images:
-                        images.append(url)
-                    if len(images) >= 5:
-                        break
-
-        if not images:
-            return "No images found for the given query. Try a different search query."
-        lines = [f"Found {len(images)} image(s):"]
-        for i, url in enumerate(images, 1):
-            lines.append(f"{i}. {url}")
-        lines.append("\nUse `replace_images` with the URLs you want to set.")
-        return "\n".join(lines)
-
     async def _refresh_review_message(ctx: RunContext[ReviewAgentDeps], post: Any) -> str | None:
         """Delete old review message and send a new one with updated image/text.
 
@@ -545,73 +516,92 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
             logger.exception("review_message_refresh_failed", post_id=ctx.deps.post_id)
             return "Warning: review message could not be refreshed."
 
+    # ------------------------------------------------------------------
+    # Image tools (granular, backed by app.channel.review.image_tools)
+    # ------------------------------------------------------------------
+
+    def _image_deps(ctx: RunContext[ReviewAgentDeps]) -> Any:
+        from app.channel.review.image_tools import ImageToolsDeps
+
+        return ImageToolsDeps(
+            session_maker=ctx.deps.session_maker,
+            post_id=ctx.deps.post_id,
+            channel_id=ctx.deps.channel_id,
+            api_key=settings.openrouter.api_key,
+            vision_model=settings.channel.vision_model,
+            brave_api_key=settings.brave.api_key,
+        )
+
     @agent.tool
-    async def replace_images(ctx: RunContext[ReviewAgentDeps], image_urls: list[str]) -> str:
-        """Replace the post's images with new ones. Max 3 images. Refreshes the review message."""
-        from sqlalchemy import select
+    async def list_images(ctx: RunContext[ReviewAgentDeps]) -> str:
+        """List current images + candidate pool."""
+        from app.channel.review.image_tools import list_images_op
+
+        return await list_images_op(_image_deps(ctx))
+
+    @agent.tool
+    async def use_candidate(ctx: RunContext[ReviewAgentDeps], pool_index: int, position: int | None = None) -> str:
+        """Promote a pool candidate into the post. Refreshes the review message."""
+        from app.channel.review.image_tools import use_candidate_op
+
+        out = await use_candidate_op(_image_deps(ctx), pool_index=pool_index, position=position)
+        await _refresh_after_change(ctx)
+        return out
+
+    @agent.tool
+    async def add_image_url(ctx: RunContext[ReviewAgentDeps], url: str, position: int | None = None) -> str:
+        """Add an external image URL to the post (validated)."""
+        from app.channel.review.image_tools import add_image_url_op
+
+        out = await add_image_url_op(_image_deps(ctx), url=url, position=position)
+        await _refresh_after_change(ctx)
+        return out
+
+    @agent.tool
+    async def find_and_add_image(ctx: RunContext[ReviewAgentDeps], query: str) -> str:
+        """Search Brave for images matching ``query`` and add the best to the pool (not auto-selected)."""
+        from app.channel.review.image_tools import find_and_add_image_op
+
+        return await find_and_add_image_op(_image_deps(ctx), query=query)
+
+    @agent.tool
+    async def remove_image(ctx: RunContext[ReviewAgentDeps], position: int) -> str:
+        """Remove the image at ``position`` from the post. Candidate stays in pool."""
+        from app.channel.review.image_tools import remove_image_op
+
+        out = await remove_image_op(_image_deps(ctx), position=position)
+        await _refresh_after_change(ctx)
+        return out
+
+    @agent.tool
+    async def reorder_images(ctx: RunContext[ReviewAgentDeps], order: list[int]) -> str:
+        """Reorder selected images by current-position indices."""
+        from app.channel.review.image_tools import reorder_images_op
+
+        out = await reorder_images_op(_image_deps(ctx), order=order)
+        await _refresh_after_change(ctx)
+        return out
+
+    @agent.tool
+    async def clear_images(ctx: RunContext[ReviewAgentDeps]) -> str:
+        """Remove all images from the post (pool kept for later re-use)."""
+        from app.channel.review.image_tools import clear_images_op
+
+        out = await clear_images_op(_image_deps(ctx))
+        await _refresh_after_change(ctx)
+        return out
+
+    async def _refresh_after_change(ctx: RunContext[ReviewAgentDeps]) -> None:
+        """Re-fetch the post and call the existing _refresh_review_message helper."""
+        from sqlalchemy import select as _select
 
         from app.db.models import ChannelPost
 
-        image_urls = image_urls[:3]
-
         async with ctx.deps.session_maker() as session:
-            result = await session.execute(select(ChannelPost).where(ChannelPost.id == ctx.deps.post_id))
-            post = result.scalar_one_or_none()
-            if not post:
-                return "Post not found in DB."
-
-            if post.status != PostStatus.DRAFT:
-                return f"Cannot edit: post is already {post.status}."
-
-            post.image_url = image_urls[0] if image_urls else None
-            post.image_urls = image_urls if image_urls else None
-            await session.commit()
-
-        logger.info("images_replaced_by_agent", post_id=ctx.deps.post_id, count=len(image_urls))
-
-        # Refresh review message to show the new image
-        async with ctx.deps.session_maker() as session:
-            result = await session.execute(select(ChannelPost).where(ChannelPost.id == ctx.deps.post_id))
-            post = result.scalar_one_or_none()
-
-        warning = await _refresh_review_message(ctx, post) if post else None
-        msg = f"Images replaced: {len(image_urls)} image(s) set."
-        if warning:
-            msg += f" {warning}"
-        return msg
-
-    @agent.tool
-    async def remove_images(ctx: RunContext[ReviewAgentDeps]) -> str:
-        """Remove all images from the post. Refreshes the review message."""
-        from sqlalchemy import select
-
-        from app.db.models import ChannelPost
-
-        async with ctx.deps.session_maker() as session:
-            result = await session.execute(select(ChannelPost).where(ChannelPost.id == ctx.deps.post_id))
-            post = result.scalar_one_or_none()
-            if not post:
-                return "Post not found in DB."
-
-            if post.status != PostStatus.DRAFT:
-                return f"Cannot edit: post is already {post.status}."
-
-            post.image_url = None
-            post.image_urls = None
-            await session.commit()
-
-        logger.info("images_removed_by_agent", post_id=ctx.deps.post_id)
-
-        # Refresh review message (now text-only)
-        async with ctx.deps.session_maker() as session:
-            result = await session.execute(select(ChannelPost).where(ChannelPost.id == ctx.deps.post_id))
-            post = result.scalar_one_or_none()
-
-        warning = await _refresh_review_message(ctx, post) if post else None
-        msg = "All images removed."
-        if warning:
-            msg += f" {warning}"
-        return msg
+            r = await session.execute(_select(ChannelPost).where(ChannelPost.id == ctx.deps.post_id))
+            post = r.scalar_one_or_none()
+        if post:
+            await _refresh_review_message(ctx, post)
 
     return agent
 
