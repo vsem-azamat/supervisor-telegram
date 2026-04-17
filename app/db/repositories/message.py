@@ -98,7 +98,7 @@ class MessageRepository:
 
         cursor = await self.db.execute(query)
         await self.db.commit()
-        return cursor.rowcount or 0  # type: ignore[attr-defined]
+        return cursor.rowcount or 0  # ty: ignore[unresolved-attribute]
 
     async def count_user_chats(self, user_id: int) -> int:
         query = select(func.count(func.distinct(Message.chat_id))).where(Message.user_id == user_id)
