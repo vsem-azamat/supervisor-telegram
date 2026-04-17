@@ -639,7 +639,6 @@ async def _review_agent_turn_inner(
     _registry.evict_stale()
 
     history = _registry.get_history(post_id)
-    history_len = len(history) if history else 0
     agent = create_review_agent(model)
 
     try:
@@ -658,6 +657,11 @@ async def _review_agent_turn_inner(
         logger.exception("review_agent_error", post_id=post_id)
         return "Ошибка агента. Попробуй ещё раз."
 
+    # Collect per-turn messages for the trace.  new_messages() is robust to
+    # history trimming inside history_processors (slicing by pre-run length
+    # can yield an empty range once the cap is hit).
+    turn_msgs: list[ModelMessage] = list(result.new_messages())
+
     # Check if model skipped update_post on what looks like an edit request
     if _looks_like_edit_request(user_message) and not _has_tool_call(result, "update_post"):
         logger.warning("review_agent_skipped_update_post", post_id=post_id)
@@ -673,6 +677,7 @@ async def _review_agent_turn_inner(
                 ),
                 timeout=_AGENT_TIMEOUT_SECONDS,
             )
+            turn_msgs.extend(result.new_messages())
         except Exception:
             logger.exception("review_agent_retry_error", post_id=post_id)
 
@@ -685,8 +690,7 @@ async def _review_agent_turn_inner(
         await log_usage(usage)
 
     # Save conversation for continuity (trimming handled by history_processors)
-    all_msgs = list(result.all_messages())
-    _registry.set_history(post_id, all_msgs)
+    _registry.set_history(post_id, list(result.all_messages()))
 
     logger.info(
         "review_agent_turn_done",
@@ -694,8 +698,6 @@ async def _review_agent_turn_inner(
         history_len=_registry.history_length(post_id),
     )
 
-    # Format response with tool call trace for user visibility
-    turn_msgs = all_msgs[history_len:]
     return format_response_with_trace(turn_msgs, result.output)
 
 

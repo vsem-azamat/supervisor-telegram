@@ -177,6 +177,9 @@ async def test_admin_uses_second_candidate_via_agent_stub(
             def all_messages(self) -> list:
                 return []
 
+            def new_messages(self) -> list:
+                return []
+
         async def _fake_run(prompt: str, deps: ReviewAgentDeps, message_history=None):  # noqa: ANN001
             tool_deps = ImageToolsDeps(
                 session_maker=deps.session_maker,
