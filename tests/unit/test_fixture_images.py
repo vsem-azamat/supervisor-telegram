@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from io import BytesIO
 
-import pytest
 from PIL import Image
+
 from tests.fixtures.images import make_test_image
 
 
