@@ -11,7 +11,7 @@ Usage in tests:
 
 import pytest
 import pytest_asyncio
-from app.infrastructure.db.base import Base
+from app.db.base import Base
 from sqlalchemy import text as sa_text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 

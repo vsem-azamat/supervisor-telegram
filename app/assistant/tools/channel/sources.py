@@ -25,7 +25,7 @@ def register_sources_tools(agent: Agent[AssistantDeps, str]) -> None:
         """List RSS sources for a channel. Use list_channels first if unsure about channel_id."""
         from sqlalchemy import select
 
-        from app.infrastructure.db.models import ChannelSource
+        from app.db.models import ChannelSource
 
         async with ctx.deps.session_maker() as session:
             result = await session.execute(select(ChannelSource).where(ChannelSource.channel_id == channel_id))
@@ -49,7 +49,7 @@ def register_sources_tools(agent: Agent[AssistantDeps, str]) -> None:
 
         from sqlalchemy import select
 
-        from app.infrastructure.db.models import ChannelSource
+        from app.db.models import ChannelSource
 
         try:
             async with ctx.deps.session_maker() as session:
@@ -78,7 +78,7 @@ def register_sources_tools(agent: Agent[AssistantDeps, str]) -> None:
         """Remove an RSS source by URL for a specific channel. channel_id is required."""
         from sqlalchemy import select
 
-        from app.infrastructure.db.models import ChannelSource
+        from app.db.models import ChannelSource
 
         try:
             async with ctx.deps.session_maker() as session:

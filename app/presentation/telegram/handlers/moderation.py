@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging import get_logger
 from app.core.text import escape_html
-from app.infrastructure.db.repositories import (
+from app.db.repositories import (
     ChatRepository,
     MessageRepository,
 )

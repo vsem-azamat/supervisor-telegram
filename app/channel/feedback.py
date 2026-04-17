@@ -9,7 +9,7 @@ from sqlalchemy import select
 from app.channel.llm_client import openrouter_chat_completion
 from app.core.enums import PostStatus
 from app.core.logging import get_logger
-from app.infrastructure.db.models import ChannelPost, ChannelSource
+from app.db.models import ChannelPost, ChannelSource
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker

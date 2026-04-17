@@ -3,7 +3,7 @@
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from app.infrastructure.db.repositories.admin import AdminRepository
+from app.db.repositories.admin import AdminRepository
 from app.presentation.telegram.handlers.admin import delete_admin, new_admin
 
 from tests.telegram_helpers import (

@@ -7,7 +7,7 @@ from datetime import timedelta
 from app.channel.config import language_name
 from app.core.enums import PostStatus
 from app.core.time import utc_now
-from app.infrastructure.db.models import Channel, ChannelPost
+from app.db.models import Channel, ChannelPost
 
 # ---------------------------------------------------------------------------
 # Channel.footer property

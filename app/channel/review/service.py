@@ -23,7 +23,7 @@ from app.channel.generator import DEFAULT_FOOTER, enforce_footer_and_length
 from app.channel.llm_client import openrouter_chat_completion
 from app.core.enums import PostStatus
 from app.core.logging import get_logger
-from app.infrastructure.db.models import ChannelPost
+from app.db.models import ChannelPost
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -267,7 +267,7 @@ async def reject_post(
         if was_scheduled and scheduled_tg_id:
             try:
                 from app.core.container import container
-                from app.infrastructure.db.models import Channel
+                from app.db.models import Channel
 
                 tc = container.get_telethon_client()
                 if tc:
@@ -397,7 +397,7 @@ async def edit_post_text(
 
                     from app.channel.schedule_manager import update_scheduled_text
                     from app.core.container import container
-                    from app.infrastructure.db.models import Channel
+                    from app.db.models import Channel
 
                     tc = container.get_telethon_client()
                     if tc:

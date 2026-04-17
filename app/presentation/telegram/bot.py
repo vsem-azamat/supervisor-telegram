@@ -22,8 +22,8 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
     from app.channel.orchestrator import ChannelOrchestrator
-    from app.infrastructure.telegram.telethon_client import TelethonClient
-from app.infrastructure.db.session import close_db, create_session_maker, insert_chat_link
+    from app.telethon.telethon_client import TelethonClient
+from app.db.session import close_db, create_session_maker, insert_chat_link
 from app.presentation.telegram.handlers import router
 from app.presentation.telegram.middlewares import (
     BlacklistMiddleware,
@@ -138,7 +138,7 @@ async def _resolve_channel_ids(
     """Auto-resolve channel @usernames to numeric IDs via Bot API on startup."""
     from sqlalchemy import select, update
 
-    from app.infrastructure.db.models import Channel, ChannelPost, ChannelSource
+    from app.db.models import Channel, ChannelPost, ChannelSource
 
     async with session_maker() as session:
         result = await session.execute(select(Channel))
@@ -207,7 +207,7 @@ def _init_telethon() -> TelethonClient | None:
     """Initialize Telethon client if configured."""
     if not settings.telethon.enabled:
         return None
-    from app.infrastructure.telegram.telethon_client import TelethonClient
+    from app.telethon.telethon_client import TelethonClient
 
     client = TelethonClient(settings=settings.telethon)
     container.set_telethon_client(client)

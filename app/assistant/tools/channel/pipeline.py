@@ -54,7 +54,7 @@ def register_pipeline_tools(agent: Agent[AssistantDeps, str]) -> None:
         """Get recent posts from the database for a channel."""
         from sqlalchemy import select
 
-        from app.infrastructure.db.models import ChannelPost
+        from app.db.models import ChannelPost
 
         limit = min(max(1, limit), 50)
 
@@ -151,7 +151,7 @@ def register_pipeline_tools(agent: Agent[AssistantDeps, str]) -> None:
         from app.channel.generator import generate_post as _generate
         from app.channel.sources import ContentItem
         from app.core.config import settings
-        from app.infrastructure.db.models import Channel
+        from app.db.models import Channel
 
         error = await _validate_channel_id(ctx, channel_id)
         if error:

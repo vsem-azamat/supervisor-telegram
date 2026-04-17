@@ -1,7 +1,7 @@
 from sqlalchemy import delete, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.db.models import Admin
+from app.db.models import Admin
 
 
 class AdminRepository:

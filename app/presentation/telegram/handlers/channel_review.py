@@ -26,7 +26,7 @@ from app.presentation.telegram.utils.callback_data import PublishNow, ReviewActi
 if TYPE_CHECKING:
     from aiogram.types import CallbackQuery, Message
 
-    from app.infrastructure.db.models import Channel
+    from app.db.models import Channel
 
 logger = get_logger("handler.channel_review")
 
@@ -54,7 +54,7 @@ async def _get_channel_for_post(post_id: int, session_maker: Any) -> Channel | N
     """Read the Channel DB record for a given post."""
     from sqlalchemy import select
 
-    from app.infrastructure.db.models import Channel, ChannelPost
+    from app.db.models import Channel, ChannelPost
 
     async with session_maker() as session:
         result = await session.execute(select(ChannelPost.channel_id).where(ChannelPost.id == post_id))
@@ -325,7 +325,7 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
             from sqlalchemy import select
 
             from app.channel.review import extract_source_btn_data
-            from app.infrastructure.db.models import ChannelPost
+            from app.db.models import ChannelPost
 
             async with session_maker() as session:
                 r = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))
@@ -425,7 +425,7 @@ async def on_publish_now(callback: CallbackQuery, callback_data: PublishNow) -> 
         from sqlalchemy import select
 
         from app.core.enums import PostStatus
-        from app.infrastructure.db.models import ChannelPost
+        from app.db.models import ChannelPost
 
         async with session_maker() as session:
             r = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))

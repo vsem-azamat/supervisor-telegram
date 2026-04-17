@@ -9,7 +9,7 @@ from aiogram.types import TelegramObject
 from app.core.config import settings
 
 if TYPE_CHECKING:
-    from app.infrastructure.db.repositories import AdminRepository
+    from app.db.repositories import AdminRepository
 
 # TTL cache for admin user IDs (same pattern as BlacklistMiddleware)
 _admin_cache: tuple[set[int], float] | None = None

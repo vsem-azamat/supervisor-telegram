@@ -9,7 +9,7 @@ import pytest
 from app.channel.generator import GeneratedPost
 from app.channel.sources import ContentItem
 from app.core.enums import PostStatus
-from app.infrastructure.db.models import ChannelPost, ChannelSource
+from app.db.models import ChannelPost, ChannelSource
 from sqlalchemy import select
 
 if TYPE_CHECKING:

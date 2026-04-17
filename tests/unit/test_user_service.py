@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from app.core.exceptions import UserNotFoundException
-from app.infrastructure.db.models import User
-from app.infrastructure.db.repositories.user import UserRepository
+from app.db.models import User
+from app.db.repositories.user import UserRepository
 from app.moderation.user_service import UserService
 
 from tests.factories import UserFactory

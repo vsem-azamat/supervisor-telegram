@@ -3,7 +3,7 @@
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.core.text import escape_html
-from app.infrastructure.db.models import User
+from app.db.models import User
 from app.presentation.telegram.utils import BlacklistPagination, UnblockUser
 
 

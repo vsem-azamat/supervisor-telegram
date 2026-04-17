@@ -57,7 +57,7 @@ def register_schedule_tools(agent: Agent[AssistantDeps, str]) -> None:
         """List all currently scheduled (not yet published) posts. Leave channel_id empty for all channels."""
         from sqlalchemy import select
 
-        from app.infrastructure.db.models import ChannelPost
+        from app.db.models import ChannelPost
 
         query = select(ChannelPost).where(ChannelPost.status == "scheduled").order_by(ChannelPost.scheduled_at)
         if channel_id:
@@ -87,7 +87,7 @@ def register_schedule_tools(agent: Agent[AssistantDeps, str]) -> None:
 
         from sqlalchemy import select
 
-        from app.infrastructure.db.models import Channel, ChannelPost
+        from app.db.models import Channel, ChannelPost
 
         tc = ctx.deps.telethon
         assert tc is not None  # guaranteed by prepare_tools
@@ -137,7 +137,7 @@ def register_schedule_tools(agent: Agent[AssistantDeps, str]) -> None:
 
         from sqlalchemy import select
 
-        from app.infrastructure.db.models import Channel, ChannelPost
+        from app.db.models import Channel, ChannelPost
 
         tc = ctx.deps.telethon
         assert tc is not None  # guaranteed by prepare_tools
@@ -170,7 +170,7 @@ def register_schedule_tools(agent: Agent[AssistantDeps, str]) -> None:
         """Cancel a scheduled post — removes from Telegram queue, reverts to draft."""
         from sqlalchemy import select
 
-        from app.infrastructure.db.models import Channel, ChannelPost
+        from app.db.models import Channel, ChannelPost
 
         tc = ctx.deps.telethon
         assert tc is not None  # guaranteed by prepare_tools

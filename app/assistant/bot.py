@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
     from app.channel.orchestrator import ChannelOrchestrator
-    from app.infrastructure.telegram.telethon_client import TelethonClient
+    from app.telethon.telethon_client import TelethonClient
 
 logger = get_logger("assistant.bot")
 

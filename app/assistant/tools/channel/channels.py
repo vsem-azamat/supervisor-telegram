@@ -25,7 +25,7 @@ def register_channels_tools(agent: Agent[AssistantDeps, str]) -> None:
         """List all channels from the database with their config."""
         from sqlalchemy import select
 
-        from app.infrastructure.db.models import Channel
+        from app.db.models import Channel
 
         async with ctx.deps.session_maker() as session:
             result = await session.execute(select(Channel).order_by(Channel.id))

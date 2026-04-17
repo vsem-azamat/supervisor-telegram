@@ -110,7 +110,7 @@ async def persist_message_to_db(session_maker: Any, post_id: int, message_id: in
     """Persist a message_id → post_id mapping in the DB for restart resilience."""
     from sqlalchemy import select
 
-    from app.infrastructure.db.models import ChannelPost
+    from app.db.models import ChannelPost
 
     try:
         async with session_maker() as session:
@@ -134,7 +134,7 @@ async def clear_reply_chain_from_db(session_maker: Any, post_id: int) -> None:
     """Null out reply_chain_message_ids when a post is finalized (approve/reject/skip)."""
     from sqlalchemy import update
 
-    from app.infrastructure.db.models import ChannelPost
+    from app.db.models import ChannelPost
 
     try:
         async with session_maker() as session:
@@ -155,7 +155,7 @@ async def resolve_post_id_from_db(session_maker: Any, message_id: int, chat_id: 
     from sqlalchemy import select
 
     from app.core.enums import PostStatus
-    from app.infrastructure.db.models import ChannelPost
+    from app.db.models import ChannelPost
 
     active_statuses = [PostStatus.DRAFT, PostStatus.SCHEDULED]
 
@@ -305,7 +305,7 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
         """Get the current post text and images from DB."""
         from sqlalchemy import select
 
-        from app.infrastructure.db.models import ChannelPost
+        from app.db.models import ChannelPost
 
         async with ctx.deps.session_maker() as session:
             result = await session.execute(select(ChannelPost).where(ChannelPost.id == ctx.deps.post_id))
@@ -351,7 +351,7 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
             extract_source_btn_data,
         )
         from app.core.markdown import md_to_entities
-        from app.infrastructure.db.models import ChannelPost
+        from app.db.models import ChannelPost
 
         # 1. Enforce footer and length
         new_text = enforce_footer_and_length(new_text, ctx.deps.footer)
@@ -489,7 +489,7 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
             async with ctx.deps.session_maker() as session:
                 from sqlalchemy import select as sa_select
 
-                from app.infrastructure.db.models import ChannelPost
+                from app.db.models import ChannelPost
 
                 r = await session.execute(sa_select(ChannelPost).where(ChannelPost.id == ctx.deps.post_id))
                 db_post = r.scalar_one_or_none()
@@ -511,7 +511,7 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
         """Replace the post's images with new ones. Max 3 images. Refreshes the review message."""
         from sqlalchemy import select
 
-        from app.infrastructure.db.models import ChannelPost
+        from app.db.models import ChannelPost
 
         image_urls = image_urls[:3]
 
@@ -546,7 +546,7 @@ def create_review_agent(model_name: str = "") -> Agent[ReviewAgentDeps, str]:
         """Remove all images from the post. Refreshes the review message."""
         from sqlalchemy import select
 
-        from app.infrastructure.db.models import ChannelPost
+        from app.db.models import ChannelPost
 
         async with ctx.deps.session_maker() as session:
             result = await session.execute(select(ChannelPost).where(ChannelPost.id == ctx.deps.post_id))

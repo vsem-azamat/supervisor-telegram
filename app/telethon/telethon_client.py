@@ -17,10 +17,10 @@ from typing import TYPE_CHECKING, Any
 from app.core.logging import get_logger
 
 if TYPE_CHECKING:
-    from telethon import TelegramClient
     from telethon.tl.types import Channel, Chat, Message, User
 
     from app.core.config import TelethonSettings
+    from telethon import TelegramClient
 
 logger = get_logger("telethon_client")
 

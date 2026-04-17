@@ -8,7 +8,7 @@ from aiogram.types import TelegramObject
 from app.core.logging import get_logger
 
 if TYPE_CHECKING:
-    from app.infrastructure.db.repositories import UserRepository
+    from app.db.repositories import UserRepository
 
 logger = get_logger("middleware.blacklist")
 

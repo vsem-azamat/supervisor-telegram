@@ -1,7 +1,7 @@
 from aiogram import Router, types
 from aiogram.filters import Command
 
-from app.infrastructure.db.repositories import AdminRepository
+from app.db.repositories import AdminRepository
 from app.presentation.telegram.utils import other
 
 admin_router = Router()

@@ -15,7 +15,7 @@ from app.channel.orchestrator import (
     SingleChannelOrchestrator,
     _next_scheduled_time,
 )
-from app.infrastructure.db.models import Channel
+from app.db.models import Channel
 
 # ---------------------------------------------------------------------------
 # Fixtures

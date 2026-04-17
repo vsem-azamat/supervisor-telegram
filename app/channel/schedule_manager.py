@@ -12,8 +12,8 @@ from app.core.time import utc_now
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-    from app.infrastructure.db.models import Channel, ChannelPost
-    from app.infrastructure.telegram.telethon_client import TelethonClient
+    from app.db.models import Channel, ChannelPost
+    from app.telethon.telethon_client import TelethonClient
 
 logger = get_logger("channel.schedule_manager")
 
@@ -83,7 +83,7 @@ async def get_occupied_slots(
     """Query DB for all SCHEDULED posts' scheduled_at times for a channel."""
     from sqlalchemy import select
 
-    from app.infrastructure.db.models import ChannelPost
+    from app.db.models import ChannelPost
 
     async with session_maker() as session:
         result = await session.execute(
@@ -111,7 +111,7 @@ async def schedule_post(
     """Schedule a post for future delivery via Telethon. Returns status message."""
     from sqlalchemy import select
 
-    from app.infrastructure.db.models import ChannelPost
+    from app.db.models import ChannelPost
 
     async with session_maker() as session:
         result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id).with_for_update())
@@ -183,7 +183,7 @@ async def cancel_scheduled_post(
     """Cancel a scheduled post — delete from Telegram and revert to DRAFT."""
     from sqlalchemy import select
 
-    from app.infrastructure.db.models import ChannelPost
+    from app.db.models import ChannelPost
 
     async with session_maker() as session:
         result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))
@@ -220,7 +220,7 @@ async def reschedule_post(
     """Reschedule: delete old scheduled message, create new one."""
     from sqlalchemy import select
 
-    from app.infrastructure.db.models import ChannelPost
+    from app.db.models import ChannelPost
 
     async with session_maker() as session:
         result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))

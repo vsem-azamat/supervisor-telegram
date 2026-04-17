@@ -89,7 +89,7 @@ def register_dedup_tools(agent: Agent[AssistantDeps, str]) -> None:
             from sqlalchemy import select
 
             from app.channel.embeddings import EMBEDDING_MODEL, get_embeddings
-            from app.infrastructure.db.models import ChannelPost
+            from app.db.models import ChannelPost
 
             async with ctx.deps.session_maker() as session:
                 result = await session.execute(

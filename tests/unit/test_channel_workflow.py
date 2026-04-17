@@ -18,7 +18,7 @@ from app.channel.workflow import (
     build_content_pipeline_graph,
     create_pipeline_app,
 )
-from app.infrastructure.db.models import Channel
+from app.db.models import Channel
 from burr.core import State
 
 # ---------------------------------------------------------------------------

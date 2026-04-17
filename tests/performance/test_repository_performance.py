@@ -4,9 +4,9 @@ import asyncio
 import time
 
 import pytest
-from app.infrastructure.db.models import Chat, User
-from app.infrastructure.db.repositories.chat import ChatRepository
-from app.infrastructure.db.repositories.user import UserRepository
+from app.db.models import Chat, User
+from app.db.repositories.chat import ChatRepository
+from app.db.repositories.user import UserRepository
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
 from tests.factories import ChatFactory, UserFactory

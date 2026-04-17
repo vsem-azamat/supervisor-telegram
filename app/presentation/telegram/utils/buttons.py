@@ -2,7 +2,7 @@ from aiogram.types import InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.db.repositories import ChatLinkRepository
+from app.db.repositories import ChatLinkRepository
 
 
 async def get_contacts_buttons() -> InlineKeyboardBuilder:

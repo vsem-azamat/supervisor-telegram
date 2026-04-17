@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
     from app.channel.orchestrator import ChannelOrchestrator
-    from app.infrastructure.telegram.telethon_client import TelethonClient
+    from app.telethon.telethon_client import TelethonClient
 
 logger = get_logger("assistant.agent")
 
@@ -117,7 +117,7 @@ async def _get_managed_chat_ids(session_maker: async_sessionmaker[AsyncSession])
     """Return the set of chat IDs from the Chat table."""
     from sqlalchemy import select
 
-    from app.infrastructure.db.models import Chat
+    from app.db.models import Chat
 
     async with session_maker() as session:
         result = await session.execute(select(Chat.id))
@@ -128,7 +128,7 @@ async def _get_known_channel_ids(session_maker: async_sessionmaker[AsyncSession]
     """Return channel IDs from the DB channels table."""
     from sqlalchemy import select
 
-    from app.infrastructure.db.models import Channel
+    from app.db.models import Channel
 
     async with session_maker() as session:
         result = await session.execute(select(Channel.telegram_id))

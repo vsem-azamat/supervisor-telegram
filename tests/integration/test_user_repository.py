@@ -1,8 +1,8 @@
 """Integration tests for UserRepository."""
 
 import pytest
-from app.infrastructure.db.models import User
-from app.infrastructure.db.repositories.user import UserRepository
+from app.db.models import User
+from app.db.repositories.user import UserRepository
 
 from tests.factories import UserFactory
 

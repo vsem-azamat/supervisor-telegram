@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
     from app.channel.config import ChannelAgentSettings
-    from app.infrastructure.db.models import Channel
+    from app.db.models import Channel
 
 logger = get_logger("channel.orchestrator")
 
@@ -350,7 +350,7 @@ class ChannelOrchestrator:
         from sqlalchemy import select
 
         from app.core.enums import PostStatus
-        from app.infrastructure.db.models import ChannelPost
+        from app.db.models import ChannelPost
 
         try:
             async with self.session_maker() as session:

@@ -3,7 +3,7 @@ from collections.abc import Sequence
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.db.models import ChatLink
+from app.db.models import ChatLink
 
 
 class ChatLinkRepository:

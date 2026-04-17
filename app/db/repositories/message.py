@@ -4,7 +4,7 @@ from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.expression import and_
 
-from app.infrastructure.db.models import Message
+from app.db.models import Message
 
 
 class MessageRepository:

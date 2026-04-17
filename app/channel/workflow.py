@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
     from app.channel.config import ChannelAgentSettings
-    from app.infrastructure.db.models import Channel
+    from app.db.models import Channel
 
 logger = get_logger("channel.workflow")
 
@@ -117,7 +117,7 @@ async def fetch_sources(state: State) -> State:
         if all_items:
             from sqlalchemy import select
 
-            from app.infrastructure.db.models import ChannelPost
+            from app.db.models import ChannelPost
 
             ext_ids = [i.external_id for i in all_items]
             async with session_maker() as session:
@@ -412,7 +412,7 @@ async def send_for_review(state: State) -> State:
                         REVIEW_TITLE_MAX_CHARS,
                     )
                     from app.core.enums import PostStatus
-                    from app.infrastructure.db.models import ChannelPost
+                    from app.db.models import ChannelPost
 
                     ext_id = sha256(post.text[:EXT_ID_HASH_INPUT_CHARS].encode()).hexdigest()[:EXT_ID_HASH_LENGTH]
                     async with session_maker() as session:

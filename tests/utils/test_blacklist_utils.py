@@ -1,7 +1,7 @@
 """Tests for blacklist utilities."""
 
 import pytest
-from app.infrastructure.db.models import User
+from app.db.models import User
 from app.presentation.telegram.utils.blacklist import (
     build_blacklist_keyboard,
     build_blacklist_text,

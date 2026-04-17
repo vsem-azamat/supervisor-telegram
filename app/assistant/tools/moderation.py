@@ -16,7 +16,7 @@ def register_moderation_tools(agent: Agent[AssistantDeps, str]) -> None:
         """List all managed chats with their settings."""
         from sqlalchemy import select
 
-        from app.infrastructure.db.models import Chat
+        from app.db.models import Chat
 
         async with ctx.deps.session_maker() as session:
             result = await session.execute(select(Chat))
@@ -125,7 +125,7 @@ def register_moderation_tools(agent: Agent[AssistantDeps, str]) -> None:
         """Show all blacklisted (blocked) users."""
         from sqlalchemy import select
 
-        from app.infrastructure.db.models import User
+        from app.db.models import User
 
         async with ctx.deps.session_maker() as session:
             result = await session.execute(select(User).where(User.blocked == True))  # noqa: E712

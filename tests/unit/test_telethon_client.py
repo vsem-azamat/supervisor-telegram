@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from app.core.config import TelethonSettings
-from app.infrastructure.telegram.telethon_client import (
+from app.telethon.telethon_client import (
     ChatInfo,
     ChatMember,
     MessageInfo,
@@ -174,7 +174,7 @@ class TestFloodWaitRetry:
         mock_flood_cls = type("FloodWaitError", (Exception,), {"seconds": 0})
 
         with patch(
-            "app.infrastructure.telegram.telethon_client.asyncio.sleep",
+            "app.telethon.telethon_client.asyncio.sleep",
             new_callable=AsyncMock,
         ):
             with patch("telethon.errors.FloodWaitError", mock_flood_cls):
@@ -189,7 +189,7 @@ class TestFloodWaitRetry:
             raise error
 
         with patch(
-            "app.infrastructure.telegram.telethon_client.asyncio.sleep",
+            "app.telethon.telethon_client.asyncio.sleep",
             new_callable=AsyncMock,
         ):
             with patch("telethon.errors.FloodWaitError", type("FWE", (Exception,), {"seconds": 0})):
@@ -407,7 +407,7 @@ class TestAddChatAdmin:
             patch("telethon.tl.functions.channels.EditAdminRequest"),
             patch("telethon.tl.types.ChatAdminRights"),
             patch(
-                "app.infrastructure.telegram.telethon_client.asyncio.sleep",
+                "app.telethon.telethon_client.asyncio.sleep",
                 new_callable=AsyncMock,
             ),
         ):
@@ -435,7 +435,7 @@ class TestInviteToChat:
             patch("telethon.errors.FloodWaitError", type("FWE", (Exception,), {"seconds": 0})),
             patch("telethon.tl.functions.channels.InviteToChannelRequest"),
             patch(
-                "app.infrastructure.telegram.telethon_client.asyncio.sleep",
+                "app.telethon.telethon_client.asyncio.sleep",
                 new_callable=AsyncMock,
             ),
         ):

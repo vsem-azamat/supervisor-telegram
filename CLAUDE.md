@@ -46,7 +46,8 @@ app/
 │   ├── sources.py        # RSS + health tracking
 │   └── http.py           # SSRF-protected HTTP client
 ├── assistant/         # Conversational admin bot (PydanticAI, Claude Sonnet, 30+ tools)
-├── infrastructure/    # DB models (SQLAlchemy), repositories, Telethon client
+├── db/                # SQLAlchemy models, repositories, session management
+├── telethon/          # Telethon userbot client (auth, chat/message/scheduled ops)
 └── presentation/      # Telegram handlers, middlewares, utils (buttons, blacklist)
 ```
 
@@ -55,7 +56,7 @@ app/
 - `app/core/config.py` — Pydantic settings hierarchy (9 nested config classes)
 - `app/core/enums.py` — `PostStatus`, `EscalationStatus`, `ReviewDecision` StrEnums
 - `app/core/exceptions.py` — `DomainError`, `UserNotFoundException`
-- `app/infrastructure/db/models.py` — 9 ORM models (including pgvector `Vector(768)` column)
+- `app/db/models.py` — 9 ORM models (including pgvector `Vector(768)` column)
 - `app/core/markdown.py` — `md_to_entities` / `md_to_entities_chunked` (telegramify-markdown)
 - `app/core/time.py` — `utc_now()` helper for naive UTC datetimes
 - `app/presentation/telegram/bot.py` — main entry, dispatcher setup

@@ -1,7 +1,7 @@
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.db.models import Chat
+from app.db.models import Chat
 
 
 class ChatRepository:

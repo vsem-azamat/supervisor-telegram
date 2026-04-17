@@ -1,8 +1,8 @@
 """Integration tests for ChatRepository."""
 
 import pytest
-from app.infrastructure.db.models import Chat
-from app.infrastructure.db.repositories.chat import ChatRepository
+from app.db.models import Chat
+from app.db.repositories.chat import ChatRepository
 
 from tests.factories import ChatFactory
 

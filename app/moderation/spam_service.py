@@ -1,7 +1,7 @@
 from aiogram import types
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.db.repositories import get_message_repository
+from app.db.repositories import get_message_repository
 
 
 async def detect_spam(db: AsyncSession, message: types.Message) -> bool:

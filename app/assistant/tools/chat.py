@@ -70,7 +70,7 @@ def register_chat_tools(agent: Agent[AssistantDeps, str]) -> None:
         """Set or toggle welcome message for a chat."""
         from sqlalchemy import select
 
-        from app.infrastructure.db.models import Chat
+        from app.db.models import Chat
 
         try:
             async with ctx.deps.session_maker() as session:
@@ -93,7 +93,7 @@ def register_chat_tools(agent: Agent[AssistantDeps, str]) -> None:
         """Get full user info — name, username, bio, premium status, blocked status."""
         from sqlalchemy import select
 
-        from app.infrastructure.db.models import User
+        from app.db.models import User
 
         try:
             lines = [f"User {user_id}:"]

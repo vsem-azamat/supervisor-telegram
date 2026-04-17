@@ -9,7 +9,7 @@ from sqlalchemy import select
 
 from app.core.logging import get_logger
 from app.core.time import utc_now
-from app.infrastructure.db.models import Channel
+from app.db.models import Channel
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker

@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from aiogram import Bot
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-    from app.infrastructure.telegram.telethon_client import TelethonClient
+    from app.telethon.telethon_client import TelethonClient
 
 
 class Container:

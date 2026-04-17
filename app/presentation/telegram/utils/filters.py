@@ -3,7 +3,7 @@ from aiogram.filters import BaseFilter
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.infrastructure.db.repositories import get_admin_repository
+from app.db.repositories import get_admin_repository
 
 
 class SuperAdminFilter(BaseFilter):

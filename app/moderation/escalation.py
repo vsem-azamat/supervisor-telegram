@@ -14,7 +14,7 @@ from app.core.enums import EscalationStatus
 from app.core.logging import get_logger
 from app.core.text import escape_html
 from app.core.time import utc_now
-from app.infrastructure.db.models import AgentEscalation
+from app.db.models import AgentEscalation
 from app.moderation.schemas import AgentEvent
 
 logger = get_logger("agent.escalation")
