@@ -339,6 +339,8 @@ async def generate_post(
     vision_model: str = "",
     phash_threshold: int = 10,
     phash_lookback: int = 30,
+    critic_enabled: bool = False,
+    critic_model: str = "",
 ) -> GeneratedPost | None:
     """Generate a post from one or more content items."""
     if not items:
@@ -400,6 +402,30 @@ async def generate_post(
             if len(post.text) > 900:
                 logger.warning("post_still_too_long", length=len(post.text), action="truncate")
                 post.text = enforce_footer_and_length(post.text, footer, max_length=900)
+
+        # Critic polish pass — best-effort. Silent fallback on failure.
+        if critic_enabled and critic_model:
+            try:
+                from app.channel.critic import CriticError, polish_post
+
+                original_text = post.text
+                polished = await polish_post(
+                    text=original_text,
+                    footer=footer,
+                    api_key=api_key,
+                    model=critic_model,
+                )
+                post.pre_critic_text = original_text
+                post.text = polished
+                logger.info(
+                    "critic_applied",
+                    orig_len=len(original_text),
+                    new_len=len(polished),
+                )
+            except CriticError as exc:
+                logger.warning("critic_failed_fallback", reason=str(exc))
+            except Exception:
+                logger.exception("critic_unexpected_error")
 
         # Resolve images: new pipeline — filter, score, dedup, compose.
         # Best-effort: failure leaves post.image_urls = [].
