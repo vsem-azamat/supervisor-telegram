@@ -66,6 +66,11 @@ _super_admins: set[int] = set()
 # Per-user conversation history with LRU eviction
 _conversations: dict[int, list[ModelMessage]] = {}
 _conversation_last_access: dict[int, float] = {}
+# Per-user locks serialize concurrent turns for the same user so rapid-fire
+# messages don't interleave history reads/writes.  aiogram dispatches handlers
+# as separate tasks, so without this two messages from one user could both
+# read the same history, run in parallel, and clobber each other's save.
+_user_locks: dict[int, asyncio.Lock] = {}
 _conv_lock = asyncio.Lock()
 _MAX_USERS = 50  # max concurrent user conversations
 _IDLE_TIMEOUT_SECONDS = 3600  # evict after 1h idle
@@ -78,23 +83,53 @@ _DRAFT_MIN_INTERVAL = 0.3  # min seconds between sendMessageDraft calls
 _DRAFT_MIN_CHARS = 20  # don't send draft until we have this many chars
 
 
+def _get_user_lock(user_id: int) -> asyncio.Lock:
+    """Return the per-user lock, creating it on first use.
+
+    Safe without external synchronization because asyncio is single-threaded
+    and there is no ``await`` between the membership check and the insertion.
+    """
+    if user_id not in _user_locks:
+        _user_locks[user_id] = asyncio.Lock()
+    return _user_locks[user_id]
+
+
 def _evict_conversations() -> None:
-    """Evict conversations idle for >1 hour, then enforce max user cap (LRU)."""
+    """Evict conversations idle for >1 hour, then enforce max user cap (LRU).
+
+    Skips users whose lock is currently held — evicting under them would split
+    a running turn from its lock, letting a concurrent turn acquire a fresh
+    lock and race on the same user's history.
+    """
+
+    def _is_busy(uid: int) -> bool:
+        lock = _user_locks.get(uid)
+        return lock is not None and lock.locked()
+
     now = time.monotonic()
 
     # 1. Evict idle conversations
-    expired = [uid for uid, ts in _conversation_last_access.items() if now - ts > _IDLE_TIMEOUT_SECONDS]
+    expired = [
+        uid for uid, ts in _conversation_last_access.items() if now - ts > _IDLE_TIMEOUT_SECONDS and not _is_busy(uid)
+    ]
     for uid in expired:
         _conversations.pop(uid, None)
         _conversation_last_access.pop(uid, None)
+        _user_locks.pop(uid, None)
 
-    # 2. Enforce max user cap — evict least recently used
+    # 2. Enforce max user cap — evict least recently used (but not busy)
     if len(_conversations) > _MAX_USERS:
         sorted_by_access = sorted(_conversation_last_access.items(), key=lambda x: x[1])
         to_remove = len(_conversations) - _MAX_USERS
-        for uid, _ in sorted_by_access[:to_remove]:
+        for uid, _ in sorted_by_access:
+            if to_remove <= 0:
+                break
+            if _is_busy(uid):
+                continue
             _conversations.pop(uid, None)
             _conversation_last_access.pop(uid, None)
+            _user_locks.pop(uid, None)
+            to_remove -= 1
 
 
 async def _send_draft(
@@ -124,7 +159,18 @@ async def _chat_stream(bot: Bot, chat_id: int, user_id: int, user_message: str) 
     if _agent is None or _deps is None:
         return "Агент не инициализирован.", 0
 
+    # Serialize concurrent turns from the same user end-to-end.
+    async with _get_user_lock(user_id):
+        return await _chat_stream_inner(bot, chat_id, user_id, user_message)
+
+
+async def _chat_stream_inner(bot: Bot, chat_id: int, user_id: int, user_message: str) -> tuple[str, int]:
+    assert _agent is not None
+    assert _deps is not None
+
     async with _conv_lock:
+        # Mark active before eviction so a concurrent user's turn can't LRU-evict us.
+        _conversation_last_access[user_id] = time.monotonic()
         _evict_conversations()
         history = _conversations.get(user_id)
 
@@ -225,7 +271,16 @@ async def _chat(user_id: int, user_message: str) -> str:
     if _agent is None or _deps is None:
         return "Агент не инициализирован."
 
+    async with _get_user_lock(user_id):
+        return await _chat_inner(user_id, user_message)
+
+
+async def _chat_inner(user_id: int, user_message: str) -> str:
+    assert _agent is not None
+    assert _deps is not None
+
     async with _conv_lock:
+        _conversation_last_access[user_id] = time.monotonic()
         _evict_conversations()
         history = _conversations.get(user_id)
 
@@ -283,7 +338,9 @@ async def cmd_new(message: Message) -> None:
     if not message.from_user:
         return
     uid = message.from_user.id
-    async with _conv_lock:
+    # Acquire the per-user lock so /new can't clip an in-flight turn — the
+    # turn would otherwise save its history on top of the cleared state.
+    async with _get_user_lock(uid), _conv_lock:
         removed = _conversations.pop(uid, None)
         _conversation_last_access.pop(uid, None)
     if removed:
