@@ -31,10 +31,15 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# Documentation
+# Documentation & local-only planning files
 CLAUDE.md
-docs/
 AGENTS.md
+docs/
+README.md
+PROJECT_TRACKING.md
+Makefile
+.pre-commit-config.yaml
+.env.example
 
 # Secrets & sessions
 .env
