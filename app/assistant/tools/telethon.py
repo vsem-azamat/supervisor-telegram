@@ -1,4 +1,8 @@
-"""Telethon-powered tools (Client API capabilities)."""
+"""Telethon-powered tools (Client API capabilities).
+
+These tools are hidden by prepare_tools when Telethon is unavailable,
+so tc is guaranteed non-None at runtime.
+"""
 
 from pydantic_ai import Agent, RunContext
 
@@ -18,8 +22,7 @@ def register_telethon_tools(agent: Agent[AssistantDeps, str]) -> None:
         if error:
             return error
         tc = ctx.deps.telethon
-        if not tc or not tc.is_available:
-            return "Telethon client not available."
+        assert tc is not None  # guaranteed by prepare_tools
 
         limit = min(max(1, limit), 100)
         try:
@@ -45,8 +48,7 @@ def register_telethon_tools(agent: Agent[AssistantDeps, str]) -> None:
         if error:
             return error
         tc = ctx.deps.telethon
-        if not tc or not tc.is_available:
-            return "Telethon client not available."
+        assert tc is not None  # guaranteed by prepare_tools
 
         limit = min(max(1, limit), 50)
         try:
@@ -72,8 +74,7 @@ def register_telethon_tools(agent: Agent[AssistantDeps, str]) -> None:
         if error:
             return error
         tc = ctx.deps.telethon
-        if not tc or not tc.is_available:
-            return "Telethon client not available."
+        assert tc is not None  # guaranteed by prepare_tools
 
         limit = min(max(1, limit), 200)
         try:

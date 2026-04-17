@@ -17,6 +17,7 @@ from burr.core.action import Condition
 
 from app.agent.channel.exceptions import (
     ChannelPipelineError,
+    EmbeddingError,
     GenerationError,
     PublishError,
     ScreeningError,
@@ -176,11 +177,13 @@ async def split_and_enrich_topics(state: State) -> State:
         # Keep original items so pipeline can continue with unsplit content
         enriched = items
 
-    # Semantic dedup after split — catches per-topic duplicates against recent posts
+    # Semantic dedup after split — catches per-topic duplicates against recent posts.
+    # Fail-loud: if embeddings are unavailable we halt this cycle rather than publish
+    # unfiltered content.
     if enriched:
-        try:
-            from app.agent.channel.semantic_dedup import filter_semantic_duplicates
+        from app.agent.channel.semantic_dedup import filter_semantic_duplicates
 
+        try:
             enriched = await filter_semantic_duplicates(
                 enriched,
                 channel_id=channel_id,
@@ -188,9 +191,14 @@ async def split_and_enrich_topics(state: State) -> State:
                 session_maker=session_maker,
                 model=config.embedding_model,
                 threshold=config.semantic_dedup_threshold,
+                lookback_days=config.dedup_lookback_days,
             )
-        except Exception:
-            logger.exception("semantic_dedup_error_skipping", channel_id=channel_id)
+        except EmbeddingError as exc:
+            logger.warning("workflow_dedup_embedding_unavailable", channel_id=channel_id, error=str(exc))
+            return state.update(content_items=[], error=f"embedding_unavailable:{exc}")
+        except Exception as exc:
+            logger.exception("workflow_dedup_unexpected_error", channel_id=channel_id)
+            return state.update(content_items=[], error=str(exc))
 
     return state.update(content_items=enriched, error=None)
 
@@ -251,20 +259,22 @@ async def generate_post(state: State) -> State:
     language = language_name(channel.language)
     footer = channel.footer
 
-    # Pre-generation dedup: skip items whose title is too similar to recent posts
-    try:
-        from app.agent.channel.semantic_dedup import find_nearest_posts
+    # Pre-generation dedup: skip items whose title is too similar to recent posts.
+    # If embeddings are unavailable we abort this cycle (no silent fallback).
+    from app.agent.channel.semantic_dedup import build_embedding_text, find_nearest_posts
 
+    try:
         deduplicated: list[Any] = []
         for item in relevant:
             nearest = await find_nearest_posts(
-                f"{item.title} {item.body[:100]}",
+                build_embedding_text(item.title, item.body),
                 channel_id=channel_id,
                 api_key=api_key,
                 session_maker=session_maker,
                 model=config.embedding_model,
                 limit=1,
-                lookback_days=7,
+                lookback_days=config.dedup_lookback_days,
+                query_snippet_chars=config.dedup_query_snippet_chars,
             )
             if nearest and nearest[0][1] >= config.semantic_dedup_threshold:
                 logger.info(
@@ -275,13 +285,15 @@ async def generate_post(state: State) -> State:
                 )
                 continue
             deduplicated.append(item)
-        if deduplicated:
-            relevant = deduplicated
-        else:
-            logger.info("all_relevant_items_are_duplicates", channel_id=channel_id)
-            return state.update(generated_post=None, error="all_items_are_duplicates")
-    except Exception:
-        logger.warning("pre_generation_dedup_failed_continuing", exc_info=True)
+    except EmbeddingError as exc:
+        logger.warning("pre_generation_dedup_embedding_unavailable", channel_id=channel_id, error=str(exc))
+        return state.update(generated_post=None, error=f"embedding_unavailable:{exc}")
+
+    if deduplicated:
+        relevant = deduplicated
+    else:
+        logger.info("all_relevant_items_are_duplicates", channel_id=channel_id)
+        return state.update(generated_post=None, error="all_items_are_duplicates")
 
     # Non-blocking feedback context
     feedback_context: str | None = None
@@ -394,15 +406,20 @@ async def send_for_review(state: State) -> State:
                 try:
                     from hashlib import sha256
 
+                    from app.agent.channel.review.service import (
+                        EXT_ID_HASH_INPUT_CHARS,
+                        EXT_ID_HASH_LENGTH,
+                        REVIEW_TITLE_MAX_CHARS,
+                    )
                     from app.core.enums import PostStatus
                     from app.infrastructure.db.models import ChannelPost
 
-                    ext_id = sha256(post.text[:200].encode()).hexdigest()[:16]
+                    ext_id = sha256(post.text[:EXT_ID_HASH_INPUT_CHARS].encode()).hexdigest()[:EXT_ID_HASH_LENGTH]
                     async with session_maker() as session:
                         db_post = ChannelPost(
                             channel_id=channel_id,
                             external_id=f"direct:{ext_id}",
-                            title=relevant[0].title[:200] if relevant else "Direct publish",
+                            title=relevant[0].title[:REVIEW_TITLE_MAX_CHARS] if relevant else "Direct publish",
                             post_text=post.text,
                             image_url=post.image_url,
                             image_urls=post.image_urls or None,

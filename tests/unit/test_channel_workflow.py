@@ -371,9 +371,14 @@ class TestSplitAndEnrichTopicsAction:
     async def test_split_error_falls_back_to_original(self, agent_settings, sample_items, mock_session_maker):
         from app.agent.channel.workflow import split_and_enrich_topics
 
-        with patch(
-            "app.agent.channel.topic_splitter.split_and_enrich",
-            side_effect=RuntimeError("split failed"),
+        with (
+            patch(
+                "app.agent.channel.topic_splitter.split_and_enrich",
+                side_effect=RuntimeError("split failed"),
+            ),
+            # Dedup is now mandatory — patch it so the split-fallback path is
+            # exercised independently of the embedding API.
+            patch("app.agent.channel.semantic_dedup.filter_semantic_duplicates", return_value=sample_items),
         ):
             state = State(
                 {
@@ -386,9 +391,36 @@ class TestSplitAndEnrichTopicsAction:
                 }
             )
             result = await split_and_enrich_topics(state)
-            # Original items preserved on error
+            # Original items preserved on split error; dedup still applied.
             assert len(result["content_items"]) == 1
             assert result["content_items"][0].external_id == "item1"
+
+    async def test_dedup_api_failure_halts_cycle(self, agent_settings, sample_items, mock_session_maker):
+        """When the embedding API is down, the cycle returns zero items rather
+        than publishing unfiltered content."""
+        from app.agent.channel.exceptions import EmbeddingError
+        from app.agent.channel.workflow import split_and_enrich_topics
+
+        with (
+            patch("app.agent.channel.topic_splitter.split_and_enrich", return_value=sample_items),
+            patch(
+                "app.agent.channel.semantic_dedup.filter_semantic_duplicates",
+                side_effect=EmbeddingError("api down"),
+            ),
+        ):
+            state = State(
+                {
+                    "content_items": sample_items,
+                    "api_key": "k",
+                    "brave_api_key": "",
+                    "config": agent_settings,
+                    "channel_id": -1001234567890,
+                    "session_maker": mock_session_maker,
+                }
+            )
+            result = await split_and_enrich_topics(state)
+            assert result["content_items"] == []
+            assert "embedding_unavailable" in (result["error"] or "")
 
 
 class TestPublishPostAction:
@@ -439,6 +471,9 @@ class TestGeneratePostAction:
         with (
             patch("app.agent.channel.generator.generate_post", return_value=mock_post),
             patch("app.agent.channel.feedback.get_feedback_summary", return_value=None),
+            # Pre-generation dedup hits the embeddings API; stub out so the test
+            # stays isolated from network failures.
+            patch("app.agent.channel.semantic_dedup.find_nearest_posts", return_value=[]),
         ):
             state = State(
                 {
@@ -535,6 +570,10 @@ class TestFullPipeline:
             patch("app.agent.channel.generator.generate_post", return_value=mock_post),
             patch("app.agent.channel.feedback.get_feedback_summary", return_value=None),
             patch("app.agent.channel.review.send_for_review", return_value=99),
+            # Embeddings are mandatory; stub the dedup helpers so the pipeline
+            # runs end-to-end without hitting the embeddings API.
+            patch("app.agent.channel.semantic_dedup.filter_semantic_duplicates", return_value=sample_items),
+            patch("app.agent.channel.semantic_dedup.find_nearest_posts", return_value=[]),
         ):
             agent_settings.discovery_enabled = True
             app = create_pipeline_app(
@@ -596,6 +635,7 @@ class TestFullPipeline:
             patch("app.agent.channel.discovery.discover_content", return_value=sample_items),
             patch("app.agent.channel.topic_splitter.split_and_enrich", return_value=sample_items),
             patch("app.agent.channel.semantic_dedup.filter_semantic_duplicates", return_value=sample_items),
+            patch("app.agent.channel.semantic_dedup.find_nearest_posts", return_value=[]),
             patch("app.agent.channel.generator.screen_items", return_value=sample_items),
             patch("app.agent.channel.generator.generate_post", return_value=mock_post),
             patch("app.agent.channel.feedback.get_feedback_summary", return_value=None),

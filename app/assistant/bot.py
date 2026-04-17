@@ -13,7 +13,8 @@ import time
 from typing import TYPE_CHECKING, Any
 
 from aiogram import BaseMiddleware, Bot, Dispatcher, F, Router
-from aiogram.filters import CommandStart
+from aiogram.enums import ChatType
+from aiogram.filters import Command, CommandStart
 from aiogram.methods import SendMessageDraft
 from aiogram.types import Message, MessageEntity, TelegramObject  # noqa: TC002
 
@@ -54,6 +55,8 @@ class _SuperAdminOnlyMiddleware(BaseMiddleware):
 
 
 router.message.middleware(_SuperAdminOnlyMiddleware())
+# Assistant chat is private-only — review channel messages are handled by channel_review_router
+router.message.filter(F.chat.type == ChatType.PRIVATE)
 
 # Module-level references set during startup
 _agent: Agent[AssistantDeps, str] | None = None
@@ -64,11 +67,10 @@ _super_admins: set[int] = set()
 _conversations: dict[int, list[ModelMessage]] = {}
 _conversation_last_access: dict[int, float] = {}
 _conv_lock = asyncio.Lock()
-_MAX_HISTORY = 40
-_MAX_USERS = 50
-_IDLE_TIMEOUT_SECONDS = 3600  # 1 hour
+_MAX_USERS = 50  # max concurrent user conversations
+_IDLE_TIMEOUT_SECONDS = 3600  # evict after 1h idle
 
-_AGENT_TIMEOUT_SECONDS = 180
+_AGENT_TIMEOUT_SECONDS = 180  # overall agent run timeout
 
 # Streaming config
 _STREAM_DEBOUNCE = 0.1  # seconds between stream_text yields
@@ -125,17 +127,38 @@ async def _chat_stream(bot: Bot, chat_id: int, user_id: int, user_message: str) 
     async with _conv_lock:
         _evict_conversations()
         history = _conversations.get(user_id)
-        # Trim history BEFORE sending to LLM to respect context window limits
-        if history and len(history) > _MAX_HISTORY:
-            from app.agent.tool_trace import trim_history
-
-            history = trim_history(history, _MAX_HISTORY)
-            _conversations[user_id] = history
 
     # Unique draft_id for this response (same id = animated updates)
     draft_id = random.randint(1, 2**31 - 1)  # noqa: S311
     last_draft_time = 0.0
     last_draft_text = ""
+
+    # Real-time tool trace — populated by event_stream_handler
+    tool_trace_lines: list[str] = []
+
+    async def _tool_event_handler(
+        ctx: Any,  # noqa: ARG001
+        events: Any,
+    ) -> None:
+        """Stream tool call activity to the user via drafts in real-time."""
+        from pydantic_ai.messages import FunctionToolCallEvent, FunctionToolResultEvent
+
+        from app.agent.tool_trace import TOOL_LABELS
+
+        async for event in events:
+            if isinstance(event, FunctionToolCallEvent):
+                label = TOOL_LABELS.get(event.part.tool_name, event.part.tool_name)
+                tool_trace_lines.append(f"{{🔧 {label}}} ⏳")
+                draft_text = "\n".join(tool_trace_lines)
+                await _send_draft(bot, chat_id, draft_id, draft_text)
+            elif isinstance(event, FunctionToolResultEvent):
+                # Mark the last pending tool as complete
+                for i in range(len(tool_trace_lines) - 1, -1, -1):
+                    if "⏳" in tool_trace_lines[i]:
+                        tool_trace_lines[i] = tool_trace_lines[i].replace("⏳", "✓")
+                        break
+                draft_text = "\n".join(tool_trace_lines)
+                await _send_draft(bot, chat_id, draft_id, draft_text)
 
     try:
         async with asyncio.timeout(_AGENT_TIMEOUT_SECONDS):
@@ -143,10 +166,18 @@ async def _chat_stream(bot: Bot, chat_id: int, user_id: int, user_message: str) 
                 user_message,
                 deps=_deps,
                 message_history=history,
+                event_stream_handler=_tool_event_handler,
             ) as stream_result:
+                # Build trace prefix for drafts
+                trace_prefix = ""
+
                 # Stream text chunks to user via drafts
                 async for text_so_far in stream_result.stream_text(debounce_by=_STREAM_DEBOUNCE):
                     now = time.monotonic()
+                    # Update trace prefix if tools were called
+                    if tool_trace_lines:
+                        trace_prefix = "\n".join(tool_trace_lines) + "\n\n"
+
                     # Throttle: only send draft if enough time passed and text changed meaningfully
                     if (
                         len(text_so_far) >= _DRAFT_MIN_CHARS
@@ -154,16 +185,20 @@ async def _chat_stream(bot: Bot, chat_id: int, user_id: int, user_message: str) 
                         and text_so_far != last_draft_text
                     ):
                         # Truncate to 4096 for draft (Telegram limit)
-                        draft_text = text_so_far[:4096]
-                        await _send_draft(bot, chat_id, draft_id, draft_text + " ▍")
+                        full_draft = (trace_prefix + text_so_far)[:4096]
+                        await _send_draft(bot, chat_id, draft_id, full_draft + " ▍")
                         last_draft_time = now
                         last_draft_text = text_so_far
 
                 # Get final output
                 final_output = await stream_result.get_output()
 
+                # Build final trace
+                trace = "\n".join(tool_trace_lines).replace("⏳", "✓") if tool_trace_lines else ""
+
                 # Send final draft without cursor — smooths transition to sendMessage
-                plain_preview = final_output[:4096]
+                final_with_trace = f"{trace}\n\n{final_output}" if trace else final_output
+                plain_preview = final_with_trace[:4096]
                 if plain_preview != last_draft_text:
                     await _send_draft(bot, chat_id, draft_id, plain_preview)
 
@@ -172,19 +207,13 @@ async def _chat_stream(bot: Bot, chat_id: int, user_id: int, user_message: str) 
                 if usage:
                     await log_usage(usage)
 
-                # Save conversation
+                # Save conversation (trimming handled by history_processors)
                 all_msgs = list(stream_result.all_messages())
                 async with _conv_lock:
                     _conversations[user_id] = all_msgs
                     _conversation_last_access[user_id] = time.monotonic()
 
-                # Prepend tool call trace so the user sees what happened
-                from app.agent.tool_trace import format_response_with_trace
-
-                new_msgs = list(stream_result.new_messages())
-                final_output = format_response_with_trace(new_msgs, final_output)
-
-                return final_output, draft_id
+                return final_with_trace, draft_id
 
     except TimeoutError:
         logger.warning("assistant_agent_timeout", user_id=user_id, timeout=_AGENT_TIMEOUT_SECONDS)
@@ -199,11 +228,6 @@ async def _chat(user_id: int, user_message: str) -> str:
     async with _conv_lock:
         _evict_conversations()
         history = _conversations.get(user_id)
-        if history and len(history) > _MAX_HISTORY:
-            from app.agent.tool_trace import trim_history
-
-            history = trim_history(history, _MAX_HISTORY)
-            _conversations[user_id] = history
 
     try:
         result = await asyncio.wait_for(
@@ -251,6 +275,21 @@ async def cmd_start(message: Message) -> None:
         "- Показывать статистику и расходы\n\n"
         "Просто напиши что нужно — я пойму.",
     )
+
+
+@router.message(Command("new"))
+async def cmd_new(message: Message) -> None:
+    """Clear conversation history for the user."""
+    if not message.from_user:
+        return
+    uid = message.from_user.id
+    async with _conv_lock:
+        removed = _conversations.pop(uid, None)
+        _conversation_last_access.pop(uid, None)
+    if removed:
+        await message.answer("Контекст очищен. Начинаем с чистого листа.")
+    else:
+        await message.answer("Контекст и так пустой.")
 
 
 @router.message(F.text)

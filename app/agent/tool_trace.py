@@ -59,6 +59,8 @@ TOOL_LABELS: dict[str, str] = {
     "list_recent_topics": "Последние темы",
     "backfill_embeddings": "Загрузка эмбеддингов",
     "search_news": "Поиск новостей",
+    "fetch_url": "Чтение страницы",
+    "fetch_rss": "Загрузка RSS",
     # ── Assistant bot — telethon ──
     "get_chat_history": "История чата",
     "search_messages": "Поиск сообщений",
@@ -138,6 +140,15 @@ def format_response_with_trace(
     if not trace:
         return final_text
     return f"{trace}\n\n{final_text}"
+
+
+def make_history_processor(max_messages: int = 40):
+    """Create a history processor function for PydanticAI Agent(history_processors=[...])."""
+
+    def processor(messages: list[ModelMessage]) -> list[ModelMessage]:
+        return trim_history(messages, max_messages)
+
+    return processor
 
 
 def trim_history(messages: list[ModelMessage], max_messages: int = 40) -> list[ModelMessage]:

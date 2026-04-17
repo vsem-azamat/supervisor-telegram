@@ -36,7 +36,19 @@ def upgrade() -> None:
     for channel_pk, old_tid in rows:
         mapping[old_tid] = -channel_pk
 
-    # Phase 2: Replace non-numeric strings with unique negative placeholders
+    # Phase 2: Extract username from @-prefixed telegram_id (if username column is empty)
+    for old_tid, _placeholder in mapping.items():
+        if old_tid.startswith("@"):
+            extracted = old_tid.lstrip("@")
+            conn.execute(
+                sa.text(
+                    "UPDATE channels SET username = :uname "
+                    "WHERE telegram_id = :old AND (username IS NULL OR username = '')"
+                ),
+                {"uname": extracted, "old": old_tid},
+            )
+
+    # Phase 3: Replace non-numeric strings with unique negative placeholders
     for old_tid, placeholder in mapping.items():
         conn.execute(
             sa.text("UPDATE channels SET telegram_id = :new WHERE telegram_id = :old"),

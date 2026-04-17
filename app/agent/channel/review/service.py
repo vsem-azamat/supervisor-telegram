@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy.exc import IntegrityError
 
 from app.agent.channel.embeddings import EMBEDDING_MODEL
+from app.agent.channel.exceptions import EmbeddingError
 from app.agent.channel.generator import DEFAULT_FOOTER, enforce_footer_and_length
 from app.agent.channel.llm_client import openrouter_chat_completion
 from app.core.enums import PostStatus
@@ -40,6 +41,26 @@ CB_PUBLISH_NOW = "chpost:pubnow:"
 CB_TRANSLATE = "chpost:translate:"
 CB_BACK = "chpost:back:"
 
+# ── Identity / storage constants (stable contracts; do not tune casually) ──
+
+# Length of the sha256 prefix used as a fallback external_id. Historical rows
+# were stored at this width; changing it breaks dedup lookups against old posts.
+EXT_ID_HASH_LENGTH = 16
+
+# Number of characters from the post text hashed into a fallback external_id,
+# and also used as fallback embedding input when there are no source_items.
+EXT_ID_HASH_INPUT_CHARS = 200
+
+# Max characters of the source title stored on ChannelPost.title (display only).
+REVIEW_TITLE_MAX_CHARS = 200
+
+# Review-keyboard source buttons (max count and per-button title width).
+REVIEW_SOURCE_BUTTON_COUNT = 2
+REVIEW_SOURCE_TITLE_CHARS = 25
+
+# Max source items persisted on ChannelPost.source_items.
+REVIEW_SOURCE_ITEMS_STORED = 5
+
 # ── Pure data helpers ──
 
 
@@ -48,11 +69,11 @@ def extract_source_btn_data(post: ChannelPost) -> list[dict[str, str]]:
     if not post.source_items:
         return []
     items: list[dict[str, str]] = []
-    for src in post.source_items[:2]:
+    for src in post.source_items[:REVIEW_SOURCE_BUTTON_COUNT]:
         url = src.get("url") or src.get("source_url")
         title = src.get("title", "")
         if url and url.startswith(("http://", "https://")):
-            items.append({"title": title[:25], "url": url})
+            items.append({"title": title[:REVIEW_SOURCE_TITLE_CHARS], "url": url})
     return items
 
 
@@ -82,22 +103,33 @@ async def create_review_post(
     embedding_model: str = "",
     session_maker: async_sessionmaker[AsyncSession] | None = None,
 ) -> ChannelPost | None:
-    """Create a ChannelPost record in DB, store embedding.
+    """Create a ChannelPost record and attach its embedding in the same session.
 
     Returns the ORM object (flushed, not committed), or None if a post with
     the same (channel_id, external_id) already exists.
+
+    Raises EmbeddingError if ``api_key`` is provided but the embedding API
+    fails — the caller must abort rather than skip dedup silently. Embeddings
+    are computed here (not after commit) so they share the outer transaction
+    and are visible to subsequent dedup queries as soon as the caller commits.
     """
-    ext_id = source_items[0].external_id if source_items else sha256(post.text[:200].encode()).hexdigest()[:16]
+    # session_maker kept for API compatibility with older callers; embeddings
+    # no longer require a separate session.
+    del session_maker
+    if source_items:
+        ext_id = source_items[0].external_id
+    else:
+        ext_id = sha256(post.text[:EXT_ID_HASH_INPUT_CHARS].encode()).hexdigest()[:EXT_ID_HASH_LENGTH]
 
     source_data = [
         {"title": s.title, "url": s.url, "source_url": s.source_url, "external_id": s.external_id}
-        for s in source_items[:5]
+        for s in source_items[:REVIEW_SOURCE_ITEMS_STORED]
     ]
 
     db_post = ChannelPost(
         channel_id=channel_id,
         external_id=ext_id,
-        title=source_items[0].title[:200] if source_items else "Generated post",
+        title=source_items[0].title[:REVIEW_TITLE_MAX_CHARS] if source_items else "Generated post",
         post_text=post.text,
         image_url=post.image_url,
         image_urls=post.image_urls or None,
@@ -112,21 +144,24 @@ async def create_review_post(
         logger.warning("duplicate_post_skipped", channel_id=channel_id, external_id=ext_id)
         return None
 
-    # Store embedding (non-blocking, best-effort)
-    if api_key and session_maker:
-        try:
-            from app.agent.channel.semantic_dedup import store_post_embedding
+    if api_key:
+        from app.agent.channel.semantic_dedup import build_embedding_text, compute_embedding
 
-            embed_text = f"{source_items[0].title} {source_items[0].body[:100]}" if source_items else post.text[:200]
-            await store_post_embedding(
-                post_id=db_post.id,
-                text_for_embedding=embed_text,
-                api_key=api_key,
-                session_maker=session_maker,
-                model=embedding_model or EMBEDDING_MODEL,
-            )
-        except Exception:
-            logger.warning("embedding_store_failed", post_id=db_post.id, exc_info=True)
+        if source_items:
+            embed_text = build_embedding_text(source_items[0].title, source_items[0].body)
+        else:
+            embed_text = post.text[:EXT_ID_HASH_INPUT_CHARS]
+        model = embedding_model or EMBEDDING_MODEL
+        try:
+            vector = await compute_embedding(embed_text, api_key=api_key, model=model)
+        except EmbeddingError:
+            # Roll back so the post is not persisted without dedup coverage.
+            await session.rollback()
+            logger.warning("review_post_aborted_embedding_unavailable", channel_id=channel_id, external_id=ext_id)
+            raise
+        db_post.embedding = vector
+        db_post.embedding_model = model
+        logger.info("embedding_attached", post_id=db_post.id, channel_id=channel_id, model=model)
 
     return db_post
 

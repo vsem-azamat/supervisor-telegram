@@ -134,21 +134,29 @@ async def schedule_post(
             return f"Cannot resolve channel {channel.telegram_id}."
 
         # Send as scheduled message via Telethon (Markdown for formatting)
-        if post.image_url:
-            msg_info = await telethon_client.send_scheduled_photo(
-                chat_id=chat_id,
-                photo=post.image_url,
-                caption=post.post_text[:1024],
-                schedule_date=publish_time,
-                parse_mode="md",
-            )
-        else:
-            msg_info = await telethon_client.send_scheduled_message(
-                chat_id=chat_id,
-                text=post.post_text,
-                schedule_date=publish_time,
-                parse_mode="md",
-            )
+        try:
+            if post.image_url:
+                msg_info = await telethon_client.send_scheduled_photo(
+                    chat_id=chat_id,
+                    photo=post.image_url,
+                    caption=post.post_text[:1024],
+                    schedule_date=publish_time,
+                    parse_mode="md",
+                )
+            else:
+                msg_info = await telethon_client.send_scheduled_message(
+                    chat_id=chat_id,
+                    text=post.post_text,
+                    schedule_date=publish_time,
+                    parse_mode="md",
+                )
+        except Exception as exc:
+            err_str = str(exc).lower()
+            if "write" in err_str and "forbidden" in err_str:
+                channel_label = f"@{channel.username}" if channel.username else str(channel.telegram_id)
+                logger.warning("schedule_write_forbidden", channel=channel_label, post_id=post_id)
+                return f"Userbot is not an admin in {channel_label}. Add it to schedule posts."
+            raise
 
         if not msg_info:
             return "Failed to schedule: Telethon client unavailable."

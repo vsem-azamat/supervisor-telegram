@@ -114,9 +114,10 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
             await callback.answer(result, show_alert=True)
 
             if "Published" in result:
-                from app.agent.channel.review.agent import clear_review_conversation
+                from app.agent.channel.review.agent import clear_reply_chain_from_db, clear_review_conversation
 
                 clear_review_conversation(post_id)
+                await clear_reply_chain_from_db(session_maker, post_id)
                 with contextlib.suppress(Exception):
                     await callback.message.edit_reply_markup(reply_markup=None)
         except Exception:
@@ -128,9 +129,10 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
         await callback.answer(result, show_alert=True)
 
         if "rejected" in result.lower():
-            from app.agent.channel.review.agent import clear_review_conversation
+            from app.agent.channel.review.agent import clear_reply_chain_from_db, clear_review_conversation
 
             clear_review_conversation(post_id)
+            await clear_reply_chain_from_db(session_maker, post_id)
             with contextlib.suppress(Exception):
                 await bot.delete_message(chat_id=chat_id, message_id=callback.message.message_id)
 
@@ -141,9 +143,10 @@ async def on_review_action(callback: CallbackQuery, callback_data: ReviewAction)
             if "skipped" not in result.lower():
                 await callback.answer(result, show_alert=True)
             else:
-                from app.agent.channel.review.agent import clear_review_conversation
+                from app.agent.channel.review.agent import clear_reply_chain_from_db, clear_review_conversation
 
                 clear_review_conversation(post_id)
+                await clear_reply_chain_from_db(session_maker, post_id)
                 await callback.answer("Post skipped")
         except Exception:
             logger.exception("delete_callback_error", post_id=post_id)
@@ -528,6 +531,11 @@ class _IsReviewReply(Filter):
 
     Returns False for non-review replies so they propagate to the next router
     (e.g. the assistant bot's generic F.text handler).
+
+    Resolution order:
+    1. Inline keyboard on replied-to message (direct reply to review post)
+    2. In-memory message_to_post mapping (reply to agent response, same session)
+    3. DB fallback via reply_chain_message_ids (survives bot restarts)
     """
 
     async def __call__(self, message: Message) -> bool | dict[str, int]:
@@ -535,7 +543,23 @@ class _IsReviewReply(Filter):
             return False
         if not message.from_user or not _is_super_admin(message.from_user.id):
             return False
+
+        # 1 & 2: sync resolution (keyboard + in-memory)
         post_id = _resolve_post_id_from_reply(message.reply_to_message)
+
+        # 3: async DB fallback (survives restart)
+        if not post_id:
+            session_maker = _get_session_maker()
+            if session_maker:
+                from app.agent.channel.review.agent import register_message, resolve_post_id_from_db
+
+                post_id = await resolve_post_id_from_db(
+                    session_maker, message.reply_to_message.message_id, message.chat.id
+                )
+                if post_id:
+                    # Cache in memory for subsequent replies in this session
+                    register_message(message.reply_to_message.message_id, post_id)
+
         if not post_id:
             return False
         return {"post_id": post_id}
@@ -564,9 +588,15 @@ async def on_review_reply(message: Message, post_id: int) -> None:
     review_chat_id: int | str = channel.review_chat_id or message.chat.id
 
     # Register the user's message in the chain so future replies to it also work
-    from app.agent.channel.review.agent import ReviewAgentDeps, register_message, review_agent_turn
+    from app.agent.channel.review.agent import (
+        ReviewAgentDeps,
+        persist_message_to_db,
+        register_message,
+        review_agent_turn,
+    )
 
     register_message(message.message_id, post_id)
+    await persist_message_to_db(session_maker, post_id, message.message_id)
 
     try:
         deps = ReviewAgentDeps(
@@ -591,3 +621,4 @@ async def on_review_reply(message: Message, post_id: int) -> None:
 
     # Register the agent's response so the user can reply to it and continue the chain
     register_message(reply.message_id, post_id)
+    await persist_message_to_db(session_maker, post_id, reply.message_id)

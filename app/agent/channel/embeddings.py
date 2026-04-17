@@ -72,7 +72,18 @@ async def get_embeddings(
             json=payload,
             timeout=httpx.Timeout(timeout),
         )
-        resp.raise_for_status()
+        if resp.status_code >= 400:
+            # Surface the actual response body in logs — httpx's default
+            # HTTPStatusError message omits it, which made 401/403 debugging opaque.
+            body_snippet = resp.text[:300] if resp.text else ""
+            logger.warning(
+                "embedding_api_http_error",
+                status=resp.status_code,
+                model=model,
+                batch_size=len(texts),
+                body=body_snippet,
+            )
+            resp.raise_for_status()
         return resp.json()
 
     data = await _call()
