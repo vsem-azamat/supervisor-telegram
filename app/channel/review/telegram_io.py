@@ -346,10 +346,19 @@ async def send_for_review(
                 channel_username=channel_username,
             )
 
-            msg = await _send_review_message(bot, review_chat_id, post.text, keyboard, post.image_url)
-            db_post.review_message_id = msg.message_id
+            image_urls = post.image_urls or ([post.image_url] if post.image_url else [])
+            msg_pult_id, msg_album_ids = await _render_review_message(
+                bot, review_chat_id, post.text, image_urls, keyboard
+            )
+            db_post.review_message_id = msg_pult_id
+            db_post.review_album_message_ids = msg_album_ids
             await session.commit()
-            logger.info("review_sent", post_id=post_id, review_msg=msg.message_id)
+            logger.info(
+                "review_sent",
+                post_id=post_id,
+                review_msg=msg_pult_id,
+                album=len(msg_album_ids) if msg_album_ids else 0,
+            )
             return post_id
         except EmbeddingError as exc:
             # create_review_post already rolled back the session; surface as None
