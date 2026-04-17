@@ -26,6 +26,7 @@ dependencies = [
     "structlog>=23.2",
     "pydantic-ai[openai]>=1.84",
     "httpx>=0.27",
+    "imagehash>=4.3",
     "feedparser>=6.0.12",
     "telethon>=1.42.0",
     "burr>=0.40.2",
