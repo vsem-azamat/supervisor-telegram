@@ -449,15 +449,33 @@ async def handle_delete(
     review_message_id: int | None,
     session_maker: async_sessionmaker[AsyncSession],
 ) -> str:
-    """Skip a post (soft-delete) and remove the review message from chat."""
+    """Skip a post (soft-delete) and remove the review messages from chat."""
+    from sqlalchemy import select
+
+    from app.db.models import ChannelPost
+
+    album_ids: list[int] = []
+    async with session_maker() as session:
+        r = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id))
+        post = r.scalar_one_or_none()
+        if post and post.review_album_message_ids:
+            album_ids = list(post.review_album_message_ids)
+
     status_msg, skipped_post = await delete_post(post_id, session_maker)
 
-    # Remove review message from chat (Telegram-specific)
-    if skipped_post and review_message_id:
-        try:
-            await bot.delete_message(chat_id=review_chat_id, message_id=review_message_id)
-        except Exception:
-            logger.warning("review_message_delete_failed", post_id=post_id, exc_info=True)
+    if skipped_post:
+        # Delete album photos in bulk (best-effort).
+        if album_ids:
+            try:
+                await bot.delete_messages(chat_id=review_chat_id, message_ids=album_ids)
+            except Exception:
+                logger.warning("review_album_delete_failed", post_id=post_id, exc_info=True)
+        # Delete pult.
+        if review_message_id:
+            try:
+                await bot.delete_message(chat_id=review_chat_id, message_id=review_message_id)
+            except Exception:
+                logger.warning("review_message_delete_failed", post_id=post_id, exc_info=True)
 
     return status_msg
 
