@@ -293,11 +293,25 @@ async def _save_and_refresh(
     new_urls: list[str],
     new_pool: list[dict],
 ) -> None:
-    """Update DB with new image_urls + image_candidates in one transaction.
+    """Update DB with new image_urls + image_candidates + image_phashes in one transaction.
 
     Always writes ``new_urls`` as-is (even if empty list) so callers that
     explicitly clear images get ``[]`` back rather than ``None``.
+
+    Also recomputes ``image_phashes`` from the pool's stored phash values for
+    the selected URLs — so future posts' dedup query sees what was actually
+    published, not the original pipeline's selection.
     """
+    # Build the selected-phashes list from the pool (not from recomputing hashes —
+    # the pool already carries phashes from cheap_filter + phash_dedup).
+    url_to_phash: dict[str, str] = {}
+    for entry in new_pool:
+        url = entry.get("url")
+        phash = entry.get("phash")
+        if url and phash:
+            url_to_phash[url] = phash
+    new_phashes = [url_to_phash[u] for u in new_urls if u in url_to_phash]
+
     async with deps.session_maker() as session:
         r = await session.execute(select(ChannelPost).where(ChannelPost.id == deps.post_id))
         fresh = r.scalar_one_or_none()
@@ -308,6 +322,7 @@ async def _save_and_refresh(
         fresh.image_urls = new_urls
         fresh.image_url = new_urls[0] if new_urls else None
         fresh.image_candidates = new_pool if new_pool else None
+        fresh.image_phashes = new_phashes if new_phashes else None
         await session.commit()
 
 

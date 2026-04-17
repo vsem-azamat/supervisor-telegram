@@ -216,14 +216,16 @@ async def approve_post(
 
             from app.channel.generator import GeneratedPost
 
-            # Publish only the single image shown during review (not the full image_urls array).
-            # The review message displays only image_url; publishing image_urls would
-            # send photos the reviewer never saw.
-            reviewed_image = post.image_url
+            # Publish whatever is currently in image_urls (reviewer may have built an
+            # album via use_candidate / add_image_url). Fall back to image_url for
+            # posts created before PR #63 when only image_url was set.
+            images_to_publish = list(post.image_urls or [])
+            if not images_to_publish and post.image_url:
+                images_to_publish = [post.image_url]
             gen_post = GeneratedPost(
                 text=post.post_text,
-                image_url=reviewed_image,
-                image_urls=[reviewed_image] if reviewed_image else [],
+                image_url=images_to_publish[0] if images_to_publish else None,
+                image_urls=images_to_publish,
             )
             msg_id = await publish_fn(channel_id, gen_post)
             if not msg_id:
@@ -493,6 +495,12 @@ async def regen_post_text(
             return "Regeneration failed.", None
 
         post.update_text(new_post.text)
+        # Also refresh image fields from the new pipeline run — otherwise the
+        # post's text and image pool diverge (old images stay attached to new text).
+        post.image_url = new_post.image_url
+        post.image_urls = new_post.image_urls or None
+        post.image_candidates = new_post.image_candidates
+        post.image_phashes = new_post.image_phashes or None
         await session.commit()
         logger.info("post_regenerated", post_id=post_id)
         return "Post regenerated.", post

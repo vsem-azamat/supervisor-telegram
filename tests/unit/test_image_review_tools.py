@@ -169,6 +169,44 @@ class TestRemoveImage:
         assert row.image_urls == ["https://x/b.jpg"]
         assert row.image_candidates[0]["selected"] is False
 
+    async def test_image_phashes_updated_from_pool(self, session_maker):
+        """After use_candidate/remove_image, image_phashes reflects the current selection."""
+        pool = [
+            {
+                "url": "https://x/a.jpg",
+                "source": "og_image",
+                "phash": "aaaaaaaaaaaaaaaa",
+                "selected": True,
+                "quality_score": 8,
+                "relevance_score": 7,
+                "description": "a",
+                "is_logo": False,
+                "is_text_slide": False,
+                "is_duplicate": False,
+            },
+            {
+                "url": "https://x/b.jpg",
+                "source": "brave_image",
+                "phash": "bbbbbbbbbbbbbbbb",
+                "selected": False,
+                "quality_score": 7,
+                "relevance_score": 7,
+                "description": "b",
+                "is_logo": False,
+                "is_text_slide": False,
+                "is_duplicate": False,
+            },
+        ]
+        pid = await _make_post(session_maker, image_urls=["https://x/a.jpg"], pool=pool)
+
+        from sqlalchemy import select
+
+        # Promote b to the selection; a remains selected too.
+        await use_candidate_op(_deps(pid, session_maker), pool_index=1)
+        async with session_maker() as session:
+            row = (await session.execute(select(ChannelPost).where(ChannelPost.id == pid))).scalar_one()
+        assert row.image_phashes == ["aaaaaaaaaaaaaaaa", "bbbbbbbbbbbbbbbb"]
+
     async def test_invalid_position(self, session_maker):
         pid = await _make_post(session_maker, image_urls=["https://x/a.jpg"], pool=[])
         out = await remove_image_op(_deps(pid, session_maker), position=9)
