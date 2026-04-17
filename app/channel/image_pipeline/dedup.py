@@ -2,7 +2,7 @@
 
 For each filtered candidate we compute a 64-bit perceptual hash, look up the
 last N approved posts' stored hashes in the same channel, and drop candidates
-whose Hamming distance to any recent hash is below the configured threshold.
+whose Hamming distance to any recent hash is within the configured threshold (inclusive).
 """
 
 from __future__ import annotations
@@ -34,6 +34,7 @@ def compute_phash(image_bytes: bytes) -> str:
     Raises whatever PIL / imagehash raise on bad input — callers handle it.
     """
     img = Image.open(BytesIO(image_bytes))
+    img = img.convert("RGB")  # Normalize palette / RGBA inputs — produces stable hashes regardless of input mode
     h = imagehash.phash(img)  # 8×8 DCT = 64 bits by default
     return str(h)
 
@@ -54,9 +55,10 @@ def phash_dedup_against(
     *,
     threshold: int,
 ) -> list[FilteredImage]:
-    """Pure-function dedup: keep images whose pHash is > threshold from every
-    recent hash. Mutates ``phash`` and ``is_duplicate`` on every input image
-    (callers may want the annotation even on dropped items).
+    """Pure-function dedup: keep images whose pHash Hamming distance exceeds the
+    threshold against every recent hash (i.e. more than ``threshold`` bits
+    different from every recent hash). Mutates ``phash`` and ``is_duplicate``
+    on every input image (callers may want the annotation even on dropped items).
     """
     kept: list[FilteredImage] = []
     for img in images:
@@ -95,7 +97,7 @@ async def recent_phashes_for_channel(
             .where(ChannelPost.channel_id == channel_id)
             .where(ChannelPost.status == PostStatus.APPROVED)
             .where(ChannelPost.image_phashes.isnot(None))
-            .order_by(ChannelPost.created_at.desc())
+            .order_by(ChannelPost.created_at.desc(), ChannelPost.id.desc())
             .limit(lookback)
         )
         rows = (await session.execute(stmt)).scalars().all()

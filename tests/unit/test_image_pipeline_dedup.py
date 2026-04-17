@@ -75,6 +75,29 @@ class TestPhashDedupAgainst:
         # Very-different images → Hamming typically ≥ 20 → kept
         assert len(kept) == 1
 
+    def test_drops_at_threshold_boundary(self):
+        """Hamming distance exactly == threshold → dropped (inclusive)."""
+        data = make_test_image(width=800, height=600, colors=100)
+        img = _make_filtered(data)
+        own_hash = compute_phash(data)
+        # Peer hash that differs by exactly 1 bit
+        peer_int = int(own_hash, 16) ^ 1
+        peer_hash = format(peer_int, "016x")
+        kept = phash_dedup_against([img], [peer_hash], threshold=1)
+        assert kept == []
+        assert img.is_duplicate is True
+
+    def test_keeps_just_over_threshold(self):
+        """Hamming distance > threshold → kept."""
+        data = make_test_image(width=800, height=600, colors=100)
+        img = _make_filtered(data)
+        own_hash = compute_phash(data)
+        peer_int = int(own_hash, 16) ^ 1  # distance 1
+        peer_hash = format(peer_int, "016x")
+        kept = phash_dedup_against([img], [peer_hash], threshold=0)
+        assert len(kept) == 1
+        assert kept[0].is_duplicate is False
+
     def test_mutates_phash_even_when_kept(self):
         data = make_test_image(width=800, height=600, colors=100)
         img = _make_filtered(data)
