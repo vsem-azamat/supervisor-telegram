@@ -59,6 +59,8 @@ class _FakeGeneratedPost:
         self.is_sensitive = False
         self.image_url = None
         self.image_urls: list[str] = []
+        self.image_candidates: list[dict] | None = None
+        self.image_phashes: list[str] = []
 
 
 # ---- Fixtures ----
