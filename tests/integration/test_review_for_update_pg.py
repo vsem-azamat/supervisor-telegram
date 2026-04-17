@@ -115,14 +115,8 @@ class TestConcurrentReviewActions:
         assert final.status == PostStatus.APPROVED
         assert final.telegram_message_id == 99
 
-    async def test_delete_vs_approve_serializes(self, pg_session_maker):
-        """delete + approve fired together — FOR UPDATE serializes them, both complete.
-
-        Note: `approve_post` has no SKIPPED/REJECTED guard today, so when delete
-        wins the lock first, approve still publishes. This test pins the
-        serialization invariant (two real transactions, no deadlock) without
-        asserting on which one wins — revisit if the status guards are tightened.
-        """
+    async def test_delete_vs_approve_single_winner(self, pg_session_maker):
+        """delete + approve fired together — FOR UPDATE picks one winner, other is rejected."""
         await _insert_channel(pg_session_maker, max_posts_per_day=5)
         post_id = await _insert_post(pg_session_maker)
 
@@ -130,12 +124,21 @@ class TestConcurrentReviewActions:
 
         delete_task = asyncio.create_task(delete_post(post_id, pg_session_maker))
         approve_task = asyncio.create_task(approve_post(post_id, _CHANNEL_TG_ID, publish_fn, pg_session_maker))
-        results = await asyncio.gather(delete_task, approve_task, return_exceptions=True)
-        assert not any(isinstance(r, Exception) for r in results)
+        (del_msg, _), (app_msg, _) = await asyncio.gather(delete_task, approve_task)
 
         final = await _read_post(pg_session_maker, post_id)
-        # Final status is one of the two transitions (never stuck as DRAFT).
         assert final.status in (PostStatus.APPROVED, PostStatus.SKIPPED)
+
+        if final.status == PostStatus.APPROVED:
+            # approve won; delete saw APPROVED
+            assert del_msg == "Already published — cannot delete."
+            assert app_msg.startswith("Published")
+            assert publish_fn.call_count == 1
+        else:
+            # delete won; approve saw SKIPPED and refused to publish
+            assert del_msg == "Post skipped."
+            assert app_msg == "Post was skipped — cannot publish."
+            assert publish_fn.call_count == 0
 
 
 class TestDailySlotReservationAtomic:
