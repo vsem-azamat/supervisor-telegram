@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field
 from pydantic_ai import Agent
@@ -11,11 +11,16 @@ from pydantic_ai.models.openai import OpenAIChatModel
 from pydantic_ai.providers.openai import OpenAIProvider
 
 from app.channel.cost_tracker import extract_usage_from_pydanticai_result, log_usage
+from app.channel.image_pipeline import build_candidates, pick_composition
 from app.channel.sanitize import sanitize_external_text, substitute_template
 from app.core.config import settings
 from app.core.logging import get_logger
 
 if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+    from app.channel.image_pipeline import ImageCandidate
+    from app.channel.image_pipeline.score import ScoredImage
     from app.channel.sources import ContentItem
 
 logger = get_logger("channel.generator")
@@ -63,6 +68,12 @@ class GeneratedPost(BaseModel):
     is_sensitive: bool = Field(default=False, description="Whether the post needs admin review")
     image_url: str | None = Field(default=None, description="Primary image URL (backward compat)")
     image_urls: list[str] = Field(default_factory=list, description="All image URLs for the post")
+    image_candidates: list[dict[str, Any]] | None = Field(
+        default=None, description="Full candidate pool with scores and metadata (for review agent)"
+    )
+    image_phashes: list[str] = Field(
+        default_factory=list, description="pHashes of selected images (for future cross-post dedup)"
+    )
 
 
 SCREENING_PROMPT_TEMPLATE = """\
@@ -319,6 +330,11 @@ async def generate_post(
     *,
     channel_name: str = "",
     channel_context: str = "",
+    channel_id: int | None = None,
+    session_maker: async_sessionmaker[AsyncSession] | None = None,
+    vision_model: str = "",
+    phash_threshold: int = 10,
+    phash_lookback: int = 30,
 ) -> GeneratedPost | None:
     """Generate a post from one or more content items."""
     if not items:
@@ -381,20 +397,74 @@ async def generate_post(
                 logger.warning("post_still_too_long", length=len(post.text), action="truncate")
                 post.text = enforce_footer_and_length(post.text, footer, max_length=900)
 
-        # Resolve images: find multiple high-quality images from the source article
-        # Images are optional — failures must not break post generation
+        # Resolve images: new pipeline — filter, score, dedup, compose.
+        # Best-effort: failure leaves post.image_urls = [].
         try:
-            from app.channel.images import find_images_for_post
+            from app.channel.images import extract_rss_media_url, find_images_for_post
 
+            # 1. Collect candidate URLs (existing extractor)
             source_urls = [item.url] if item.url else []
-            image_urls = await find_images_for_post(
+            article_urls = await find_images_for_post(
                 keywords=item.title,
                 source_urls=source_urls,
             )
-            post.image_urls = image_urls
-            post.image_url = image_urls[0] if image_urls else None
+            rss_url = None
+            raw_entry = getattr(item, "raw_entry", None)
+            if raw_entry is not None:
+                rss_url = extract_rss_media_url(raw_entry)
+
+            seen: set[str] = set()
+            urls: list[str] = []
+            source_map: dict[str, str] = {}
+            if rss_url and rss_url not in seen:
+                seen.add(rss_url)
+                urls.append(rss_url)
+                source_map[rss_url] = "rss_enclosure"
+            for u in article_urls:
+                if u in seen:
+                    continue
+                seen.add(u)
+                urls.append(u)
+                source_map[u] = "og_image" if u == article_urls[0] else "article_body"
+
+            # 2. Run the pipeline (requires channel_id + session_maker)
+            if channel_id is None or session_maker is None:
+                # Legacy callers that don't supply these kwargs still work — skip pipeline.
+                post.image_urls = urls[:3]
+                post.image_url = urls[0] if urls else None
+                post.image_candidates = None
+                post.image_phashes = []
+            else:
+                pool = await build_candidates(
+                    urls=urls,
+                    title=item.title,
+                    channel_id=channel_id,
+                    session_maker=session_maker,
+                    api_key=api_key,
+                    vision_model=vision_model or "google/gemini-2.5-flash",
+                    phash_threshold=phash_threshold,
+                    phash_lookback=phash_lookback,
+                    source_map=source_map,
+                )
+                decision = await pick_composition(
+                    post_text=post.text,
+                    candidates=[_pool_to_scored(c) for c in pool],
+                    api_key=api_key,
+                    model=vision_model or "google/gemini-2.5-flash",
+                )
+                # Mark selected candidates and build final lists
+                for idx in decision.selected_indices:
+                    pool[idx].selected = True
+                post.image_urls = [pool[i].url for i in decision.selected_indices]
+                post.image_url = post.image_urls[0] if post.image_urls else None
+                post.image_candidates = [c.model_dump() for c in pool]
+                post.image_phashes = [ph for i in decision.selected_indices if (ph := pool[i].phash) is not None]
         except Exception:
-            logger.warning("image_search_failed", title=item.title[:60], exc_info=True)
+            logger.warning("image_pipeline_failed", title=item.title[:60], exc_info=True)
+            post.image_urls = []
+            post.image_url = None
+            post.image_candidates = None
+            post.image_phashes = []
 
         logger.info("post_generated", length=len(post.text), images=len(post.image_urls or []))
         return post
@@ -402,3 +472,23 @@ async def generate_post(
         raise
     except Exception as exc:
         raise GenerationError("Post generation failed") from exc
+
+
+def _pool_to_scored(c: ImageCandidate) -> ScoredImage:
+    """Re-wrap an ImageCandidate as a ScoredImage for pick_composition.
+
+    We don't preserve bytes at this point — compose is text-only.
+    """
+    from app.channel.image_pipeline.score import ScoredImage
+
+    return ScoredImage(
+        url=c.url,
+        width=c.width or 0,
+        height=c.height or 0,
+        bytes_=b"",
+        quality_score=c.quality_score,
+        relevance_score=c.relevance_score,
+        is_logo=c.is_logo,
+        is_text_slide=c.is_text_slide,
+        description=c.description,
+    )
