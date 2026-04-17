@@ -32,9 +32,13 @@ class TestCreateReviewAgent:
             "get_current_post",
             "web_search",
             "update_post",
-            "find_new_images",
-            "replace_images",
-            "remove_images",
+            "list_images",
+            "use_candidate",
+            "add_image_url",
+            "find_and_add_image",
+            "remove_image",
+            "reorder_images",
+            "clear_images",
         }
         assert expected <= tool_names, f"Missing tools: {expected - tool_names}"
         assert len(tool_names) >= len(expected)
