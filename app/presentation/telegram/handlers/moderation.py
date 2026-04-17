@@ -4,6 +4,7 @@ from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.logging import get_logger
 from app.core.text import escape_html
 from app.infrastructure.db.repositories import (
     ChatRepository,
@@ -12,7 +13,6 @@ from app.infrastructure.db.repositories import (
 from app.moderation import blacklist as moderation_services
 from app.moderation import spam_service
 from app.moderation.user_service import UserService
-from app.presentation.telegram.logger import logger
 from app.presentation.telegram.utils import BlacklistConfirm, BlacklistPagination, UnblockUser, other
 from app.presentation.telegram.utils.blacklist import (
     build_blacklist_keyboard,
@@ -20,6 +20,8 @@ from app.presentation.telegram.utils.blacklist import (
     build_user_details_keyboard,
     build_user_details_text,
 )
+
+logger = get_logger("handler.moderation")
 
 moderation_router = Router()
 
@@ -95,10 +97,10 @@ async def mute_user(message: types.Message, bot: Bot) -> None:
     except Exception as err:
         await message.answer("Произошла ошибка. Попробуйте позже.")
         logger.error(
-            "mute_failed: error=%s user_id=%s chat_id=%s",
-            err,
-            message.reply_to_message.from_user.id,
-            message.chat.id,
+            "mute_failed",
+            error=str(err),
+            user_id=message.reply_to_message.from_user.id,
+            chat_id=message.chat.id,
         )
 
 
@@ -130,10 +132,10 @@ async def unmute_user(message: types.Message) -> None:
     except Exception as err:
         await message.answer("Произошла ошибка. Попробуйте позже.")
         logger.error(
-            "unmute_failed: error=%s user_id=%s chat_id=%s",
-            err,
-            message.reply_to_message.from_user.id,
-            message.chat.id,
+            "unmute_failed",
+            error=str(err),
+            user_id=message.reply_to_message.from_user.id,
+            chat_id=message.chat.id,
         )
 
 
@@ -154,10 +156,10 @@ async def ban_user(message: types.Message, bot: Bot) -> None:
     except Exception as err:
         error_msg = await message.answer("Что-то пошло не так. Попробуйте позже.")
         logger.error(
-            "ban_failed: error=%s user_id=%s chat_id=%s",
-            err,
-            message.reply_to_message.from_user.id,
-            message.chat.id,
+            "ban_failed",
+            error=str(err),
+            user_id=message.reply_to_message.from_user.id,
+            chat_id=message.chat.id,
         )
         other.sleep_and_delete(error_msg, 10)
 
@@ -181,10 +183,10 @@ async def unban_user(message: types.Message, bot: Bot) -> None:
     except Exception as err:
         error_msg = await message.answer("Что-то пошло не так. Попробуйте позже.")
         logger.error(
-            "unban_failed: error=%s user_id=%s chat_id=%s",
-            err,
-            message.reply_to_message.from_user.id,
-            message.chat.id,
+            "unban_failed",
+            error=str(err),
+            user_id=message.reply_to_message.from_user.id,
+            chat_id=message.chat.id,
         )
         other.sleep_and_delete(error_msg, 10)
 
@@ -199,7 +201,7 @@ async def full_ban(message: types.Message, message_repo: MessageRepository, db: 
 
     if not message.reply_to_message.from_user:
         await message.answer(is_user_check_error())
-        logger.warning("blacklist_target_not_user: chat_id=%s", message.chat.id)
+        logger.warning("blacklist_target_not_user", chat_id=message.chat.id)
         return
 
     target = message.reply_to_message
@@ -306,7 +308,7 @@ async def process_blacklist_confirm(
     try:
         await bot.delete_message(chat_id=chat_id, message_id=message_id)
     except Exception as err:
-        logger.warning("message_delete_failed: error=%s message_id=%s chat_id=%s", err, message_id, chat_id)
+        logger.warning("message_delete_failed", error=str(err), message_id=message_id, chat_id=chat_id)
 
     try:
         if not callback.message or not isinstance(callback.message, types.Message):
@@ -323,7 +325,7 @@ async def process_blacklist_confirm(
     except Exception as err:
         if callback.message and isinstance(callback.message, types.Message):
             await callback.message.edit_text("Произошла ошибка. Попробуйте позже.")
-        logger.error("blacklist_add_failed: error=%s user_id=%s chat_id=%s", err, user_id, chat_id)
+        logger.error("blacklist_add_failed", error=str(err), user_id=user_id, chat_id=chat_id)
 
     await callback.answer()
 

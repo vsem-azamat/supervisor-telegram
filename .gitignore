@@ -175,3 +175,4 @@ scripts/*
 !scripts/entrypoint.sh
 !scripts/backfill_embeddings.py
 docs/archive/
+.claude/

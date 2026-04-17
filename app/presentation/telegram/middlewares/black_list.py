@@ -5,10 +5,12 @@ from typing import TYPE_CHECKING, Any
 from aiogram import BaseMiddleware, Bot, types
 from aiogram.types import TelegramObject
 
-from app.presentation.telegram.logger import logger
+from app.core.logging import get_logger
 
 if TYPE_CHECKING:
     from app.infrastructure.db.repositories import UserRepository
+
+logger = get_logger("middleware.blacklist")
 
 # TTL cache for blocked user IDs (same pattern as ManagedChatsMiddleware)
 _blacklist_cache: tuple[set[int], float] | None = None
@@ -49,7 +51,7 @@ class BlacklistMiddleware(BaseMiddleware):
                 await bot.ban_chat_member(event.chat.id, event.from_user.id)
                 await event.delete()
             except Exception as e:
-                logger.error(f"Failed to ban or delete message for user {event.from_user.id}: {e}")
+                logger.error("ban_or_delete_failed", user_id=event.from_user.id, error=str(e))
             return None  # Stop further handler processing for blacklisted user
 
         return await handler(event, data)

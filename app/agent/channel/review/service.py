@@ -1,7 +1,13 @@
-"""Review service — pure business logic for post state transitions and data extraction.
+"""Review service — business logic for post state transitions and data extraction.
 
-This module contains NO Telegram/aiogram dependencies.
-All Telegram-specific rendering lives in presentation.py (presentation layer).
+Two Telegram/Telethon concerns leak into this module: (1) cancelling scheduled
+messages when a scheduled post is rejected, (2) cancelling scheduled messages
+when a scheduled post is deleted. Both are needed to keep the "reject" and
+"delete" flows atomic — if we moved those Telegram calls to presentation, we'd
+split a single logical transition across two layers. Accepted trade-off.
+
+Telegram-specific rendering (keyboards, send/edit, button layouts) still lives
+in presentation.py.
 """
 
 from __future__ import annotations
