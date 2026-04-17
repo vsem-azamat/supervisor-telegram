@@ -58,6 +58,14 @@ class ChannelAgentSettings(BaseSettings):
     http_timeout: int = Field(default=30, description="HTTP client timeout in seconds")
     screening_threshold: int = Field(default=5, description="Minimum relevance score (0-10) to pass screening")
     temperature: float = Field(default=0.3, description="LLM temperature for content generation")
+    critic_enabled: bool = Field(
+        default=False,
+        description="Master kill-switch for the post critic polish pass",
+    )
+    critic_model: str = Field(
+        default="anthropic/claude-sonnet-4-6",
+        description="Model used by the critic agent",
+    )
 
     # Brave Search — complementary to Perplexity for URL-based factual search
     brave_discovery_enabled: bool = Field(
