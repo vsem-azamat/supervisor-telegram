@@ -354,6 +354,11 @@ async def generate_post(state: State) -> State:
             footer=footer,
             channel_name=channel.name,
             channel_context=channel_context,
+            channel_id=channel_id,
+            session_maker=session_maker,
+            vision_model=config.vision_model,
+            phash_threshold=config.image_phash_threshold,
+            phash_lookback=config.image_phash_lookback_posts,
         )
         if post is None:
             return state.update(generated_post=None, error="generation_failed")
@@ -453,6 +458,8 @@ async def send_for_review(state: State) -> State:
                             post_text=post.text,
                             image_url=post.image_url,
                             image_urls=post.image_urls or None,
+                            image_candidates=post.image_candidates,
+                            image_phashes=post.image_phashes or None,
                             status=PostStatus.APPROVED,
                             telegram_message_id=msg_id,
                         )

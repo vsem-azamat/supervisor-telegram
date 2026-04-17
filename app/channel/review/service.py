@@ -139,6 +139,8 @@ async def create_review_post(
         post_text=post.text,
         image_url=post.image_url,
         image_urls=post.image_urls or None,
+        image_candidates=post.image_candidates,
+        image_phashes=post.image_phashes or None,
         source_items=source_data,
         review_chat_id=int(review_chat_id) if review_chat_id else 0,
     )
@@ -473,7 +475,20 @@ async def regen_post_text(
         if not items:
             return "No source data to regenerate from.", None
 
-        new_post = await generate_post(items, api_key=api_key, model=model, language=language, footer=footer)
+        from app.core.config import settings
+
+        new_post = await generate_post(
+            items,
+            api_key=api_key,
+            model=model,
+            language=language,
+            footer=footer,
+            channel_id=post.channel_id,
+            session_maker=session_maker,
+            vision_model=settings.channel.vision_model,
+            phash_threshold=settings.channel.image_phash_threshold,
+            phash_lookback=settings.channel.image_phash_lookback_posts,
+        )
         if not new_post:
             return "Regeneration failed.", None
 

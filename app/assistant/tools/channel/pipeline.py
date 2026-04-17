@@ -193,6 +193,11 @@ def register_pipeline_tools(agent: Agent[AssistantDeps, str]) -> None:
                 footer=channel.footer,
                 channel_name=channel.name,
                 channel_context=channel_context,
+                channel_id=channel_id,
+                session_maker=ctx.deps.session_maker,
+                vision_model=settings.channel.vision_model,
+                phash_threshold=settings.channel.image_phash_threshold,
+                phash_lookback=settings.channel.image_phash_lookback_posts,
             )
         except GenerationError:
             logger.exception("generate_and_review_failed", channel_id=channel_id)
