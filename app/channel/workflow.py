@@ -475,6 +475,7 @@ async def send_for_review(state: State) -> State:
                             image_phashes=post.image_phashes or None,
                             status=PostStatus.APPROVED,
                             telegram_message_id=msg_id,
+                            pre_critic_text=post.pre_critic_text,
                         )
                         session.add(db_post)
                         await session.commit()
