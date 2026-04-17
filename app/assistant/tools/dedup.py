@@ -20,7 +20,7 @@ def register_dedup_tools(agent: Agent[AssistantDeps, str]) -> None:
             return error
 
         try:
-            from app.agent.channel.semantic_dedup import find_nearest_posts
+            from app.channel.semantic_dedup import find_nearest_posts
 
             results = await find_nearest_posts(
                 text,
@@ -88,8 +88,8 @@ def register_dedup_tools(agent: Agent[AssistantDeps, str]) -> None:
         try:
             from sqlalchemy import select
 
-            from app.agent.channel.embeddings import EMBEDDING_MODEL, get_embeddings
-            from app.infrastructure.db.models import ChannelPost
+            from app.channel.embeddings import EMBEDDING_MODEL, get_embeddings
+            from app.db.models import ChannelPost
 
             async with ctx.deps.session_maker() as session:
                 result = await session.execute(
@@ -143,7 +143,7 @@ def register_dedup_tools(agent: Agent[AssistantDeps, str]) -> None:
         count = min(max(1, count), 10)
 
         try:
-            from app.agent.channel.brave_search import brave_search_for_assistant
+            from app.channel.brave_search import brave_search_for_assistant
 
             return await brave_search_for_assistant(
                 brave_key, query, count=count, freshness=freshness, country=country, search_lang=search_lang
@@ -155,7 +155,7 @@ def register_dedup_tools(agent: Agent[AssistantDeps, str]) -> None:
     @agent.tool
     async def fetch_url(ctx: RunContext[AssistantDeps], url: str, max_chars: int = 3000) -> str:  # noqa: ARG001
         """Fetch and read the text content of a web page. Use after search_news to read a full article before generating a post. max_chars limits the returned text length."""
-        from app.agent.channel.http import SSRFError, safe_fetch
+        from app.channel.http import SSRFError, safe_fetch
 
         max_chars = min(max(500, max_chars), 8000)
         try:
@@ -216,7 +216,7 @@ def register_dedup_tools(agent: Agent[AssistantDeps, str]) -> None:
     @agent.tool
     async def fetch_rss(ctx: RunContext[AssistantDeps], feed_url: str, max_items: int = 10) -> str:  # noqa: ARG001
         """Fetch and display items from an RSS feed. Returns titles, dates, and summaries. Useful for checking university/news RSS feeds for fresh content."""
-        from app.agent.channel.sources import fetch_rss as _fetch_rss
+        from app.channel.sources import fetch_rss as _fetch_rss
 
         max_items = min(max(1, max_items), 20)
         try:

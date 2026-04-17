@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from app.agent.channel.schedule_manager import (
+from app.channel.schedule_manager import (
     cancel_scheduled_post,
     get_occupied_slots,
     next_publish_slot,
@@ -17,7 +17,7 @@ from app.agent.channel.schedule_manager import (
 )
 from app.core.enums import PostStatus
 from app.core.time import utc_now
-from app.infrastructure.db.models import ChannelPost
+from app.db.models import ChannelPost
 from sqlalchemy import select
 
 if TYPE_CHECKING:

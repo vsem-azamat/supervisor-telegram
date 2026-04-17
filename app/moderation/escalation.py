@@ -9,13 +9,13 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.agent.schemas import AgentEvent
 from app.core.config import settings
 from app.core.enums import EscalationStatus
 from app.core.logging import get_logger
 from app.core.text import escape_html
 from app.core.time import utc_now
-from app.infrastructure.db.models import AgentEscalation
+from app.db.models import AgentEscalation
+from app.moderation.schemas import AgentEvent
 
 logger = get_logger("agent.escalation")
 
@@ -241,8 +241,8 @@ class EscalationService:
             # Actually execute the timeout action (unless it's "ignore")
             if default_action != "ignore":
                 try:
-                    from app.agent.schemas import AgentEvent, EventType
                     from app.moderation.agent import AgentCore
+                    from app.moderation.schemas import AgentEvent, EventType
 
                     event = AgentEvent(
                         event_type=EventType.TIMEOUT,

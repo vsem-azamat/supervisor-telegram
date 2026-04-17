@@ -25,7 +25,7 @@ dependencies = [
     "python-dotenv",
     "structlog>=23.2",
     "pytz>=2024.1",
-    "pydantic-ai[openai]>=0.2",
+    "pydantic-ai[openai]>=1.84",
     "httpx>=0.27",
     "feedparser>=6.0.12",
     "telethon>=1.42.0",
@@ -115,9 +115,9 @@ replace-imports-with-any = [
     "testcontainers.**",
 ]
 
-# Agent + moderation modules — PydanticAI dynamic patterns, framework constructors
+# Agent-heavy modules — PydanticAI dynamic patterns, framework constructors
 [[tool.ty.overrides]]
-include = ["app/agent/**", "app/moderation/**"]
+include = ["app/channel/**", "app/assistant/**", "app/moderation/**"]
 
 [tool.ty.overrides.rules]
 invalid-argument-type = "warn"       # PydanticAI/Pydantic constructor patterns

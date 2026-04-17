@@ -4,12 +4,14 @@ from typing import TYPE_CHECKING, Any
 from aiogram import BaseMiddleware, types
 from aiogram.types import TelegramObject
 
+from app.core.logging import get_logger
 from app.moderation import history_service, spam_service
-from app.presentation.telegram.logger import logger
 from app.presentation.telegram.utils import other
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = get_logger("middleware.history")
 
 
 class HistoryMiddleware(BaseMiddleware):
@@ -28,12 +30,12 @@ class HistoryMiddleware(BaseMiddleware):
                 try:
                     await history_service.merge_user(db, user)
                 except Exception as err:
-                    logger.error(f"Error while saving user: {err}")
+                    logger.error("merge_user_failed", error=str(err))
 
             try:
                 await history_service.save_message(db, message)
             except Exception as err:
-                logger.error(f"Error while saving message: {err}")
+                logger.error("save_message_failed", error=str(err))
 
             if await spam_service.detect_spam(db, message):
                 answer = await event.message.answer("🚧 Is spam message?🤔")

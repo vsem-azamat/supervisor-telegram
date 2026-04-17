@@ -5,7 +5,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from app.agent.channel.http import SSRFError, is_safe_url, safe_fetch
+from app.channel.http import SSRFError, is_safe_url, safe_fetch
 
 # ---------------------------------------------------------------------------
 # is_safe_url — scheme validation
@@ -124,7 +124,7 @@ class TestIsSafeUrlDNSFailure:
 class TestSafeFetch:
     async def test_raises_ssrf_error_on_private_ip(self) -> None:
         with patch(
-            "app.agent.channel.http.is_safe_url",
+            "app.channel.http.is_safe_url",
             new=AsyncMock(return_value=False),
         ):
             with pytest.raises(SSRFError):
@@ -137,8 +137,8 @@ class TestSafeFetch:
         mock_client.request = AsyncMock(return_value=mock_resp)
 
         with (
-            patch("app.agent.channel.http.is_safe_url", new=AsyncMock(return_value=True)),
-            patch("app.agent.channel.http.get_http_client", return_value=mock_client),
+            patch("app.channel.http.is_safe_url", new=AsyncMock(return_value=True)),
+            patch("app.channel.http.get_http_client", return_value=mock_client),
         ):
             resp = await safe_fetch("https://example.com/data", headers={"X-Custom": "val"})
             assert resp is mock_resp

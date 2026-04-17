@@ -6,9 +6,9 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from app.agent.channel.config import ChannelAgentSettings
-from app.agent.channel.sources import ContentItem
-from app.agent.channel.workflow import (
+from app.channel.config import ChannelAgentSettings
+from app.channel.sources import ContentItem
+from app.channel.workflow import (
     _has_content,
     _has_post,
     _has_relevant,
@@ -18,7 +18,7 @@ from app.agent.channel.workflow import (
     build_content_pipeline_graph,
     create_pipeline_app,
 )
-from app.infrastructure.db.models import Channel
+from app.db.models import Channel
 from burr.core import State
 
 # ---------------------------------------------------------------------------
@@ -184,7 +184,7 @@ class TestTransitionGuards:
 
 class TestFetchSourcesAction:
     async def test_fetch_returns_items(self, agent_settings, channel, mock_session_maker):
-        from app.agent.channel.workflow import fetch_sources
+        from app.channel.workflow import fetch_sources
 
         mock_items = [
             ContentItem(
@@ -197,8 +197,8 @@ class TestFetchSourcesAction:
         ]
 
         with (
-            patch("app.agent.channel.source_manager.get_active_sources", return_value=[]),
-            patch("app.agent.channel.discovery.discover_content", return_value=mock_items),
+            patch("app.channel.source_manager.get_active_sources", return_value=[]),
+            patch("app.channel.discovery.discover_content", return_value=mock_items),
         ):
             agent_settings.discovery_enabled = True
 
@@ -225,10 +225,10 @@ class TestFetchSourcesAction:
             assert result["error"] is None
 
     async def test_fetch_handles_error(self, agent_settings, channel, mock_session_maker):
-        from app.agent.channel.workflow import fetch_sources
+        from app.channel.workflow import fetch_sources
 
         with patch(
-            "app.agent.channel.source_manager.get_active_sources",
+            "app.channel.source_manager.get_active_sources",
             side_effect=RuntimeError("connection refused"),
         ):
             agent_settings.discovery_enabled = False
@@ -252,9 +252,9 @@ class TestFetchSourcesAction:
 
 class TestScreenContentAction:
     async def test_screen_filters_relevant(self, agent_settings, channel, sample_items):
-        from app.agent.channel.workflow import screen_content
+        from app.channel.workflow import screen_content
 
-        with patch("app.agent.channel.generator.screen_items", return_value=sample_items):
+        with patch("app.channel.generator.screen_items", return_value=sample_items):
             state = State(
                 {
                     "content_items": sample_items,
@@ -270,7 +270,7 @@ class TestScreenContentAction:
             assert result["error"] is None
 
     async def test_screen_empty_input(self, agent_settings, channel):
-        from app.agent.channel.workflow import screen_content
+        from app.channel.workflow import screen_content
 
         state = State(
             {
@@ -287,11 +287,11 @@ class TestScreenContentAction:
         assert result["error"] is None
 
     async def test_screen_handles_screening_error(self, agent_settings, channel, sample_items):
-        from app.agent.channel.exceptions import ScreeningError
-        from app.agent.channel.workflow import screen_content
+        from app.channel.exceptions import ScreeningError
+        from app.channel.workflow import screen_content
 
         with patch(
-            "app.agent.channel.generator.screen_items",
+            "app.channel.generator.screen_items",
             side_effect=ScreeningError("LLM down"),
         ):
             state = State(
@@ -309,10 +309,10 @@ class TestScreenContentAction:
             assert "LLM down" in result["error"]
 
     async def test_screen_handles_generic_error(self, agent_settings, channel, sample_items):
-        from app.agent.channel.workflow import screen_content
+        from app.channel.workflow import screen_content
 
         with patch(
-            "app.agent.channel.generator.screen_items",
+            "app.channel.generator.screen_items",
             side_effect=RuntimeError("unexpected"),
         ):
             state = State(
@@ -332,11 +332,11 @@ class TestScreenContentAction:
 
 class TestSplitAndEnrichTopicsAction:
     async def test_enriches_items(self, agent_settings, channel, sample_items, mock_session_maker):
-        from app.agent.channel.workflow import split_and_enrich_topics
+        from app.channel.workflow import split_and_enrich_topics
 
         with (
-            patch("app.agent.channel.topic_splitter.split_and_enrich", return_value=sample_items),
-            patch("app.agent.channel.semantic_dedup.filter_semantic_duplicates", return_value=sample_items),
+            patch("app.channel.topic_splitter.split_and_enrich", return_value=sample_items),
+            patch("app.channel.semantic_dedup.filter_semantic_duplicates", return_value=sample_items),
         ):
             state = State(
                 {
@@ -353,7 +353,7 @@ class TestSplitAndEnrichTopicsAction:
             assert result["error"] is None
 
     async def test_empty_input_passthrough(self, agent_settings, mock_session_maker):
-        from app.agent.channel.workflow import split_and_enrich_topics
+        from app.channel.workflow import split_and_enrich_topics
 
         state = State(
             {
@@ -369,16 +369,16 @@ class TestSplitAndEnrichTopicsAction:
         assert result["content_items"] == []
 
     async def test_split_error_falls_back_to_original(self, agent_settings, sample_items, mock_session_maker):
-        from app.agent.channel.workflow import split_and_enrich_topics
+        from app.channel.workflow import split_and_enrich_topics
 
         with (
             patch(
-                "app.agent.channel.topic_splitter.split_and_enrich",
+                "app.channel.topic_splitter.split_and_enrich",
                 side_effect=RuntimeError("split failed"),
             ),
             # Dedup is now mandatory — patch it so the split-fallback path is
             # exercised independently of the embedding API.
-            patch("app.agent.channel.semantic_dedup.filter_semantic_duplicates", return_value=sample_items),
+            patch("app.channel.semantic_dedup.filter_semantic_duplicates", return_value=sample_items),
         ):
             state = State(
                 {
@@ -398,13 +398,13 @@ class TestSplitAndEnrichTopicsAction:
     async def test_dedup_api_failure_halts_cycle(self, agent_settings, sample_items, mock_session_maker):
         """When the embedding API is down, the cycle returns zero items rather
         than publishing unfiltered content."""
-        from app.agent.channel.exceptions import EmbeddingError
-        from app.agent.channel.workflow import split_and_enrich_topics
+        from app.channel.exceptions import EmbeddingError
+        from app.channel.workflow import split_and_enrich_topics
 
         with (
-            patch("app.agent.channel.topic_splitter.split_and_enrich", return_value=sample_items),
+            patch("app.channel.topic_splitter.split_and_enrich", return_value=sample_items),
             patch(
-                "app.agent.channel.semantic_dedup.filter_semantic_duplicates",
+                "app.channel.semantic_dedup.filter_semantic_duplicates",
                 side_effect=EmbeddingError("api down"),
             ),
         ):
@@ -425,7 +425,7 @@ class TestSplitAndEnrichTopicsAction:
 
 class TestPublishPostAction:
     async def test_publish_post_missing_post_id(self, channel, mock_bot, mock_session_maker):
-        from app.agent.channel.workflow import publish_post
+        from app.channel.workflow import publish_post
 
         state = State(
             {
@@ -440,11 +440,11 @@ class TestPublishPostAction:
         assert result["error"] == "missing_post_id"
 
     async def test_publish_post_publish_error(self, channel, mock_bot, mock_session_maker):
-        from app.agent.channel.exceptions import PublishError
-        from app.agent.channel.workflow import publish_post
+        from app.channel.exceptions import PublishError
+        from app.channel.workflow import publish_post
 
         with patch(
-            "app.agent.channel.review.handle_approve",
+            "app.channel.review.handle_approve",
             side_effect=PublishError("Telegram API rejected"),
         ):
             state = State(
@@ -463,17 +463,17 @@ class TestPublishPostAction:
 
 class TestGeneratePostAction:
     async def test_generate_produces_post(self, agent_settings, channel, mock_session_maker, sample_items):
-        from app.agent.channel.generator import GeneratedPost
-        from app.agent.channel.workflow import generate_post
+        from app.channel.generator import GeneratedPost
+        from app.channel.workflow import generate_post
 
         mock_post = GeneratedPost(text="**Test Post**", is_sensitive=False)
 
         with (
-            patch("app.agent.channel.generator.generate_post", return_value=mock_post),
-            patch("app.agent.channel.feedback.get_feedback_summary", return_value=None),
+            patch("app.channel.generator.generate_post", return_value=mock_post),
+            patch("app.channel.feedback.get_feedback_summary", return_value=None),
             # Pre-generation dedup hits the embeddings API; stub out so the test
             # stays isolated from network failures.
-            patch("app.agent.channel.semantic_dedup.find_nearest_posts", return_value=[]),
+            patch("app.channel.semantic_dedup.find_nearest_posts", return_value=[]),
         ):
             state = State(
                 {
@@ -538,8 +538,8 @@ class TestAppFactory:
 class TestFullPipeline:
     async def test_pipeline_no_content_stops_early(self, channel, agent_settings, mock_bot, mock_session_maker):
         with (
-            patch("app.agent.channel.source_manager.get_active_sources", return_value=[]),
-            patch("app.agent.channel.discovery.discover_content", return_value=[]),
+            patch("app.channel.source_manager.get_active_sources", return_value=[]),
+            patch("app.channel.discovery.discover_content", return_value=[]),
         ):
             agent_settings.discovery_enabled = True
             app = create_pipeline_app(
@@ -555,7 +555,7 @@ class TestFullPipeline:
             assert state["content_items"] == []
 
     async def test_pipeline_halts_at_review(self, channel, agent_settings, mock_bot, mock_session_maker, sample_items):
-        from app.agent.channel.generator import GeneratedPost
+        from app.channel.generator import GeneratedPost
 
         mock_post = GeneratedPost(text="**Post**", is_sensitive=False)
 
@@ -564,16 +564,16 @@ class TestFullPipeline:
         mock_session_maker._mock_session.execute = AsyncMock(return_value=mock_result)
 
         with (
-            patch("app.agent.channel.source_manager.get_active_sources", return_value=[]),
-            patch("app.agent.channel.discovery.discover_content", return_value=sample_items),
-            patch("app.agent.channel.generator.screen_items", return_value=sample_items),
-            patch("app.agent.channel.generator.generate_post", return_value=mock_post),
-            patch("app.agent.channel.feedback.get_feedback_summary", return_value=None),
-            patch("app.agent.channel.review.send_for_review", return_value=99),
+            patch("app.channel.source_manager.get_active_sources", return_value=[]),
+            patch("app.channel.discovery.discover_content", return_value=sample_items),
+            patch("app.channel.generator.screen_items", return_value=sample_items),
+            patch("app.channel.generator.generate_post", return_value=mock_post),
+            patch("app.channel.feedback.get_feedback_summary", return_value=None),
+            patch("app.channel.review.send_for_review", return_value=99),
             # Embeddings are mandatory; stub the dedup helpers so the pipeline
             # runs end-to-end without hitting the embeddings API.
-            patch("app.agent.channel.semantic_dedup.filter_semantic_duplicates", return_value=sample_items),
-            patch("app.agent.channel.semantic_dedup.find_nearest_posts", return_value=[]),
+            patch("app.channel.semantic_dedup.filter_semantic_duplicates", return_value=sample_items),
+            patch("app.channel.semantic_dedup.find_nearest_posts", return_value=[]),
         ):
             agent_settings.discovery_enabled = True
             app = create_pipeline_app(
@@ -589,7 +589,7 @@ class TestFullPipeline:
             assert state["post_id"] == 99
 
     async def test_pipeline_resume_approve(self, channel, agent_settings, mock_bot, mock_session_maker):
-        with patch("app.agent.channel.review.handle_approve", return_value="Published! (msg #42)"):
+        with patch("app.channel.review.handle_approve", return_value="Published! (msg #42)"):
             app = create_pipeline_app(
                 channel_id=-1001234567890,
                 session_maker=mock_session_maker,
@@ -604,7 +604,7 @@ class TestFullPipeline:
             assert state["result_message"] == "Published! (msg #42)"
 
     async def test_pipeline_resume_reject(self, channel, agent_settings, mock_bot, mock_session_maker):
-        with patch("app.agent.channel.review.handle_reject", return_value="Post rejected."):
+        with patch("app.channel.review.handle_reject", return_value="Post rejected."):
             app = create_pipeline_app(
                 channel_id=-1001234567890,
                 session_maker=mock_session_maker,
@@ -622,7 +622,7 @@ class TestFullPipeline:
         self, channel_no_review, agent_settings, mock_bot, mock_session_maker, sample_items
     ):
         """T3: Direct publish path (no review channel) goes straight to done."""
-        from app.agent.channel.generator import GeneratedPost
+        from app.channel.generator import GeneratedPost
 
         mock_post = GeneratedPost(text="**Post**", is_sensitive=False)
 
@@ -631,15 +631,15 @@ class TestFullPipeline:
         mock_session_maker._mock_session.execute = AsyncMock(return_value=mock_result)
 
         with (
-            patch("app.agent.channel.source_manager.get_active_sources", return_value=[]),
-            patch("app.agent.channel.discovery.discover_content", return_value=sample_items),
-            patch("app.agent.channel.topic_splitter.split_and_enrich", return_value=sample_items),
-            patch("app.agent.channel.semantic_dedup.filter_semantic_duplicates", return_value=sample_items),
-            patch("app.agent.channel.semantic_dedup.find_nearest_posts", return_value=[]),
-            patch("app.agent.channel.generator.screen_items", return_value=sample_items),
-            patch("app.agent.channel.generator.generate_post", return_value=mock_post),
-            patch("app.agent.channel.feedback.get_feedback_summary", return_value=None),
-            patch("app.agent.channel.publisher.publish_post", return_value=77),
+            patch("app.channel.source_manager.get_active_sources", return_value=[]),
+            patch("app.channel.discovery.discover_content", return_value=sample_items),
+            patch("app.channel.topic_splitter.split_and_enrich", return_value=sample_items),
+            patch("app.channel.semantic_dedup.filter_semantic_duplicates", return_value=sample_items),
+            patch("app.channel.semantic_dedup.find_nearest_posts", return_value=[]),
+            patch("app.channel.generator.screen_items", return_value=sample_items),
+            patch("app.channel.generator.generate_post", return_value=mock_post),
+            patch("app.channel.feedback.get_feedback_summary", return_value=None),
+            patch("app.channel.publisher.publish_post", return_value=77),
         ):
             agent_settings.discovery_enabled = True
             app = create_pipeline_app(

@@ -14,12 +14,12 @@ import argparse
 import asyncio
 from pathlib import Path
 
-from app.agent.channel.embeddings import EMBEDDING_MODEL, get_embeddings
-from app.agent.channel.semantic_dedup import build_embedding_text
+from app.channel.embeddings import EMBEDDING_MODEL, get_embeddings
+from app.channel.semantic_dedup import build_embedding_text
 from app.core.config import settings
 from app.core.logging import get_logger
-from app.infrastructure.db.models import ChannelPost
-from app.infrastructure.db.session import close_db, create_session_maker
+from app.db.models import ChannelPost
+from app.db.session import close_db, create_session_maker
 from dotenv import load_dotenv
 from sqlalchemy import select, update
 

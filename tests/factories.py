@@ -4,7 +4,7 @@ import random
 from datetime import datetime
 from typing import Any
 
-from app.infrastructure.db.models import Admin, Chat, ChatLink, Message, User
+from app.db.models import Admin, Chat, ChatLink, Message, User
 
 # Sentinel object for default values in factories
 _DEFAULT: Any = object()

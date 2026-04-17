@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from app.agent.channel.review.service import extract_source_btn_data, extract_source_urls
+from app.channel.review.service import extract_source_btn_data, extract_source_urls
 
 
 class _FakePost:

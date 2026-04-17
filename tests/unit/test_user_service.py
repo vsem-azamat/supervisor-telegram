@@ -1,17 +1,16 @@
 """Unit tests for UserService."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from app.core.exceptions import UserNotFoundException
-from app.infrastructure.db.models import User
-from app.infrastructure.db.repositories.user import UserRepository
+from app.db.models import User
+from app.db.repositories.user import UserRepository
 from app.moderation.user_service import UserService
 
 from tests.factories import UserFactory
 
-# Constants for patch paths
-BOT_LOGGER_PATCH_PATH = "app.moderation.user_service.BotLogger"
+LOGGER_PATCH_PATH = "app.moderation.user_service.logger"
 
 
 # --- Module-level fixtures (shared by all test classes) ---
@@ -87,10 +86,7 @@ class TestUserService:
             id=user_id, username=username, first_name=first_name, last_name=last_name
         )
 
-        with patch(BOT_LOGGER_PATCH_PATH) as mock_logger_class:
-            mock_logger = MagicMock()
-            mock_logger_class.return_value = mock_logger
-
+        with patch(LOGGER_PATCH_PATH) as mock_logger:
             service = UserService(mock_user_repository)
             result = await service.create_or_update_user(
                 user_id=user_id, username=username, first_name=first_name, last_name=last_name
@@ -103,7 +99,7 @@ class TestUserService:
 
         mock_user_repository.get_by_id.assert_called_once_with(user_id)
         mock_user_repository.save.assert_called_once()
-        mock_logger.log_user_action.assert_called_once_with(user_id, "user_created")
+        mock_logger.info.assert_called_once_with("user_created", user_id=user_id)
 
     async def test_create_or_update_user_existing_user(self, mock_user_repository: AsyncMock):
         """Test updating an existing user."""
@@ -115,10 +111,7 @@ class TestUserService:
         mock_user_repository.get_by_id.return_value = existing_user
         mock_user_repository.save.return_value = updated_user
 
-        with patch(BOT_LOGGER_PATCH_PATH) as mock_logger_class:
-            mock_logger = MagicMock()
-            mock_logger_class.return_value = mock_logger
-
+        with patch(LOGGER_PATCH_PATH) as mock_logger:
             service = UserService(mock_user_repository)
             result = await service.create_or_update_user(
                 user_id=user_id, username="newusername", first_name="New", last_name="Name"
@@ -129,7 +122,7 @@ class TestUserService:
 
         mock_user_repository.get_by_id.assert_called_once_with(user_id)
         mock_user_repository.save.assert_called_once()
-        mock_logger.log_user_action.assert_called_once_with(user_id, "profile_updated")
+        mock_logger.info.assert_called_once_with("profile_updated", user_id=user_id)
 
     async def test_block_user_existing_user(self, mock_user_repository: AsyncMock):
         """Test blocking an existing user."""
@@ -140,10 +133,7 @@ class TestUserService:
         mock_user_repository.get_by_id.return_value = existing_user
         mock_user_repository.save.return_value = blocked_user
 
-        with patch(BOT_LOGGER_PATCH_PATH) as mock_logger_class:
-            mock_logger = MagicMock()
-            mock_logger_class.return_value = mock_logger
-
+        with patch(LOGGER_PATCH_PATH) as mock_logger:
             service = UserService(mock_user_repository)
             result = await service.block_user(user_id)
 
@@ -151,7 +141,7 @@ class TestUserService:
 
         mock_user_repository.get_by_id.assert_called_once_with(user_id)
         mock_user_repository.save.assert_called_once()
-        mock_logger.log_user_action.assert_called_once_with(user_id, "user_blocked")
+        mock_logger.info.assert_called_once_with("user_blocked", user_id=user_id)
 
     async def test_block_user_nonexistent_user(self, mock_user_repository: AsyncMock):
         """Test blocking a non-existent user (creates new blocked user)."""
@@ -161,10 +151,7 @@ class TestUserService:
         mock_user_repository.get_by_id.return_value = None
         mock_user_repository.save.return_value = new_blocked_user
 
-        with patch(BOT_LOGGER_PATCH_PATH) as mock_logger_class:
-            mock_logger = MagicMock()
-            mock_logger_class.return_value = mock_logger
-
+        with patch(LOGGER_PATCH_PATH) as mock_logger:
             service = UserService(mock_user_repository)
             result = await service.block_user(user_id)
 
@@ -173,7 +160,7 @@ class TestUserService:
 
         mock_user_repository.get_by_id.assert_called_once_with(user_id)
         mock_user_repository.save.assert_called_once()
-        mock_logger.log_user_action.assert_called_once_with(user_id, "user_blocked")
+        mock_logger.info.assert_called_once_with("user_blocked", user_id=user_id)
 
     async def test_unblock_user_success(self, mock_user_repository: AsyncMock):
         """Test successfully unblocking a user."""
@@ -184,10 +171,7 @@ class TestUserService:
         mock_user_repository.get_by_id.return_value = blocked_user
         mock_user_repository.save.return_value = unblocked_user
 
-        with patch(BOT_LOGGER_PATCH_PATH) as mock_logger_class:
-            mock_logger = MagicMock()
-            mock_logger_class.return_value = mock_logger
-
+        with patch(LOGGER_PATCH_PATH) as mock_logger:
             service = UserService(mock_user_repository)
             result = await service.unblock_user(user_id)
 
@@ -195,7 +179,7 @@ class TestUserService:
 
         mock_user_repository.get_by_id.assert_called_once_with(user_id)
         mock_user_repository.save.assert_called_once()
-        mock_logger.log_user_action.assert_called_once_with(user_id, "user_unblocked")
+        mock_logger.info.assert_called_once_with("user_unblocked", user_id=user_id)
 
     async def test_unblock_user_not_blocked(self, mock_user_repository: AsyncMock):
         """Test unblocking a user that isn't blocked."""
@@ -204,10 +188,7 @@ class TestUserService:
 
         mock_user_repository.get_by_id.return_value = user
 
-        with patch(BOT_LOGGER_PATCH_PATH) as mock_logger_class:
-            mock_logger = MagicMock()
-            mock_logger_class.return_value = mock_logger
-
+        with patch(LOGGER_PATCH_PATH) as mock_logger:
             service = UserService(mock_user_repository)
             result = await service.unblock_user(user_id)
 
@@ -216,7 +197,7 @@ class TestUserService:
         mock_user_repository.get_by_id.assert_called_once_with(user_id)
         # save should not be called since user wasn't blocked
         mock_user_repository.save.assert_not_called()
-        mock_logger.log_user_action.assert_called_once_with(user_id, "unblock_attempt_not_blocked")
+        mock_logger.info.assert_called_once_with("unblock_attempt_not_blocked", user_id=user_id)
 
     async def test_unblock_user_not_found(self, user_service: UserService, mock_user_repository: AsyncMock):
         """Test unblocking a user that doesn't exist."""
@@ -295,7 +276,7 @@ class TestUserServiceEdgeCases:
         expected_user = User(id=user_id, username=None, first_name="Test", last_name=None, verify=False, blocked=False)
         mock_user_repository.save.return_value = expected_user
 
-        with patch(BOT_LOGGER_PATCH_PATH):
+        with patch(LOGGER_PATCH_PATH):
             result = await user_service.create_or_update_user(
                 user_id=user_id, username=None, first_name="Test", last_name=None
             )

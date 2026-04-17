@@ -21,10 +21,10 @@ os.environ.update(
 
 import pytest
 import pytest_asyncio
-from app.infrastructure.db.base import Base
-from app.infrastructure.db.repositories.admin import AdminRepository
-from app.infrastructure.db.repositories.chat import ChatRepository
-from app.infrastructure.db.repositories.user import UserRepository
+from app.db.base import Base
+from app.db.repositories.admin import AdminRepository
+from app.db.repositories.chat import ChatRepository
+from app.db.repositories.user import UserRepository
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 

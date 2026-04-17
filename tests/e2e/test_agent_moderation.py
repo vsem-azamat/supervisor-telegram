@@ -27,7 +27,7 @@ from aiogram.types import (
     User,
 )
 from aiogram.utils.callback_answer import CallbackAnswerMiddleware
-from app.infrastructure.db.models import AgentEscalation
+from app.db.models import AgentEscalation
 from app.presentation.telegram.middlewares import (
     DependenciesMiddleware,
     HistoryMiddleware,

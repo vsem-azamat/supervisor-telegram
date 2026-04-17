@@ -13,10 +13,10 @@ from typing import TYPE_CHECKING
 from aiogram import Bot, Router, types
 from aiogram.filters import Command
 
-from app.agent.schemas import ActionType, AgentEvent, EventType
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.text import escape_html
+from app.moderation.schemas import ActionType, AgentEvent, EventType
 from app.presentation.telegram.utils.other import get_chat_link, get_message_link, sleep_and_delete
 
 if TYPE_CHECKING:

@@ -36,63 +36,64 @@ app/
 │   ├── user_service.py            # User block/unblock, verification
 │   └── history_service.py         # Message history tracking
 │
-├── agent/                         # AI agent infrastructure
-│   ├── prompts.py                 # Shared prompt templates
-│   ├── schemas.py                 # Shared Pydantic schemas (ModerationResult, etc.)
-│   ├── tool_trace.py              # Tool call tracing for assistant
-│   └── channel/                   # Content pipeline feature module
-│       ├── config.py              # ChannelAgentSettings
-│       ├── orchestrator.py        # Per-channel scheduling + lifecycle
-│       ├── workflow.py            # Burr state machine (9 actions)
-│       ├── generator.py           # LLM screening + post generation
-│       ├── sources.py             # RSS fetching + health tracking
-│       ├── source_discovery.py    # Perplexity-based feed discovery
-│       ├── source_manager.py      # Source CRUD operations
-│       ├── semantic_dedup.py      # pgvector cosine similarity dedup
-│       ├── feedback.py            # Admin preference summarization
-│       ├── publisher.py           # Post publishing logic
-│       ├── schedule_manager.py    # Telethon scheduled messages
-│       ├── embeddings.py          # OpenAI-compatible embedding client
-│       ├── llm_client.py          # Centralized OpenRouter HTTP client
-│       ├── http.py                # SSRF-protected HTTP fetching
-│       ├── sanitize.py            # Prompt injection sanitizer
-│       ├── brave_search.py        # Brave Search API wrapper
-│       ├── images.py              # Image search + download
-│       ├── cost_tracker.py        # LLM cost tracking
-│       ├── topic_splitter.py      # Multi-topic splitting
-│       ├── channel_repo.py        # Channel DB operations
-│       ├── discovery.py           # Source discovery helpers
-│       ├── exceptions.py          # Channel-specific exceptions
-│       └── review/                # Review submodule
-│           ├── agent.py           # Conversational review agent (multi-turn)
-│           ├── presentation.py    # Review message UI (keyboards, send/edit)
-│           └── service.py         # Review business logic (approve/reject/edit)
+├── channel/                       # Content pipeline feature module
+│   ├── config.py                  # ChannelAgentSettings
+│   ├── orchestrator.py            # Per-channel scheduling + lifecycle
+│   ├── workflow.py                # Burr state machine (9 actions) + PipelineState TypedDict
+│   ├── generator.py               # LLM screening + post generation
+│   ├── sources.py                 # RSS fetching + health tracking
+│   ├── source_discovery.py        # Perplexity-based feed discovery
+│   ├── source_manager.py          # Source CRUD operations
+│   ├── semantic_dedup.py          # pgvector cosine similarity dedup
+│   ├── feedback.py                # Admin preference summarization
+│   ├── publisher.py               # Post publishing logic
+│   ├── schedule_manager.py        # Telethon scheduled messages
+│   ├── embeddings.py              # OpenAI-compatible embedding client
+│   ├── llm_client.py              # Centralized OpenRouter HTTP client
+│   ├── http.py                    # SSRF-protected HTTP fetching
+│   ├── sanitize.py                # Prompt injection sanitizer
+│   ├── brave_search.py            # Brave Search API wrapper
+│   ├── images.py                  # Image search + download
+│   ├── cost_tracker.py            # LLM cost tracking
+│   ├── topic_splitter.py          # Multi-topic splitting
+│   ├── channel_repo.py            # Channel DB operations
+│   ├── discovery.py               # Source discovery helpers
+│   ├── exceptions.py              # Channel-specific exceptions
+│   └── review/                    # Review submodule
+│       ├── agent.py               # Conversational review agent (multi-turn) + ReviewConversationRegistry
+│       ├── telegram_io.py         # Telegram I/O glue (keyboards, send/edit, handlers)
+│       └── service.py             # Review business logic (approve/reject/edit)
 │
 ├── assistant/                     # Conversational admin bot
 │   ├── agent.py                   # PydanticAI agent (Claude Sonnet 4.6)
 │   ├── bot.py                     # Conversation management, dispatcher
 │   └── tools/                     # 30+ tools across 5 domains
-│       ├── channel.py             # Channel/source/schedule management
+│       ├── channel/               # Channel/source/schedule management (4-file package)
+│       │   ├── channels.py        # list/add/edit/remove channel
+│       │   ├── sources.py         # RSS source CRUD
+│       │   ├── pipeline.py        # status/run/publish/generate_and_review
+│       │   └── schedule.py        # posting schedule + per-post schedule ops
 │       ├── moderation.py          # Mute, ban, blacklist, user info
 │       ├── agent_moderation.py    # AI moderation analysis tools
 │       ├── chat.py                # Chat settings, welcome messages
 │       ├── dedup.py               # Semantic dedup + Brave search
 │       └── telethon.py            # Chat history, search, members
 │
-├── infrastructure/                # External system adapters
-│   ├── db/
-│   │   ├── models.py              # 9 SQLAlchemy ORM models (+ pgvector)
-│   │   ├── repositories/          # 5 repository classes (no interfaces)
-│   │   ├── base.py                # Declarative base
-│   │   └── session.py             # Async session factory
-│   └── telegram/
-│       └── telethon_client.py     # Telethon userbot client
+├── db/                            # SQLAlchemy persistence
+│   ├── models.py                  # 9 ORM models (+ pgvector Vector(768))
+│   ├── repositories/              # 5 repository classes
+│   ├── base.py                    # Declarative base
+│   └── session.py                 # Async session factory
+│
+├── telethon/                      # Telethon userbot client
+│   └── telethon_client.py
 │
 ├── presentation/                  # Telegram bot handlers
 │   └── telegram/
 │       ├── bot.py                 # Main entry point, dispatcher setup
-│       ├── handlers/              # Command/callback handlers (7 routers)
-│       ├── middlewares/           # 6 middlewares (auth, history, deps, etc.)
+│       ├── handlers/              # Command/callback handlers
+│       │   └── moderation/        # 4-file package (mute/ban/blacklist/welcome + _common)
+│       ├── middlewares/           # Auth, history, deps, managed_chats, blacklist
 │       └── utils/                 # Filters, callback data, buttons, blacklist utils
 ```
 
@@ -170,7 +171,7 @@ Self-calibrating: injects last 5 admin corrections into system prompt.
 
 ### Repositories
 
-Concrete classes, no abstract interfaces. Return ORM models directly. Located in `app/infrastructure/db/repositories/`. Created via Container factory methods.
+Concrete classes, no abstract interfaces. Return ORM models directly. Located in `app/db/repositories/`. Instantiated inline by the dependencies middleware; no factory indirection.
 
 ### Container
 

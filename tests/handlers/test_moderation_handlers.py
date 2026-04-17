@@ -46,8 +46,8 @@ class TestModerationHandlers:
 
         # Mock utility functions
         with (
-            patch("app.presentation.telegram.handlers.moderation.other.calculate_mute_duration") as mock_calc,
-            patch("app.presentation.telegram.handlers.moderation.other.get_user_mention") as mock_mention,
+            patch("app.presentation.telegram.handlers.moderation.mute.other.calculate_mute_duration") as mock_calc,
+            patch("app.presentation.telegram.handlers.moderation.mute.other.get_user_mention") as mock_mention,
         ):
             # Configure mocks
             mock_duration = AsyncMock()
@@ -93,8 +93,8 @@ class TestModerationHandlers:
 
         # Mock utility functions
         with (
-            patch("app.presentation.telegram.handlers.moderation.other.calculate_mute_duration") as mock_calc,
-            patch("app.presentation.telegram.handlers.moderation.other.get_user_mention") as mock_mention,
+            patch("app.presentation.telegram.handlers.moderation.mute.other.calculate_mute_duration") as mock_calc,
+            patch("app.presentation.telegram.handlers.moderation.mute.other.get_user_mention") as mock_mention,
         ):
             # Configure mocks
             mock_duration = AsyncMock()
@@ -130,8 +130,8 @@ class TestModerationHandlers:
 
         # Mock utility functions to raise exception
         with (
-            patch("app.presentation.telegram.handlers.moderation.other.calculate_mute_duration") as mock_calc,
-            patch("app.presentation.telegram.handlers.moderation.other.sleep_and_delete") as mock_sleep,
+            patch("app.presentation.telegram.handlers.moderation.mute.other.calculate_mute_duration") as mock_calc,
+            patch("app.presentation.telegram.handlers.moderation.mute.other.sleep_and_delete") as mock_sleep,
         ):
             mock_calc.side_effect = ValueError("Invalid duration")
             mock_sleep.return_value = None
@@ -160,7 +160,7 @@ class TestModerationHandlers:
         mock_bot.mock.restrict_chat_member = AsyncMock(side_effect=Exception("API Error"))
 
         # Mock utility functions
-        with patch("app.presentation.telegram.handlers.moderation.other.calculate_mute_duration") as mock_calc:
+        with patch("app.presentation.telegram.handlers.moderation.mute.other.calculate_mute_duration") as mock_calc:
             mock_duration = AsyncMock()
             mock_duration.until_date = 1234567890
             mock_calc.return_value = mock_duration
@@ -195,7 +195,7 @@ class TestModerationHandlers:
         mock_bot.mock.ban_chat_member = AsyncMock()
 
         # Mock utility functions
-        with patch("app.presentation.telegram.handlers.moderation.other.get_user_mention") as mock_mention:
+        with patch("app.presentation.telegram.handlers.moderation.ban.other.get_user_mention") as mock_mention:
             mock_mention.return_value = "@user"
 
             # Act
@@ -222,7 +222,7 @@ class TestModerationHandlers:
         mock_bot.mock.unban_chat_member = AsyncMock()
 
         # Mock utility functions
-        with patch("app.presentation.telegram.handlers.moderation.other.get_user_mention") as mock_mention:
+        with patch("app.presentation.telegram.handlers.moderation.ban.other.get_user_mention") as mock_mention:
             mock_mention.return_value = "@user"
 
             # Act
@@ -275,7 +275,7 @@ class TestModerationHandlerEdgeCases:
         mock_bot.mock.ban_chat_member = AsyncMock(side_effect=Exception("Not enough rights"))
 
         # Mock utility functions
-        with patch("app.presentation.telegram.handlers.moderation.other.sleep_and_delete") as mock_sleep:
+        with patch("app.presentation.telegram.handlers.moderation.ban.other.sleep_and_delete") as mock_sleep:
             mock_sleep.return_value = None
 
             # Act

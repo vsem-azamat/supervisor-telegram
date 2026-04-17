@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import func, select
 
-from app.infrastructure.db.models import AgentDecision
+from app.db.models import AgentDecision
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
-    from app.agent.schemas import AgentEvent
+    from app.moderation.schemas import AgentEvent
 
 
 @dataclass

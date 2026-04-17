@@ -1,10 +1,10 @@
-"""Tests for app.agent.tool_trace — tool call trace formatting."""
+"""Tests for app.core.tool_trace — tool call trace formatting."""
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from app.agent.tool_trace import format_response_with_trace, format_tool_trace, trim_history
+from app.core.tool_trace import format_response_with_trace, format_tool_trace, trim_history
 from pydantic_ai.messages import (
     ModelMessage,
     ModelRequest,

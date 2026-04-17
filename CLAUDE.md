@@ -35,19 +35,19 @@ Full details: [`docs/architecture.md`](docs/architecture.md).
 
 ```
 app/
-├── core/              # Config (9 Pydantic classes), logging, DI container, enums, exceptions
-├── moderation/        # AI moderation: agent, escalation, memory, blacklist, report, services
-├── agent/             # AI agent infrastructure (prompts, schemas, tool_trace)
-│   └── channel/       # Content pipeline feature module
-│       ├── orchestrator.py   # Per-channel scheduling + orchestration
-│       ├── workflow.py       # Burr state machine (9 actions)
-│       ├── generator.py      # LLM screening + post generation
-│       ├── review/           # Review submodule (agent, presentation, service)
-│       ├── semantic_dedup.py # pgvector cosine similarity
-│       ├── sources.py        # RSS + health tracking
-│       └── http.py           # SSRF-protected HTTP client
+├── core/              # Config (9 Pydantic classes), logging, DI container, enums, exceptions, tool_trace
+├── moderation/        # Moderation agent (schemas, prompts, escalation, memory, blacklist, report, services)
+├── channel/           # Content pipeline feature module
+│   ├── orchestrator.py   # Per-channel scheduling + orchestration
+│   ├── workflow.py       # Burr state machine (9 actions)
+│   ├── generator.py      # LLM screening + post generation
+│   ├── review/           # Review submodule (agent, telegram_io, service)
+│   ├── semantic_dedup.py # pgvector cosine similarity
+│   ├── sources.py        # RSS + health tracking
+│   └── http.py           # SSRF-protected HTTP client
 ├── assistant/         # Conversational admin bot (PydanticAI, Claude Sonnet, 30+ tools)
-├── infrastructure/    # DB models (SQLAlchemy), repositories, Telethon client
+├── db/                # SQLAlchemy models, repositories, session management
+├── telethon/          # Telethon userbot client (auth, chat/message/scheduled ops)
 └── presentation/      # Telegram handlers, middlewares, utils (buttons, blacklist)
 ```
 
@@ -56,7 +56,7 @@ app/
 - `app/core/config.py` — Pydantic settings hierarchy (9 nested config classes)
 - `app/core/enums.py` — `PostStatus`, `EscalationStatus`, `ReviewDecision` StrEnums
 - `app/core/exceptions.py` — `DomainError`, `UserNotFoundException`
-- `app/infrastructure/db/models.py` — 9 ORM models (including pgvector `Vector(768)` column)
+- `app/db/models.py` — 9 ORM models (including pgvector `Vector(768)` column)
 - `app/core/markdown.py` — `md_to_entities` / `md_to_entities_chunked` (telegramify-markdown)
 - `app/core/time.py` — `utc_now()` helper for naive UTC datetimes
 - `app/presentation/telegram/bot.py` — main entry, dispatcher setup
@@ -97,7 +97,7 @@ Self-calibrating: injects last 5 admin corrections into system prompt. Escalates
 
 ## Testing
 
-- **600+ tests**, ~20s runtime
+- **640 tests**, ~27s runtime
 - Unit: SQLite in-memory
 - Integration: testcontainers PostgreSQL
 - E2E: `FakeTelegramServer` (aiohttp-based Bot API simulator)

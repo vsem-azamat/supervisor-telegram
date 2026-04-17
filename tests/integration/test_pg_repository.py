@@ -5,10 +5,10 @@ database (not SQLite), catching dialect-specific issues.
 """
 
 import pytest
-from app.infrastructure.db.models import Admin, Chat, User
-from app.infrastructure.db.repositories.admin import AdminRepository
-from app.infrastructure.db.repositories.chat import ChatRepository
-from app.infrastructure.db.repositories.user import UserRepository
+from app.db.models import Admin, Chat, User
+from app.db.repositories.admin import AdminRepository
+from app.db.repositories.chat import ChatRepository
+from app.db.repositories.user import UserRepository
 from sqlalchemy.ext.asyncio import AsyncSession
 
 

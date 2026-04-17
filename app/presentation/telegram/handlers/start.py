@@ -3,7 +3,7 @@ from aiogram.filters import Command
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.infrastructure.db.repositories import AdminRepository
+from app.db.repositories import AdminRepository
 from app.presentation.telegram.utils import buttons as buttons_service
 from app.presentation.telegram.utils import other
 

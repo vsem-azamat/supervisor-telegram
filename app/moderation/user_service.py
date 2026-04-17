@@ -1,9 +1,11 @@
 """User domain service."""
 
 from app.core.exceptions import UserNotFoundException
-from app.core.logging import BotLogger
-from app.infrastructure.db.models import User
-from app.infrastructure.db.repositories.user import UserRepository
+from app.core.logging import get_logger
+from app.db.models import User
+from app.db.repositories.user import UserRepository
+
+logger = get_logger(__name__)
 
 
 class UserService:
@@ -11,7 +13,6 @@ class UserService:
 
     def __init__(self, user_repository: UserRepository) -> None:
         self.user_repository = user_repository
-        self.logger = BotLogger("user_service")
 
     async def get_user_by_id(self, user_id: int) -> User:
         """Get user by ID, raise exception if not found."""
@@ -35,14 +36,12 @@ class UserService:
         existing_user = await self.user_repository.get_by_id(user_id)
 
         if existing_user:
-            # Update existing user
             existing_user.username = username
             existing_user.first_name = first_name
             existing_user.last_name = last_name
             user = await self.user_repository.save(existing_user)
-            self.logger.log_user_action(user_id, "profile_updated")
+            logger.info("profile_updated", user_id=user_id)
         else:
-            # Create new user
             user = User(
                 id=user_id,
                 username=username,
@@ -50,7 +49,7 @@ class UserService:
                 last_name=last_name,
             )
             user = await self.user_repository.save(user)
-            self.logger.log_user_action(user_id, "user_created")
+            logger.info("user_created", user_id=user_id)
 
         return user
 
@@ -59,13 +58,12 @@ class UserService:
         user = await self.get_user_by_id_optional(user_id)
 
         if not user:
-            # Create user record if doesn't exist
             user = User(id=user_id, blocked=True)
         else:
             user.block()
 
         user = await self.user_repository.save(user)
-        self.logger.log_user_action(user_id, "user_blocked")
+        logger.info("user_blocked", user_id=user_id)
         return user
 
     async def unblock_user(self, user_id: int) -> User:
@@ -73,12 +71,12 @@ class UserService:
         user = await self.get_user_by_id(user_id)
 
         if not user.is_blocked:
-            self.logger.log_user_action(user_id, "unblock_attempt_not_blocked")
+            logger.info("unblock_attempt_not_blocked", user_id=user_id)
             return user
 
         user.unblock()
         user = await self.user_repository.save(user)
-        self.logger.log_user_action(user_id, "user_unblocked")
+        logger.info("user_unblocked", user_id=user_id)
         return user
 
     async def get_blocked_users(self) -> list[User]:

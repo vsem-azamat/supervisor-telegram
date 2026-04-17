@@ -4,7 +4,7 @@ from aiogram import Bot
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.logging import get_logger
-from app.infrastructure.db.repositories import (
+from app.db.repositories import (
     ChatRepository,
     MessageRepository,
     UserRepository,

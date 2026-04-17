@@ -5,7 +5,7 @@ from aiogram import BaseMiddleware, Bot
 from aiogram.types import TelegramObject
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.infrastructure.db.repositories import (
+from app.db.repositories import (
     get_admin_repository,
     get_chat_link_repository,
     get_chat_repository,

@@ -1,7 +1,7 @@
 from aiogram import types
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.infrastructure.db.repositories import (
+from app.db.repositories import (
     get_chat_repository,
     get_message_repository,
     get_user_repository,
@@ -27,7 +27,7 @@ async def save_message(db: AsyncSession, message: types.Message) -> None:
 
 async def merge_user(db: AsyncSession, user: types.User) -> None:
     user_repo = get_user_repository(db)
-    from app.infrastructure.db.models import User
+    from app.db.models import User
 
     existing = await user_repo.get_by_id(user.id)
     if existing:
