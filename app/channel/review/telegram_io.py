@@ -23,7 +23,7 @@ from __future__ import annotations
 import calendar
 from typing import TYPE_CHECKING, Any
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message, URLInputFile
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto, Message, URLInputFile
 
 from app.channel.review.service import (
     CB_APPROVE,
@@ -170,24 +170,54 @@ def build_schedule_picker_keyboard(
 # ── Telegram message send/edit helpers ──
 
 
-async def _send_review_message(
+async def _render_review_message(
     bot: Bot,
     chat_id: int | str,
-    text: str,
+    post_text: str,
+    image_urls: list[str] | None,
     keyboard: InlineKeyboardMarkup,
-    image_url: str | None = None,
-) -> Message:
-    """Send review message — photo with caption if image available, else text.
+) -> tuple[int, list[int] | None]:
+    """Send a review message in the right mode based on image count.
 
-    NOTE: parse_mode=None is required to override the bot's default parse_mode="HTML",
-    otherwise caption_entities / entities are silently ignored by Telegram.
+    Returns (pult_message_id, album_message_ids | None).
+    - 0 images → text message (pult = that message; album = None)
+    - 1 image, caption ≤ 1024 → photo with caption (pult = that photo; album = None)
+    - 1 image, caption > 1024 → text-only fallback (image dropped; pult = text msg)
+    - 2+ images → media group + separate pult text message as reply to first photo
+
+    parse_mode=None is required everywhere to preserve entities past the bot's
+    default HTML mode.
     """
-    plain, entities = md_to_entities(text)
+    plain, entities = md_to_entities(post_text)
+    urls = list(image_urls or [])
 
-    if image_url and len(plain) <= 1024:
+    if len(urls) >= 2:
+        input_media = [InputMediaPhoto(media=URLInputFile(u)) for u in urls[:10]]
         try:
-            photo = URLInputFile(image_url)
-            return await bot.send_photo(
+            photos = await bot.send_media_group(chat_id=chat_id, media=input_media)
+        except Exception:
+            logger.exception("review_album_send_failed_fallback_to_single")
+            photos = []
+
+        if photos:
+            pult_msg = await bot.send_message(
+                chat_id=chat_id,
+                text=plain,
+                entities=entities,
+                reply_markup=keyboard,
+                reply_to_message_id=photos[0].message_id,
+                disable_web_page_preview=True,
+                parse_mode=None,
+            )
+            return pult_msg.message_id, [m.message_id for m in photos]
+
+        # album failed — fall through to single-image path using the first url
+
+    first_url = urls[0] if urls else None
+    if first_url and len(plain) <= 1024:
+        try:
+            photo = URLInputFile(first_url)
+            msg = await bot.send_photo(
                 chat_id=chat_id,
                 photo=photo,
                 caption=plain,
@@ -195,10 +225,11 @@ async def _send_review_message(
                 reply_markup=keyboard,
                 parse_mode=None,
             )
+            return msg.message_id, None
         except Exception:
             logger.exception("review_photo_failed_fallback_to_text")
 
-    return await bot.send_message(
+    msg = await bot.send_message(
         chat_id=chat_id,
         text=plain,
         entities=entities,
@@ -206,6 +237,26 @@ async def _send_review_message(
         disable_web_page_preview=True,
         parse_mode=None,
     )
+    return msg.message_id, None
+
+
+async def _send_review_message(
+    bot: Bot,
+    chat_id: int | str,
+    text: str,
+    keyboard: InlineKeyboardMarkup,
+    image_url: str | None = None,
+) -> Message:
+    """Back-compat wrapper that returns the pult Message only.
+
+    Callers that still use this helper get single-message semantics (they cannot
+    support album mode — they get the old behaviour). New code should use
+    `_render_review_message` directly.
+    """
+    image_urls = [image_url] if image_url else []
+    pult_id, _ = await _render_review_message(bot, chat_id, text, image_urls, keyboard)
+    # Synthesise a minimal Message-like object; callers only use .message_id.
+    return type("_StubMsg", (), {"message_id": pult_id})()  # type: ignore[return-value]
 
 
 async def _edit_review_message(
