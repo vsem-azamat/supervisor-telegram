@@ -74,6 +74,10 @@ class GeneratedPost(BaseModel):
     image_phashes: list[str] = Field(
         default_factory=list, description="pHashes of selected images (for future cross-post dedup)"
     )
+    pre_critic_text: str | None = Field(
+        default=None,
+        description="Post text before the critic polish pass; None when critic did not run or failed",
+    )
 
 
 SCREENING_PROMPT_TEMPLATE = """\

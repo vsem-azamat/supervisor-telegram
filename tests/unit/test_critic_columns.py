@@ -75,3 +75,21 @@ async def test_channel_post_pre_critic_text_roundtrip(session_maker):
     async with session_maker() as session:
         row = (await session.execute(select(ChannelPost).where(ChannelPost.id == pid))).scalar_one()
     assert row.pre_critic_text == "original pre-critic text with **bold**"
+
+
+async def test_generated_post_pre_critic_text_default_none():
+    from app.channel.generator import GeneratedPost
+
+    p = GeneratedPost(text="hello")
+    assert p.pre_critic_text is None
+
+
+async def test_generated_post_pre_critic_text_roundtrip():
+    from app.channel.generator import GeneratedPost
+
+    p = GeneratedPost(text="new text", pre_critic_text="original text")
+    assert p.pre_critic_text == "original text"
+
+    dumped = p.model_dump()
+    restored = GeneratedPost.model_validate(dumped)
+    assert restored.pre_critic_text == "original text"
