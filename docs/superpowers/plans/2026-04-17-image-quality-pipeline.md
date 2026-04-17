@@ -838,12 +838,15 @@ DOWNLOAD_TIMEOUT_SECONDS = 10
 @dataclass(slots=True)
 class FilteredImage:
     """An image that passed ``cheap_filter``. Carries bytes so downstream
-    stages (vision_score, phash_dedup) don't re-download."""
+    stages (vision_score, phash_dedup) don't re-download. ``phash`` and
+    ``is_duplicate`` are populated by ``phash_dedup_against``."""
 
     url: str
     width: int
     height: int
     bytes_: bytes
+    phash: str | None = None
+    is_duplicate: bool = False
 
 
 async def cheap_filter(urls: list[str]) -> list[FilteredImage]:
@@ -2168,26 +2171,17 @@ async def build_candidates(
         logger.info("image_pipeline_no_candidates_after_filter", channel_id=channel_id, input=len(urls))
         return []
 
-    # Stage 2: vision scoring (batched multimodal call)
+    # Stage 2: vision scoring (batched multimodal call).
+    # vision_score drops is_logo/is_text_slide/low-score; that is desired —
+    # the reviewer can always re-add via `add_image_url` if they disagree.
+    # On API failure it returns every candidate with null scores instead,
+    # so `scored` is never empty when `filtered` wasn't.
     scored = await vision_score(filtered, title=title, api_key=api_key, model=vision_model)
+    if not scored:
+        logger.info("image_pipeline_no_candidates_after_vision", channel_id=channel_id, input=len(filtered))
+        return []
 
-    # Stage 2b: any cheap_filter-passed candidates that vision_score dropped
-    # come back as ScoredImage with null scores via _unscored, so the list
-    # length is preserved. However vision_score applies post-filtering (is_logo
-    # etc.) which can shrink the list. We want *all* filtered images here even
-    # when vision marked them low-quality — so the reviewer can still see them
-    # in the pool. So merge: if vision dropped an image, keep a null-scored
-    # version.
-    kept_urls = {s.url for s in scored}
-    for img in filtered:
-        if img.url not in kept_urls:
-            scored.append(
-                ScoredImage(url=img.url, width=img.width, height=img.height, bytes_=img.bytes_)
-            )
-
-    # Stage 3: phash dedup (DB query for recent hashes + Hamming compare)
-    # The dedup module works on FilteredImage; we pass ScoredImage (same shape).
-    # It mutates .phash and .is_duplicate and returns only non-duplicates.
+    # Stage 3: phash dedup — mutates .phash and .is_duplicate, returns non-dups.
     from app.channel.image_pipeline.filter import FilteredImage
 
     filtered_for_dedup = [FilteredImage(url=s.url, width=s.width, height=s.height, bytes_=s.bytes_) for s in scored]
