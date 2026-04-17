@@ -32,10 +32,11 @@ ENV/
 Thumbs.db
 
 # Documentation & local-only planning files
+# NOTE: README.md must NOT be excluded — pyproject.toml references it as
+# the `readme` field and the Dockerfile COPYs it for `uv sync`.
 CLAUDE.md
 AGENTS.md
 docs/
-README.md
 PROJECT_TRACKING.md
 Makefile
 .pre-commit-config.yaml
