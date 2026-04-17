@@ -409,6 +409,8 @@ class ChannelPost(Base):
     review_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     image_url: Mapped[str | None] = mapped_column(String, nullable=True)
     image_urls: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    image_candidates: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
+    image_phashes: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     status: Mapped[str] = mapped_column(String(16), default=PostStatus.DRAFT, index=True)
     admin_feedback: Mapped[str | None] = mapped_column(String, nullable=True)
     scheduled_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
@@ -432,6 +434,8 @@ class ChannelPost(Base):
         review_chat_id: int | None = None,
         image_url: str | None = None,
         image_urls: list[str] | None = None,
+        image_candidates: list[dict[str, Any]] | None = None,
+        image_phashes: list[str] | None = None,
         status: str = PostStatus.DRAFT,
         embedding: Any | None = None,
         embedding_model: str | None = None,
@@ -447,6 +451,8 @@ class ChannelPost(Base):
         self.review_chat_id = review_chat_id
         self.image_url = image_url
         self.image_urls = image_urls
+        self.image_candidates = image_candidates
+        self.image_phashes = image_phashes
         self.status = status
         self.reply_chain_message_ids: list[int] | None = None
         self.embedding = embedding

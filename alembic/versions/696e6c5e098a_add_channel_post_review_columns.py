@@ -23,13 +23,11 @@ def upgrade() -> None:
     op.add_column("channel_posts", sa.Column("review_message_id", sa.BigInteger(), nullable=True))
     op.add_column("channel_posts", sa.Column("review_chat_id", sa.BigInteger(), nullable=True))
     op.add_column("channel_posts", sa.Column("admin_feedback", sa.String(), nullable=True))
-    op.add_column(
-        "channel_sources", sa.Column("relevance_score", sa.Float(), nullable=False, server_default="1.0")
-    )
+    # relevance_score was already included in the CREATE TABLE in e3cd4fed09e2;
+    # this op.add_column would duplicate it on a fresh DB.  Skip it.
 
 
 def downgrade() -> None:
-    op.drop_column("channel_sources", "relevance_score")
     op.drop_column("channel_posts", "admin_feedback")
     op.drop_column("channel_posts", "review_chat_id")
     op.drop_column("channel_posts", "review_message_id")

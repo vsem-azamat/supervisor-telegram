@@ -27,3 +27,11 @@ class EmbeddingError(ChannelPipelineError):
 
 class DiscoveryError(ChannelPipelineError):
     """Failed during content or source discovery."""
+
+
+class ImagePipelineError(ChannelPipelineError):
+    """Recoverable failure in the image pipeline.
+
+    Caller should skip images (``image_urls=[]``) and continue the post
+    through review rather than halting the whole content pipeline.
+    """
