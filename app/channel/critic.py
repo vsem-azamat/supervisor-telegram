@@ -9,6 +9,12 @@ from __future__ import annotations
 import re
 import unicodedata
 
+from pydantic_ai import Agent
+from pydantic_ai.models.openai import OpenAIChatModel
+from pydantic_ai.providers.openai import OpenAIProvider
+
+from app.channel.cost_tracker import extract_usage_from_pydanticai_result, log_usage
+from app.core.config import settings
 from app.core.exceptions import DomainError
 from app.core.logging import get_logger
 
@@ -111,3 +117,106 @@ def _validate_invariants(original: str, polished: str, footer: str) -> list[str]
             violations.append(f"headline emoji missing (first char: {first!r})")
 
     return violations
+
+
+# ── LLM critic pass ──────────────────────────────────────────────────
+
+CRITIC_PROMPT = """\
+You are a ruthless style editor for the Telegram channel "Konnekt"
+(news for CIS students in the Czech Republic). Your ONLY job: polish a
+post by removing clichés, banal openers, dead verbs, and pompous or
+corporate phrasing.
+
+HARD RULES — violation = task failed:
+1. PRESERVE every Markdown link [text](url) — same URLs, same count.
+2. PRESERVE the exact footer at the end: {footer}
+3. PRESERVE facts: numbers, dates, names, institutions, prices, addresses.
+4. PRESERVE structure: same paragraph breaks, same order, same headline
+   emoji at the very start.
+5. Output MUST be <= 900 characters total.
+6. Do NOT add new information. Do NOT invent details, numbers, or names.
+
+WHAT TO FIX:
+- Banned phrases: "это отличная/уникальная возможность",
+  "не упустите шанс", "лично расспросить", "рады сообщить",
+  "с гордостью представляем", "Ознакомиться можно...",
+  "Подробнее здесь...", "Узнать больше..."
+- Banal openers: "У нас отличная новость", "Есть хорошая новость для
+  вас", "Хотим поделиться..."
+- Dead verbs: "предоставляем", "сообщаем", "уведомляем" — replace with
+  the concrete action.
+- Pompous / corporate tone → friendly, peer-to-peer student tone.
+- Filler adjectives: "уникальный", "незабываемый", "эксклюзивный".
+
+TONE: simple, slightly witty, like telling a friend about news. At
+most one exclamation mark per post.
+
+OUTPUT: return ONLY the polished post text. No explanations, no
+"Here's your polished version:", no markdown code fences. Plain
+polished post.
+"""
+
+_RETRY_HINT = (
+    "Your previous rewrite violated hard rules. Fix the violations and "
+    "return ONLY the polished post text.\n"
+    "You MUST preserve every link [text](url), the exact footer, the "
+    "headline emoji, and keep the total length <= 900 characters.\n"
+)
+
+
+def _create_critic_agent(api_key: str, model: str, *, footer: str) -> Agent[None, str]:
+    """Build the PydanticAI agent for the critic pass."""
+    provider = OpenAIProvider(base_url=settings.openrouter.base_url, api_key=api_key)
+    llm = OpenAIChatModel(model_name=model, provider=provider)
+    prompt = CRITIC_PROMPT.format(footer=footer)
+    return Agent(llm, system_prompt=prompt, output_type=str, model_settings={"temperature": 0.4})
+
+
+async def polish_post(
+    *,
+    text: str,
+    footer: str,
+    api_key: str,
+    model: str,
+) -> str:
+    """Run the critic pass on `text`. Returns polished text or raises CriticError.
+
+    Makes at most two LLM calls: the main polish, plus one retry if the
+    first result violates invariants. On any exception (LLM error, retry
+    still violates), raises CriticError so the caller can fall back.
+    """
+    agent = _create_critic_agent(api_key, model, footer=footer)
+
+    try:
+        result = await agent.run(text)
+    except Exception as exc:
+        raise CriticError(f"first call failed: {exc}") from exc
+
+    usage = extract_usage_from_pydanticai_result(result, model, "critic")
+    if usage:
+        await log_usage(usage)
+
+    polished = _strip_agent_artifacts(result.output)
+    violations = _validate_invariants(text, polished, footer)
+    if not violations:
+        return polished
+
+    logger.info("critic_retry", violations=violations)
+
+    retry_prompt = f"{_RETRY_HINT}Previous violations: {', '.join(violations)}\n\nOriginal post (rewrite this):\n{text}"
+
+    try:
+        result = await agent.run(retry_prompt)
+    except Exception as exc:
+        raise CriticError(f"retry call failed: {exc}") from exc
+
+    usage = extract_usage_from_pydanticai_result(result, model, "critic_retry")
+    if usage:
+        await log_usage(usage)
+
+    polished = _strip_agent_artifacts(result.output)
+    violations = _validate_invariants(text, polished, footer)
+    if not violations:
+        return polished
+
+    raise CriticError(f"invariants violated after retry: {violations}")
