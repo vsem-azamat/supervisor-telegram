@@ -473,7 +473,20 @@ async def regen_post_text(
         if not items:
             return "No source data to regenerate from.", None
 
-        new_post = await generate_post(items, api_key=api_key, model=model, language=language, footer=footer)
+        from app.core.config import settings
+
+        new_post = await generate_post(
+            items,
+            api_key=api_key,
+            model=model,
+            language=language,
+            footer=footer,
+            channel_id=post.channel_id,
+            session_maker=session_maker,
+            vision_model=settings.channel.vision_model,
+            phash_threshold=settings.channel.image_phash_threshold,
+            phash_lookback=settings.channel.image_phash_lookback_posts,
+        )
         if not new_post:
             return "Regeneration failed.", None
 
