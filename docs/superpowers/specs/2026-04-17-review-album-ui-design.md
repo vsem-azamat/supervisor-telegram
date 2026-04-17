@@ -101,15 +101,20 @@ async def _rebuild_review_message(
 
 No change in behaviour. `_edit_review_message(pult_id, ...)` works identically whether pult is a photo-with-caption (single mode) or a plain text message (album mode). Album photos are never touched.
 
-### Image edit (`use_candidate`, `add_image_url`, `remove_image`, `reorder_images`, `find_and_add_image`, `clear_images`)
+### Image edit (`use_candidate`, `add_image_url`, `remove_image`, `reorder_images`, `clear_images`)
 
-After a successful mutation, the @agent.tool wrapper in `app/channel/review/agent.py` calls `_rebuild_review_message`:
+The existing `_refresh_after_change` in `app/channel/review/agent.py` already calls `_refresh_review_message` after each image op. We upgrade `_refresh_review_message` (in `agent.py`) to use the new render helper and handle the album case:
 
-1. Call `_render_review_message` with the post's new state — this sends *new* messages first.
-2. Commit new `(pult_id, album_ids)` to DB (so callbacks on new pult work immediately).
-3. Best-effort `bot.delete_messages(chat_id, [old_pult_id, *old_album_ids])`. Log but ignore failures (messages >48h old, already deleted, etc.).
+1. Re-fetch the post from DB to get fresh `image_urls` and existing `review_message_id` / `review_album_message_ids`.
+2. Call `_render_review_message` with the new state — sends fresh messages first.
+3. Commit new `(pult_id, album_ids)` to DB (so callbacks on new pult work immediately).
+4. Best-effort `bot.delete_messages(chat_id, [old_pult_id, *old_album_ids])`. Log but ignore failures (messages >48h old, already deleted, etc.).
 
 This "new-first-then-delete" order means the worst visible failure is a few seconds of duplicate messages, never a dead-callback state.
+
+Note: `find_and_add_image` does **not** trigger a refresh — it adds to the candidate pool, not to the selected images. Existing behaviour preserved.
+
+`*_op` functions in `image_tools.py` keep their current `-> str` signature. The refresh call stays unconditional at the @tool-wrapper level: if the op returned an error ("invalid index"), refresh rebuilds the same visual state — cheap and idempotent. Not worth the signature-change scope.
 
 ### Regen
 
@@ -127,19 +132,14 @@ This "new-first-then-delete" order means the worst visible failure is a few seco
 |---|---|---|
 | `app/db/models.py` | +1 field `review_album_message_ids` (JSON nullable) | +3 |
 | `alembic/versions/<new>.py` | new migration | ~25 |
-| `app/channel/review/telegram_io.py` | new `_render_review_message`, `_rebuild_review_message`, `_delete_album` helpers; refactor `_send_review_message` into `_render`; `handle_delete` cleans album ids | +120 new, ~30 changed |
-| `app/channel/review/image_tools.py` | each `*_op` returns `(status: str, mutated: bool)` | +30 |
-| `app/channel/review/agent.py` | each @agent.tool wrapper calls `_rebuild_review_message` when `mutated` | +15 |
-| `app/channel/review/service.py` | `create_review_post` initialises `review_album_message_ids=None`; `regen_post_text` triggers rebuild via caller | +10 |
+| `app/channel/review/telegram_io.py` | new `_render_review_message`; `send_for_review` persists album ids; `handle_delete` cleans album ids; `handle_regen` always rebuilds | +90 new, ~40 changed |
+| `app/channel/review/agent.py` | `_refresh_review_message` upgraded: fetches album ids from DB, new-first-then-delete, calls `_render_review_message` | ~50 changed |
+| `app/channel/review/service.py` | `regen_post_text` returns the updated post with image_urls so the caller can rebuild | ~5 changed |
+| `tests/fake_telegram.py` | new `/sendMediaGroup` and `/deleteMessages` endpoints | +60 |
 
-### Design decision: where does the Telegram side-effect live?
+### Design decision: minimise blast radius
 
-image_tools `*_op` functions are currently pure DB operations, testable without Telegram mocks. Adding a Telegram side-effect has two viable shapes:
-
-- **X (chosen):** `*_op` returns `(status, mutated)`. The agent @tool wrapper (which already has `bot` in deps) decides when to call `_rebuild_review_message`. Keeps image_tools Telegram-agnostic. Small duplication in 7 wrappers.
-- **Y (rejected):** inject a `rebuild_fn` callable into `ImageToolsDeps`. DRY-er but forces image_tools unit tests to mock the callback; blurs the layering.
-
-We take **X**. Duplication is minimal (one line per wrapper) and the layering is cleaner.
+`agent.py` already owns the "refresh review message after an image op" call (`_refresh_after_change` → `_refresh_review_message`). We keep that seam. `image_tools.py` stays pure; its unit tests don't need to know about Telegram. The work of the rebuild moves *inside* `_refresh_review_message`, not up into the tool wrappers.
 
 ## Testing
 
@@ -153,7 +153,7 @@ We take **X**. Duplication is minimal (one line per wrapper) and the layering is
 - `tests/unit/test_review_rebuild.py` — `_rebuild_review_message`:
   - Order: new send → DB commit → old delete.
   - `delete_messages` raising does **not** roll back DB or bubble.
-- `tests/unit/test_image_tools_mutated_flag.py` — each of the 7 `*_op` returns `mutated=True` on success, `False` on invalid-input / wrong-status.
+- `tests/unit/test_review_refresh_album.py` — `_refresh_review_message` when post has album ids: fetches post, calls render helper, commits new ids, then best-effort deletes old.
 
 ### Integration (PG)
 
