@@ -23,6 +23,8 @@ from app.agent.channel.review.service import (
     CB_SCHEDULE_PICK,
     CB_SHORTER,
     CB_TRANSLATE,
+    REVIEW_SOURCE_BUTTON_COUNT,
+    REVIEW_SOURCE_TITLE_CHARS,
     approve_post,
     create_review_post,
     delete_post,
@@ -249,6 +251,8 @@ async def send_for_review(
 
     Creates a ChannelPost record in DB and returns its ID.
     """
+    from app.agent.channel.exceptions import EmbeddingError
+
     async with session_maker() as session:
         try:
             db_post = await create_review_post(
@@ -266,9 +270,9 @@ async def send_for_review(
             post_id = db_post.id
 
             source_btn_data: list[dict[str, str]] = []
-            for s in source_items[:2]:
+            for s in source_items[:REVIEW_SOURCE_BUTTON_COUNT]:
                 if s.url:
-                    source_btn_data.append({"title": s.title[:25], "url": s.url})
+                    source_btn_data.append({"title": s.title[:REVIEW_SOURCE_TITLE_CHARS], "url": s.url})
 
             keyboard = build_review_keyboard(
                 post_id,
@@ -282,8 +286,13 @@ async def send_for_review(
             await session.commit()
             logger.info("review_sent", post_id=post_id, review_msg=msg.message_id)
             return post_id
-        except Exception:
-            logger.exception("review_send_error", review_chat_id=review_chat_id)
+        except EmbeddingError as exc:
+            # create_review_post already rolled back the session; surface as None
+            # so the workflow step reports embedding_unavailable.
+            logger.warning("review_send_aborted_embedding_error", channel_id=channel_id, error=str(exc))
+            return None
+        except Exception as exc:
+            logger.exception("review_send_error", review_chat_id=review_chat_id, error=str(exc))
             await session.rollback()
             return None
 

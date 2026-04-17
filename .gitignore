@@ -170,7 +170,8 @@ moderator_userbot.session
 moderator_userbot.session-journal
 PROJECT_TRACKING.md
 logs/
-scripts/
+scripts/*
 !scripts/wait_for_postgres.sh
 !scripts/entrypoint.sh
+!scripts/backfill_embeddings.py
 docs/archive/

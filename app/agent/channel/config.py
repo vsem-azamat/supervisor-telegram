@@ -60,6 +60,18 @@ class ChannelAgentSettings(BaseSettings):
     semantic_dedup_threshold: float = Field(
         default=0.85, description="Cosine similarity threshold to consider items as duplicates (0-1)"
     )
+    dedup_lookback_days: int = Field(
+        default=7, description="How many days back to compare new items against published/reviewed posts"
+    )
+    dedup_query_snippet_chars: int = Field(
+        default=200,
+        description="Max chars sent to embedding API when querying nearest posts (inputs longer than this are clipped)",
+    )
+    backfill_batch_size: int = Field(default=32, description="Batch size for scripts/backfill_embeddings.py")
+    # NOTE: `body_chars` (default 100) that truncates item body for the embedding
+    # input lives in app/agent/channel/semantic_dedup.py::DEFAULT_EMBED_BODY_CHARS.
+    # It is a schema-like constant — changing it invalidates every stored vector
+    # and requires re-running scripts/backfill_embeddings.py.
 
     model_config = SettingsConfigDict(
         env_prefix="CHANNEL_",
