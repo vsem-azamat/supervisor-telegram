@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
-	import { useLivePoll } from '$lib/hooks/useLivePoll';
+	import { useLivePoll } from '$lib/hooks/useLivePoll.svelte';
 	import type { components } from '$lib/api/types';
 
 	type Summary = components['schemas']['SessionCostSummary'];

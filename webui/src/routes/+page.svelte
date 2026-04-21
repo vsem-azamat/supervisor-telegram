@@ -2,7 +2,7 @@
 	import ListTile from '$lib/components/home/ListTile.svelte';
 	import SkeletonTile from '$lib/components/home/SkeletonTile.svelte';
 	import StatTile from '$lib/components/home/StatTile.svelte';
-	import { useLivePoll } from '$lib/hooks/useLivePoll';
+	import { useLivePoll } from '$lib/hooks/useLivePoll.svelte';
 	import type { components } from '$lib/api/types';
 
 	type HomeStats = components['schemas']['HomeStats'];
