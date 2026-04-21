@@ -181,6 +181,16 @@ async def _filter_unavailable_tools(
     return [t for t in tool_defs if t.name not in _TELETHON_TOOLS]
 
 
+def current_date_prompt() -> str:
+    """Anchor the LLM to today's date so it doesn't hallucinate a stale year
+    (e.g. 2024) in web-search queries when its training cutoff predates today.
+    Registered as a dynamic system prompt so it stays current across long
+    conversations that may span midnight UTC."""
+    from app.core.time import utc_now
+
+    return f"Current date: {utc_now().strftime('%Y-%m-%d')}"
+
+
 def create_assistant_agent(model_name: str = "") -> Agent[AssistantDeps, str]:
     """Create the PydanticAI assistant agent with all tools."""
     from app.core.tool_trace import make_history_processor
@@ -204,6 +214,8 @@ def create_assistant_agent(model_name: str = "") -> Agent[AssistantDeps, str]:
         prepare_tools=_filter_unavailable_tools,
         tool_timeout=30,
     )
+
+    agent.system_prompt(dynamic=True)(current_date_prompt)
 
     from app.assistant.tools import register_all_tools
 

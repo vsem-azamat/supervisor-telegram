@@ -95,6 +95,17 @@ class TestCreateAssistantAgent:
         assert tool_count >= 30, f"Expected >= 30 tools, got {tool_count}: {list(agent._function_toolset.tools.keys())}"
 
 
+class TestCurrentDatePrompt:
+    def test_current_date_prompt_contains_todays_date(self) -> None:
+        """The prompt must embed today's UTC date so the LLM anchors to it
+        instead of hallucinating its training-cutoff year (issue #25)."""
+        from app.assistant.agent import current_date_prompt
+        from app.core.time import utc_now
+
+        today = utc_now().strftime("%Y-%m-%d")
+        assert today in current_date_prompt()
+
+
 # ---------------------------------------------------------------------------
 # 5. Schedule time regex validation
 # ---------------------------------------------------------------------------
