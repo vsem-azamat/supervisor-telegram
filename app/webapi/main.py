@@ -10,9 +10,10 @@ from typing import TYPE_CHECKING
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.config import settings
 from app.core.logging import get_logger
 from app.db.session import create_session_maker
-from app.webapi.routes import agent, channels, chats, costs, health, posts, spam, stats
+from app.webapi.routes import agent, auth, channels, chats, costs, health, posts, spam, stats
 from app.webapi.services.telethon_stats import TelethonStatsService
 from app.webapi.snapshot_loop import run_snapshot_loop
 
@@ -54,16 +55,15 @@ def create_app() -> FastAPI:
         lifespan=_lifespan,
     )
 
-    # Dev-only: wide-open CORS so the frontend can hit the API from any VPS
-    # hostname. When auth lands, tighten to an allowlist.
     app.add_middleware(
         CORSMiddleware,
-        allow_origin_regex=".*",
+        allow_origins=settings.webapi.allowed_origins or ["http://localhost:5173"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
 
+    app.include_router(auth.router, prefix="/api")
     app.include_router(health.router, prefix="/api")
     app.include_router(posts.router, prefix="/api")
     app.include_router(channels.router, prefix="/api")

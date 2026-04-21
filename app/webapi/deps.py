@@ -3,15 +3,14 @@
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Annotated
 
-from fastapi import Request
+from fastapi import Depends, HTTPException, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import create_session_maker
 
 if TYPE_CHECKING:
-    from sqlalchemy.ext.asyncio import AsyncSession
-
     from app.telethon.telethon_client import TelethonClient
     from app.webapi.services.telethon_stats import TelethonStatsService
 
@@ -22,18 +21,18 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-async def require_super_admin(request: Request | None = None) -> int:
+async def require_super_admin(
+    request: Request,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> int:
     """Validate the session cookie; return the authenticated super-admin's user_id.
 
     Cookie name is ``settings.webapi.session_cookie_name``. Reading via
     ``request.cookies.get(name)`` keeps the name config-driven (FastAPI's
     ``Cookie(alias=...)`` would bake it into the signature at import time).
-    The ``Request | None`` signature lets direct-call tests exercise the
-    dev-bypass path without constructing a fake request; FastAPI always
-    injects a real Request at runtime.
+    FastAPI injects a real Request at runtime; tests use dev_bypass_auth=True
+    to short-circuit the cookie check.
     """
-    from fastapi import HTTPException
-
     from app.core.config import settings
     from app.webapi.auth import session_store
 
@@ -43,21 +42,14 @@ async def require_super_admin(request: Request | None = None) -> int:
     if settings.webapi.dev_bypass_auth:
         return settings.admin.super_admins[0]
 
-    if request is None:
-        raise HTTPException(status_code=401, detail="not authenticated")
     token = request.cookies.get(settings.webapi.session_cookie_name)
     if not token:
         raise HTTPException(status_code=401, detail="not authenticated")
 
-    # Fresh DB session — depending on `get_session` at this layer would create
-    # a circular import, and this path is lightweight.
-    from app.db.session import create_session_maker
-
-    async with create_session_maker()() as db:
-        row = await session_store.load_valid_session(db, token)
-        if row is None or row.user_id not in settings.admin.super_admins:
-            raise HTTPException(status_code=401, detail="invalid session")
-        return row.user_id
+    row = await session_store.load_valid_session(session, token)
+    if row is None or row.user_id not in settings.admin.super_admins:
+        raise HTTPException(status_code=401, detail="invalid session")
+    return row.user_id
 
 
 async def get_telethon() -> TelethonClient | None:
