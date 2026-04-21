@@ -714,3 +714,34 @@ class SpamPing(Base):
         self.snippet = snippet
         if detected_at is not None:
             self.detected_at = detected_at
+
+
+class AdminSession(Base):
+    __tablename__ = "admin_sessions"
+
+    session_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
+    last_seen_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
+    expires_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False, index=True)
+    user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    def __init__(
+        self,
+        session_id: str,
+        user_id: int,
+        *,
+        created_at: datetime.datetime,
+        last_seen_at: datetime.datetime,
+        expires_at: datetime.datetime,
+        user_agent: str | None = None,
+        ip: str | None = None,
+    ) -> None:
+        self.session_id = session_id
+        self.user_id = user_id
+        self.created_at = created_at
+        self.last_seen_at = last_seen_at
+        self.expires_at = expires_at
+        self.user_agent = user_agent
+        self.ip = ip
