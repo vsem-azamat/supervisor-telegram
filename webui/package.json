@@ -9,7 +9,8 @@
 		"preview": "vite preview",
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"api:sync": "openapi-typescript http://127.0.0.1:8787/api/openapi.json -o src/lib/api/types.ts"
 	},
 	"devDependencies": {
 		"@internationalized/date": "^3.12.1",
@@ -20,6 +21,7 @@
 		"@tailwindcss/vite": "^4.2.2",
 		"bits-ui": "^2.18.0",
 		"mode-watcher": "^1.1.0",
+		"openapi-typescript": "^7.13.0",
 		"svelte": "^5.55.2",
 		"svelte-check": "^4.4.6",
 		"svelte-sonner": "^1.1.0",
