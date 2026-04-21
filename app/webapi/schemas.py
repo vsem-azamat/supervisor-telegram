@@ -126,6 +126,33 @@ class SessionCostSummary(BaseModel):
     cache_savings_usd: float
     by_operation: list[OperationCostBucket]
 
+    @classmethod
+    def from_tracker(cls, summary: dict[str, Any]) -> SessionCostSummary:
+        """Adapt `cost_tracker.get_session_summary()` output into a response.
+
+        Keeping the shape-conversion in one place prevents the /costs and
+        /stats/home endpoints from drifting apart as cost_tracker evolves.
+        """
+        buckets = [
+            OperationCostBucket(
+                operation=op_name,
+                tokens=int(data.get("tokens", 0)),
+                cost_usd=float(data.get("cost_usd", 0.0)),
+                calls=int(data.get("calls", 0)),
+                cache_savings_usd=float(data.get("cache_savings_usd", 0.0)),
+            )
+            for op_name, data in (summary.get("by_operation") or {}).items()
+        ]
+        return cls(
+            total_tokens=int(summary.get("total_tokens", 0)),
+            total_cost_usd=float(summary.get("total_cost_usd", 0.0)),
+            total_calls=int(summary.get("total_calls", 0)),
+            cache_read_tokens=int(summary.get("cache_read_tokens", 0)),
+            cache_write_tokens=int(summary.get("cache_write_tokens", 0)),
+            cache_savings_usd=float(summary.get("cache_savings_usd", 0.0)),
+            by_operation=buckets,
+        )
+
 
 class HomeStats(BaseModel):
     """Aggregated response backing the home dashboard's live tiles.
