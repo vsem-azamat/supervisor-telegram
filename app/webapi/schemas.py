@@ -88,8 +88,24 @@ class ChatRead(BaseModel):
     is_forum: bool
     is_welcome_enabled: bool
     is_captcha_enabled: bool
+    parent_chat_id: int | None = None
+    relation_notes: str | None = None
     member_count: int | None = None  # enriched from Telethon, None when unavailable
     created_at: datetime.datetime
+
+
+class ChatNode(BaseModel):
+    """Recursive node for the /chats/graph tree response.
+
+    member_count is intentionally NOT enriched here — the tree endpoint
+    skips Telethon to avoid N+1 RPCs on every poll. Drill into /chats/:id
+    for live counts.
+    """
+
+    id: int
+    title: str | None
+    relation_notes: str | None = None
+    children: list[ChatNode] = []
 
 
 class HeatmapCell(BaseModel):
@@ -112,13 +128,17 @@ class MemberSnapshotPoint(BaseModel):
 
 
 class ChatDetail(ChatRead):
-    """Full chat payload — adds heatmap grid + member-snapshot series."""
+    """Full chat payload — adds heatmap grid + member-snapshot series + relationships."""
 
     welcome_message: str | None
     time_delete: int
     modified_at: datetime.datetime
     heatmap: list[HeatmapCell]
     member_snapshots: list[MemberSnapshotPoint]
+    children: list[ChatNode] = []
+
+
+ChatNode.model_rebuild()
 
 
 class PostViewsEntry(BaseModel):

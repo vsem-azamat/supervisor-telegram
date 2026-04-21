@@ -3,8 +3,8 @@ from typing import Any
 
 import sqlalchemy as sa
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import JSON, BigInteger, Boolean, DateTime, Float, Index, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import JSON, BigInteger, Boolean, DateTime, Float, ForeignKey, Index, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.enums import EscalationStatus, PostStatus
 from app.core.time import utc_now
@@ -45,11 +45,30 @@ class Chat(Base):
     time_delete: Mapped[int] = mapped_column(Integer, default=60)
     is_welcome_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     is_captcha_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    parent_chat_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("chats.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    relation_notes: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
     modified_at: Mapped[datetime.datetime] = mapped_column(
         DateTime,
         default=utc_now,
         onupdate=utc_now,
+    )
+
+    parent: Mapped["Chat | None"] = relationship(
+        "Chat",
+        remote_side="Chat.id",
+        back_populates="children",
+        lazy="selectin",
+    )
+    children: Mapped[list["Chat"]] = relationship(
+        "Chat",
+        back_populates="parent",
+        cascade="save-update, merge",
     )
 
     def __init__(
@@ -61,6 +80,8 @@ class Chat(Base):
         time_delete: int = 60,
         is_welcome_enabled: bool = False,
         is_captcha_enabled: bool = False,
+        parent_chat_id: int | None = None,
+        relation_notes: str | None = None,
     ) -> None:
         self.id = id
         self.title = title
@@ -69,6 +90,8 @@ class Chat(Base):
         self.time_delete = time_delete
         self.is_welcome_enabled = is_welcome_enabled
         self.is_captcha_enabled = is_captcha_enabled
+        self.parent_chat_id = parent_chat_id
+        self.relation_notes = relation_notes
 
     def enable_welcome(self, message: str | None = None) -> None:
         """Enable welcome message for new members"""

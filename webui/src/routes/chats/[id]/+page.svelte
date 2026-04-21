@@ -60,5 +60,41 @@
 				{/if}
 			</Card.Content>
 		</Card.Root>
+
+		{#if detail.data.parent_chat_id !== null || detail.data.children.length > 0}
+			<Card.Root>
+				<Card.Header><Card.Title class="text-sm">Relationships</Card.Title></Card.Header>
+				<Card.Content class="space-y-2 text-sm">
+					{#if detail.data.parent_chat_id !== null}
+						<div class="flex items-baseline gap-2">
+							<span class="text-zinc-500">Parent:</span>
+							<a href="/chats/{detail.data.parent_chat_id}" class="text-zinc-800 hover:underline">
+								#{detail.data.parent_chat_id}
+							</a>
+							{#if detail.data.relation_notes}
+								<span class="text-xs text-zinc-400">· {detail.data.relation_notes}</span>
+							{/if}
+						</div>
+					{/if}
+					{#if detail.data.children.length > 0}
+						<div class="space-y-1">
+							<span class="text-zinc-500">Children ({detail.data.children.length}):</span>
+							<ul class="ml-4 list-disc space-y-0.5">
+								{#each detail.data.children as c (c.id)}
+									<li>
+										<a href="/chats/{c.id}" class="text-zinc-800 hover:underline">
+											{c.title ?? `#${c.id}`}
+										</a>
+										{#if c.relation_notes}
+											<span class="text-xs text-zinc-400">· {c.relation_notes}</span>
+										{/if}
+									</li>
+								{/each}
+							</ul>
+						</div>
+					{/if}
+				</Card.Content>
+			</Card.Root>
+		{/if}
 	{/if}
 </div>

@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.time import utc_now
 from app.db.models import Chat, ChatMemberSnapshot, Message
 from app.webapi.deps import get_session, get_telethon_stats, require_super_admin
-from app.webapi.schemas import ChatDetail, ChatRead, HeatmapCell, MemberSnapshotPoint
+from app.webapi.schemas import ChatDetail, ChatNode, ChatRead, HeatmapCell, MemberSnapshotPoint
 from app.webapi.services.telethon_stats import TelethonStatsService
 
 router = APIRouter(prefix="/chats", tags=["chats"])
@@ -53,11 +53,54 @@ async def list_chats(
             is_forum=chat.is_forum,
             is_welcome_enabled=chat.is_welcome_enabled,
             is_captcha_enabled=chat.is_captcha_enabled,
+            parent_chat_id=chat.parent_chat_id,
+            relation_notes=chat.relation_notes,
             member_count=member_count,
             created_at=chat.created_at,
         )
         for chat, member_count in zip(chats, member_counts, strict=True)
     ]
+
+
+@router.get("/graph", response_model=list[ChatNode])
+async def get_chat_graph(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _admin_id: Annotated[int, Depends(require_super_admin)],
+) -> list[ChatNode]:
+    """Return chat tree with roots first; children nested via parent_chat_id.
+
+    Single SQL query; tree assembly is in-memory. Telethon enrichment is
+    intentionally skipped for the tree endpoint — tile renders 1+ times
+    per poll, member_count drilldown lives on /chats/:id.
+
+    Self-loops (parent_chat_id == id) and orphans (parent_chat_id points
+    to a missing/deleted chat) become roots; multi-hop cycles aren't
+    detected here — admins set parent_chat_id manually so cycles would
+    be intentional misuse, not a runtime hazard.
+    """
+    chats = (await session.execute(select(Chat))).scalars().all()
+    by_id: dict[int, ChatNode] = {
+        c.id: ChatNode(id=c.id, title=c.title, relation_notes=c.relation_notes, children=[]) for c in chats
+    }
+    roots: list[ChatNode] = []
+    for c in chats:
+        node = by_id[c.id]
+        parent_id = c.parent_chat_id
+        if parent_id is not None and parent_id != c.id and parent_id in by_id:
+            by_id[parent_id].children.append(node)
+        else:
+            roots.append(node)
+
+    def _key(n: ChatNode) -> tuple[str, int]:
+        return ((n.title or "").lower(), n.id)
+
+    def _sort(nodes: list[ChatNode]) -> None:
+        nodes.sort(key=_key)
+        for n in nodes:
+            _sort(n.children)
+
+    _sort(roots)
+    return roots
 
 
 @router.get("/{chat_id}", response_model=ChatDetail)
@@ -98,12 +141,21 @@ async def get_chat(
 
     member_count = await stats.get_member_count(chat.id)
 
+    children_rows = (
+        (await session.execute(select(Chat).where(Chat.parent_chat_id == chat_id).order_by(Chat.title))).scalars().all()
+    )
+    children_nodes = [
+        ChatNode(id=c.id, title=c.title, relation_notes=c.relation_notes, children=[]) for c in children_rows
+    ]
+
     return ChatDetail(
         id=chat.id,
         title=chat.title,
         is_forum=chat.is_forum,
         is_welcome_enabled=chat.is_welcome_enabled,
         is_captcha_enabled=chat.is_captcha_enabled,
+        parent_chat_id=chat.parent_chat_id,
+        relation_notes=chat.relation_notes,
         member_count=member_count,
         created_at=chat.created_at,
         welcome_message=chat.welcome_message,
@@ -113,4 +165,5 @@ async def get_chat(
         member_snapshots=[
             MemberSnapshotPoint(captured_at=s.captured_at, member_count=s.member_count) for s in snapshots_ascending
         ],
+        children=children_nodes,
     )
