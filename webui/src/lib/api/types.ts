@@ -89,6 +89,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/chats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Chats */
+        get: operations["list_chats_api_chats_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/chats/{chat_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Chat */
+        get: operations["get_chat_api_chats__chat_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/costs/session": {
         parameters: {
             query?: never;
@@ -231,6 +265,80 @@ export interface components {
             last_error: string | null;
         };
         /**
+         * ChatDetail
+         * @description Full chat payload — adds heatmap grid + member-snapshot series.
+         */
+        ChatDetail: {
+            /** Id */
+            id: number;
+            /** Title */
+            title: string | null;
+            /** Is Forum */
+            is_forum: boolean;
+            /** Is Welcome Enabled */
+            is_welcome_enabled: boolean;
+            /** Is Captcha Enabled */
+            is_captcha_enabled: boolean;
+            /** Member Count */
+            member_count?: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Welcome Message */
+            welcome_message: string | null;
+            /** Time Delete */
+            time_delete: number;
+            /**
+             * Modified At
+             * Format: date-time
+             */
+            modified_at: string;
+            /** Heatmap */
+            heatmap: components["schemas"]["HeatmapCell"][];
+            /** Member Snapshots */
+            member_snapshots: components["schemas"]["MemberSnapshotPoint"][];
+        };
+        /**
+         * ChatHeatmapSummary
+         * @description Home tile: per-chat total activity over the last 7 days.
+         *
+         *     We send totals (not the full grid) to keep the home payload small;
+         *     the full grid lives on /chats/:id.
+         */
+        ChatHeatmapSummary: {
+            /** Chat Id */
+            chat_id: number;
+            /** Title */
+            title: string | null;
+            /** Total Messages */
+            total_messages: number;
+        };
+        /**
+         * ChatRead
+         * @description List-page view of a managed chat.
+         */
+        ChatRead: {
+            /** Id */
+            id: number;
+            /** Title */
+            title: string | null;
+            /** Is Forum */
+            is_forum: boolean;
+            /** Is Welcome Enabled */
+            is_welcome_enabled: boolean;
+            /** Is Captcha Enabled */
+            is_captcha_enabled: boolean;
+            /** Member Count */
+            member_count?: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
          * DraftBucket
          * @description Home tile: drafts grouped by channel.
          */
@@ -248,6 +356,23 @@ export interface components {
             detail?: components["schemas"]["ValidationError"][];
         };
         /**
+         * HeatmapCell
+         * @description One cell of the weekday×hour chat activity grid.
+         *
+         *     weekday: 0 = Monday, 6 = Sunday (matches datetime.weekday()).
+         *     hour: 0..23, UTC.
+         *     count: number of messages recorded in `messages` table for that cell
+         *            over the lookback window.
+         */
+        HeatmapCell: {
+            /** Weekday */
+            weekday: number;
+            /** Hour */
+            hour: number;
+            /** Count */
+            count: number;
+        };
+        /**
          * HomeStats
          * @description Aggregated response backing the home dashboard's live tiles.
          *
@@ -260,6 +385,50 @@ export interface components {
             /** Scheduled Next 24H */
             scheduled_next_24h: components["schemas"]["ScheduledPostEntry"][];
             session_cost: components["schemas"]["SessionCostSummary"];
+            /**
+             * Post Views
+             * @default []
+             */
+            post_views: components["schemas"]["PostViewsEntry"][];
+            /**
+             * Chat Heatmap
+             * @default []
+             */
+            chat_heatmap: components["schemas"]["ChatHeatmapSummary"][];
+            /**
+             * Members Delta
+             * @default []
+             */
+            members_delta: components["schemas"]["MembersDeltaEntry"][];
+        };
+        /** MemberSnapshotPoint */
+        MemberSnapshotPoint: {
+            /**
+             * Captured At
+             * Format: date-time
+             */
+            captured_at: string;
+            /** Member Count */
+            member_count: number;
+        };
+        /**
+         * MembersDeltaEntry
+         * @description Home tile: members Δ over a window.
+         *
+         *     delta_24h / delta_7d: None when no baseline snapshot exists yet
+         *     (first run, or snapshot history too short).
+         */
+        MembersDeltaEntry: {
+            /** Chat Id */
+            chat_id: number;
+            /** Title */
+            title: string | null;
+            /** Current */
+            current: number | null;
+            /** Delta 24H */
+            delta_24h: number | null;
+            /** Delta 7D */
+            delta_7d: number | null;
         };
         /**
          * OperationCostBucket
@@ -345,6 +514,27 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /**
+         * PostViewsEntry
+         * @description Home tile: post view counts for the last N published posts.
+         */
+        PostViewsEntry: {
+            /** Post Id */
+            post_id: number;
+            /** Channel Id */
+            channel_id: number;
+            /** Channel Name */
+            channel_name: string;
+            /** Title */
+            title: string;
+            /**
+             * Published At
+             * Format: date-time
+             */
+            published_at: string;
+            /** Views */
+            views: number;
         };
         /**
          * ScheduledPostEntry
@@ -536,6 +726,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChannelDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_chats_api_chats_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatRead"][];
+                };
+            };
+        };
+    };
+    get_chat_api_chats__chat_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chat_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatDetail"];
                 };
             };
             /** @description Validation Error */
