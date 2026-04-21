@@ -20,6 +20,12 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<Api
 			headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) }
 		});
 		if (!res.ok) {
+			// 401 on any protected endpoint → bounce to /login. Auth endpoints
+			// are allowed to return 401 silently (e.g. /me on boot).
+			if (res.status === 401 && !path.startsWith('/api/auth')) {
+				const { goto } = await import('$app/navigation');
+				void goto('/login');
+			}
 			const body = await res.json().catch(() => ({}));
 			return {
 				data: null,
