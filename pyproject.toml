@@ -32,6 +32,8 @@ dependencies = [
     "burr>=0.40.2",
     "telegramify-markdown>=1.1,<2",
     "pgvector>=0.4.2",
+    "fastapi>=0.136.0",
+    "uvicorn[standard]>=0.44.0",
 ]
 
 [build-system]
@@ -74,6 +76,11 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
+"app/webapi/**" = [
+    "TC001",  # FastAPI/Pydantic need runtime type annotations for DI and validation
+    "TC002",
+    "TC003",
+]
 "tests/**" = [
     "ARG001",  # unused function arguments (common in tests/fixtures)
     "ARG002",  # unused method arguments (common in test methods)

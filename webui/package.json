@@ -1,0 +1,37 @@
+{
+	"name": "webui",
+	"private": true,
+	"version": "0.0.1",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"preview": "vite preview",
+		"prepare": "svelte-kit sync || echo ''",
+		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"api:sync": "openapi-typescript http://127.0.0.1:8787/api/openapi.json -o src/lib/api/types.ts"
+	},
+	"devDependencies": {
+		"@internationalized/date": "^3.12.1",
+		"@lucide/svelte": "^1.8.0",
+		"@sveltejs/adapter-auto": "^7.0.1",
+		"@sveltejs/kit": "^2.57.0",
+		"@sveltejs/vite-plugin-svelte": "^7.0.0",
+		"@tailwindcss/vite": "^4.2.2",
+		"bits-ui": "^2.18.0",
+		"mode-watcher": "^1.1.0",
+		"openapi-typescript": "^7.13.0",
+		"svelte": "^5.55.2",
+		"svelte-check": "^4.4.6",
+		"svelte-sonner": "^1.1.0",
+		"tailwindcss": "^4.2.2",
+		"typescript": "^6.0.2",
+		"vite": "^8.0.7"
+	},
+	"dependencies": {
+		"clsx": "^2.1.1",
+		"tailwind-merge": "^3.5.0",
+		"tailwind-variants": "^3.2.2"
+	}
+}

@@ -23,7 +23,11 @@ downloads/
 eggs/
 .eggs/
 lib/
+!webui/src/lib/
 lib64/
+
+# Superpowers brainstorm session files
+.superpowers/
 parts/
 sdist/
 var/
