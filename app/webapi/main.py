@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.logging import get_logger
 from app.db.session import create_session_maker
-from app.webapi.routes import channels, chats, costs, health, posts, spam, stats
+from app.webapi.routes import agent, channels, chats, costs, health, posts, spam, stats
 from app.webapi.services.telethon_stats import TelethonStatsService
 from app.webapi.snapshot_loop import run_snapshot_loop
 
@@ -71,6 +71,7 @@ def create_app() -> FastAPI:
     app.include_router(costs.router, prefix="/api")
     app.include_router(spam.router, prefix="/api")
     app.include_router(stats.router, prefix="/api")
+    app.include_router(agent.router, prefix="/api")
 
     # Default no-op singleton for test environments (ASGITransport bypasses
     # lifespan). _lifespan replaces this with the real instance at startup.
