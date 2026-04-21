@@ -22,12 +22,15 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-async def require_super_admin(request: Request = None) -> int:  # type: ignore[assignment]  # ty: ignore[invalid-parameter-default]
+async def require_super_admin(request: Request | None = None) -> int:
     """Validate the session cookie; return the authenticated super-admin's user_id.
 
     Cookie name is ``settings.webapi.session_cookie_name``. Reading via
     ``request.cookies.get(name)`` keeps the name config-driven (FastAPI's
     ``Cookie(alias=...)`` would bake it into the signature at import time).
+    The ``Request | None`` signature lets direct-call tests exercise the
+    dev-bypass path without constructing a fake request; FastAPI always
+    injects a real Request at runtime.
     """
     from fastapi import HTTPException
 
@@ -40,7 +43,9 @@ async def require_super_admin(request: Request = None) -> int:  # type: ignore[a
     if settings.webapi.dev_bypass_auth:
         return settings.admin.super_admins[0]
 
-    token = request.cookies.get(settings.webapi.session_cookie_name) if request is not None else None
+    if request is None:
+        raise HTTPException(status_code=401, detail="not authenticated")
+    token = request.cookies.get(settings.webapi.session_cookie_name)
     if not token:
         raise HTTPException(status_code=401, detail="not authenticated")
 
