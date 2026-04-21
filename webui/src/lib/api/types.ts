@@ -106,6 +106,35 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/chats/graph": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Chat Graph
+         * @description Return chat tree with roots first; children nested via parent_chat_id.
+         *
+         *     Single SQL query; tree assembly is in-memory. Telethon enrichment is
+         *     intentionally skipped for the tree endpoint — tile renders 1+ times
+         *     per poll, member_count drilldown lives on /chats/:id.
+         *
+         *     Self-loops (parent_chat_id == id) and orphans (parent_chat_id points
+         *     to a missing/deleted chat) become roots; multi-hop cycles aren't
+         *     detected here — admins set parent_chat_id manually so cycles would
+         *     be intentional misuse, not a runtime hazard.
+         */
+        get: operations["get_chat_graph_api_chats_graph_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/chats/{chat_id}": {
         parameters: {
             query?: never;
@@ -266,7 +295,7 @@ export interface components {
         };
         /**
          * ChatDetail
-         * @description Full chat payload — adds heatmap grid + member-snapshot series.
+         * @description Full chat payload — adds heatmap grid + member-snapshot series + relationships.
          */
         ChatDetail: {
             /** Id */
@@ -279,6 +308,10 @@ export interface components {
             is_welcome_enabled: boolean;
             /** Is Captcha Enabled */
             is_captcha_enabled: boolean;
+            /** Parent Chat Id */
+            parent_chat_id?: number | null;
+            /** Relation Notes */
+            relation_notes?: string | null;
             /** Member Count */
             member_count?: number | null;
             /**
@@ -299,6 +332,11 @@ export interface components {
             heatmap: components["schemas"]["HeatmapCell"][];
             /** Member Snapshots */
             member_snapshots: components["schemas"]["MemberSnapshotPoint"][];
+            /**
+             * Children
+             * @default []
+             */
+            children: components["schemas"]["ChatNode"][];
         };
         /**
          * ChatHeatmapSummary
@@ -316,6 +354,27 @@ export interface components {
             total_messages: number;
         };
         /**
+         * ChatNode
+         * @description Recursive node for the /chats/graph tree response.
+         *
+         *     member_count is intentionally NOT enriched here — the tree endpoint
+         *     skips Telethon to avoid N+1 RPCs on every poll. Drill into /chats/:id
+         *     for live counts.
+         */
+        ChatNode: {
+            /** Id */
+            id: number;
+            /** Title */
+            title: string | null;
+            /** Relation Notes */
+            relation_notes?: string | null;
+            /**
+             * Children
+             * @default []
+             */
+            children: components["schemas"]["ChatNode"][];
+        };
+        /**
          * ChatRead
          * @description List-page view of a managed chat.
          */
@@ -330,6 +389,10 @@ export interface components {
             is_welcome_enabled: boolean;
             /** Is Captcha Enabled */
             is_captcha_enabled: boolean;
+            /** Parent Chat Id */
+            parent_chat_id?: number | null;
+            /** Relation Notes */
+            relation_notes?: string | null;
             /** Member Count */
             member_count?: number | null;
             /**
@@ -755,6 +818,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChatRead"][];
+                };
+            };
+        };
+    };
+    get_chat_graph_api_chats_graph_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatNode"][];
                 };
             };
         };

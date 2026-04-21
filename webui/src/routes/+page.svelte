@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ChatTreeNode from '$lib/components/chat/ChatTreeNode.svelte';
 	import BarChartH from '$lib/components/charts/BarChartH.svelte';
 	import DivergingBars from '$lib/components/charts/DivergingBars.svelte';
 	import Donut from '$lib/components/charts/Donut.svelte';
@@ -10,8 +11,10 @@
 	import type { components } from '$lib/api/types';
 
 	type HomeStats = components['schemas']['HomeStats'];
+	type Tree = components['schemas']['ChatNode'][];
 
 	const stats = useLivePoll<HomeStats>('/api/stats/home');
+	const tree = useLivePoll<Tree>('/api/chats/graph', 120_000);
 
 	const totalDrafts = $derived(
 		stats.data?.drafts.reduce((acc, d) => acc + d.count, 0) ?? 0
@@ -128,11 +131,27 @@
 			/>
 		</div>
 
-		<div class="md:col-span-2 xl:col-span-1">
+		<div class="md:col-span-2 xl:col-span-2">
 			<SkeletonTile title="Spam pings" phase={3} hint="Needs spam detector." />
 		</div>
-		<div class="md:col-span-2 xl:col-span-1">
-			<SkeletonTile title="Chat graph" phase={3} hint="Needs relationship model." />
+
+		<div class="md:col-span-2 xl:col-span-2">
+			<Tile title="Chat graph">
+				{#if tree.loading}
+					<p class="text-xs text-zinc-500">loading…</p>
+				{:else if !tree.data || tree.data.length === 0}
+					<p class="text-xs text-zinc-500">No chats yet.</p>
+				{:else}
+					<ul class="space-y-1">
+						{#each tree.data.slice(0, 3) as root (root.id)}
+							<ChatTreeNode node={root} depth={1} />
+						{/each}
+					</ul>
+					<a href="/chats/graph" class="mt-2 inline-block text-xs text-zinc-500 hover:underline">
+						View full tree →
+					</a>
+				{/if}
+			</Tile>
 		</div>
 	</div>
 </div>
