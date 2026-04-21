@@ -22,23 +22,37 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-async def require_super_admin() -> int:
-    """FastAPI dependency that returns the authenticated admin's user_id.
+async def require_super_admin(request: Request = None) -> int:  # type: ignore[assignment]  # ty: ignore[invalid-parameter-default]
+    """Validate the session cookie; return the authenticated super-admin's user_id.
 
-    Phase 0 stub: returns the first configured super_admin. No real session
-    validation — access is gated by firewall in dev. Phase 4 replaces the
-    body with session-cookie verification (see Phase 4 plan).
+    Cookie name is ``settings.webapi.session_cookie_name``. Reading via
+    ``request.cookies.get(name)`` keeps the name config-driven (FastAPI's
+    ``Cookie(alias=...)`` would bake it into the signature at import time).
     """
     from fastapi import HTTPException
 
     from app.core.config import settings
+    from app.webapi.auth import session_store
 
     if not settings.admin.super_admins:
-        raise HTTPException(
-            status_code=503,
-            detail="No super_admin configured — set ADMIN_SUPER_ADMINS in .env",
-        )
-    return settings.admin.super_admins[0]
+        raise HTTPException(status_code=503, detail="No super_admin configured")
+
+    if settings.webapi.dev_bypass_auth:
+        return settings.admin.super_admins[0]
+
+    token = request.cookies.get(settings.webapi.session_cookie_name) if request is not None else None
+    if not token:
+        raise HTTPException(status_code=401, detail="not authenticated")
+
+    # Fresh DB session — depending on `get_session` at this layer would create
+    # a circular import, and this path is lightweight.
+    from app.db.session import create_session_maker
+
+    async with create_session_maker()() as db:
+        row = await session_store.load_valid_session(db, token)
+        if row is None or row.user_id not in settings.admin.super_admins:
+            raise HTTPException(status_code=401, detail="invalid session")
+        return row.user_id
 
 
 async def get_telethon() -> TelethonClient | None:

@@ -16,6 +16,7 @@ os.environ.update(
         "ADMIN_REPORT_CHAT_ID": "123456789",
         "LOG_LEVEL": "ERROR",  # Reduce logging noise in tests
         "APP_ENVIRONMENT": "test",
+        "WEBAPI_DEV_BYPASS_AUTH": "true",
     }
 )
 
