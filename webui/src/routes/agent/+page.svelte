@@ -16,7 +16,7 @@
 				kind: 'tool';
 				label: string;
 				toolName: string;
-				state: 'pending' | 'done';
+				status: 'pending' | 'done';
 				preview?: string;
 				toolCallId: string;
 		  };
@@ -35,7 +35,7 @@
 					kind: 'tool',
 					label: m.tool_label ?? m.tool_name ?? 'tool',
 					toolName: m.tool_name ?? '',
-					state: 'done',
+					status: 'done',
 					preview: m.result_preview ?? '',
 					toolCallId: ''
 				};
@@ -49,9 +49,18 @@
 		if (res.data) adoptHistory(res.data.messages);
 	});
 
-	async function scrollToBottom(): Promise<void> {
+	function isStuckAtBottom(): boolean {
+		if (!scroller) return true;
+		const slack = 80; // px tolerance — within this counts as "at bottom"
+		return scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop < slack;
+	}
+
+	async function scrollToBottom(force = false): Promise<void> {
+		const wasAtBottom = isStuckAtBottom();
 		await tick();
-		scroller?.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
+		if (force || wasAtBottom) {
+			scroller?.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' });
+		}
 	}
 
 	function handleEvent(ev: AgentStreamEvent, assistantIdx: number): number {
@@ -60,7 +69,7 @@
 				kind: 'tool',
 				label: ev.label,
 				toolName: ev.tool_name,
-				state: 'pending',
+				status: 'pending',
 				toolCallId: ev.tool_call_id
 			});
 			return -1; // re-create assistant bubble after tool sequence
@@ -69,7 +78,7 @@
 			for (let i = items.length - 1; i >= 0; i--) {
 				const it = items[i];
 				if (it.kind === 'tool' && it.toolCallId === ev.tool_call_id) {
-					it.state = 'done';
+					it.status = 'done';
 					it.preview = ev.result_preview;
 					break;
 				}
@@ -110,7 +119,7 @@
 		error = null;
 		items.push({ kind: 'user', text });
 		busy = true;
-		await scrollToBottom();
+		await scrollToBottom(true);
 
 		abortCtrl = new AbortController();
 		let assistantIdx = -1;
@@ -181,7 +190,7 @@
 				<ToolTraceRow
 					label={item.label}
 					toolName={item.toolName}
-					state={item.state}
+					status={item.status}
 					preview={item.preview}
 				/>
 			{:else}
