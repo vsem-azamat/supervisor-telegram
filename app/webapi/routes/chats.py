@@ -9,6 +9,7 @@ we do not paper over that with Telethon history fetches in Phase 2.
 
 from __future__ import annotations
 
+import asyncio
 import datetime
 from typing import Annotated
 
@@ -18,8 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.time import utc_now
 from app.db.models import Chat, ChatMemberSnapshot, Message
-from app.telethon.telethon_client import TelethonClient
-from app.webapi.deps import get_session, get_telethon, require_super_admin
+from app.webapi.deps import get_session, get_telethon_stats, require_super_admin
 from app.webapi.schemas import ChatDetail, ChatRead, HeatmapCell, MemberSnapshotPoint
 from app.webapi.services.telethon_stats import TelethonStatsService
 
@@ -41,33 +41,30 @@ def _build_heatmap(timestamps: list[datetime.datetime]) -> list[HeatmapCell]:
 @router.get("", response_model=list[ChatRead])
 async def list_chats(
     session: Annotated[AsyncSession, Depends(get_session)],
-    telethon: Annotated[TelethonClient | None, Depends(get_telethon)],
+    stats: Annotated[TelethonStatsService, Depends(get_telethon_stats)],
     _admin_id: Annotated[int, Depends(require_super_admin)],
 ) -> list[ChatRead]:
     chats = (await session.execute(select(Chat).order_by(Chat.title))).scalars().all()
-    stats = TelethonStatsService(telethon=telethon)
-    result: list[ChatRead] = []
-    for chat in chats:
-        member_count = await stats.get_member_count(chat.id)
-        result.append(
-            ChatRead(
-                id=chat.id,
-                title=chat.title,
-                is_forum=chat.is_forum,
-                is_welcome_enabled=chat.is_welcome_enabled,
-                is_captcha_enabled=chat.is_captcha_enabled,
-                member_count=member_count,
-                created_at=chat.created_at,
-            )
+    member_counts = await asyncio.gather(*[stats.get_member_count(c.id) for c in chats])
+    return [
+        ChatRead(
+            id=chat.id,
+            title=chat.title,
+            is_forum=chat.is_forum,
+            is_welcome_enabled=chat.is_welcome_enabled,
+            is_captcha_enabled=chat.is_captcha_enabled,
+            member_count=member_count,
+            created_at=chat.created_at,
         )
-    return result
+        for chat, member_count in zip(chats, member_counts, strict=True)
+    ]
 
 
 @router.get("/{chat_id}", response_model=ChatDetail)
 async def get_chat(
     chat_id: int,
     session: Annotated[AsyncSession, Depends(get_session)],
-    telethon: Annotated[TelethonClient | None, Depends(get_telethon)],
+    stats: Annotated[TelethonStatsService, Depends(get_telethon_stats)],
     _admin_id: Annotated[int, Depends(require_super_admin)],
 ) -> ChatDetail:
     chat = (await session.execute(select(Chat).where(Chat.id == chat_id))).scalar_one_or_none()
@@ -99,7 +96,6 @@ async def get_chat(
     )
     snapshots_ascending = list(reversed(snapshot_rows))
 
-    stats = TelethonStatsService(telethon=telethon)
     member_count = await stats.get_member_count(chat.id)
 
     return ChatDetail(

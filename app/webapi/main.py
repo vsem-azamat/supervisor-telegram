@@ -13,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.logging import get_logger
 from app.db.session import create_session_maker
 from app.webapi.routes import channels, chats, costs, health, posts, stats
+from app.webapi.services.telethon_stats import TelethonStatsService
 from app.webapi.snapshot_loop import run_snapshot_loop
 
 if TYPE_CHECKING:
@@ -27,6 +28,7 @@ async def _lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 
     session_maker = create_session_maker()
     telethon = container.get_telethon_client()
+    _app.state.telethon_stats = TelethonStatsService(telethon=telethon)
     task: asyncio.Task[None] | None = None
     if telethon is not None:
         task = asyncio.create_task(run_snapshot_loop(session_maker=session_maker, telethon=telethon))
@@ -68,6 +70,10 @@ def create_app() -> FastAPI:
     app.include_router(chats.router, prefix="/api")
     app.include_router(costs.router, prefix="/api")
     app.include_router(stats.router, prefix="/api")
+
+    # Default no-op singleton for test environments (ASGITransport bypasses
+    # lifespan). _lifespan replaces this with the real instance at startup.
+    app.state.telethon_stats = TelethonStatsService(telethon=None)
 
     return app
 

@@ -13,8 +13,7 @@ from app.channel.cost_tracker import get_session_summary
 from app.core.enums import PostStatus
 from app.core.time import utc_now
 from app.db.models import Channel, ChannelPost, Chat, ChatMemberSnapshot, Message
-from app.telethon.telethon_client import TelethonClient
-from app.webapi.deps import get_session, get_telethon, require_super_admin
+from app.webapi.deps import get_session, get_telethon_stats, require_super_admin
 from app.webapi.schemas import (
     ChatHeatmapSummary,
     DraftBucket,
@@ -84,7 +83,7 @@ async def _compute_members_delta(session: AsyncSession, now: datetime.datetime) 
 @router.get("/home", response_model=HomeStats)
 async def home_stats(
     session: Annotated[AsyncSession, Depends(get_session)],
-    telethon: Annotated[TelethonClient | None, Depends(get_telethon)],
+    stats_svc: Annotated[TelethonStatsService, Depends(get_telethon_stats)],
     _admin_id: Annotated[int, Depends(require_super_admin)],
 ) -> HomeStats:
     draft_count = func.count(ChannelPost.id).label("draft_count")
@@ -148,7 +147,6 @@ async def home_stats(
         )
     ).all()
 
-    stats_svc = TelethonStatsService(telethon=telethon)
     # Group message IDs by channel to batch Telethon calls.
     views_by_channel: dict[int, dict[int, int]] = {}
     channel_to_msgs: dict[int, list[int]] = {}
