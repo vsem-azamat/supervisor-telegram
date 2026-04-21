@@ -96,14 +96,19 @@ class ScheduledPostEntry(BaseModel):
     scheduled_at: datetime.datetime
 
 
-class ModelCostBucket(BaseModel):
-    """Per-model slice of the session cost summary."""
+class OperationCostBucket(BaseModel):
+    """Per-operation slice of the session cost summary.
 
-    model: str
+    Operation is the pipeline phase (screening, generation, discovery,
+    feedback, edit, source_discovery) — that's how cost_tracker groups
+    usage internally.
+    """
+
+    operation: str
+    tokens: int
     cost_usd: float
-    input_tokens: int
-    output_tokens: int
     calls: int
+    cache_savings_usd: float
 
 
 class SessionCostSummary(BaseModel):
@@ -113,12 +118,13 @@ class SessionCostSummary(BaseModel):
     persistent history. Persistent storage is Phase 1.5 scope.
     """
 
+    total_tokens: int
     total_cost_usd: float
-    total_input_tokens: int
-    total_output_tokens: int
     total_calls: int
-    session_started_at: datetime.datetime
-    by_model: list[ModelCostBucket]
+    cache_read_tokens: int
+    cache_write_tokens: int
+    cache_savings_usd: float
+    by_operation: list[OperationCostBucket]
 
 
 class HomeStats(BaseModel):
