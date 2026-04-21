@@ -718,6 +718,35 @@ class TelethonClient:
             for msg in result
         ]
 
+    async def get_post_views(
+        self,
+        chat_id: int,
+        message_ids: list[int],
+    ) -> dict[int, int]:
+        """Return a {message_id: view_count} map for the given messages.
+
+        Missing or deleted messages are omitted. Returns an empty dict when
+        Telethon is disabled or not connected, so callers can treat
+        unavailability as "zero data" rather than an error.
+        """
+        if not self.is_available or self._client is None or not message_ids:
+            return {}
+
+        async def _fetch() -> list[Any]:
+            assert self._client is not None  # noqa: S101
+            result = await self._client.get_messages(chat_id, ids=list(message_ids))
+            return result if isinstance(result, list) else [result]
+
+        messages: list[Any] = await self._execute_with_flood_wait(_fetch)
+        views: dict[int, int] = {}
+        for msg in messages:
+            if msg is None:
+                continue
+            count = getattr(msg, "views", None)
+            if count is not None:
+                views[msg.id] = int(count)
+        return views
+
 
 def _get_full_chat_request(entity: Channel | Chat | Any) -> Any:
     """Get the appropriate 'get full chat' request for the entity type."""
