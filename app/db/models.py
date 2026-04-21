@@ -637,6 +637,41 @@ class ChatMemberSnapshot(Base):
             self.captured_at = captured_at
 
 
+class AgentConversation(Base):
+    """Persistent chat history for the /agent web UI, keyed by admin user_id.
+
+    Single-row-per-user blob: `messages` holds
+    `ModelMessagesTypeAdapter.dump_python(..., mode='json')` so PydanticAI
+    can resume the conversation byte-for-byte on the next turn.
+    `last_active_at` powers idle eviction; webapi prunes rows older than
+    the configured idle TTL on each turn.
+    """
+
+    __tablename__ = "agent_conversations"
+
+    user_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
+    messages: Mapped[list[Any]] = mapped_column(JSON)
+    message_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_active_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now, index=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
+
+    def __init__(
+        self,
+        user_id: int,
+        messages: list[Any] | None = None,
+        message_count: int = 0,
+        last_active_at: datetime.datetime | None = None,
+        created_at: datetime.datetime | None = None,
+    ) -> None:
+        self.user_id = user_id
+        self.messages = messages if messages is not None else []
+        self.message_count = message_count
+        if last_active_at is not None:
+            self.last_active_at = last_active_at
+        if created_at is not None:
+            self.created_at = created_at
+
+
 class SpamPing(Base):
     """A single ad-detection event.
 
