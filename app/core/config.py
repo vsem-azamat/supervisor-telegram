@@ -103,6 +103,43 @@ class AdminSettings(BaseSettings):
         return self.report_chat_id or self.super_admins[0]
 
 
+class WebApiSettings(BaseSettings):
+    """Admin web UI / HTTP API configuration."""
+
+    allowed_origins: list[str] = Field(
+        default_factory=list,
+        description="Comma-separated list of allowed Origin headers (e.g. https://admin.konnekt.example)",
+    )
+    session_ttl_days: int = Field(default=30, description="Admin session TTL in days")
+    session_cookie_name: str = Field(default="konnekt_admin_session")
+    session_cookie_secure: bool = Field(
+        default=True,
+        description="Set Secure flag on session cookie. Disable only for local http:// dev.",
+    )
+    session_cookie_samesite: str = Field(default="lax", description="SameSite: lax|strict|none")
+    dev_bypass_auth: bool = Field(
+        default=False,
+        description="Dev-only: skip session validation, act as super_admins[0]. NEVER set in prod.",
+    )
+
+    model_config = SettingsConfigDict(
+        env_prefix="WEBAPI_",
+        case_sensitive=False,
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    @field_validator("allowed_origins", mode="before")
+    @classmethod
+    def parse_origins(cls, v: Any) -> list[str]:
+        if isinstance(v, str):
+            return [s.strip() for s in v.split(",") if s.strip()]
+        if isinstance(v, list):
+            return [str(s) for s in v]
+        return []
+
+
 class LoggingSettings(BaseSettings):
     """Logging configuration."""
 
@@ -260,6 +297,7 @@ class AppSettings(BaseSettings):
     moderation: ModerationSettings = Field(default_factory=ModerationSettings)
     assistant: AssistantSettings = Field(default_factory=AssistantSettings)
     telethon: TelethonSettings = Field(default_factory=TelethonSettings)
+    webapi: WebApiSettings = Field(default_factory=WebApiSettings)
 
     @property
     def channel(self) -> ChannelAgentSettings:
