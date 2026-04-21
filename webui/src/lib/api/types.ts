@@ -38,14 +38,285 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/posts/{post_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Post */
+        get: operations["get_post_api_posts__post_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Channels */
+        get: operations["list_channels_api_channels_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/channels/{channel_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Channel */
+        get: operations["get_channel_api_channels__channel_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/costs/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Session Cost */
+        get: operations["session_cost_api_costs_session_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/stats/home": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Home Stats */
+        get: operations["home_stats_api_stats_home_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * ChannelDetail
+         * @description Full channel payload — adds config + sources + recent posts summary.
+         */
+        ChannelDetail: {
+            /** Id */
+            id: number;
+            /** Telegram Id */
+            telegram_id: number;
+            /** Username */
+            username: string | null;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string;
+            /** Language */
+            language: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Max Posts Per Day */
+            max_posts_per_day: number;
+            /** Critic Enabled */
+            critic_enabled: boolean | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Review Chat Id */
+            review_chat_id: number | null;
+            /** Posting Schedule */
+            posting_schedule: string[] | null;
+            /** Publish Schedule */
+            publish_schedule: string[] | null;
+            /** Footer Template */
+            footer_template: string | null;
+            /** Discovery Query */
+            discovery_query: string;
+            /**
+             * Modified At
+             * Format: date-time
+             */
+            modified_at: string;
+            /** Sources */
+            sources: components["schemas"]["ChannelSourceRead"][];
+            /** Recent Posts */
+            recent_posts: components["schemas"]["PostRead"][];
+        };
+        /**
+         * ChannelRead
+         * @description List-page view of a channel — identifying + toggle fields only.
+         */
+        ChannelRead: {
+            /** Id */
+            id: number;
+            /** Telegram Id */
+            telegram_id: number;
+            /** Username */
+            username: string | null;
+            /** Name */
+            name: string;
+            /** Description */
+            description: string;
+            /** Language */
+            language: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Max Posts Per Day */
+            max_posts_per_day: number;
+            /** Critic Enabled */
+            critic_enabled: boolean | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * ChannelSourceRead
+         * @description RSS source attached to a channel.
+         */
+        ChannelSourceRead: {
+            /** Id */
+            id: number;
+            /** Url */
+            url: string;
+            /** Source Type */
+            source_type: string;
+            /** Title */
+            title: string | null;
+            /** Language */
+            language: string | null;
+            /** Enabled */
+            enabled: boolean;
+            /** Relevance Score */
+            relevance_score: number;
+            /** Error Count */
+            error_count: number;
+            /** Last Fetched At */
+            last_fetched_at: string | null;
+            /** Last Error */
+            last_error: string | null;
+        };
+        /**
+         * DraftBucket
+         * @description Home tile: drafts grouped by channel.
+         */
+        DraftBucket: {
+            /** Channel Id */
+            channel_id: number;
+            /** Channel Name */
+            channel_name: string;
+            /** Count */
+            count: number;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * HomeStats
+         * @description Aggregated response backing the home dashboard's live tiles.
+         *
+         *     Keeps home to one round-trip; skeleton tiles are FE-only and don't
+         *     appear here.
+         */
+        HomeStats: {
+            /** Drafts */
+            drafts: components["schemas"]["DraftBucket"][];
+            /** Scheduled Next 24H */
+            scheduled_next_24h: components["schemas"]["ScheduledPostEntry"][];
+            session_cost: components["schemas"]["SessionCostSummary"];
+        };
+        /**
+         * OperationCostBucket
+         * @description Per-operation slice of the session cost summary.
+         *
+         *     Operation is the pipeline phase (screening, generation, discovery,
+         *     feedback, edit, source_discovery) — that's how cost_tracker groups
+         *     usage internally.
+         */
+        OperationCostBucket: {
+            /** Operation */
+            operation: string;
+            /** Tokens */
+            tokens: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Calls */
+            calls: number;
+            /** Cache Savings Usd */
+            cache_savings_usd: number;
+        };
+        /**
+         * PostDetail
+         * @description Full post payload for the detail page — adds source_items blob.
+         */
+        PostDetail: {
+            /** Id */
+            id: number;
+            /** Channel Id */
+            channel_id: number;
+            /** Title */
+            title: string;
+            /** Post Text */
+            post_text: string;
+            /** Status */
+            status: string;
+            /** Image Url */
+            image_url: string | null;
+            /** Image Urls */
+            image_urls: string[] | null;
+            /** Source Url */
+            source_url: string | null;
+            /** Scheduled At */
+            scheduled_at: string | null;
+            /** Published At */
+            published_at: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** External Id */
+            external_id: string;
+            /** Source Items */
+            source_items?: {
+                [key: string]: unknown;
+            }[] | null;
         };
         /** PostRead */
         PostRead: {
@@ -74,6 +345,48 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /**
+         * ScheduledPostEntry
+         * @description Home tile: scheduled post appearing in the next 24h window.
+         */
+        ScheduledPostEntry: {
+            /** Post Id */
+            post_id: number;
+            /** Channel Id */
+            channel_id: number;
+            /** Channel Name */
+            channel_name: string;
+            /** Title */
+            title: string;
+            /**
+             * Scheduled At
+             * Format: date-time
+             */
+            scheduled_at: string;
+        };
+        /**
+         * SessionCostSummary
+         * @description In-memory cost aggregation from app.channel.cost_tracker.
+         *
+         *     Resets whenever the bot restarts — this is a session view, not
+         *     persistent history. Persistent storage is Phase 1.5 scope.
+         */
+        SessionCostSummary: {
+            /** Total Tokens */
+            total_tokens: number;
+            /** Total Cost Usd */
+            total_cost_usd: number;
+            /** Total Calls */
+            total_calls: number;
+            /** Cache Read Tokens */
+            cache_read_tokens: number;
+            /** Cache Write Tokens */
+            cache_write_tokens: number;
+            /** Cache Savings Usd */
+            cache_savings_usd: number;
+            /** By Operation */
+            by_operation: components["schemas"]["OperationCostBucket"][];
         };
         /** ValidationError */
         ValidationError: {
@@ -124,6 +437,8 @@ export interface operations {
             query?: {
                 /** @description Filter by PostStatus */
                 status?: string | null;
+                /** @description Filter by Channel.telegram_id */
+                channel_id?: number | null;
                 limit?: number;
             };
             header?: never;
@@ -148,6 +463,128 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_post_api_posts__post_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                post_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PostDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_channels_api_channels_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelRead"][];
+                };
+            };
+        };
+    };
+    get_channel_api_channels__channel_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    session_cost_api_costs_session_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionCostSummary"];
+                };
+            };
+        };
+    };
+    home_stats_api_stats_home_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HomeStats"];
                 };
             };
         };
