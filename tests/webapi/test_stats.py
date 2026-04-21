@@ -192,3 +192,36 @@ async def test_home_members_delta_computes_24h_baseline(client_factory, db_sessi
     assert delta["current"] == 110
     assert delta["delta_24h"] == 10
     assert delta["delta_7d"] is None  # no baseline ≥7d old yet
+
+
+async def test_home_members_delta_includes_chat_with_only_stale_snapshots(client_factory, db_session_maker) -> None:
+    """Chats with snapshots older than 7d (but within 30d lookback) must
+    still appear in members_delta with their stale count and None deltas."""
+    import datetime
+
+    from app.core.time import utc_now
+    from app.db.models import Chat, ChatMemberSnapshot
+
+    now = utc_now()
+    async with db_session_maker() as session:
+        session.add(Chat(id=-4002, title="Stale"))
+        # Single snapshot from 10 days ago — only data point for this chat.
+        session.add(
+            ChatMemberSnapshot(
+                chat_id=-4002,
+                member_count=200,
+                captured_at=now - datetime.timedelta(days=10),
+            )
+        )
+        await session.commit()
+
+    async with client_factory() as client:
+        resp = await client.get("/api/stats/home")
+
+    body = resp.json()
+    delta = next((d for d in body["members_delta"] if d["chat_id"] == -4002), None)
+    assert delta is not None, "Chat with only stale snapshots must appear in members_delta"
+    assert delta["current"] == 200  # the single stale snapshot is still the current
+    # Only one data point — no older baseline exists for either window.
+    assert delta["delta_24h"] is None
+    assert delta["delta_7d"] is None

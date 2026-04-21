@@ -28,6 +28,7 @@ from app.webapi.services.telethon_stats import TelethonStatsService
 router = APIRouter(prefix="/stats", tags=["stats"])
 
 _SCHEDULED_WINDOW_HOURS = 24
+_DELTA_LOOKBACK_DAYS = 30
 _POST_VIEWS_TOP_N = 5
 _POST_VIEWS_LOOKBACK_DAYS = 7
 _CHAT_HEATMAP_TOP_N = 8
@@ -38,15 +39,20 @@ async def _compute_members_delta(session: AsyncSession, now: datetime.datetime) 
     """For every chat with ≥1 snapshot: current count + Δ over 24h / 7d.
 
     Baseline = oldest snapshot whose captured_at <= (now - window). If none,
-    delta is None. This is cheaper than per-chat queries because we fetch all
-    relevant snapshots once and bucket in Python.
+    delta is None (e.g. a chat whose newest snapshot is older than 24h will
+    have delta_24h=None but still appears with its stale current count).
+
+    We cap the lookback at _DELTA_LOOKBACK_DAYS so old history doesn't
+    accumulate unbounded in the result set. Chats with only stale snapshots
+    (all older than _DELTA_LOOKBACK_DAYS) will not appear; that's an
+    acceptable edge-case for very inactive chats.
     """
-    lookback_7d = now - datetime.timedelta(days=7)
+    lookback = now - datetime.timedelta(days=_DELTA_LOOKBACK_DAYS)
     rows = (
         await session.execute(
             select(ChatMemberSnapshot, Chat.title)
             .join(Chat, Chat.id == ChatMemberSnapshot.chat_id, isouter=True)
-            .where(ChatMemberSnapshot.captured_at >= lookback_7d)
+            .where(ChatMemberSnapshot.captured_at >= lookback)
             .order_by(ChatMemberSnapshot.captured_at.asc())
         )
     ).all()
@@ -60,12 +66,15 @@ async def _compute_members_delta(session: AsyncSession, now: datetime.datetime) 
             continue
         title = points[-1][2]
         current = points[-1][1]
+        # Search baselines only in snapshots that precede the current one so
+        # a single-snapshot chat doesn't produce a spurious 0-delta.
+        earlier = points[:-1]
         baseline_24h = next(
-            (c for ts, c, _ in points if ts <= now - datetime.timedelta(hours=24)),
+            (c for ts, c, _ in earlier if ts <= now - datetime.timedelta(hours=24)),
             None,
         )
         baseline_7d = next(
-            (c for ts, c, _ in points if ts <= now - datetime.timedelta(days=7)),
+            (c for ts, c, _ in earlier if ts <= now - datetime.timedelta(days=7)),
             None,
         )
         out.append(
