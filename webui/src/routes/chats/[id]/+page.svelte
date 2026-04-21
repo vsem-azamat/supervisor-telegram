@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import * as Card from '$lib/components/ui/card/index.js';
 	import HeatmapGrid from '$lib/components/chat/HeatmapGrid.svelte';
+	import Sparkline from '$lib/components/charts/Sparkline.svelte';
+	import * as Card from '$lib/components/ui/card/index.js';
 	import { useLivePoll } from '$lib/hooks/useLivePoll.svelte';
 	import type { components } from '$lib/api/types';
 
@@ -9,22 +10,6 @@
 
 	const chatId = page.params.id;
 	const detail = useLivePoll<ChatDetail>(`/api/chats/${chatId}`, 60_000);
-
-	function sparklinePath(points: { member_count: number }[]): string {
-		if (points.length === 0) return '';
-		const w = 240;
-		const h = 48;
-		const max = Math.max(...points.map((p) => p.member_count));
-		const min = Math.min(...points.map((p) => p.member_count));
-		const span = Math.max(1, max - min);
-		return points
-			.map((p, i) => {
-				const x = (i / Math.max(1, points.length - 1)) * w;
-				const y = h - ((p.member_count - min) / span) * h;
-				return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
-			})
-			.join(' ');
-	}
 </script>
 
 <div class="mx-auto max-w-5xl space-y-4 px-6 py-6">
@@ -68,9 +53,7 @@
 				{#if detail.data.member_snapshots.length === 0}
 					<p class="text-xs text-zinc-500">No snapshots yet. First snapshot will appear within an hour of bot startup.</p>
 				{:else}
-					<svg width="240" height="48" class="text-emerald-600">
-						<path d={sparklinePath(detail.data.member_snapshots)} fill="none" stroke="currentColor" stroke-width="1.5" />
-					</svg>
+					<Sparkline values={detail.data.member_snapshots.map((p) => p.member_count)} />
 					<p class="text-xs text-zinc-500">
 						{detail.data.member_snapshots.length} snapshots
 					</p>

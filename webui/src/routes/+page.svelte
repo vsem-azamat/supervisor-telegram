@@ -1,7 +1,11 @@
 <script lang="ts">
+	import BarChartH from '$lib/components/charts/BarChartH.svelte';
+	import DivergingBars from '$lib/components/charts/DivergingBars.svelte';
+	import Donut from '$lib/components/charts/Donut.svelte';
 	import ListTile from '$lib/components/home/ListTile.svelte';
 	import SkeletonTile from '$lib/components/home/SkeletonTile.svelte';
 	import StatTile from '$lib/components/home/StatTile.svelte';
+	import Tile from '$lib/components/home/Tile.svelte';
 	import { useLivePoll } from '$lib/hooks/useLivePoll.svelte';
 	import type { components } from '$lib/api/types';
 
@@ -45,55 +49,90 @@
 		</div>
 	</header>
 
-	<div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-		<StatTile
-			title="Drafts queue"
-			value={totalDrafts}
-			caption={stats.loading ? 'loading…' : `${stats.data?.drafts.length ?? 0} channels`}
-		/>
-		<ListTile
-			title="Scheduled next 24h"
-			items={(stats.data?.scheduled_next_24h ?? []).map((p) => ({
-				primary: p.title,
-				secondary: fmtWhen(p.scheduled_at)
-			}))}
-			empty={stats.loading ? 'loading…' : 'Nothing scheduled'}
-		/>
-		<StatTile
-			title="LLM cost (session)"
-			value={fmtMoney(sessionCostUsd)}
-			caption="Since last bot restart"
-		/>
-		<ListTile
-			title="Post views (recent)"
-			items={(stats.data?.post_views ?? []).map((p) => ({
-				primary: p.title,
-				secondary: p.views === 0 ? 'no data' : p.views.toLocaleString()
-			}))}
-			empty={stats.loading ? 'loading…' : 'No published posts yet'}
-		/>
-		<ListTile
-			title="Chats heatmap (7d total)"
-			items={(stats.data?.chat_heatmap ?? []).map((c) => ({
-				primary: c.title ?? `#${c.chat_id}`,
-				secondary: c.total_messages.toLocaleString()
-			}))}
-			empty={stats.loading ? 'loading…' : 'No activity recorded'}
-		/>
-		<ListTile
-			title="Members Δ (24h)"
-			items={(stats.data?.members_delta ?? []).map((m) => {
-				const d = m.delta_24h;
-				const sign = d === null || d === undefined ? '' : d > 0 ? '+' : '';
-				const secondary =
-					d === null || d === undefined
-						? `${m.current ?? '—'} (no baseline)`
-						: `${m.current?.toLocaleString() ?? '—'} (${sign}${d})`;
-				return { primary: m.title ?? `#${m.chat_id}`, secondary };
-			})}
-			empty={stats.loading ? 'loading…' : 'No snapshots yet'}
-		/>
-		<SkeletonTile title="Spam pings" phase={3} hint="Needs spam detector." />
-		<SkeletonTile title="Chat graph" phase={3} hint="Needs relationship model." />
+	<div class="grid grid-cols-1 gap-4 md:grid-cols-4 xl:grid-cols-6">
+		<div class="md:col-span-2 xl:col-span-3">
+			<Tile title="Drafts by channel">
+				<Donut
+					slices={(stats.data?.drafts ?? []).map((d) => ({
+						label: d.channel_name,
+						value: d.count
+					}))}
+					centerValue={totalDrafts}
+					centerLabel="drafts"
+					empty={stats.loading ? 'loading…' : 'No drafts queued'}
+				/>
+			</Tile>
+		</div>
+
+		<div class="md:col-span-2 xl:col-span-3">
+			<Tile title="Post views (recent)">
+				<BarChartH
+					items={(stats.data?.post_views ?? []).map((p) => ({
+						label: p.title,
+						value: p.views,
+						secondary: p.views === 0 ? 'no data' : p.views.toLocaleString()
+					}))}
+					empty={stats.loading ? 'loading…' : 'No published posts yet'}
+				/>
+			</Tile>
+		</div>
+
+		<div class="md:col-span-2 xl:col-span-3">
+			<Tile title="Chats heatmap (7d total)">
+				<BarChartH
+					items={(stats.data?.chat_heatmap ?? []).map((c) => ({
+						label: c.title ?? `#${c.chat_id}`,
+						value: c.total_messages
+					}))}
+					empty={stats.loading ? 'loading…' : 'No activity recorded'}
+				/>
+			</Tile>
+		</div>
+
+		<div class="md:col-span-2 xl:col-span-3">
+			<Tile title="Members Δ (24h)">
+				<DivergingBars
+					items={(stats.data?.members_delta ?? []).map((m) => {
+						const d = m.delta_24h;
+						const secondary =
+							d === null || d === undefined
+								? `${m.current?.toLocaleString() ?? '—'} · no baseline`
+								: `${m.current?.toLocaleString() ?? '—'} · ${d > 0 ? '+' : ''}${d}`;
+						return {
+							label: m.title ?? `#${m.chat_id}`,
+							value: d ?? null,
+							secondary
+						};
+					})}
+					empty={stats.loading ? 'loading…' : 'No snapshots yet'}
+				/>
+			</Tile>
+		</div>
+
+		<div class="md:col-span-2 xl:col-span-2">
+			<ListTile
+				title="Scheduled next 24h"
+				items={(stats.data?.scheduled_next_24h ?? []).map((p) => ({
+					primary: p.title,
+					secondary: fmtWhen(p.scheduled_at)
+				}))}
+				empty={stats.loading ? 'loading…' : 'Nothing scheduled'}
+			/>
+		</div>
+
+		<div class="md:col-span-2 xl:col-span-2">
+			<StatTile
+				title="LLM cost (session)"
+				value={fmtMoney(sessionCostUsd)}
+				caption="Since last bot restart"
+			/>
+		</div>
+
+		<div class="md:col-span-2 xl:col-span-1">
+			<SkeletonTile title="Spam pings" phase={3} hint="Needs spam detector." />
+		</div>
+		<div class="md:col-span-2 xl:col-span-1">
+			<SkeletonTile title="Chat graph" phase={3} hint="Needs relationship model." />
+		</div>
 	</div>
 </div>
