@@ -3,7 +3,7 @@ from typing import Any
 
 import sqlalchemy as sa
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import JSON, BigInteger, Boolean, DateTime, Float, Integer, String
+from sqlalchemy import JSON, BigInteger, Boolean, DateTime, Float, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.enums import EscalationStatus, PostStatus
@@ -600,9 +600,10 @@ class ChatMemberSnapshot(Base):
     """
 
     __tablename__ = "chat_member_snapshots"
+    __table_args__ = (Index("ix_chat_member_snapshots_chat_id_captured_at", "chat_id", "captured_at"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    chat_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    chat_id: Mapped[int] = mapped_column(BigInteger)
     member_count: Mapped[int] = mapped_column(Integer)
     captured_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now, index=True)
 
