@@ -1,9 +1,73 @@
 <script lang="ts">
-	import ComingSoon from '$lib/components/ComingSoon.svelte';
+	import ListTile from '$lib/components/home/ListTile.svelte';
+	import SkeletonTile from '$lib/components/home/SkeletonTile.svelte';
+	import StatTile from '$lib/components/home/StatTile.svelte';
+	import { useLivePoll } from '$lib/hooks/useLivePoll.svelte';
+	import type { components } from '$lib/api/types';
+
+	type HomeStats = components['schemas']['HomeStats'];
+
+	const stats = useLivePoll<HomeStats>('/api/stats/home');
+
+	const totalDrafts = $derived(
+		stats.data?.drafts.reduce((acc, d) => acc + d.count, 0) ?? 0
+	);
+	const sessionCostUsd = $derived(stats.data?.session_cost.total_cost_usd ?? 0);
+
+	function fmtMoney(usd: number): string {
+		return usd < 0.01 ? '<$0.01' : `$${usd.toFixed(2)}`;
+	}
+
+	function fmtWhen(iso: string): string {
+		const d = new Date(iso);
+		const hh = d.getHours().toString().padStart(2, '0');
+		const mm = d.getMinutes().toString().padStart(2, '0');
+		return `${hh}:${mm}`;
+	}
 </script>
 
-<ComingSoon
-	title="Home dashboard"
-	phase={1}
-	note="Phase 1 brings the 8-tile dashboard (drafts queue, scheduled, LLM cost, post views, chats heatmap, members delta, spam pings, chat graph)."
-/>
+<div class="space-y-6 px-6 py-6">
+	<header class="flex items-baseline justify-between">
+		<h2 class="text-lg font-semibold tracking-tight">Home dashboard</h2>
+		<div class="flex items-center gap-3 text-xs text-zinc-500">
+			{#if stats.error}
+				<span class="text-red-600">Error: {stats.error}</span>
+			{:else if stats.lastUpdatedAt}
+				<span>Updated {stats.lastUpdatedAt.toLocaleTimeString()}</span>
+			{/if}
+			<button
+				type="button"
+				class="rounded-md border border-zinc-200 px-2 py-1 text-xs font-medium hover:bg-zinc-100"
+				onclick={() => stats.refresh()}
+			>
+				Refresh
+			</button>
+		</div>
+	</header>
+
+	<div class="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+		<StatTile
+			title="Drafts queue"
+			value={totalDrafts}
+			caption={stats.loading ? 'loading…' : `${stats.data?.drafts.length ?? 0} channels`}
+		/>
+		<ListTile
+			title="Scheduled next 24h"
+			items={(stats.data?.scheduled_next_24h ?? []).map((p) => ({
+				primary: p.title,
+				secondary: fmtWhen(p.scheduled_at)
+			}))}
+			empty={stats.loading ? 'loading…' : 'Nothing scheduled'}
+		/>
+		<StatTile
+			title="LLM cost (session)"
+			value={fmtMoney(sessionCostUsd)}
+			caption="Since last bot restart"
+		/>
+		<SkeletonTile title="Post views" phase={2} hint="Requires Telethon aggregation." />
+		<SkeletonTile title="Chats heatmap" phase={2} hint="Requires Telethon aggregation." />
+		<SkeletonTile title="Members delta" phase={2} hint="Requires Telethon aggregation." />
+		<SkeletonTile title="Spam pings" phase={3} hint="Needs spam detector." />
+		<SkeletonTile title="Chat graph" phase={3} hint="Needs relationship model." />
+	</div>
+</div>
