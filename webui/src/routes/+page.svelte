@@ -64,9 +64,35 @@
 			value={fmtMoney(sessionCostUsd)}
 			caption="Since last bot restart"
 		/>
-		<SkeletonTile title="Post views" phase={2} hint="Requires Telethon aggregation." />
-		<SkeletonTile title="Chats heatmap" phase={2} hint="Requires Telethon aggregation." />
-		<SkeletonTile title="Members delta" phase={2} hint="Requires Telethon aggregation." />
+		<ListTile
+			title="Post views (recent)"
+			items={(stats.data?.post_views ?? []).map((p) => ({
+				primary: p.title,
+				secondary: p.views === 0 ? 'no data' : p.views.toLocaleString()
+			}))}
+			empty={stats.loading ? 'loading…' : 'No published posts yet'}
+		/>
+		<ListTile
+			title="Chats heatmap (7d total)"
+			items={(stats.data?.chat_heatmap ?? []).map((c) => ({
+				primary: c.title ?? `#${c.chat_id}`,
+				secondary: c.total_messages.toLocaleString()
+			}))}
+			empty={stats.loading ? 'loading…' : 'No activity recorded'}
+		/>
+		<ListTile
+			title="Members Δ (24h)"
+			items={(stats.data?.members_delta ?? []).map((m) => {
+				const d = m.delta_24h;
+				const sign = d === null || d === undefined ? '' : d > 0 ? '+' : '';
+				const secondary =
+					d === null || d === undefined
+						? `${m.current ?? '—'} (no baseline)`
+						: `${m.current?.toLocaleString() ?? '—'} (${sign}${d})`;
+				return { primary: m.title ?? `#${m.chat_id}`, secondary };
+			})}
+			empty={stats.loading ? 'loading…' : 'No snapshots yet'}
+		/>
 		<SkeletonTile title="Spam pings" phase={3} hint="Needs spam detector." />
 		<SkeletonTile title="Chat graph" phase={3} hint="Needs relationship model." />
 	</div>

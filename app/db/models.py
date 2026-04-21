@@ -3,7 +3,7 @@ from typing import Any
 
 import sqlalchemy as sa
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import JSON, BigInteger, Boolean, DateTime, Float, Integer, String
+from sqlalchemy import JSON, BigInteger, Boolean, DateTime, Float, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.enums import EscalationStatus, PostStatus
@@ -589,3 +589,26 @@ class AgentEscalation(Base):
         self.message_text = message_text
         self.admin_message_id = admin_message_id
         self.admin_chat_id = admin_chat_id
+
+
+class ChatMemberSnapshot(Base):
+    """Periodic member-count observations for managed chats.
+
+    Populated by the webapi's lifespan snapshot loop. Deltas on the home
+    dashboard are computed by comparing the most recent snapshot against
+    an older baseline (typically 24h / 7d back).
+    """
+
+    __tablename__ = "chat_member_snapshots"
+    __table_args__ = (Index("ix_chat_member_snapshots_chat_id_captured_at", "chat_id", "captured_at"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    chat_id: Mapped[int] = mapped_column(BigInteger)
+    member_count: Mapped[int] = mapped_column(Integer)
+    captured_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now, index=True)
+
+    def __init__(self, chat_id: int, member_count: int, captured_at: datetime.datetime | None = None) -> None:
+        self.chat_id = chat_id
+        self.member_count = member_count
+        if captured_at is not None:
+            self.captured_at = captured_at

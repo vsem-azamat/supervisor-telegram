@@ -78,6 +78,86 @@ class ChannelDetail(ChannelRead):
     recent_posts: list[PostRead]
 
 
+class ChatRead(BaseModel):
+    """List-page view of a managed chat."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    title: str | None
+    is_forum: bool
+    is_welcome_enabled: bool
+    is_captcha_enabled: bool
+    member_count: int | None = None  # enriched from Telethon, None when unavailable
+    created_at: datetime.datetime
+
+
+class HeatmapCell(BaseModel):
+    """One cell of the weekday×hour chat activity grid.
+
+    weekday: 0 = Monday, 6 = Sunday (matches datetime.weekday()).
+    hour: 0..23, UTC.
+    count: number of messages recorded in `messages` table for that cell
+           over the lookback window.
+    """
+
+    weekday: int
+    hour: int
+    count: int
+
+
+class MemberSnapshotPoint(BaseModel):
+    captured_at: datetime.datetime
+    member_count: int
+
+
+class ChatDetail(ChatRead):
+    """Full chat payload — adds heatmap grid + member-snapshot series."""
+
+    welcome_message: str | None
+    time_delete: int
+    modified_at: datetime.datetime
+    heatmap: list[HeatmapCell]
+    member_snapshots: list[MemberSnapshotPoint]
+
+
+class PostViewsEntry(BaseModel):
+    """Home tile: post view counts for the last N published posts."""
+
+    post_id: int
+    channel_id: int
+    channel_name: str
+    title: str
+    published_at: datetime.datetime
+    views: int
+
+
+class ChatHeatmapSummary(BaseModel):
+    """Home tile: per-chat total activity over the last 7 days.
+
+    We send totals (not the full grid) to keep the home payload small;
+    the full grid lives on /chats/:id.
+    """
+
+    chat_id: int
+    title: str | None
+    total_messages: int
+
+
+class MembersDeltaEntry(BaseModel):
+    """Home tile: members Δ over a window.
+
+    delta_24h / delta_7d: None when no baseline snapshot exists yet
+    (first run, or snapshot history too short).
+    """
+
+    chat_id: int
+    title: str | None
+    current: int | None
+    delta_24h: int | None
+    delta_7d: int | None
+
+
 class DraftBucket(BaseModel):
     """Home tile: drafts grouped by channel."""
 
@@ -164,3 +244,6 @@ class HomeStats(BaseModel):
     drafts: list[DraftBucket]
     scheduled_next_24h: list[ScheduledPostEntry]
     session_cost: SessionCostSummary
+    post_views: list[PostViewsEntry] = []
+    chat_heatmap: list[ChatHeatmapSummary] = []
+    members_delta: list[MembersDeltaEntry] = []
