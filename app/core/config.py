@@ -164,6 +164,19 @@ class ModerationSettings(BaseSettings):
     )
     enabled: bool = Field(default=False, description="Whether the moderation agent is enabled")
 
+    ad_detector_enabled: bool = Field(
+        default=True,
+        description="Whether the heuristic ad detector (t.me / @username) records spam_pings",
+    )
+    ad_detector_whitelist: list[str] = Field(
+        default_factory=list,
+        description="Handles never flagged by the ad detector (e.g. ['@konnekt_channel', '@work_azamat'])",
+    )
+    ad_detector_snippet_chars: int = Field(
+        default=200,
+        description="Max chars of message text stored alongside each spam_ping",
+    )
+
     @field_validator("default_timeout_action")
     @classmethod
     def validate_timeout_action(cls, v: str) -> str:
@@ -172,6 +185,18 @@ class ModerationSettings(BaseSettings):
         if v not in valid:
             raise ValueError(f"default_timeout_action must be one of {valid}, got '{v}'")
         return v
+
+    @field_validator("ad_detector_whitelist", mode="before")
+    @classmethod
+    def parse_ad_detector_whitelist(cls, v: object) -> list[str]:
+        """Accept comma-separated env strings as well as native lists."""
+        if v is None or v == "":
+            return []
+        if isinstance(v, str):
+            return [item.strip() for item in v.split(",") if item.strip()]
+        if isinstance(v, list):
+            return [str(item) for item in v]
+        raise TypeError(f"ad_detector_whitelist: unsupported type {type(v)}")
 
     model_config = SettingsConfigDict(
         env_prefix="MODERATION_",

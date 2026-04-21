@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.channel.cost_tracker import get_session_summary
 from app.core.enums import PostStatus
 from app.core.time import utc_now
-from app.db.models import Channel, ChannelPost, Chat, ChatMemberSnapshot, Message
+from app.db.models import Channel, ChannelPost, Chat, ChatMemberSnapshot, Message, SpamPing
 from app.webapi.deps import get_session, get_telethon_stats, require_super_admin
 from app.webapi.schemas import (
     ChatHeatmapSummary,
@@ -22,6 +22,8 @@ from app.webapi.schemas import (
     PostViewsEntry,
     ScheduledPostEntry,
     SessionCostSummary,
+    SpamPingRead,
+    SpamPingsSummary,
 )
 from app.webapi.services.telethon_stats import TelethonStatsService
 
@@ -33,6 +35,7 @@ _POST_VIEWS_TOP_N = 5
 _POST_VIEWS_LOOKBACK_DAYS = 7
 _CHAT_HEATMAP_TOP_N = 8
 _CHAT_HEATMAP_LOOKBACK_DAYS = 7
+_SPAM_RECENT_LIMIT = 5
 
 
 async def _compute_members_delta(session: AsyncSession, now: datetime.datetime) -> list[MembersDeltaEntry]:
@@ -197,6 +200,38 @@ async def home_stats(
     # --- Members delta ---
     members_delta = await _compute_members_delta(session, now)
 
+    # --- Spam pings: 24h / 7d counts + N most recent samples ---
+    since_24h = now - datetime.timedelta(hours=24)
+    since_7d = now - datetime.timedelta(days=7)
+    count_24h = int(
+        (await session.execute(select(func.count(SpamPing.id)).where(SpamPing.detected_at >= since_24h))).scalar_one()
+    )
+    count_7d = int(
+        (await session.execute(select(func.count(SpamPing.id)).where(SpamPing.detected_at >= since_7d))).scalar_one()
+    )
+    recent_rows = (
+        await session.execute(
+            select(SpamPing, Chat.title)
+            .join(Chat, Chat.id == SpamPing.chat_id, isouter=True)
+            .order_by(SpamPing.detected_at.desc())
+            .limit(_SPAM_RECENT_LIMIT)
+        )
+    ).all()
+    recent = [
+        SpamPingRead(
+            id=p.id,
+            chat_id=p.chat_id,
+            chat_title=title,
+            user_id=p.user_id,
+            message_id=p.message_id,
+            kind=p.kind,
+            matches=p.matches,
+            snippet=p.snippet,
+            detected_at=p.detected_at,
+        )
+        for p, title in recent_rows
+    ]
+
     return HomeStats(
         drafts=drafts,
         scheduled_next_24h=scheduled,
@@ -204,4 +239,5 @@ async def home_stats(
         post_views=post_views,
         chat_heatmap=chat_heatmap,
         members_delta=members_delta,
+        spam_pings=SpamPingsSummary(count_24h=count_24h, count_7d=count_7d, recent=recent),
     )
