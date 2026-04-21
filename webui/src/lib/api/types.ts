@@ -169,6 +169,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/spam/pings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Pings
+         * @description Most recent ad-detector hits, newest first.
+         *
+         *     With chat_id, filters to that chat. Joined against Chat to surface
+         *     the title; chats not in the table (untracked groups) come back with
+         *     chat_title = None.
+         */
+        get: operations["list_pings_api_spam_pings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/stats/home": {
         parameters: {
             query?: never;
@@ -337,6 +361,11 @@ export interface components {
              * @default []
              */
             children: components["schemas"]["ChatNode"][];
+            /**
+             * Spam Pings
+             * @default []
+             */
+            spam_pings: components["schemas"]["SpamPingRead"][];
         };
         /**
          * ChatHeatmapSummary
@@ -463,6 +492,14 @@ export interface components {
              * @default []
              */
             members_delta: components["schemas"]["MembersDeltaEntry"][];
+            /**
+             * @default {
+             *       "count_24h": 0,
+             *       "count_7d": 0,
+             *       "recent": []
+             *     }
+             */
+            spam_pings: components["schemas"]["SpamPingsSummary"];
         };
         /** MemberSnapshotPoint */
         MemberSnapshotPoint: {
@@ -640,6 +677,48 @@ export interface components {
             cache_savings_usd: number;
             /** By Operation */
             by_operation: components["schemas"]["OperationCostBucket"][];
+        };
+        /**
+         * SpamPingRead
+         * @description One ad-detection event surfaced to the UI.
+         */
+        SpamPingRead: {
+            /** Id */
+            id: number;
+            /** Chat Id */
+            chat_id: number;
+            /** Chat Title */
+            chat_title?: string | null;
+            /** User Id */
+            user_id: number;
+            /** Message Id */
+            message_id: number;
+            /** Kind */
+            kind: string;
+            /** Matches */
+            matches: string[];
+            /** Snippet */
+            snippet: string | null;
+            /**
+             * Detected At
+             * Format: date-time
+             */
+            detected_at: string;
+        };
+        /**
+         * SpamPingsSummary
+         * @description Home tile: rolling spam-ping counters + recent samples.
+         */
+        SpamPingsSummary: {
+            /** Count 24H */
+            count_24h: number;
+            /** Count 7D */
+            count_7d: number;
+            /**
+             * Recent
+             * @default []
+             */
+            recent: components["schemas"]["SpamPingRead"][];
         };
         /** ValidationError */
         ValidationError: {
@@ -889,6 +968,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SessionCostSummary"];
+                };
+            };
+        };
+    };
+    list_pings_api_spam_pings_get: {
+        parameters: {
+            query?: {
+                /** @description Filter by chat_id */
+                chat_id?: number | null;
+                /** @description Max rows to return */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpamPingRead"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -136,6 +136,7 @@ class ChatDetail(ChatRead):
     heatmap: list[HeatmapCell]
     member_snapshots: list[MemberSnapshotPoint]
     children: list[ChatNode] = []
+    spam_pings: list[SpamPingRead] = []
 
 
 ChatNode.model_rebuild()
@@ -184,6 +185,30 @@ class DraftBucket(BaseModel):
     channel_id: int
     channel_name: str
     count: int
+
+
+class SpamPingRead(BaseModel):
+    """One ad-detection event surfaced to the UI."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    chat_id: int
+    chat_title: str | None = None
+    user_id: int
+    message_id: int
+    kind: str
+    matches: list[str]
+    snippet: str | None
+    detected_at: datetime.datetime
+
+
+class SpamPingsSummary(BaseModel):
+    """Home tile: rolling spam-ping counters + recent samples."""
+
+    count_24h: int
+    count_7d: int
+    recent: list[SpamPingRead] = []
 
 
 class ScheduledPostEntry(BaseModel):
@@ -267,3 +292,4 @@ class HomeStats(BaseModel):
     post_views: list[PostViewsEntry] = []
     chat_heatmap: list[ChatHeatmapSummary] = []
     members_delta: list[MembersDeltaEntry] = []
+    spam_pings: SpamPingsSummary = SpamPingsSummary(count_24h=0, count_7d=0, recent=[])

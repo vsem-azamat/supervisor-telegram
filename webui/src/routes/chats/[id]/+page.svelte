@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import HeatmapGrid from '$lib/components/chat/HeatmapGrid.svelte';
 	import Sparkline from '$lib/components/charts/Sparkline.svelte';
+	import SpamPingsList from '$lib/components/spam/SpamPingsList.svelte';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { useLivePoll } from '$lib/hooks/useLivePoll.svelte';
 	import type { components } from '$lib/api/types';
@@ -96,5 +97,21 @@
 				</Card.Content>
 			</Card.Root>
 		{/if}
+
+		<Card.Root>
+			<Card.Header>
+				<Card.Title class="text-sm">
+					Spam pings
+					{#if detail.data.spam_pings.length > 0}
+						<span class="ml-1 text-xs font-normal text-zinc-500">
+							({detail.data.spam_pings.length} recent)
+						</span>
+					{/if}
+				</Card.Title>
+			</Card.Header>
+			<Card.Content>
+				<SpamPingsList items={detail.data.spam_pings} empty="No ad-detector hits in this chat." />
+			</Card.Content>
+		</Card.Root>
 	{/if}
 </div>

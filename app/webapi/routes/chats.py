@@ -18,9 +18,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.time import utc_now
-from app.db.models import Chat, ChatMemberSnapshot, Message
+from app.db.models import Chat, ChatMemberSnapshot, Message, SpamPing
 from app.webapi.deps import get_session, get_telethon_stats, require_super_admin
-from app.webapi.schemas import ChatDetail, ChatNode, ChatRead, HeatmapCell, MemberSnapshotPoint
+from app.webapi.schemas import (
+    ChatDetail,
+    ChatNode,
+    ChatRead,
+    HeatmapCell,
+    MemberSnapshotPoint,
+    SpamPingRead,
+)
 from app.webapi.services.telethon_stats import TelethonStatsService
 
 router = APIRouter(prefix="/chats", tags=["chats"])
@@ -28,6 +35,7 @@ router = APIRouter(prefix="/chats", tags=["chats"])
 _HEATMAP_LOOKBACK_DAYS = 7
 _HEATMAP_MAX_ROWS = 50_000
 _SNAPSHOTS_LIMIT = 50
+_SPAM_PINGS_LIMIT = 30
 
 
 def _build_heatmap(timestamps: list[datetime.datetime]) -> list[HeatmapCell]:
@@ -148,6 +156,33 @@ async def get_chat(
         ChatNode(id=c.id, title=c.title, relation_notes=c.relation_notes, children=[]) for c in children_rows
     ]
 
+    spam_rows = (
+        (
+            await session.execute(
+                select(SpamPing)
+                .where(SpamPing.chat_id == chat_id)
+                .order_by(SpamPing.detected_at.desc())
+                .limit(_SPAM_PINGS_LIMIT)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    spam_pings = [
+        SpamPingRead(
+            id=p.id,
+            chat_id=p.chat_id,
+            chat_title=chat.title,
+            user_id=p.user_id,
+            message_id=p.message_id,
+            kind=p.kind,
+            matches=p.matches,
+            snippet=p.snippet,
+            detected_at=p.detected_at,
+        )
+        for p in spam_rows
+    ]
+
     return ChatDetail(
         id=chat.id,
         title=chat.title,
@@ -166,4 +201,5 @@ async def get_chat(
             MemberSnapshotPoint(captured_at=s.captured_at, member_count=s.member_count) for s in snapshots_ascending
         ],
         children=children_nodes,
+        spam_pings=spam_pings,
     )

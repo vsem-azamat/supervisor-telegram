@@ -635,3 +635,47 @@ class ChatMemberSnapshot(Base):
         self.member_count = member_count
         if captured_at is not None:
             self.captured_at = captured_at
+
+
+class SpamPing(Base):
+    """A single ad-detection event.
+
+    Persisted by the moderator middleware whenever a message contains
+    t.me / telegram.me / @username patterns not present in the configured
+    whitelist. Powers the home "Spam pings" tile and the per-chat feed
+    on /chats/:id.
+    """
+
+    __tablename__ = "spam_pings"
+    __table_args__ = (
+        Index("ix_spam_pings_chat_id_detected_at", "chat_id", "detected_at"),
+        Index("ix_spam_pings_detected_at", "detected_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    chat_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    user_id: Mapped[int] = mapped_column(BigInteger)
+    message_id: Mapped[int] = mapped_column(BigInteger)
+    kind: Mapped[str] = mapped_column(String(16))
+    matches: Mapped[list[str]] = mapped_column(JSON)
+    snippet: Mapped[str | None] = mapped_column(String, nullable=True)
+    detected_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
+
+    def __init__(
+        self,
+        chat_id: int,
+        user_id: int,
+        message_id: int,
+        kind: str,
+        matches: list[str],
+        snippet: str | None = None,
+        detected_at: datetime.datetime | None = None,
+    ) -> None:
+        self.chat_id = chat_id
+        self.user_id = user_id
+        self.message_id = message_id
+        self.kind = kind
+        self.matches = matches
+        self.snippet = snippet
+        if detected_at is not None:
+            self.detected_at = detected_at

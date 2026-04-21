@@ -4,9 +4,9 @@
 	import DivergingBars from '$lib/components/charts/DivergingBars.svelte';
 	import Donut from '$lib/components/charts/Donut.svelte';
 	import ListTile from '$lib/components/home/ListTile.svelte';
-	import SkeletonTile from '$lib/components/home/SkeletonTile.svelte';
 	import StatTile from '$lib/components/home/StatTile.svelte';
 	import Tile from '$lib/components/home/Tile.svelte';
+	import SpamPingsList from '$lib/components/spam/SpamPingsList.svelte';
 	import { useLivePoll } from '$lib/hooks/useLivePoll.svelte';
 	import type { components } from '$lib/api/types';
 
@@ -132,7 +132,23 @@
 		</div>
 
 		<div class="md:col-span-2 xl:col-span-2">
-			<SkeletonTile title="Spam pings" phase={3} hint="Needs spam detector." />
+			<Tile title="Spam pings (24h)">
+				<div class="flex items-baseline gap-3">
+					<span class="text-2xl font-semibold tracking-tight text-zinc-900">
+						{stats.data?.spam_pings.count_24h ?? 0}
+					</span>
+					<span class="text-xs text-zinc-500">
+						· {stats.data?.spam_pings.count_7d ?? 0} in 7d
+					</span>
+				</div>
+				<div class="mt-2">
+					<SpamPingsList
+						items={(stats.data?.spam_pings.recent ?? []).slice(0, 3)}
+						empty={stats.loading ? 'loading…' : 'No pings detected.'}
+						showChat
+					/>
+				</div>
+			</Tile>
 		</div>
 
 		<div class="md:col-span-2 xl:col-span-2">

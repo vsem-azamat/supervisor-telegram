@@ -5,7 +5,7 @@ from aiogram import BaseMiddleware, types
 from aiogram.types import TelegramObject
 
 from app.core.logging import get_logger
-from app.moderation import history_service, spam_service
+from app.moderation import ad_detector_service, history_service, spam_service
 from app.presentation.telegram.utils import other
 
 if TYPE_CHECKING:
@@ -36,6 +36,18 @@ class HistoryMiddleware(BaseMiddleware):
                 await history_service.save_message(db, message)
             except Exception as err:
                 logger.error("save_message_failed", error=str(err))
+
+            if isinstance(user, types.User):
+                try:
+                    await ad_detector_service.record_ad_signals(
+                        db,
+                        chat_id=message.chat.id,
+                        user_id=user.id,
+                        message_id=message.message_id,
+                        text=message.text or message.caption,
+                    )
+                except Exception as err:
+                    logger.error("ad_detector_failed", error=str(err))
 
             if await spam_service.detect_spam(db, message):
                 answer = await event.message.answer("🚧 Is spam message?🤔")
