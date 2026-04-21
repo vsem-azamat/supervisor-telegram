@@ -16,11 +16,11 @@ def create_app() -> FastAPI:
         openapi_url="/api/openapi.json",
     )
 
-    # Dev-only: Svelte dev server runs on a different origin. SvelteKit's vite
-    # proxy covers the happy path, but CORS keeps direct-browser debugging easy.
+    # Dev-only: wide-open CORS so the frontend can hit the API from any VPS
+    # hostname. When auth lands, tighten to an allowlist.
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+        allow_origin_regex=".*",
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
