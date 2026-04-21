@@ -2,10 +2,45 @@
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
+from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.logging import get_logger
+from app.db.session import create_session_maker
 from app.webapi.routes import channels, chats, costs, health, posts, stats
+from app.webapi.snapshot_loop import run_snapshot_loop
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
+
+logger = get_logger("webapi.main")
+
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+    from app.core.container import container
+
+    session_maker = create_session_maker()
+    telethon = container.get_telethon_client()
+    task: asyncio.Task[None] | None = None
+    if telethon is not None:
+        task = asyncio.create_task(run_snapshot_loop(session_maker=session_maker, telethon=telethon))
+        logger.info("snapshot_loop started")
+    else:
+        logger.info("snapshot_loop not started — telethon unavailable")
+    try:
+        yield
+    finally:
+        if task is not None:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+            logger.info("snapshot_loop stopped")
 
 
 def create_app() -> FastAPI:
@@ -14,6 +49,7 @@ def create_app() -> FastAPI:
         version="0.1.0",
         docs_url="/api/docs",
         openapi_url="/api/openapi.json",
+        lifespan=_lifespan,
     )
 
     # Dev-only: wide-open CORS so the frontend can hit the API from any VPS
