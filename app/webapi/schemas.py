@@ -317,3 +317,18 @@ class HomeStats(BaseModel):
     chat_heatmap: list[ChatHeatmapSummary] = []
     members_delta: list[MembersDeltaEntry] = []
     spam_pings: SpamPingsSummary = SpamPingsSummary(count_24h=0, count_7d=0, recent=[])
+
+
+class TelegramLoginPayload(BaseModel):
+    """Payload POSTed by the Telegram Login Widget. Extra keys are preserved so HMAC verifies."""
+
+    model_config = ConfigDict(extra="allow")
+
+    id: int
+    auth_date: int
+    hash: str
+
+
+class AuthMeResponse(BaseModel):
+    user_id: int
+    is_authenticated: bool = True
