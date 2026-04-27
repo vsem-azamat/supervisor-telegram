@@ -174,6 +174,18 @@ class MemberSnapshotPoint(BaseModel):
     member_count: int
 
 
+class ChatSender(BaseModel):
+    """Recent sender in a chat — used for moderation actions."""
+
+    user_id: int
+    username: str | None
+    first_name: str | None
+    last_name: str | None
+    message_count: int
+    last_seen: datetime.datetime
+    blocked: bool
+
+
 class ChatDetail(ChatRead):
     """Full chat payload — adds heatmap grid + member-snapshot series + relationships."""
 
@@ -184,6 +196,20 @@ class ChatDetail(ChatRead):
     member_snapshots: list[MemberSnapshotPoint]
     children: list[ChatNode] = []
     spam_pings: list[SpamPingRead] = []
+    recent_senders: list[ChatSender] = []
+
+
+class UserBlockRequest(BaseModel):
+    """Body for POST /api/users/{id}/block. Set ``revoke_messages`` to also
+    delete the user's recorded messages from all known chats."""
+
+    revoke_messages: bool = False
+
+
+class UserBlockResponse(BaseModel):
+    user_id: int
+    blocked: bool
+    message: str
 
 
 ChatNode.model_rebuild()

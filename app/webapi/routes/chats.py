@@ -14,16 +14,17 @@ import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.time import utc_now
-from app.db.models import Chat, ChatMemberSnapshot, Message, SpamPing
+from app.db.models import Chat, ChatMemberSnapshot, Message, SpamPing, User
 from app.webapi.deps import get_session, get_telethon_stats, require_super_admin
 from app.webapi.schemas import (
     ChatDetail,
     ChatNode,
     ChatRead,
+    ChatSender,
     HeatmapCell,
     MemberSnapshotPoint,
     SpamPingRead,
@@ -36,6 +37,8 @@ _HEATMAP_LOOKBACK_DAYS = 7
 _HEATMAP_MAX_ROWS = 50_000
 _SNAPSHOTS_LIMIT = 50
 _SPAM_PINGS_LIMIT = 30
+_RECENT_SENDERS_LOOKBACK_DAYS = 7
+_RECENT_SENDERS_LIMIT = 25
 
 
 def _build_heatmap(timestamps: list[datetime.datetime]) -> list[HeatmapCell]:
@@ -183,6 +186,39 @@ async def get_chat(
         for p in spam_rows
     ]
 
+    senders_since = utc_now() - datetime.timedelta(days=_RECENT_SENDERS_LOOKBACK_DAYS)
+    senders_rows = (
+        await session.execute(
+            select(
+                Message.user_id,
+                func.count(Message.id).label("message_count"),
+                func.max(Message.timestamp).label("last_seen"),
+                User.username,
+                User.first_name,
+                User.last_name,
+                User.blocked,
+            )
+            .outerjoin(User, User.id == Message.user_id)
+            .where(Message.chat_id == chat_id)
+            .where(Message.timestamp >= senders_since)
+            .group_by(Message.user_id, User.username, User.first_name, User.last_name, User.blocked)
+            .order_by(func.count(Message.id).desc())
+            .limit(_RECENT_SENDERS_LIMIT)
+        )
+    ).all()
+    recent_senders = [
+        ChatSender(
+            user_id=r.user_id,
+            username=r.username,
+            first_name=r.first_name,
+            last_name=r.last_name,
+            message_count=int(r.message_count),
+            last_seen=r.last_seen,
+            blocked=bool(r.blocked) if r.blocked is not None else False,
+        )
+        for r in senders_rows
+    ]
+
     return ChatDetail(
         id=chat.id,
         title=chat.title,
@@ -202,4 +238,5 @@ async def get_chat(
         ],
         children=children_nodes,
         spam_pings=spam_pings,
+        recent_senders=recent_senders,
     )
