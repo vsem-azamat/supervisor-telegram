@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator
 from typing import TYPE_CHECKING, Annotated
 
+from aiogram import Bot
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -70,3 +71,14 @@ async def get_telethon_stats(request: Request) -> TelethonStatsService:
     tests) so the TTLCache persists across requests.
     """
     return request.app.state.telethon_stats
+
+
+async def get_publish_bot(request: Request) -> Bot:
+    """Return the process-wide publish Bot from app.state.
+
+    Raises 503 if unavailable (e.g. test env that didn't override).
+    """
+    bot: Bot | None = getattr(request.app.state, "publish_bot", None)
+    if bot is None:
+        raise HTTPException(status_code=503, detail="publish bot unavailable")
+    return bot
