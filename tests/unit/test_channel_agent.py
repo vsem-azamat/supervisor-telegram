@@ -1632,6 +1632,11 @@ class TestCostTracker:
         assert by_op["discovery"]["calls"] == 2
         assert by_op["discovery"]["tokens"] == 150 + 180
 
+        by_model = summary["by_model"]
+        assert by_model["perplexity/sonar"]["calls"] == 2
+        assert by_model["perplexity/sonar"]["tokens"] == 150 + 180
+        assert by_model["google/gemini-2.0-flash-001"]["calls"] == 1
+
         assert "screening" in by_op
         assert by_op["screening"]["calls"] == 1
         assert by_op["screening"]["tokens"] == 280

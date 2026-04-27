@@ -213,13 +213,14 @@ async def log_usage(usage: LLMUsage) -> None:
 
 
 def get_session_summary() -> dict[str, Any]:
-    """Return accumulated usage summary: total tokens, cost, cache savings, and per-operation breakdown."""
+    """Return accumulated usage summary: totals, cache savings, and per-operation/model breakdowns."""
     total_tokens = 0
     total_cost = 0.0
     total_cache_read = 0
     total_cache_write = 0
     total_savings = 0.0
     by_operation: dict[str, dict[str, float | int]] = {}
+    by_model: dict[str, dict[str, float | int]] = {}
 
     for u in _usage_history:
         total_tokens += u.total_tokens
@@ -230,11 +231,17 @@ def get_session_summary() -> dict[str, Any]:
 
         if u.operation not in by_operation:
             by_operation[u.operation] = {"tokens": 0, "cost_usd": 0.0, "calls": 0, "cache_savings_usd": 0.0}
-
         by_operation[u.operation]["tokens"] += u.total_tokens
         by_operation[u.operation]["cost_usd"] += u.estimated_cost_usd
         by_operation[u.operation]["calls"] += 1
         by_operation[u.operation]["cache_savings_usd"] += u.cache_savings_usd
+
+        if u.model not in by_model:
+            by_model[u.model] = {"tokens": 0, "cost_usd": 0.0, "calls": 0, "cache_savings_usd": 0.0}
+        by_model[u.model]["tokens"] += u.total_tokens
+        by_model[u.model]["cost_usd"] += u.estimated_cost_usd
+        by_model[u.model]["calls"] += 1
+        by_model[u.model]["cache_savings_usd"] += u.cache_savings_usd
 
     return {
         "total_tokens": total_tokens,
@@ -244,6 +251,7 @@ def get_session_summary() -> dict[str, Any]:
         "cache_write_tokens": total_cache_write,
         "cache_savings_usd": round(total_savings, 8),
         "by_operation": by_operation,
+        "by_model": by_model,
     }
 
 
