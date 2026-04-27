@@ -289,7 +289,8 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Update Chat */
+        patch: operations["update_chat_api_chats__chat_id__patch"];
         trace?: never;
     };
     "/api/costs/session": {
@@ -922,6 +923,27 @@ export interface components {
             blocked: boolean;
         };
         /**
+         * ChatUpdate
+         * @description Editable per-chat moderation settings. All fields optional — only the
+         *     keys present in the body are applied (``exclude_unset``).
+         */
+        ChatUpdate: {
+            /** Title */
+            title?: string | null;
+            /** Welcome Message */
+            welcome_message?: string | null;
+            /** Is Welcome Enabled */
+            is_welcome_enabled?: boolean | null;
+            /** Is Captcha Enabled */
+            is_captcha_enabled?: boolean | null;
+            /** Time Delete */
+            time_delete?: number | null;
+            /** Parent Chat Id */
+            parent_chat_id?: number | null;
+            /** Relation Notes */
+            relation_notes?: string | null;
+        };
+        /**
          * DraftBucket
          * @description Home tile: drafts grouped by channel.
          */
@@ -1035,6 +1057,22 @@ export interface components {
             delta_24h: number | null;
             /** Delta 7D */
             delta_7d: number | null;
+        };
+        /**
+         * ModelCostBucket
+         * @description Per-model slice of the session cost summary.
+         */
+        ModelCostBucket: {
+            /** Model */
+            model: string;
+            /** Tokens */
+            tokens: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Calls */
+            calls: number;
+            /** Cache Savings Usd */
+            cache_savings_usd: number;
         };
         /**
          * OperationCostBucket
@@ -1205,6 +1243,11 @@ export interface components {
             cache_savings_usd: number;
             /** By Operation */
             by_operation: components["schemas"]["OperationCostBucket"][];
+            /**
+             * By Model
+             * @default []
+             */
+            by_model: components["schemas"]["ModelCostBucket"][];
         };
         /**
          * SpamPingRead
@@ -1890,6 +1933,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChatDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_chat_api_chats__chat_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chat_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatRead"];
                 };
             };
             /** @description Validation Error */

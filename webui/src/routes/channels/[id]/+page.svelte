@@ -28,7 +28,8 @@
 		max_posts_per_day: 3,
 		footer_template: '',
 		posting_schedule: '',
-		publish_schedule: ''
+		publish_schedule: '',
+		critic_enabled: 'inherit' as 'inherit' | 'on' | 'off'
 	});
 
 	let newSourceUrl = $state('');
@@ -45,7 +46,8 @@
 			max_posts_per_day: c.max_posts_per_day,
 			footer_template: c.footer_template ?? '',
 			posting_schedule: (c.posting_schedule ?? []).join(', '),
-			publish_schedule: (c.publish_schedule ?? []).join(', ')
+			publish_schedule: (c.publish_schedule ?? []).join(', '),
+			critic_enabled: c.critic_enabled === null ? 'inherit' : c.critic_enabled ? 'on' : 'off'
 		};
 	}
 
@@ -78,6 +80,7 @@
 	async function saveEdit(): Promise<void> {
 		if (!channel) return;
 		saving = true;
+		const critic = edit.critic_enabled === 'inherit' ? null : edit.critic_enabled === 'on';
 		const res = await apiFetch<ChannelDetail>(`/api/channels/${channelId}`, {
 			method: 'PATCH',
 			body: JSON.stringify({
@@ -88,7 +91,8 @@
 				max_posts_per_day: edit.max_posts_per_day,
 				footer_template: edit.footer_template || null,
 				posting_schedule: parseSchedule(edit.posting_schedule),
-				publish_schedule: parseSchedule(edit.publish_schedule)
+				publish_schedule: parseSchedule(edit.publish_schedule),
+				critic_enabled: critic
 			})
 		});
 		saving = false;
@@ -220,6 +224,19 @@
 						<label class="block space-y-1">
 							<span class="text-xs text-zinc-600">Publish schedule (comma-separated HH:MM)</span>
 							<Input bind:value={edit.publish_schedule} />
+						</label>
+						<label class="block space-y-1">
+							<span class="text-xs text-zinc-600">
+								Critic pass (post-generation polish)
+							</span>
+							<select
+								bind:value={edit.critic_enabled}
+								class="h-9 w-full rounded-md border border-zinc-200 bg-white px-3 text-sm focus:border-zinc-400 focus:outline-none"
+							>
+								<option value="inherit">inherit (use global setting)</option>
+								<option value="on">on</option>
+								<option value="off">off</option>
+							</select>
 						</label>
 						<div class="flex items-center justify-end gap-2 pt-2">
 							<Button variant="ghost" size="sm" onclick={() => (editing = false)} disabled={saving}>

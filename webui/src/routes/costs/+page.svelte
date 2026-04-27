@@ -44,35 +44,65 @@
 		</Card.Content>
 	</Card.Root>
 
-	<Card.Root>
-		<Card.Header><Card.Title class="text-sm">Breakdown by operation</Card.Title></Card.Header>
-		<Card.Content>
-			{#if !cost.data || cost.data.by_operation.length === 0}
-				<p class="text-sm text-zinc-500">No usage yet this session.</p>
-			{:else}
-				<Table.Root>
-					<Table.Header>
-						<Table.Row>
-							<Table.Head>Operation</Table.Head>
-							<Table.Head class="w-24">Calls</Table.Head>
-							<Table.Head class="w-32">Tokens</Table.Head>
-							<Table.Head class="w-32">Cost</Table.Head>
-							<Table.Head class="w-32">Cache savings</Table.Head>
-						</Table.Row>
-					</Table.Header>
-					<Table.Body>
-						{#each cost.data.by_operation as b (b.operation)}
+	<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+		<Card.Root>
+			<Card.Header><Card.Title class="text-sm">Breakdown by operation</Card.Title></Card.Header>
+			<Card.Content>
+				{#if !cost.data || cost.data.by_operation.length === 0}
+					<p class="text-sm text-zinc-500">No usage yet this session.</p>
+				{:else}
+					<Table.Root>
+						<Table.Header>
 							<Table.Row>
-								<Table.Cell class="font-mono text-xs">{b.operation}</Table.Cell>
-								<Table.Cell>{b.calls}</Table.Cell>
-								<Table.Cell>{b.tokens.toLocaleString()}</Table.Cell>
-								<Table.Cell>{fmt(b.cost_usd)}</Table.Cell>
-								<Table.Cell>{fmt(b.cache_savings_usd)}</Table.Cell>
+								<Table.Head>Operation</Table.Head>
+								<Table.Head class="w-16">Calls</Table.Head>
+								<Table.Head class="w-24">Tokens</Table.Head>
+								<Table.Head class="w-24">Cost</Table.Head>
 							</Table.Row>
-						{/each}
-					</Table.Body>
-				</Table.Root>
-			{/if}
-		</Card.Content>
-	</Card.Root>
+						</Table.Header>
+						<Table.Body>
+							{#each [...cost.data.by_operation].sort((a, b) => b.cost_usd - a.cost_usd) as b (b.operation)}
+								<Table.Row>
+									<Table.Cell class="font-mono text-xs">{b.operation}</Table.Cell>
+									<Table.Cell>{b.calls}</Table.Cell>
+									<Table.Cell>{b.tokens.toLocaleString()}</Table.Cell>
+									<Table.Cell>{fmt(b.cost_usd)}</Table.Cell>
+								</Table.Row>
+							{/each}
+						</Table.Body>
+					</Table.Root>
+				{/if}
+			</Card.Content>
+		</Card.Root>
+
+		<Card.Root>
+			<Card.Header><Card.Title class="text-sm">Breakdown by model</Card.Title></Card.Header>
+			<Card.Content>
+				{#if !cost.data || cost.data.by_model.length === 0}
+					<p class="text-sm text-zinc-500">No usage yet this session.</p>
+				{:else}
+					<Table.Root>
+						<Table.Header>
+							<Table.Row>
+								<Table.Head>Model</Table.Head>
+								<Table.Head class="w-16">Calls</Table.Head>
+								<Table.Head class="w-24">Tokens</Table.Head>
+								<Table.Head class="w-24">Cost</Table.Head>
+							</Table.Row>
+						</Table.Header>
+						<Table.Body>
+							{#each [...cost.data.by_model].sort((a, b) => b.cost_usd - a.cost_usd) as b (b.model)}
+								<Table.Row>
+									<Table.Cell class="font-mono text-xs">{b.model}</Table.Cell>
+									<Table.Cell>{b.calls}</Table.Cell>
+									<Table.Cell>{b.tokens.toLocaleString()}</Table.Cell>
+									<Table.Cell>{fmt(b.cost_usd)}</Table.Cell>
+								</Table.Row>
+							{/each}
+						</Table.Body>
+					</Table.Root>
+				{/if}
+			</Card.Content>
+		</Card.Root>
+	</div>
 </div>
