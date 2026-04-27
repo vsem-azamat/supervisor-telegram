@@ -78,6 +78,53 @@ class ChannelDetail(ChannelRead):
     recent_posts: list[PostRead]
 
 
+class ChannelCreate(BaseModel):
+    """Required + optional fields for creating a new channel."""
+
+    telegram_id: int
+    name: str
+    description: str = ""
+    language: str = "ru"
+    username: str | None = None
+    review_chat_id: int | None = None
+    max_posts_per_day: int = 3
+    posting_schedule: list[str] | None = None
+    discovery_query: str = ""
+    source_discovery_query: str = ""
+
+
+class ChannelUpdate(BaseModel):
+    """All fields are optional — only the keys present in the body are applied."""
+
+    name: str | None = None
+    description: str | None = None
+    language: str | None = None
+    username: str | None = None
+    enabled: bool | None = None
+    review_chat_id: int | None = None
+    max_posts_per_day: int | None = None
+    posting_schedule: list[str] | None = None
+    publish_schedule: list[str] | None = None
+    footer_template: str | None = None
+    discovery_query: str | None = None
+    source_discovery_query: str | None = None
+    critic_enabled: bool | None = None
+
+
+class ChannelMutationResponse(BaseModel):
+    channel_id: int
+    message: str
+
+
+class ChannelSourceCreate(BaseModel):
+    url: str
+    title: str | None = None
+
+
+class ChannelSourceUpdate(BaseModel):
+    enabled: bool
+
+
 class ChatRead(BaseModel):
     """List-page view of a managed chat."""
 
