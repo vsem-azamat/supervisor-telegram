@@ -409,6 +409,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/users/{user_id}/block": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Block User */
+        post: operations["block_user_api_users__user_id__block_post"];
+        /** Unblock User */
+        delete: operations["unblock_user_api_users__user_id__block_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/users/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get User Block Status */
+        get: operations["get_user_block_status_api_users__user_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -703,6 +738,11 @@ export interface components {
              * @default []
              */
             spam_pings: components["schemas"]["SpamPingRead"][];
+            /**
+             * Recent Senders
+             * @default []
+             */
+            recent_senders: components["schemas"]["ChatSender"][];
         };
         /**
          * ChatHeatmapSummary
@@ -766,6 +806,29 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+        };
+        /**
+         * ChatSender
+         * @description Recent sender in a chat — used for moderation actions.
+         */
+        ChatSender: {
+            /** User Id */
+            user_id: number;
+            /** Username */
+            username: string | null;
+            /** First Name */
+            first_name: string | null;
+            /** Last Name */
+            last_name: string | null;
+            /** Message Count */
+            message_count: number;
+            /**
+             * Last Seen
+             * Format: date-time
+             */
+            last_seen: string;
+            /** Blocked */
+            blocked: boolean;
         };
         /**
          * DraftBucket
@@ -1092,6 +1155,27 @@ export interface components {
             hash: string;
         } & {
             [key: string]: unknown;
+        };
+        /**
+         * UserBlockRequest
+         * @description Body for POST /api/users/{id}/block. Set ``revoke_messages`` to also
+         *     delete the user's recorded messages from all known chats.
+         */
+        UserBlockRequest: {
+            /**
+             * Revoke Messages
+             * @default false
+             */
+            revoke_messages: boolean;
+        };
+        /** UserBlockResponse */
+        UserBlockResponse: {
+            /** User Id */
+            user_id: number;
+            /** Blocked */
+            blocked: boolean;
+            /** Message */
+            message: string;
         };
         /** ValidationError */
         ValidationError: {
@@ -1827,6 +1911,103 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    block_user_api_users__user_id__block_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserBlockRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserBlockResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    unblock_user_api_users__user_id__block_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserBlockResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_user_block_status_api_users__user_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserBlockResponse"];
                 };
             };
             /** @description Validation Error */
