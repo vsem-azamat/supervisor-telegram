@@ -6,6 +6,7 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import Header from '$lib/components/app-shell/Header.svelte';
 	import Sidebar from '$lib/components/app-shell/Sidebar.svelte';
+	import { Toaster } from '$lib/components/ui/sonner/index.js';
 	import { auth } from '$lib/stores/auth.svelte';
 
 	let { children } = $props();
@@ -21,6 +22,8 @@
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
+
+<Toaster richColors />
 
 {#if page.url.pathname === '/login'}
 	{@render children()}
