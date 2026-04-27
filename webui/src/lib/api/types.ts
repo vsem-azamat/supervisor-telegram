@@ -444,10 +444,101 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Sessions
+         * @description List the calling admin's active sessions, current one flagged.
+         */
+        get: operations["list_sessions_api_admin_sessions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke Session
+         * @description Revoke one of the calling admin's sessions. Refuse to revoke the current one.
+         */
+        delete: operations["revoke_session_api_admin_sessions__session_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/system": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get System Status */
+        get: operations["get_system_status_api_admin_system_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AdminSessionRead
+         * @description Active admin session row — used by /settings to list logins.
+         */
+        AdminSessionRead: {
+            /** Session Id */
+            session_id: string;
+            /** User Id */
+            user_id: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Last Seen At
+             * Format: date-time
+             */
+            last_seen_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** User Agent */
+            user_agent: string | null;
+            /** Ip */
+            ip: string | null;
+            /**
+             * Is Current
+             * @default false
+             */
+            is_current: boolean;
+        };
         /**
          * AgentHistory
          * @description Persisted-conversation snapshot for /agent.
@@ -842,6 +933,21 @@ export interface components {
             /** Count */
             count: number;
         };
+        /**
+         * FeatureFlagRead
+         * @description One feature flag — surfaced as a badge in /settings.
+         */
+        FeatureFlagRead: {
+            /** Name */
+            name: string;
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Source
+             * @default env
+             */
+            source: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1141,6 +1247,24 @@ export interface components {
              * @default []
              */
             recent: components["schemas"]["SpamPingRead"][];
+        };
+        /**
+         * SystemStatus
+         * @description Read-only operational status for the /settings system card.
+         */
+        SystemStatus: {
+            /** Super Admin Ids */
+            super_admin_ids: number[];
+            /** Telethon Connected */
+            telethon_connected: boolean;
+            /** Publish Bot Ready */
+            publish_bot_ready: boolean;
+            /** Allowed Origins */
+            allowed_origins: string[];
+            /** Session Ttl Days */
+            session_ttl_days: number;
+            /** Feature Flags */
+            feature_flags: components["schemas"]["FeatureFlagRead"][];
         };
         /**
          * TelegramLoginPayload
@@ -2017,6 +2141,75 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_sessions_api_admin_sessions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSessionRead"][];
+                };
+            };
+        };
+    };
+    revoke_session_api_admin_sessions__session_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_system_status_api_admin_system_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemStatus"];
                 };
             };
         };
