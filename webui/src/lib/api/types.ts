@@ -167,7 +167,8 @@ export interface paths {
         /** List Channels */
         get: operations["list_channels_api_channels_get"];
         put?: never;
-        post?: never;
+        /** Create Channel */
+        post: operations["create_channel_api_channels_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -185,10 +186,47 @@ export interface paths {
         get: operations["get_channel_api_channels__channel_id__get"];
         put?: never;
         post?: never;
+        /** Delete Channel */
+        delete: operations["delete_channel_api_channels__channel_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Channel */
+        patch: operations["update_channel_api_channels__channel_id__patch"];
+        trace?: never;
+    };
+    "/api/channels/{channel_id}/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add Source */
+        post: operations["add_source_api_channels__channel_id__sources_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/channels/{channel_id}/sources/{source_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Source */
+        delete: operations["delete_source_api_channels__channel_id__sources__source_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Source */
+        patch: operations["update_source_api_channels__channel_id__sources__source_id__patch"];
         trace?: never;
     };
     "/api/chats": {
@@ -422,6 +460,47 @@ export interface components {
             is_authenticated: boolean;
         };
         /**
+         * ChannelCreate
+         * @description Required + optional fields for creating a new channel.
+         */
+        ChannelCreate: {
+            /** Telegram Id */
+            telegram_id: number;
+            /** Name */
+            name: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Language
+             * @default ru
+             */
+            language: string;
+            /** Username */
+            username?: string | null;
+            /** Review Chat Id */
+            review_chat_id?: number | null;
+            /**
+             * Max Posts Per Day
+             * @default 3
+             */
+            max_posts_per_day: number;
+            /** Posting Schedule */
+            posting_schedule?: string[] | null;
+            /**
+             * Discovery Query
+             * @default
+             */
+            discovery_query: string;
+            /**
+             * Source Discovery Query
+             * @default
+             */
+            source_discovery_query: string;
+        };
+        /**
          * ChannelDetail
          * @description Full channel payload — adds config + sources + recent posts summary.
          */
@@ -469,6 +548,13 @@ export interface components {
             /** Recent Posts */
             recent_posts: components["schemas"]["PostRead"][];
         };
+        /** ChannelMutationResponse */
+        ChannelMutationResponse: {
+            /** Channel Id */
+            channel_id: number;
+            /** Message */
+            message: string;
+        };
         /**
          * ChannelRead
          * @description List-page view of a channel — identifying + toggle fields only.
@@ -498,6 +584,13 @@ export interface components {
              */
             created_at: string;
         };
+        /** ChannelSourceCreate */
+        ChannelSourceCreate: {
+            /** Url */
+            url: string;
+            /** Title */
+            title?: string | null;
+        };
         /**
          * ChannelSourceRead
          * @description RSS source attached to a channel.
@@ -523,6 +616,43 @@ export interface components {
             last_fetched_at: string | null;
             /** Last Error */
             last_error: string | null;
+        };
+        /** ChannelSourceUpdate */
+        ChannelSourceUpdate: {
+            /** Enabled */
+            enabled: boolean;
+        };
+        /**
+         * ChannelUpdate
+         * @description All fields are optional — only the keys present in the body are applied.
+         */
+        ChannelUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Description */
+            description?: string | null;
+            /** Language */
+            language?: string | null;
+            /** Username */
+            username?: string | null;
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Review Chat Id */
+            review_chat_id?: number | null;
+            /** Max Posts Per Day */
+            max_posts_per_day?: number | null;
+            /** Posting Schedule */
+            posting_schedule?: string[] | null;
+            /** Publish Schedule */
+            publish_schedule?: string[] | null;
+            /** Footer Template */
+            footer_template?: string | null;
+            /** Discovery Query */
+            discovery_query?: string | null;
+            /** Source Discovery Query */
+            source_discovery_query?: string | null;
+            /** Critic Enabled */
+            critic_enabled?: boolean | null;
         };
         /**
          * ChatDetail
@@ -1261,6 +1391,39 @@ export interface operations {
             };
         };
     };
+    create_channel_api_channels_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChannelCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_channel_api_channels__channel_id__get: {
         parameters: {
             query?: never;
@@ -1279,6 +1442,175 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChannelDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_channel_api_channels__channel_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelMutationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_channel_api_channels__channel_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChannelUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_source_api_channels__channel_id__sources_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChannelSourceCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelSourceRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_source_api_channels__channel_id__sources__source_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: number;
+                source_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelMutationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_source_api_channels__channel_id__sources__source_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channel_id: number;
+                source_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChannelSourceUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChannelSourceRead"];
                 };
             };
             /** @description Validation Error */
