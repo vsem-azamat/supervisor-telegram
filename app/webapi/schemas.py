@@ -212,6 +212,40 @@ class UserBlockResponse(BaseModel):
     message: str
 
 
+class AdminSessionRead(BaseModel):
+    """Active admin session row — used by /settings to list logins."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    session_id: str
+    user_id: int
+    created_at: datetime.datetime
+    last_seen_at: datetime.datetime
+    expires_at: datetime.datetime
+    user_agent: str | None
+    ip: str | None
+    is_current: bool = False
+
+
+class FeatureFlagRead(BaseModel):
+    """One feature flag — surfaced as a badge in /settings."""
+
+    name: str
+    enabled: bool
+    source: str = "env"
+
+
+class SystemStatus(BaseModel):
+    """Read-only operational status for the /settings system card."""
+
+    super_admin_ids: list[int]
+    telethon_connected: bool
+    publish_bot_ready: bool
+    allowed_origins: list[str]
+    session_ttl_days: int
+    feature_flags: list[FeatureFlagRead]
+
+
 ChatNode.model_rebuild()
 
 
