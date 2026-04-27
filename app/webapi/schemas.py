@@ -332,3 +332,20 @@ class TelegramLoginPayload(BaseModel):
 class AuthMeResponse(BaseModel):
     user_id: int
     is_authenticated: bool = True
+
+
+class PostMutationResponse(BaseModel):
+    """Outcome of a state-changing call against a post.
+
+    ``status`` is the post's PostStatus *after* the mutation; ``message`` is the
+    human-readable outcome from the service layer.
+    """
+
+    post_id: int
+    status: str
+    message: str
+    published_msg_id: int | None = None
+
+
+class PostTextEdit(BaseModel):
+    text: str
