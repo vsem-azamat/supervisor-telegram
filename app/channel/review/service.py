@@ -327,6 +327,40 @@ async def delete_post(
         return "Post skipped.", post
 
 
+async def set_post_text(
+    post_id: int,
+    new_text: str,
+    session_maker: async_sessionmaker[AsyncSession],
+) -> str:
+    """Verbatim text replacement. Distinct from ``edit_post_text`` (LLM rewrite).
+
+    Used by the web UI when an admin edits the post in a textarea. No
+    re-embedding (text changes don't re-run dedup; the original embedding
+    stays attached to the source-item identity).
+    """
+    from sqlalchemy import select
+
+    if not new_text.strip():
+        return "Post text cannot be empty."
+
+    async with session_maker() as session:
+        result = await session.execute(select(ChannelPost).where(ChannelPost.id == post_id).with_for_update())
+        post = result.scalar_one_or_none()
+        if post is None:
+            return "Post not found."
+        if post.status == PostStatus.APPROVED:
+            return "Already published — cannot edit."
+        if post.status == PostStatus.REJECTED:
+            return "Post was rejected — cannot edit."
+        if post.status == PostStatus.SKIPPED:
+            return "Post was skipped — cannot edit."
+
+        post.post_text = new_text
+        await session.commit()
+        logger.info("post_text_set", post_id=post_id, length=len(new_text))
+        return "Post text updated."
+
+
 async def edit_post_text(
     post_id: int,
     instruction: str,
