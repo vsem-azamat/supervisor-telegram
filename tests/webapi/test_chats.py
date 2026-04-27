@@ -61,18 +61,23 @@ async def test_list_chats_returns_all(client_factory, db_session_maker) -> None:
 
 async def test_chat_detail_heatmap_aggregates_messages(client_factory, db_session_maker) -> None:
     chat_id = -1010
+    # Anchor timestamps relative to "now" so they always fall inside the
+    # endpoint's 7-day lookback window — fixed dates would expire and break
+    # the test once the wall clock moved past them.
+    from app.core.time import utc_now
+
+    now = utc_now()
+    base = (now - datetime.timedelta(days=2)).replace(hour=10, minute=30, second=0, microsecond=0)
+    next_day = (base + datetime.timedelta(days=1)).replace(hour=15, minute=0)
+
     async with db_session_maker() as session:
         session.add(Chat(id=chat_id, title="C"))
-        # 3 messages on Monday 10:00
-        monday_10 = datetime.datetime(2026, 4, 20, 10, 30)  # Monday
         for i in range(3):
             msg = Message(chat_id=chat_id, user_id=1, message_id=i)
-            msg.timestamp = monday_10
+            msg.timestamp = base
             session.add(msg)
-        # 1 message on Tuesday 15:00
-        tuesday_15 = datetime.datetime(2026, 4, 21, 15, 0)
         msg = Message(chat_id=chat_id, user_id=1, message_id=99)
-        msg.timestamp = tuesday_15
+        msg.timestamp = next_day
         session.add(msg)
         await session.commit()
 
@@ -82,10 +87,8 @@ async def test_chat_detail_heatmap_aggregates_messages(client_factory, db_sessio
     assert resp.status_code == 200
     body = resp.json()
     cells = {(c["weekday"], c["hour"]): c["count"] for c in body["heatmap"]}
-    # Monday (weekday=0), 10:00 → 3
-    assert cells.get((0, 10)) == 3
-    # Tuesday (weekday=1), 15:00 → 1
-    assert cells.get((1, 15)) == 1
+    assert cells.get((base.weekday(), base.hour)) == 3
+    assert cells.get((next_day.weekday(), next_day.hour)) == 1
 
 
 async def test_chat_detail_returns_member_snapshots(client_factory, db_session_maker) -> None:
