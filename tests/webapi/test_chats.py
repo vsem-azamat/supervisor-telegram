@@ -113,3 +113,33 @@ async def test_chat_detail_404(client_factory) -> None:
     async with client_factory() as client:
         resp = await client.get("/api/chats/999999")
     assert resp.status_code == 404
+
+
+async def test_chat_detail_returns_recent_senders(client_factory, db_session_maker) -> None:
+    """Recent senders aggregates message counts per user with their block flag."""
+    from app.core.time import utc_now
+    from app.db.models import User
+
+    chat_id = -1030
+    now = utc_now()
+    async with db_session_maker() as session:
+        session.add(Chat(id=chat_id, title="E"))
+        session.add(User(id=501, username="alice", blocked=False))
+        session.add(User(id=502, username="bob", blocked=True))
+        for i in range(3):
+            m = Message(chat_id=chat_id, user_id=501, message_id=100 + i)
+            m.timestamp = now - datetime.timedelta(hours=i)
+            session.add(m)
+        m = Message(chat_id=chat_id, user_id=502, message_id=200)
+        m.timestamp = now - datetime.timedelta(hours=1)
+        session.add(m)
+        await session.commit()
+
+    async with client_factory() as client:
+        resp = await client.get(f"/api/chats/{chat_id}")
+    assert resp.status_code == 200
+    body = resp.json()
+    senders = {s["user_id"]: s for s in body["recent_senders"]}
+    assert senders[501]["message_count"] == 3
+    assert senders[501]["blocked"] is False
+    assert senders[502]["blocked"] is True
