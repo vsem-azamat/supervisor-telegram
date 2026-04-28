@@ -499,6 +499,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/suggestions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Suggestions */
+        get: operations["list_suggestions_api_suggestions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/agent/history": {
         parameters: {
             query?: never;
@@ -1530,6 +1547,43 @@ export interface components {
             recent: components["schemas"]["SpamPingRead"][];
         };
         /**
+         * SuggestionItem
+         * @description One actionable setup-gap detected by a mechanical rule.
+         *
+         *     ``kind`` is a stable id (sibling_orphan, network_without_channel, …) that the
+         *     UI uses for icon + copy. ``severity`` drives the tone of the card. ``target_id``
+         *     is the chat / channel id the suggestion is about — the UI uses it to dedupe
+         *     when the same chat is flagged by multiple rules.
+         */
+        SuggestionItem: {
+            /** Kind */
+            kind: string;
+            /** Severity */
+            severity: string;
+            /** Title */
+            title: string;
+            /** Hint */
+            hint: string;
+            /** Target Id */
+            target_id?: number | null;
+            /** Target Label */
+            target_label?: string | null;
+            /** Action Url */
+            action_url?: string | null;
+            /** Action Label */
+            action_label?: string | null;
+        };
+        /** SuggestionsResponse */
+        SuggestionsResponse: {
+            /** Items */
+            items: components["schemas"]["SuggestionItem"][];
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+        };
+        /**
          * SystemStatus
          * @description Read-only operational status for the /settings system card.
          */
@@ -2555,6 +2609,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HomeStats"];
+                };
+            };
+        };
+    };
+    list_suggestions_api_suggestions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuggestionsResponse"];
                 };
             };
         };

@@ -115,6 +115,7 @@ async def test_home_includes_post_views(client_factory, db_session_maker) -> Non
     import datetime
 
     from app.core.enums import PostStatus
+    from app.core.time import utc_now
     from app.db.models import Channel, ChannelPost
 
     async with db_session_maker() as session:
@@ -122,7 +123,7 @@ async def test_home_includes_post_views(client_factory, db_session_maker) -> Non
         post = ChannelPost(channel_id=-2001, external_id="e1", title="P1", post_text="x")
         post.status = PostStatus.APPROVED
         post.telegram_message_id = 42
-        post.published_at = datetime.datetime(2026, 4, 21, 10, 0, 0)
+        post.published_at = utc_now() - datetime.timedelta(days=2)
         session.add(post)
         await session.commit()
 
@@ -141,13 +142,15 @@ async def test_home_includes_post_views(client_factory, db_session_maker) -> Non
 async def test_home_includes_chat_heatmap_totals(client_factory, db_session_maker) -> None:
     import datetime
 
+    from app.core.time import utc_now
     from app.db.models import Chat, Message
 
     async with db_session_maker() as session:
         session.add(Chat(id=-3001, title="H"))
+        recent = utc_now() - datetime.timedelta(days=2)
         for i in range(5):
             m = Message(chat_id=-3001, user_id=1, message_id=i)
-            m.timestamp = datetime.datetime(2026, 4, 21, 12, 0, 0)
+            m.timestamp = recent
             session.add(m)
         await session.commit()
 
