@@ -502,6 +502,30 @@ class AgentTurnRequest(BaseModel):
     message: str
 
 
+class SuggestionItem(BaseModel):
+    """One actionable setup-gap detected by a mechanical rule.
+
+    ``kind`` is a stable id (sibling_orphan, network_without_channel, …) that the
+    UI uses for icon + copy. ``severity`` drives the tone of the card. ``target_id``
+    is the chat / channel id the suggestion is about — the UI uses it to dedupe
+    when the same chat is flagged by multiple rules.
+    """
+
+    kind: str
+    severity: str  # "info" | "warning" | "attention"
+    title: str
+    hint: str
+    target_id: int | None = None
+    target_label: str | None = None
+    action_url: str | None = None
+    action_label: str | None = None
+
+
+class SuggestionsResponse(BaseModel):
+    items: list[SuggestionItem]
+    generated_at: datetime.datetime
+
+
 class HomeStats(BaseModel):
     """Aggregated response backing the home dashboard's live tiles.
 

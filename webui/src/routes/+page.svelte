@@ -5,6 +5,7 @@
 	import Donut from '$lib/components/charts/Donut.svelte';
 	import ActionTile from '$lib/components/home/ActionTile.svelte';
 	import ListTile from '$lib/components/home/ListTile.svelte';
+	import SuggestionsRow from '$lib/components/home/SuggestionsRow.svelte';
 	import Tile from '$lib/components/home/Tile.svelte';
 	import SpamPingsList from '$lib/components/spam/SpamPingsList.svelte';
 	import { useLivePoll } from '$lib/hooks/useLivePoll.svelte';
@@ -13,9 +14,13 @@
 
 	type HomeStats = components['schemas']['HomeStats'];
 	type Tree = components['schemas']['ChatNode'][];
+	type Suggestions = components['schemas']['SuggestionsResponse'];
 
 	const stats = useLivePoll<HomeStats>('/api/stats/home');
 	const tree = useLivePoll<Tree>('/api/chats/graph', 120_000);
+	const suggestions = useLivePoll<Suggestions>('/api/suggestions', 60_000);
+
+	const suggestionItems = $derived(suggestions.data?.items ?? []);
 
 	const totalDrafts = $derived(
 		stats.data?.drafts.reduce((acc, d) => acc + d.count, 0) ?? 0
@@ -99,6 +104,16 @@
 			/>
 		</div>
 	</section>
+
+	<!-- Setup gaps — surfaces only when at least one rule fires. -->
+	{#if suggestionItems.length > 0}
+		<section class="space-y-2">
+			<div class="text-[10px] font-semibold tracking-wider text-zinc-400 uppercase">
+				Setup gaps
+			</div>
+			<SuggestionsRow items={suggestionItems} loading={suggestions.loading} />
+		</section>
+	{/if}
 
 	<!-- Content pipeline -->
 	<section class="space-y-2">

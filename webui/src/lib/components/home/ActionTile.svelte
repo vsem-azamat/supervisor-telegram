@@ -4,7 +4,7 @@
 
 	type Props = {
 		title: string;
-		value: string | number;
+		value?: string | number;
 		caption?: string;
 		href?: string;
 		cta?: string;
@@ -46,7 +46,9 @@
 		{/if}
 		<div class="min-w-0 flex-1">
 			<div class="text-xs font-medium text-zinc-600">{title}</div>
-			<div class="mt-0.5 text-2xl font-semibold tracking-tight text-zinc-900">{value}</div>
+			{#if value !== undefined && value !== ''}
+				<div class="mt-0.5 text-2xl font-semibold tracking-tight text-zinc-900">{value}</div>
+			{/if}
 			{#if caption}
 				<div class="mt-0.5 text-xs text-zinc-500">{caption}</div>
 			{/if}
