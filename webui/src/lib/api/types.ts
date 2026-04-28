@@ -157,6 +157,131 @@ export interface paths {
         patch: operations["edit_text_api_posts__post_id__text_patch"];
         trace?: never;
     };
+    "/api/posts/{post_id}/regenerate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Regenerate
+         * @description Re-run the generator over the post's stored source_items and replace the body.
+         *
+         *     Looks up the channel to resolve language + footer; falls back to defaults
+         *     when the channel row is missing (e.g. test fixtures).
+         */
+        post: operations["regenerate_api_posts__post_id__regenerate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/posts/{post_id}/images/use": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Image Use */
+        post: operations["image_use_api_posts__post_id__images_use_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/posts/{post_id}/images/url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Image Add Url */
+        post: operations["image_add_url_api_posts__post_id__images_url_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/posts/{post_id}/images/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Image Search */
+        post: operations["image_search_api_posts__post_id__images_search_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/posts/{post_id}/images/{position}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Image Remove */
+        delete: operations["image_remove_api_posts__post_id__images__position__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/posts/{post_id}/images/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Image Reorder */
+        post: operations["image_reorder_api_posts__post_id__images_reorder_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/posts/{post_id}/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Image Clear */
+        delete: operations["image_clear_api_posts__post_id__images_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/channels": {
         parameters: {
             query?: never;
@@ -302,6 +427,29 @@ export interface paths {
         };
         /** Session Cost */
         get: operations["session_cost_api_costs_session_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/costs/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cost History
+         * @description Daily aggregate of cost_events for the last ``days`` days, oldest first.
+         *
+         *     Empty days are filled with zero rows so the FE can render a contiguous
+         *     sparkline without gap-filling client-side.
+         */
+        get: operations["cost_history_api_costs_history_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -944,6 +1092,38 @@ export interface components {
             relation_notes?: string | null;
         };
         /**
+         * CostHistoryDay
+         * @description One day in the persistent cost history series.
+         */
+        CostHistoryDay: {
+            /** Day */
+            day: string;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Tokens */
+            tokens: number;
+            /** Calls */
+            calls: number;
+            /** Cache Savings Usd */
+            cache_savings_usd: number;
+        };
+        /**
+         * CostHistoryResponse
+         * @description Daily roll-up of cost_events, oldest first.
+         */
+        CostHistoryResponse: {
+            /** Days */
+            days: number;
+            /** Series */
+            series: components["schemas"]["CostHistoryDay"][];
+            /** Total Cost Usd */
+            total_cost_usd: number;
+            /** Total Calls */
+            total_calls: number;
+            /** Total Tokens */
+            total_tokens: number;
+        };
+        /**
          * DraftBucket
          * @description Home tile: drafts grouped by channel.
          */
@@ -1028,6 +1208,58 @@ export interface components {
              *     }
              */
             spam_pings: components["schemas"]["SpamPingsSummary"];
+        };
+        /**
+         * ImageAddUrlRequest
+         * @description POST /api/posts/{id}/images/url — vet + attach an arbitrary URL.
+         */
+        ImageAddUrlRequest: {
+            /** Url */
+            url: string;
+            /** Position */
+            position?: number | null;
+        };
+        /**
+         * ImageMutationResponse
+         * @description Common response shape for image-pool mutations.
+         */
+        ImageMutationResponse: {
+            /** Post Id */
+            post_id: number;
+            /** Message */
+            message: string;
+            /** Image Urls */
+            image_urls: string[];
+            /** Image Candidates */
+            image_candidates: {
+                [key: string]: unknown;
+            }[];
+        };
+        /**
+         * ImageReorderRequest
+         * @description POST /api/posts/{id}/images/reorder — permutation of current selected positions.
+         */
+        ImageReorderRequest: {
+            /** Order */
+            order: number[];
+        };
+        /**
+         * ImageSearchRequest
+         * @description POST /api/posts/{id}/images/search — Brave search → vision-score → pool.
+         */
+        ImageSearchRequest: {
+            /** Query */
+            query: string;
+        };
+        /**
+         * ImageUseRequest
+         * @description POST /api/posts/{id}/images/use — promote a pool candidate to selected.
+         */
+        ImageUseRequest: {
+            /** Pool Index */
+            pool_index: number;
+            /** Position */
+            position?: number | null;
         };
         /** MemberSnapshotPoint */
         MemberSnapshotPoint: {
@@ -1128,6 +1360,12 @@ export interface components {
             external_id: string;
             /** Source Items */
             source_items?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Pre Critic Text */
+            pre_critic_text?: string | null;
+            /** Image Candidates */
+            image_candidates?: {
                 [key: string]: unknown;
             }[] | null;
         };
@@ -1622,6 +1860,240 @@ export interface operations {
             };
         };
     };
+    regenerate_api_posts__post_id__regenerate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                post_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PostMutationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    image_use_api_posts__post_id__images_use_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                post_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImageUseRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageMutationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    image_add_url_api_posts__post_id__images_url_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                post_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImageAddUrlRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageMutationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    image_search_api_posts__post_id__images_search_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                post_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImageSearchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageMutationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    image_remove_api_posts__post_id__images__position__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                post_id: number;
+                position: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageMutationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    image_reorder_api_posts__post_id__images_reorder_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                post_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImageReorderRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageMutationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    image_clear_api_posts__post_id__images_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                post_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageMutationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_channels_api_channels_get: {
         parameters: {
             query?: never;
@@ -1997,6 +2469,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SessionCostSummary"];
+                };
+            };
+        };
+    };
+    cost_history_api_costs_history_get: {
+        parameters: {
+            query?: {
+                /** @description Lookback window in days */
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostHistoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

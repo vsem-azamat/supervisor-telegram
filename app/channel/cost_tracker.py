@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 from datetime import datetime  # noqa: TC003 - needed at runtime for dataclass field type
 from typing import Any
@@ -187,13 +188,60 @@ def extract_usage_from_pydanticai_result(
 _MAX_USAGE_HISTORY = 1000
 
 _usage_history: list[LLMUsage] = []
+_persist_enabled: bool = False
+
+
+def enable_persistence(enabled: bool = True) -> None:
+    """Toggle DB persistence of usage events.
+
+    Off by default so unit tests that exercise log_usage don't require the
+    cost_events table to exist. Production processes (webapi, bot) flip this
+    on at startup.
+    """
+    global _persist_enabled
+    _persist_enabled = enabled
+
+
+async def _persist_usage(usage: LLMUsage) -> None:
+    """Best-effort write of one usage row to ``cost_events``.
+
+    Failures are logged and swallowed — cost tracking must never block an
+    LLM call. Imports happen lazily so the module stays importable in
+    contexts without a configured DB.
+    """
+    try:
+        from app.db.models import CostEvent
+        from app.db.session import create_session_maker
+
+        session_maker = create_session_maker()
+        async with session_maker() as session:
+            session.add(
+                CostEvent(
+                    occurred_at=usage.created_at,
+                    model=usage.model,
+                    operation=usage.operation,
+                    prompt_tokens=usage.prompt_tokens,
+                    completion_tokens=usage.completion_tokens,
+                    total_tokens=usage.total_tokens,
+                    cache_read_tokens=usage.cache_read_tokens,
+                    cache_write_tokens=usage.cache_write_tokens,
+                    cost_usd=usage.estimated_cost_usd,
+                    cache_savings_usd=usage.cache_savings_usd,
+                    channel_id=usage.channel_id,
+                )
+            )
+            await session.commit()
+    except Exception:
+        logger.warning("cost_persist_failed", model=usage.model, exc_info=True)
 
 
 async def log_usage(usage: LLMUsage) -> None:
     """Log a single LLM usage record and accumulate it in memory.
 
     The in-memory history is capped at :data:`_MAX_USAGE_HISTORY` entries.
-    When the cap is reached, the oldest entries are evicted.
+    When the cap is reached, the oldest entries are evicted. When persistence
+    is enabled (see :func:`enable_persistence`) a fire-and-forget task also
+    writes the event to the ``cost_events`` table.
     """
     _usage_history.append(usage)
     # Evict oldest entries to prevent unbounded memory growth
@@ -210,6 +258,12 @@ async def log_usage(usage: LLMUsage) -> None:
         cache_savings_usd=usage.cache_savings_usd,
         channel_id=usage.channel_id,
     )
+    if _persist_enabled:
+        try:
+            asyncio.create_task(_persist_usage(usage))
+        except RuntimeError:
+            # No running event loop — caller must await persist explicitly.
+            await _persist_usage(usage)
 
 
 def get_session_summary() -> dict[str, Any]:

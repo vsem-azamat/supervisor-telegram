@@ -44,6 +44,8 @@ logger = get_logger("bot")
 async def on_startup(bot: Bot) -> None:
     """Main bot startup: webhook cleanup, chat links, Telethon."""
     try:
+        from app.channel.cost_tracker import enable_persistence as enable_cost_persistence
+
         await bot.delete_webhook()
         await insert_chat_link()
 
@@ -52,6 +54,7 @@ async def on_startup(bot: Bot) -> None:
             await telethon_client.start()
             logger.info("telethon_started")
 
+        enable_cost_persistence(True)
         logger.info("main_bot_startup_complete")
     except Exception as e:
         logger.error("startup_error", error=str(e), exc_info=True)

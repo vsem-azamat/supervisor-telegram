@@ -29,6 +29,43 @@ class PostDetail(PostRead):
 
     external_id: str
     source_items: list[dict[str, Any]] | None = None
+    pre_critic_text: str | None = None
+    image_candidates: list[dict[str, Any]] | None = None
+
+
+class ImageUseRequest(BaseModel):
+    """POST /api/posts/{id}/images/use — promote a pool candidate to selected."""
+
+    pool_index: int
+    position: int | None = None
+
+
+class ImageAddUrlRequest(BaseModel):
+    """POST /api/posts/{id}/images/url — vet + attach an arbitrary URL."""
+
+    url: str
+    position: int | None = None
+
+
+class ImageSearchRequest(BaseModel):
+    """POST /api/posts/{id}/images/search — Brave search → vision-score → pool."""
+
+    query: str
+
+
+class ImageReorderRequest(BaseModel):
+    """POST /api/posts/{id}/images/reorder — permutation of current selected positions."""
+
+    order: list[int]
+
+
+class ImageMutationResponse(BaseModel):
+    """Common response shape for image-pool mutations."""
+
+    post_id: int
+    message: str
+    image_urls: list[str]
+    image_candidates: list[dict[str, Any]]
 
 
 class ChannelRead(BaseModel):
@@ -364,6 +401,26 @@ class ModelCostBucket(BaseModel):
     cost_usd: float
     calls: int
     cache_savings_usd: float
+
+
+class CostHistoryDay(BaseModel):
+    """One day in the persistent cost history series."""
+
+    day: str  # ISO yyyy-mm-dd
+    cost_usd: float
+    tokens: int
+    calls: int
+    cache_savings_usd: float
+
+
+class CostHistoryResponse(BaseModel):
+    """Daily roll-up of cost_events, oldest first."""
+
+    days: int
+    series: list[CostHistoryDay]
+    total_cost_usd: float
+    total_calls: int
+    total_tokens: int
 
 
 class SessionCostSummary(BaseModel):
