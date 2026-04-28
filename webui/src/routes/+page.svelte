@@ -3,11 +3,12 @@
 	import BarChartH from '$lib/components/charts/BarChartH.svelte';
 	import DivergingBars from '$lib/components/charts/DivergingBars.svelte';
 	import Donut from '$lib/components/charts/Donut.svelte';
+	import ActionTile from '$lib/components/home/ActionTile.svelte';
 	import ListTile from '$lib/components/home/ListTile.svelte';
-	import StatTile from '$lib/components/home/StatTile.svelte';
 	import Tile from '$lib/components/home/Tile.svelte';
 	import SpamPingsList from '$lib/components/spam/SpamPingsList.svelte';
 	import { useLivePoll } from '$lib/hooks/useLivePoll.svelte';
+	import { Inbox, RefreshCw, Send, ShieldAlert, Wallet } from '@lucide/svelte';
 	import type { components } from '$lib/api/types';
 
 	type HomeStats = components['schemas']['HomeStats'];
@@ -20,6 +21,8 @@
 		stats.data?.drafts.reduce((acc, d) => acc + d.count, 0) ?? 0
 	);
 	const sessionCostUsd = $derived(stats.data?.session_cost.total_cost_usd ?? 0);
+	const scheduledCount = $derived(stats.data?.scheduled_next_24h.length ?? 0);
+	const spamCount24h = $derived(stats.data?.spam_pings.count_24h ?? 0);
 
 	function fmtMoney(usd: number): string {
 		return usd < 0.01 ? '<$0.01' : `$${usd.toFixed(2)}`;
@@ -35,7 +38,10 @@
 
 <div class="space-y-6 px-6 py-6">
 	<header class="flex items-baseline justify-between">
-		<h2 class="text-lg font-semibold tracking-tight">Home dashboard</h2>
+		<div>
+			<h2 class="text-lg font-semibold tracking-tight">Dashboard</h2>
+			<p class="mt-0.5 text-xs text-zinc-500">Live operational view of the Konnekt platform.</p>
+		</div>
 		<div class="flex items-center gap-3 text-xs text-zinc-500">
 			{#if stats.error}
 				<span class="text-red-600">Error: {stats.error}</span>
@@ -44,16 +50,62 @@
 			{/if}
 			<button
 				type="button"
-				class="rounded-md border border-zinc-200 px-2 py-1 text-xs font-medium hover:bg-zinc-100"
+				class="flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs font-medium hover:bg-zinc-100"
 				onclick={() => stats.refresh()}
 			>
-				Refresh
+				<RefreshCw class="h-3 w-3" />
+				<span>Refresh</span>
 			</button>
 		</div>
 	</header>
 
-	<div class="grid grid-cols-1 gap-4 md:grid-cols-4 xl:grid-cols-6">
-		<div class="md:col-span-2 xl:col-span-3">
+	<!-- Action bar: what needs attention NOW -->
+	<section class="space-y-2">
+		<div class="text-[10px] font-semibold tracking-wider text-zinc-400 uppercase">
+			Needs your attention
+		</div>
+		<div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+			<ActionTile
+				title="Drafts in review queue"
+				value={totalDrafts}
+				caption={totalDrafts === 0 ? 'No drafts pending' : 'Open the posts queue to review'}
+				icon={Inbox}
+				tone={totalDrafts > 0 ? 'attention' : 'default'}
+				href="/posts?status=sent_for_review"
+				cta={totalDrafts > 0 ? 'Review' : 'View'}
+			/>
+			<ActionTile
+				title="Scheduled in 24h"
+				value={scheduledCount}
+				caption={scheduledCount === 0 ? 'Nothing scheduled' : 'Upcoming publications'}
+				icon={Send}
+				href="/posts?status=scheduled"
+				cta="View"
+			/>
+			<ActionTile
+				title="Spam pings (24h)"
+				value={spamCount24h}
+				caption="Ad detector hits across all chats"
+				icon={ShieldAlert}
+				tone={spamCount24h > 0 ? 'warning' : 'default'}
+				href="/chats"
+			/>
+			<ActionTile
+				title="LLM cost (session)"
+				value={fmtMoney(sessionCostUsd)}
+				caption="Since last bot restart"
+				icon={Wallet}
+				href="/costs"
+			/>
+		</div>
+	</section>
+
+	<!-- Content pipeline -->
+	<section class="space-y-2">
+		<div class="text-[10px] font-semibold tracking-wider text-zinc-400 uppercase">
+			Content pipeline
+		</div>
+		<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 			<Tile title="Drafts by channel">
 				<Donut
 					slices={(stats.data?.drafts ?? []).map((d) => ({
@@ -65,34 +117,38 @@
 					empty={stats.loading ? 'loading…' : 'No drafts queued'}
 				/>
 			</Tile>
-		</div>
 
-		<div class="md:col-span-2 xl:col-span-3">
 			<Tile title="Post views (recent)">
 				<BarChartH
 					items={(stats.data?.post_views ?? []).map((p) => ({
 						label: p.title,
 						value: p.views,
-						secondary: p.views === 0 ? 'no data' : p.views.toLocaleString()
+						secondary: p.views === 0 ? 'no data' : p.views.toLocaleString(),
+						href: `/posts/${p.post_id}`
 					}))}
 					empty={stats.loading ? 'loading…' : 'No published posts yet'}
 				/>
 			</Tile>
 		</div>
+	</section>
 
-		<div class="md:col-span-2 xl:col-span-3">
+	<!-- Chats / community -->
+	<section class="space-y-2">
+		<div class="text-[10px] font-semibold tracking-wider text-zinc-400 uppercase">
+			Community
+		</div>
+		<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 			<Tile title="Chats heatmap (7d total)">
 				<BarChartH
 					items={(stats.data?.chat_heatmap ?? []).map((c) => ({
 						label: c.title ?? `#${c.chat_id}`,
-						value: c.total_messages
+						value: c.total_messages,
+						href: `/chats/${c.chat_id}`
 					}))}
 					empty={stats.loading ? 'loading…' : 'No activity recorded'}
 				/>
 			</Tile>
-		</div>
 
-		<div class="md:col-span-2 xl:col-span-3">
 			<Tile title="Members Δ (24h)">
 				<DivergingBars
 					items={(stats.data?.members_delta ?? []).map((m) => {
@@ -104,15 +160,22 @@
 						return {
 							label: m.title ?? `#${m.chat_id}`,
 							value: d ?? null,
-							secondary
+							secondary,
+							href: `/chats/${m.chat_id}`
 						};
 					})}
 					empty={stats.loading ? 'loading…' : 'No snapshots yet'}
 				/>
 			</Tile>
 		</div>
+	</section>
 
-		<div class="md:col-span-2 xl:col-span-2">
+	<!-- Side rail: timeline + spam + tree -->
+	<section class="space-y-2">
+		<div class="text-[10px] font-semibold tracking-wider text-zinc-400 uppercase">
+			Recent activity
+		</div>
+		<div class="grid grid-cols-1 gap-4 md:grid-cols-3">
 			<ListTile
 				title="Scheduled next 24h"
 				items={(stats.data?.scheduled_next_24h ?? []).map((p) => ({
@@ -121,37 +184,15 @@
 				}))}
 				empty={stats.loading ? 'loading…' : 'Nothing scheduled'}
 			/>
-		</div>
 
-		<div class="md:col-span-2 xl:col-span-2">
-			<StatTile
-				title="LLM cost (session)"
-				value={fmtMoney(sessionCostUsd)}
-				caption="Since last bot restart"
-			/>
-		</div>
-
-		<div class="md:col-span-2 xl:col-span-2">
-			<Tile title="Spam pings (24h)">
-				<div class="flex items-baseline gap-3">
-					<span class="text-2xl font-semibold tracking-tight text-zinc-900">
-						{stats.data?.spam_pings.count_24h ?? 0}
-					</span>
-					<span class="text-xs text-zinc-500">
-						· {stats.data?.spam_pings.count_7d ?? 0} in 7d
-					</span>
-				</div>
-				<div class="mt-2">
-					<SpamPingsList
-						items={(stats.data?.spam_pings.recent ?? []).slice(0, 3)}
-						empty={stats.loading ? 'loading…' : 'No pings detected.'}
-						showChat
-					/>
-				</div>
+			<Tile title="Recent spam pings">
+				<SpamPingsList
+					items={(stats.data?.spam_pings.recent ?? []).slice(0, 4)}
+					empty={stats.loading ? 'loading…' : 'No pings detected.'}
+					showChat
+				/>
 			</Tile>
-		</div>
 
-		<div class="md:col-span-2 xl:col-span-2">
 			<Tile title="Chat graph">
 				{#if tree.loading}
 					<p class="text-xs text-zinc-500">loading…</p>
@@ -163,11 +204,14 @@
 							<ChatTreeNode node={root} depth={1} />
 						{/each}
 					</ul>
-					<a href="/chats/graph" class="mt-2 inline-block text-xs text-zinc-500 hover:underline">
+					<a
+						href="/chats/graph"
+						class="mt-2 inline-block text-xs text-zinc-500 hover:underline"
+					>
 						View full tree →
 					</a>
 				{/if}
 			</Tile>
 		</div>
-	</div>
+	</section>
 </div>

@@ -5,6 +5,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { apiFetch } from '$lib/api/client';
+	import { Plus, Power, Send, Tv } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import type { components } from '$lib/api/types';
 
@@ -18,6 +19,13 @@
 	let formOpen = $state(false);
 	let saving = $state(false);
 	let form = $state({ telegram_id: '', name: '', language: 'ru', description: '' });
+
+	const summary = $derived.by(() => {
+		const total = channels.length;
+		const enabled = channels.filter((c) => c.enabled).length;
+		const totalPostsPerDay = channels.reduce((acc, c) => acc + c.max_posts_per_day, 0);
+		return { total, enabled, totalPostsPerDay };
+	});
 
 	async function load(): Promise<void> {
 		loading = true;
@@ -63,11 +71,41 @@
 
 <div class="space-y-4 px-6 py-6">
 	<header class="flex items-center justify-between">
-		<h2 class="text-lg font-semibold tracking-tight">Channels</h2>
+		<div>
+			<h2 class="text-lg font-semibold tracking-tight">Channels</h2>
+			<p class="mt-0.5 text-xs text-zinc-500">Publishing destinations and content sources.</p>
+		</div>
 		<Button size="sm" onclick={() => (formOpen = !formOpen)}>
+			<Plus class="mr-1 h-3.5 w-3.5" />
 			{formOpen ? 'Cancel' : 'New channel'}
 		</Button>
 	</header>
+
+	{#if !loading && !error}
+		<div class="grid grid-cols-3 gap-3">
+			<div class="flex items-center gap-3 rounded-md border border-zinc-200 bg-white px-3 py-2.5">
+				<Tv class="h-4 w-4 text-zinc-500" />
+				<div class="min-w-0">
+					<div class="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Total</div>
+					<div class="text-lg font-semibold tracking-tight text-zinc-900">{summary.total}</div>
+				</div>
+			</div>
+			<div class="flex items-center gap-3 rounded-md border border-zinc-200 bg-white px-3 py-2.5">
+				<Power class="h-4 w-4 text-emerald-600" />
+				<div class="min-w-0">
+					<div class="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Enabled</div>
+					<div class="text-lg font-semibold tracking-tight text-zinc-900">{summary.enabled}</div>
+				</div>
+			</div>
+			<div class="flex items-center gap-3 rounded-md border border-zinc-200 bg-white px-3 py-2.5">
+				<Send class="h-4 w-4 text-zinc-500" />
+				<div class="min-w-0">
+					<div class="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Posts/day cap</div>
+					<div class="text-lg font-semibold tracking-tight text-zinc-900">{summary.totalPostsPerDay}</div>
+				</div>
+			</div>
+		</div>
+	{/if}
 
 	{#if formOpen}
 		<div class="grid grid-cols-1 gap-3 rounded-md border border-zinc-200 bg-zinc-50 p-4 md:grid-cols-2">

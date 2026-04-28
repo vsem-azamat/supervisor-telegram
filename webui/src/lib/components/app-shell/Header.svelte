@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { LogOut, User } from '@lucide/svelte';
 	import { auth } from '$lib/stores/auth.svelte';
 
 	type Props = { onLogout?: () => void | Promise<void> };
@@ -7,7 +8,7 @@
 
 	function currentTitle(pathname: string): string {
 		const map: Record<string, string> = {
-			'/': 'Home',
+			'/': 'Dashboard',
 			'/posts': 'Posts',
 			'/channels': 'Channels',
 			'/chats': 'Chats',
@@ -28,15 +29,19 @@
 >
 	<h1 class="text-base font-medium text-zinc-900">{currentTitle(page.url.pathname)}</h1>
 	<div class="flex items-center gap-2 text-xs text-zinc-500">
-		<span class="rounded-full bg-zinc-100 px-2.5 py-1 font-medium">dev</span>
+		<span class="rounded-full bg-emerald-50 px-2.5 py-1 font-medium text-emerald-700">dev</span>
 		{#if auth.me}
-			<span>#{auth.me.user_id}</span>
+			<div class="flex items-center gap-1.5 rounded-md px-2 py-1">
+				<User class="h-3.5 w-3.5" />
+				<span class="font-mono">#{auth.me.user_id}</span>
+			</div>
 			<button
 				type="button"
-				class="rounded-md px-2 py-1 font-medium hover:bg-zinc-100 hover:text-zinc-800"
+				class="flex items-center gap-1.5 rounded-md px-2 py-1 font-medium hover:bg-zinc-100 hover:text-zinc-800"
 				onclick={() => onLogout?.()}
 			>
-				Logout
+				<LogOut class="h-3.5 w-3.5" />
+				<span>Logout</span>
 			</button>
 		{:else}
 			<span>admin</span>
