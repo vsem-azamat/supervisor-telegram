@@ -29,6 +29,43 @@ class PostDetail(PostRead):
 
     external_id: str
     source_items: list[dict[str, Any]] | None = None
+    pre_critic_text: str | None = None
+    image_candidates: list[dict[str, Any]] | None = None
+
+
+class ImageUseRequest(BaseModel):
+    """POST /api/posts/{id}/images/use — promote a pool candidate to selected."""
+
+    pool_index: int
+    position: int | None = None
+
+
+class ImageAddUrlRequest(BaseModel):
+    """POST /api/posts/{id}/images/url — vet + attach an arbitrary URL."""
+
+    url: str
+    position: int | None = None
+
+
+class ImageSearchRequest(BaseModel):
+    """POST /api/posts/{id}/images/search — Brave search → vision-score → pool."""
+
+    query: str
+
+
+class ImageReorderRequest(BaseModel):
+    """POST /api/posts/{id}/images/reorder — permutation of current selected positions."""
+
+    order: list[int]
+
+
+class ImageMutationResponse(BaseModel):
+    """Common response shape for image-pool mutations."""
+
+    post_id: int
+    message: str
+    image_urls: list[str]
+    image_candidates: list[dict[str, Any]]
 
 
 class ChannelRead(BaseModel):
@@ -141,6 +178,19 @@ class ChatRead(BaseModel):
     created_at: datetime.datetime
 
 
+class ChatUpdate(BaseModel):
+    """Editable per-chat moderation settings. All fields optional — only the
+    keys present in the body are applied (``exclude_unset``)."""
+
+    title: str | None = None
+    welcome_message: str | None = None
+    is_welcome_enabled: bool | None = None
+    is_captcha_enabled: bool | None = None
+    time_delete: int | None = None
+    parent_chat_id: int | None = None
+    relation_notes: str | None = None
+
+
 class ChatNode(BaseModel):
     """Recursive node for the /chats/graph tree response.
 
@@ -210,6 +260,40 @@ class UserBlockResponse(BaseModel):
     user_id: int
     blocked: bool
     message: str
+
+
+class AdminSessionRead(BaseModel):
+    """Active admin session row — used by /settings to list logins."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    session_id: str
+    user_id: int
+    created_at: datetime.datetime
+    last_seen_at: datetime.datetime
+    expires_at: datetime.datetime
+    user_agent: str | None
+    ip: str | None
+    is_current: bool = False
+
+
+class FeatureFlagRead(BaseModel):
+    """One feature flag — surfaced as a badge in /settings."""
+
+    name: str
+    enabled: bool
+    source: str = "env"
+
+
+class SystemStatus(BaseModel):
+    """Read-only operational status for the /settings system card."""
+
+    super_admin_ids: list[int]
+    telethon_connected: bool
+    publish_bot_ready: bool
+    allowed_origins: list[str]
+    session_ttl_days: int
+    feature_flags: list[FeatureFlagRead]
 
 
 ChatNode.model_rebuild()
@@ -309,6 +393,36 @@ class OperationCostBucket(BaseModel):
     cache_savings_usd: float
 
 
+class ModelCostBucket(BaseModel):
+    """Per-model slice of the session cost summary."""
+
+    model: str
+    tokens: int
+    cost_usd: float
+    calls: int
+    cache_savings_usd: float
+
+
+class CostHistoryDay(BaseModel):
+    """One day in the persistent cost history series."""
+
+    day: str  # ISO yyyy-mm-dd
+    cost_usd: float
+    tokens: int
+    calls: int
+    cache_savings_usd: float
+
+
+class CostHistoryResponse(BaseModel):
+    """Daily roll-up of cost_events, oldest first."""
+
+    days: int
+    series: list[CostHistoryDay]
+    total_cost_usd: float
+    total_calls: int
+    total_tokens: int
+
+
 class SessionCostSummary(BaseModel):
     """In-memory cost aggregation from app.channel.cost_tracker.
 
@@ -323,6 +437,7 @@ class SessionCostSummary(BaseModel):
     cache_write_tokens: int
     cache_savings_usd: float
     by_operation: list[OperationCostBucket]
+    by_model: list[ModelCostBucket] = []
 
     @classmethod
     def from_tracker(cls, summary: dict[str, Any]) -> SessionCostSummary:
@@ -331,7 +446,7 @@ class SessionCostSummary(BaseModel):
         Keeping the shape-conversion in one place prevents the /costs and
         /stats/home endpoints from drifting apart as cost_tracker evolves.
         """
-        buckets = [
+        op_buckets = [
             OperationCostBucket(
                 operation=op_name,
                 tokens=int(data.get("tokens", 0)),
@@ -341,6 +456,16 @@ class SessionCostSummary(BaseModel):
             )
             for op_name, data in (summary.get("by_operation") or {}).items()
         ]
+        model_buckets = [
+            ModelCostBucket(
+                model=model_name,
+                tokens=int(data.get("tokens", 0)),
+                cost_usd=float(data.get("cost_usd", 0.0)),
+                calls=int(data.get("calls", 0)),
+                cache_savings_usd=float(data.get("cache_savings_usd", 0.0)),
+            )
+            for model_name, data in (summary.get("by_model") or {}).items()
+        ]
         return cls(
             total_tokens=int(summary.get("total_tokens", 0)),
             total_cost_usd=float(summary.get("total_cost_usd", 0.0)),
@@ -348,7 +473,8 @@ class SessionCostSummary(BaseModel):
             cache_read_tokens=int(summary.get("cache_read_tokens", 0)),
             cache_write_tokens=int(summary.get("cache_write_tokens", 0)),
             cache_savings_usd=float(summary.get("cache_savings_usd", 0.0)),
-            by_operation=buckets,
+            by_operation=op_buckets,
+            by_model=model_buckets,
         )
 
 

@@ -1,50 +1,86 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import {
+		Hash,
+		LayoutDashboard,
+		MessagesSquare,
+		Network,
+		Newspaper,
+		Receipt,
+		Settings,
+		Sparkles,
+		Tv
+	} from '@lucide/svelte';
+	import type { Component } from 'svelte';
 
-	type NavItem = { href: string; label: string; phase?: number };
+	type NavItem = { href: string; label: string; icon: Component };
+	type NavGroup = { label: string; items: NavItem[] };
 
-	const items: NavItem[] = [
-		{ href: '/', label: 'Home', phase: 1 },
-		{ href: '/posts', label: 'Posts', phase: 1 },
-		{ href: '/channels', label: 'Channels', phase: 1 },
-		{ href: '/chats', label: 'Chats', phase: 2 },
-		{ href: '/chats/graph', label: 'Chat graph', phase: 3 },
-		{ href: '/costs', label: 'Costs', phase: 1 },
-		{ href: '/agent', label: 'Agent', phase: 3 },
-		{ href: '/settings', label: 'Settings', phase: 4 }
+	const groups: NavGroup[] = [
+		{
+			label: 'Overview',
+			items: [{ href: '/', label: 'Dashboard', icon: LayoutDashboard }]
+		},
+		{
+			label: 'Resources',
+			items: [
+				{ href: '/channels', label: 'Channels', icon: Tv },
+				{ href: '/chats', label: 'Chats', icon: MessagesSquare },
+				{ href: '/chats/graph', label: 'Chat graph', icon: Network }
+			]
+		},
+		{
+			label: 'Workflow',
+			items: [
+				{ href: '/posts', label: 'Posts', icon: Newspaper },
+				{ href: '/agent', label: 'Agent', icon: Sparkles }
+			]
+		},
+		{
+			label: 'System',
+			items: [
+				{ href: '/costs', label: 'Costs', icon: Receipt },
+				{ href: '/settings', label: 'Settings', icon: Settings }
+			]
+		}
 	];
 
 	function isActive(href: string): boolean {
 		if (href === '/') return page.url.pathname === '/';
+		if (href === '/chats') {
+			return page.url.pathname === '/chats' || /^\/chats\/-?\d+/.test(page.url.pathname);
+		}
 		return page.url.pathname === href || page.url.pathname.startsWith(href + '/');
 	}
 </script>
 
 <nav class="flex h-full w-56 shrink-0 flex-col border-r border-zinc-200 bg-zinc-50">
-	<div class="px-4 py-5">
+	<div class="flex items-center gap-2 px-4 py-5">
+		<div class="flex h-7 w-7 items-center justify-center rounded-md bg-zinc-900 text-white">
+			<Hash class="h-4 w-4" />
+		</div>
 		<span class="text-sm font-semibold tracking-tight text-zinc-900">Konnekt admin</span>
 	</div>
-	<ul class="flex flex-col gap-0.5 px-2">
-		{#each items as item (item.href)}
-			<li>
-				<a
-					href={item.href}
-					class="flex items-center justify-between rounded-md px-3 py-2 text-sm transition-colors
-						{isActive(item.href)
-						? 'bg-zinc-900 text-white'
-						: 'text-zinc-700 hover:bg-zinc-200'}"
-				>
-					<span>{item.label}</span>
-					{#if item.phase}
-						<span
-							class="rounded-sm px-1.5 py-0.5 text-[10px] font-medium
-								{isActive(item.href) ? 'bg-white/20 text-white' : 'bg-zinc-200 text-zinc-600'}"
-						>
-							P{item.phase}
-						</span>
-					{/if}
-				</a>
-			</li>
+
+	<div class="flex flex-col gap-4 px-2 pb-4">
+		{#each groups as group (group.label)}
+			<div class="flex flex-col gap-0.5">
+				<div class="px-3 pb-1 text-[10px] font-semibold tracking-wider text-zinc-400 uppercase">
+					{group.label}
+				</div>
+				{#each group.items as item (item.href)}
+					{@const Icon = item.icon}
+					{@const active = isActive(item.href)}
+					<a
+						href={item.href}
+						class="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors
+							{active ? 'bg-zinc-900 text-white' : 'text-zinc-700 hover:bg-zinc-200'}"
+					>
+						<Icon class="h-4 w-4 shrink-0 {active ? 'text-white' : 'text-zinc-500'}" />
+						<span>{item.label}</span>
+					</a>
+				{/each}
+			</div>
 		{/each}
-	</ul>
+	</div>
 </nav>

@@ -13,7 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.db.session import create_session_maker
-from app.webapi.routes import agent, auth, channels, chats, costs, health, posts, spam, stats, users
+from app.webapi.routes import admin, agent, auth, channels, chats, costs, health, posts, spam, stats, users
 from app.webapi.services.telethon_stats import TelethonStatsService
 from app.webapi.snapshot_loop import run_snapshot_loop
 
@@ -25,10 +25,12 @@ logger = get_logger("webapi.main")
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+    from app.channel.cost_tracker import enable_persistence as enable_cost_persistence
     from app.core.container import container
     from app.webapi.services.publish_bot import build_publish_bot, close_publish_bot
 
     session_maker = create_session_maker()
+    enable_cost_persistence(True)
     telethon = container.get_telethon_client()
     _app.state.telethon_stats = TelethonStatsService(telethon=telethon)
     _app.state.publish_bot = build_publish_bot()
@@ -77,6 +79,7 @@ def create_app() -> FastAPI:
     app.include_router(stats.router, prefix="/api")
     app.include_router(agent.router, prefix="/api")
     app.include_router(users.router, prefix="/api")
+    app.include_router(admin.router, prefix="/api")
 
     # Default no-op singleton for test environments (ASGITransport bypasses
     # lifespan). _lifespan replaces this with the real instance at startup.

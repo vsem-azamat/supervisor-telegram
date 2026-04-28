@@ -745,3 +745,53 @@ class AdminSession(Base):
         self.expires_at = expires_at
         self.user_agent = user_agent
         self.ip = ip
+
+
+class CostEvent(Base):
+    """Persistent record of one LLM API call.
+
+    Written by :func:`app.channel.cost_tracker.log_usage` when persistence is
+    enabled. Aggregated per-day by ``GET /api/costs/history``.
+    """
+
+    __tablename__ = "cost_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    occurred_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now, index=True)
+    model: Mapped[str] = mapped_column(String(128))
+    operation: Mapped[str] = mapped_column(String(64), index=True)
+    prompt_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    completion_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    total_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cache_read_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cache_write_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    cache_savings_usd: Mapped[float] = mapped_column(Float, default=0.0)
+    channel_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    def __init__(
+        self,
+        *,
+        model: str,
+        operation: str,
+        occurred_at: datetime.datetime | None = None,
+        prompt_tokens: int = 0,
+        completion_tokens: int = 0,
+        total_tokens: int = 0,
+        cache_read_tokens: int = 0,
+        cache_write_tokens: int = 0,
+        cost_usd: float = 0.0,
+        cache_savings_usd: float = 0.0,
+        channel_id: str | None = None,
+    ) -> None:
+        self.occurred_at = occurred_at or utc_now()
+        self.model = model
+        self.operation = operation
+        self.prompt_tokens = prompt_tokens
+        self.completion_tokens = completion_tokens
+        self.total_tokens = total_tokens
+        self.cache_read_tokens = cache_read_tokens
+        self.cache_write_tokens = cache_write_tokens
+        self.cost_usd = cost_usd
+        self.cache_savings_usd = cache_savings_usd
+        self.channel_id = channel_id

@@ -25,6 +25,7 @@ from app.webapi.schemas import (
     ChatNode,
     ChatRead,
     ChatSender,
+    ChatUpdate,
     HeatmapCell,
     MemberSnapshotPoint,
     SpamPingRead,
@@ -239,4 +240,41 @@ async def get_chat(
         children=children_nodes,
         spam_pings=spam_pings,
         recent_senders=recent_senders,
+    )
+
+
+@router.patch("/{chat_id}", response_model=ChatRead)
+async def update_chat(
+    chat_id: int,
+    payload: ChatUpdate,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    stats: Annotated[TelethonStatsService, Depends(get_telethon_stats)],
+    _admin_id: Annotated[int, Depends(require_super_admin)],
+) -> ChatRead:
+    chat = (await session.execute(select(Chat).where(Chat.id == chat_id))).scalar_one_or_none()
+    if chat is None:
+        raise HTTPException(status_code=404, detail=f"Chat {chat_id} not found")
+
+    fields = payload.model_dump(exclude_unset=True)
+    if "time_delete" in fields and fields["time_delete"] is not None and fields["time_delete"] <= 0:
+        raise HTTPException(status_code=422, detail="time_delete must be positive")
+    if "parent_chat_id" in fields and fields["parent_chat_id"] == chat_id:
+        raise HTTPException(status_code=422, detail="A chat cannot be its own parent")
+
+    for key, value in fields.items():
+        setattr(chat, key, value)
+    await session.commit()
+    await session.refresh(chat)
+
+    member_count = await stats.get_member_count(chat.id)
+    return ChatRead(
+        id=chat.id,
+        title=chat.title,
+        is_forum=chat.is_forum,
+        is_welcome_enabled=chat.is_welcome_enabled,
+        is_captcha_enabled=chat.is_captcha_enabled,
+        parent_chat_id=chat.parent_chat_id,
+        relation_notes=chat.relation_notes,
+        member_count=member_count,
+        created_at=chat.created_at,
     )

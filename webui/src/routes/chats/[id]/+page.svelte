@@ -2,6 +2,7 @@
 	import { page } from '$app/state';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
 	import HeatmapGrid from '$lib/components/chat/HeatmapGrid.svelte';
 	import Sparkline from '$lib/components/charts/Sparkline.svelte';
 	import SpamPingsList from '$lib/components/spam/SpamPingsList.svelte';
@@ -12,12 +13,57 @@
 	import type { components } from '$lib/api/types';
 
 	type ChatDetail = components['schemas']['ChatDetail'];
+	type ChatRead = components['schemas']['ChatRead'];
 	type UserBlockResponse = components['schemas']['UserBlockResponse'];
 
 	const chatId = page.params.id;
 	const detail = useLivePoll<ChatDetail>(`/api/chats/${chatId}`, 60_000);
 
 	let busyUserId = $state<number | null>(null);
+	let editing = $state(false);
+	let saving = $state(false);
+	let edit = $state({
+		title: '',
+		welcome_message: '',
+		is_welcome_enabled: false,
+		is_captcha_enabled: false,
+		time_delete: 60
+	});
+
+	function snapshotEdit(d: ChatDetail): void {
+		edit = {
+			title: d.title ?? '',
+			welcome_message: d.welcome_message ?? '',
+			is_welcome_enabled: d.is_welcome_enabled,
+			is_captcha_enabled: d.is_captcha_enabled,
+			time_delete: d.time_delete
+		};
+	}
+
+	$effect(() => {
+		if (detail.data && !editing) snapshotEdit(detail.data);
+	});
+
+	async function saveEdit(): Promise<void> {
+		saving = true;
+		const res = await apiFetch<ChatRead>(`/api/chats/${chatId}`, {
+			method: 'PATCH',
+			body: JSON.stringify({
+				title: edit.title || null,
+				welcome_message: edit.welcome_message || null,
+				is_welcome_enabled: edit.is_welcome_enabled,
+				is_captcha_enabled: edit.is_captcha_enabled,
+				time_delete: edit.time_delete
+			})
+		});
+		saving = false;
+		if (res.error) toast.error(res.error.message);
+		else {
+			toast.success('Moderation settings saved');
+			editing = false;
+			await detail.refresh();
+		}
+	}
 
 	function senderLabel(s: components['schemas']['ChatSender']): string {
 		if (s.username) return `@${s.username}`;
@@ -70,12 +116,63 @@
 		<p class="text-sm text-red-600">Error: {detail.error}</p>
 	{:else if detail.data}
 		<Card.Root>
-			<Card.Header><Card.Title class="text-sm">Overview</Card.Title></Card.Header>
-			<Card.Content class="grid grid-cols-2 gap-2 text-sm">
-				<div>Members: <strong>{detail.data.member_count ?? '—'}</strong></div>
-				<div>Forum: {detail.data.is_forum ? 'yes' : 'no'}</div>
-				<div>Captcha: {detail.data.is_captcha_enabled ? 'on' : 'off'}</div>
-				<div>Welcome: {detail.data.is_welcome_enabled ? 'on' : 'off'}</div>
+			<Card.Header class="flex flex-row items-center justify-between">
+				<Card.Title class="text-sm">Overview & moderation</Card.Title>
+				<Button
+					variant="outline"
+					size="sm"
+					onclick={() => (editing = !editing)}
+					disabled={saving}
+				>
+					{editing ? 'Cancel' : 'Edit'}
+				</Button>
+			</Card.Header>
+			<Card.Content class="space-y-3 text-sm">
+				{#if editing}
+					<label class="block space-y-1">
+						<span class="text-xs text-zinc-600">Title</span>
+						<Input bind:value={edit.title} />
+					</label>
+					<div class="grid grid-cols-2 gap-2">
+						<label class="flex items-center gap-2 text-xs">
+							<input type="checkbox" bind:checked={edit.is_welcome_enabled} />
+							<span>Welcome message enabled</span>
+						</label>
+						<label class="flex items-center gap-2 text-xs">
+							<input type="checkbox" bind:checked={edit.is_captcha_enabled} />
+							<span>Captcha enabled</span>
+						</label>
+					</div>
+					<label class="block space-y-1">
+						<span class="text-xs text-zinc-600">Welcome message text</span>
+						<Input bind:value={edit.welcome_message} placeholder="Welcome to the chat!" />
+					</label>
+					<label class="block space-y-1">
+						<span class="text-xs text-zinc-600">Auto-delete bot messages after (seconds)</span>
+						<Input type="number" bind:value={edit.time_delete} min="1" />
+					</label>
+					<div class="flex items-center justify-end gap-2 pt-1">
+						<Button variant="ghost" size="sm" onclick={() => (editing = false)} disabled={saving}>
+							Cancel
+						</Button>
+						<Button size="sm" onclick={saveEdit} disabled={saving}>
+							{saving ? 'Saving…' : 'Save'}
+						</Button>
+					</div>
+				{:else}
+					<div class="grid grid-cols-2 gap-2">
+						<div>Members: <strong>{detail.data.member_count ?? '—'}</strong></div>
+						<div>Forum: {detail.data.is_forum ? 'yes' : 'no'}</div>
+						<div>Captcha: {detail.data.is_captcha_enabled ? 'on' : 'off'}</div>
+						<div>Welcome: {detail.data.is_welcome_enabled ? 'on' : 'off'}</div>
+						<div>Auto-delete: {detail.data.time_delete}s</div>
+					</div>
+					{#if detail.data.welcome_message}
+						<div class="rounded-md border border-zinc-100 bg-zinc-50 p-2 text-xs text-zinc-600">
+							<span class="text-zinc-400">Welcome:</span> {detail.data.welcome_message}
+						</div>
+					{/if}
+				{/if}
 			</Card.Content>
 		</Card.Root>
 

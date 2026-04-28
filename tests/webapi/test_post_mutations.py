@@ -127,3 +127,95 @@ async def test_404_when_missing(client_factory) -> None:
     async with make() as client:
         resp = await client.patch("/api/posts/99999/text", json={"text": "x"})
     assert resp.status_code == 404
+
+
+async def test_regenerate_404_when_missing(client_factory) -> None:
+    make, _bot = client_factory
+    async with make() as client:
+        resp = await client.post("/api/posts/99999/regenerate")
+    assert resp.status_code == 404
+
+
+async def test_regenerate_refuses_already_published(client_factory, db_session_maker) -> None:
+    """Status check happens inside regen_post_text — route returns 200 with the
+    refusal message instead of mutating the post."""
+    make, _bot = client_factory
+    async with db_session_maker() as s:
+        post_id = await _seed_post(s, status=PostStatus.APPROVED)
+
+    async with make() as client:
+        resp = await client.post(f"/api/posts/{post_id}/regenerate")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert "already published" in body["message"].lower()
+    async with db_session_maker() as s:
+        post = (await s.execute(select(ChannelPost).where(ChannelPost.id == post_id))).scalar_one()
+        assert post.status == PostStatus.APPROVED  # untouched
+
+
+async def test_image_remove_404_when_post_missing(client_factory) -> None:
+    make, _bot = client_factory
+    async with make() as client:
+        resp = await client.delete("/api/posts/99999/images/0")
+    assert resp.status_code == 404
+
+
+async def test_image_clear_drops_selected_keeps_pool(client_factory, db_session_maker) -> None:
+    make, _bot = client_factory
+    async with db_session_maker() as s:
+        ch = Channel(name="x", language="en", telegram_id=-100200)
+        s.add(ch)
+        await s.flush()
+        post = ChannelPost(
+            channel_id=ch.telegram_id,
+            external_id="z" * 16,
+            title="t",
+            post_text="hello",
+            image_urls=["https://a.example/img1.jpg", "https://a.example/img2.jpg"],
+            image_candidates=[
+                {"url": "https://a.example/img1.jpg", "source": "rss", "selected": True},
+                {"url": "https://a.example/img2.jpg", "source": "rss", "selected": True},
+                {"url": "https://a.example/img3.jpg", "source": "rss", "selected": False},
+            ],
+        )
+        s.add(post)
+        await s.commit()
+        post_id = post.id
+
+    async with make() as client:
+        resp = await client.delete(f"/api/posts/{post_id}/images")
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["image_urls"] == []
+    assert len(body["image_candidates"]) == 3
+    assert all(not c["selected"] for c in body["image_candidates"])
+
+
+async def test_image_reorder_validates_permutation(client_factory, db_session_maker) -> None:
+    make, _bot = client_factory
+    async with db_session_maker() as s:
+        ch = Channel(name="x", language="en", telegram_id=-100200)
+        s.add(ch)
+        await s.flush()
+        post = ChannelPost(
+            channel_id=ch.telegram_id,
+            external_id="z" * 16,
+            title="t",
+            post_text="hello",
+            image_urls=["https://a.example/1", "https://a.example/2", "https://a.example/3"],
+        )
+        s.add(post)
+        await s.commit()
+        post_id = post.id
+
+    async with make() as client:
+        good = await client.post(f"/api/posts/{post_id}/images/reorder", json={"order": [2, 0, 1]})
+        bad = await client.post(f"/api/posts/{post_id}/images/reorder", json={"order": [0, 0, 1]})
+    assert good.status_code == 200
+    assert good.json()["image_urls"] == [
+        "https://a.example/3",
+        "https://a.example/1",
+        "https://a.example/2",
+    ]
+    assert bad.status_code == 200  # service-level rejection, not HTTP
+    assert "invalid" in bad.json()["message"].lower()

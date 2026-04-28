@@ -157,6 +157,131 @@ export interface paths {
         patch: operations["edit_text_api_posts__post_id__text_patch"];
         trace?: never;
     };
+    "/api/posts/{post_id}/regenerate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Regenerate
+         * @description Re-run the generator over the post's stored source_items and replace the body.
+         *
+         *     Looks up the channel to resolve language + footer; falls back to defaults
+         *     when the channel row is missing (e.g. test fixtures).
+         */
+        post: operations["regenerate_api_posts__post_id__regenerate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/posts/{post_id}/images/use": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Image Use */
+        post: operations["image_use_api_posts__post_id__images_use_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/posts/{post_id}/images/url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Image Add Url */
+        post: operations["image_add_url_api_posts__post_id__images_url_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/posts/{post_id}/images/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Image Search */
+        post: operations["image_search_api_posts__post_id__images_search_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/posts/{post_id}/images/{position}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Image Remove */
+        delete: operations["image_remove_api_posts__post_id__images__position__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/posts/{post_id}/images/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Image Reorder */
+        post: operations["image_reorder_api_posts__post_id__images_reorder_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/posts/{post_id}/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Image Clear */
+        delete: operations["image_clear_api_posts__post_id__images_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/channels": {
         parameters: {
             query?: never;
@@ -289,7 +414,8 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /** Update Chat */
+        patch: operations["update_chat_api_chats__chat_id__patch"];
         trace?: never;
     };
     "/api/costs/session": {
@@ -301,6 +427,29 @@ export interface paths {
         };
         /** Session Cost */
         get: operations["session_cost_api_costs_session_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/costs/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cost History
+         * @description Daily aggregate of cost_events for the last ``days`` days, oldest first.
+         *
+         *     Empty days are filled with zero rows so the FE can render a contiguous
+         *     sparkline without gap-filling client-side.
+         */
+        get: operations["cost_history_api_costs_history_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -444,10 +593,101 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Sessions
+         * @description List the calling admin's active sessions, current one flagged.
+         */
+        get: operations["list_sessions_api_admin_sessions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/sessions/{session_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke Session
+         * @description Revoke one of the calling admin's sessions. Refuse to revoke the current one.
+         */
+        delete: operations["revoke_session_api_admin_sessions__session_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/system": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get System Status */
+        get: operations["get_system_status_api_admin_system_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AdminSessionRead
+         * @description Active admin session row — used by /settings to list logins.
+         */
+        AdminSessionRead: {
+            /** Session Id */
+            session_id: string;
+            /** User Id */
+            user_id: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Last Seen At
+             * Format: date-time
+             */
+            last_seen_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /** User Agent */
+            user_agent: string | null;
+            /** Ip */
+            ip: string | null;
+            /**
+             * Is Current
+             * @default false
+             */
+            is_current: boolean;
+        };
         /**
          * AgentHistory
          * @description Persisted-conversation snapshot for /agent.
@@ -831,6 +1071,59 @@ export interface components {
             blocked: boolean;
         };
         /**
+         * ChatUpdate
+         * @description Editable per-chat moderation settings. All fields optional — only the
+         *     keys present in the body are applied (``exclude_unset``).
+         */
+        ChatUpdate: {
+            /** Title */
+            title?: string | null;
+            /** Welcome Message */
+            welcome_message?: string | null;
+            /** Is Welcome Enabled */
+            is_welcome_enabled?: boolean | null;
+            /** Is Captcha Enabled */
+            is_captcha_enabled?: boolean | null;
+            /** Time Delete */
+            time_delete?: number | null;
+            /** Parent Chat Id */
+            parent_chat_id?: number | null;
+            /** Relation Notes */
+            relation_notes?: string | null;
+        };
+        /**
+         * CostHistoryDay
+         * @description One day in the persistent cost history series.
+         */
+        CostHistoryDay: {
+            /** Day */
+            day: string;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Tokens */
+            tokens: number;
+            /** Calls */
+            calls: number;
+            /** Cache Savings Usd */
+            cache_savings_usd: number;
+        };
+        /**
+         * CostHistoryResponse
+         * @description Daily roll-up of cost_events, oldest first.
+         */
+        CostHistoryResponse: {
+            /** Days */
+            days: number;
+            /** Series */
+            series: components["schemas"]["CostHistoryDay"][];
+            /** Total Cost Usd */
+            total_cost_usd: number;
+            /** Total Calls */
+            total_calls: number;
+            /** Total Tokens */
+            total_tokens: number;
+        };
+        /**
          * DraftBucket
          * @description Home tile: drafts grouped by channel.
          */
@@ -841,6 +1134,21 @@ export interface components {
             channel_name: string;
             /** Count */
             count: number;
+        };
+        /**
+         * FeatureFlagRead
+         * @description One feature flag — surfaced as a badge in /settings.
+         */
+        FeatureFlagRead: {
+            /** Name */
+            name: string;
+            /** Enabled */
+            enabled: boolean;
+            /**
+             * Source
+             * @default env
+             */
+            source: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -901,6 +1209,58 @@ export interface components {
              */
             spam_pings: components["schemas"]["SpamPingsSummary"];
         };
+        /**
+         * ImageAddUrlRequest
+         * @description POST /api/posts/{id}/images/url — vet + attach an arbitrary URL.
+         */
+        ImageAddUrlRequest: {
+            /** Url */
+            url: string;
+            /** Position */
+            position?: number | null;
+        };
+        /**
+         * ImageMutationResponse
+         * @description Common response shape for image-pool mutations.
+         */
+        ImageMutationResponse: {
+            /** Post Id */
+            post_id: number;
+            /** Message */
+            message: string;
+            /** Image Urls */
+            image_urls: string[];
+            /** Image Candidates */
+            image_candidates: {
+                [key: string]: unknown;
+            }[];
+        };
+        /**
+         * ImageReorderRequest
+         * @description POST /api/posts/{id}/images/reorder — permutation of current selected positions.
+         */
+        ImageReorderRequest: {
+            /** Order */
+            order: number[];
+        };
+        /**
+         * ImageSearchRequest
+         * @description POST /api/posts/{id}/images/search — Brave search → vision-score → pool.
+         */
+        ImageSearchRequest: {
+            /** Query */
+            query: string;
+        };
+        /**
+         * ImageUseRequest
+         * @description POST /api/posts/{id}/images/use — promote a pool candidate to selected.
+         */
+        ImageUseRequest: {
+            /** Pool Index */
+            pool_index: number;
+            /** Position */
+            position?: number | null;
+        };
         /** MemberSnapshotPoint */
         MemberSnapshotPoint: {
             /**
@@ -929,6 +1289,22 @@ export interface components {
             delta_24h: number | null;
             /** Delta 7D */
             delta_7d: number | null;
+        };
+        /**
+         * ModelCostBucket
+         * @description Per-model slice of the session cost summary.
+         */
+        ModelCostBucket: {
+            /** Model */
+            model: string;
+            /** Tokens */
+            tokens: number;
+            /** Cost Usd */
+            cost_usd: number;
+            /** Calls */
+            calls: number;
+            /** Cache Savings Usd */
+            cache_savings_usd: number;
         };
         /**
          * OperationCostBucket
@@ -984,6 +1360,12 @@ export interface components {
             external_id: string;
             /** Source Items */
             source_items?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Pre Critic Text */
+            pre_critic_text?: string | null;
+            /** Image Candidates */
+            image_candidates?: {
                 [key: string]: unknown;
             }[] | null;
         };
@@ -1099,6 +1481,11 @@ export interface components {
             cache_savings_usd: number;
             /** By Operation */
             by_operation: components["schemas"]["OperationCostBucket"][];
+            /**
+             * By Model
+             * @default []
+             */
+            by_model: components["schemas"]["ModelCostBucket"][];
         };
         /**
          * SpamPingRead
@@ -1141,6 +1528,24 @@ export interface components {
              * @default []
              */
             recent: components["schemas"]["SpamPingRead"][];
+        };
+        /**
+         * SystemStatus
+         * @description Read-only operational status for the /settings system card.
+         */
+        SystemStatus: {
+            /** Super Admin Ids */
+            super_admin_ids: number[];
+            /** Telethon Connected */
+            telethon_connected: boolean;
+            /** Publish Bot Ready */
+            publish_bot_ready: boolean;
+            /** Allowed Origins */
+            allowed_origins: string[];
+            /** Session Ttl Days */
+            session_ttl_days: number;
+            /** Feature Flags */
+            feature_flags: components["schemas"]["FeatureFlagRead"][];
         };
         /**
          * TelegramLoginPayload
@@ -1442,6 +1847,240 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PostMutationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    regenerate_api_posts__post_id__regenerate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                post_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PostMutationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    image_use_api_posts__post_id__images_use_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                post_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImageUseRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageMutationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    image_add_url_api_posts__post_id__images_url_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                post_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImageAddUrlRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageMutationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    image_search_api_posts__post_id__images_search_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                post_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImageSearchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageMutationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    image_remove_api_posts__post_id__images__position__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                post_id: number;
+                position: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageMutationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    image_reorder_api_posts__post_id__images_reorder_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                post_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImageReorderRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageMutationResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    image_clear_api_posts__post_id__images_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                post_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImageMutationResponse"];
                 };
             };
             /** @description Validation Error */
@@ -1779,6 +2418,41 @@ export interface operations {
             };
         };
     };
+    update_chat_api_chats__chat_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chat_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     session_cost_api_costs_session_get: {
         parameters: {
             query?: never;
@@ -1795,6 +2469,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SessionCostSummary"];
+                };
+            };
+        };
+    };
+    cost_history_api_costs_history_get: {
+        parameters: {
+            query?: {
+                /** @description Lookback window in days */
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostHistoryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -2017,6 +2723,75 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_sessions_api_admin_sessions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSessionRead"][];
+                };
+            };
+        };
+    };
+    revoke_session_api_admin_sessions__session_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_system_status_api_admin_system_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SystemStatus"];
                 };
             };
         };
