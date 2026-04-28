@@ -1,5 +1,6 @@
 <script lang="ts">
 	import ChatTreeNode from '$lib/components/chat/ChatTreeNode.svelte';
+	import { enrichTree } from '$lib/components/chat/tree';
 	import BarChartH from '$lib/components/charts/BarChartH.svelte';
 	import DivergingBars from '$lib/components/charts/DivergingBars.svelte';
 	import Donut from '$lib/components/charts/Donut.svelte';
@@ -21,6 +22,7 @@
 	const suggestions = useLivePoll<Suggestions>('/api/suggestions', 60_000);
 
 	const suggestionItems = $derived(suggestions.data?.items ?? []);
+	const enrichedTree = $derived(tree.data ? enrichTree(tree.data) : []);
 
 	const totalDrafts = $derived(
 		stats.data?.drafts.reduce((acc, d) => acc + d.count, 0) ?? 0
@@ -211,12 +213,12 @@
 			<Tile title="Chat graph">
 				{#if tree.loading}
 					<p class="text-xs text-zinc-500">loading…</p>
-				{:else if !tree.data || tree.data.length === 0}
+				{:else if enrichedTree.length === 0}
 					<p class="text-xs text-zinc-500">No chats yet.</p>
 				{:else}
 					<ul class="space-y-1">
-						{#each tree.data.slice(0, 3) as root (root.id)}
-							<ChatTreeNode node={root} depth={1} />
+						{#each enrichedTree.slice(0, 3) as root (root.id)}
+							<ChatTreeNode node={root} defaultExpandedDepth={1} />
 						{/each}
 					</ul>
 					<a
