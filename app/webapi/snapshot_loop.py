@@ -6,9 +6,10 @@ no deduplication. If the process dies, we lose the in-flight tick; no
 state is corrupted because each snapshot is an independent row.
 
 Each tick also opportunistically refreshes Chat.title from Telegram for
-rows that haven't been touched in METADATA_STALENESS_HOURS — admins who
-edited a row recently keep their values, but long-untouched rows pick up
-upstream renames automatically.
+rows whose ``last_synced_at`` is older than ``METADATA_STALENESS_HOURS``.
+The staleness check uses ``last_synced_at`` (not ``modified_at``) so that
+admin edits in the web UI don't suppress Telegram syncs, and Telegram
+syncs don't masquerade as admin edits.
 """
 
 from __future__ import annotations
@@ -35,14 +36,18 @@ METADATA_STALENESS_HOURS = 24
 
 
 def _refresh_stale_metadata(chat: Chat, info: Any, *, cutoff: datetime.datetime) -> bool:
-    """Sync Chat.title from Telegram when the row's been untouched past the cutoff.
+    """Sync Chat.title from Telegram when the row's last_synced_at is past
+    the cutoff (or never set).
 
     Returns True iff the title actually changed — caller uses that to count
     refreshes for the log line. We only sync title because that's the only
     upstream-managed string surfaced in the UI; everything else (welcome,
     captcha, parent, notes) is admin-owned.
+
+    The caller bumps ``last_synced_at`` separately on every successful
+    Telegram pull, regardless of whether title actually changed.
     """
-    if chat.modified_at and chat.modified_at >= cutoff:
+    if chat.last_synced_at and chat.last_synced_at >= cutoff:
         return False
     upstream_title = getattr(info, "title", None)
     if not isinstance(upstream_title, str) or not upstream_title:
@@ -67,7 +72,8 @@ async def snapshot_once(
 
     written = 0
     refreshed = 0
-    cutoff = utc_now() - datetime.timedelta(hours=METADATA_STALENESS_HOURS)
+    now = utc_now()
+    cutoff = now - datetime.timedelta(hours=METADATA_STALENESS_HOURS)
     async with session_maker() as session:
         chats = (await session.execute(select(Chat))).scalars().all()
         for chat in chats:
@@ -83,6 +89,7 @@ async def snapshot_once(
                 written += 1
             if _refresh_stale_metadata(chat, info, cutoff=cutoff):
                 refreshed += 1
+            chat.last_synced_at = now
         await session.commit()
     logger.info("snapshot_once committed", snapshots=written, metadata_refreshed=refreshed)
     return written
