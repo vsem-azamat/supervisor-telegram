@@ -23,8 +23,10 @@ from sqlalchemy import select
 from app.core.logging import get_logger
 from app.core.time import utc_now
 from app.db.models import Chat, ChatMemberSnapshot
+from app.webapi.services.chat_sync import fetch_chat_photo_file_id
 
 if TYPE_CHECKING:
+    from aiogram import Bot
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
     from app.telethon.telethon_client import TelethonClient
@@ -62,16 +64,23 @@ async def snapshot_once(
     *,
     session_maker: async_sessionmaker[AsyncSession],
     telethon: TelethonClient | None,
+    bot: Bot | None = None,
 ) -> int:
     """Capture one snapshot per chat. Returns the number of snapshot rows
     written. Stale-metadata refreshes happen opportunistically and are logged
-    separately."""
+    separately.
+
+    If ``bot`` is provided and the chat is past the staleness cutoff, also
+    fetches the chat photo's file_id via Bot API. Photo fetch failures are
+    logged but do not fail the tick.
+    """
     if telethon is None or not telethon.is_available:
         logger.info("snapshot_once skipped — telethon unavailable")
         return 0
 
     written = 0
     refreshed = 0
+    photo_refreshed = 0
     now = utc_now()
     cutoff = now - datetime.timedelta(hours=METADATA_STALENESS_HOURS)
     async with session_maker() as session:
@@ -87,11 +96,22 @@ async def snapshot_once(
             if info.member_count is not None:
                 session.add(ChatMemberSnapshot(chat_id=chat.id, member_count=info.member_count))
                 written += 1
+            sync_due = chat.last_synced_at is None or chat.last_synced_at < cutoff
             if _refresh_stale_metadata(chat, info, cutoff=cutoff):
                 refreshed += 1
+            if sync_due and bot is not None:
+                file_id = await fetch_chat_photo_file_id(bot=bot, chat_id=chat.id)
+                if file_id and file_id != chat.photo_file_id:
+                    chat.photo_file_id = file_id
+                    photo_refreshed += 1
             chat.last_synced_at = now
         await session.commit()
-    logger.info("snapshot_once committed", snapshots=written, metadata_refreshed=refreshed)
+    logger.info(
+        "snapshot_once committed",
+        snapshots=written,
+        metadata_refreshed=refreshed,
+        photo_refreshed=photo_refreshed,
+    )
     return written
 
 
@@ -99,12 +119,13 @@ async def run_snapshot_loop(
     *,
     session_maker: async_sessionmaker[AsyncSession],
     telethon: TelethonClient | None,
+    bot: Bot | None = None,
     interval_seconds: int = SNAPSHOT_INTERVAL_SECONDS,
 ) -> None:
     """Forever-loop. Cancelled on app shutdown via task.cancel()."""
     while True:
         try:
-            await snapshot_once(session_maker=session_maker, telethon=telethon)
+            await snapshot_once(session_maker=session_maker, telethon=telethon, bot=bot)
         except Exception:
             logger.exception("snapshot_loop iteration failed")
         await asyncio.sleep(interval_seconds)

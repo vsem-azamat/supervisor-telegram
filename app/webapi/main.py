@@ -50,7 +50,13 @@ async def _lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info("publish_bot_started")
     task: asyncio.Task[None] | None = None
     if telethon is not None:
-        task = asyncio.create_task(run_snapshot_loop(session_maker=session_maker, telethon=telethon))
+        task = asyncio.create_task(
+            run_snapshot_loop(
+                session_maker=session_maker,
+                telethon=telethon,
+                bot=_app.state.publish_bot,
+            )
+        )
         logger.info("snapshot_loop started")
     else:
         logger.info("snapshot_loop not started — telethon unavailable")

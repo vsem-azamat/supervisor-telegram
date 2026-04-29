@@ -154,6 +154,53 @@ async def test_snapshot_once_first_sync_for_brand_new_chat(
     assert chat.last_synced_at is not None
 
 
+async def test_snapshot_once_caches_photo_file_id_via_bot(
+    db_session_maker: async_sessionmaker[AsyncSession],
+) -> None:
+    """When a bot is supplied, snapshot_once also pulls and caches the
+    chat photo's big_file_id from Bot API getChat."""
+    async with db_session_maker() as session:
+        session.add(Chat(id=-600, title="Cap"))
+        await session.commit()
+
+    tc = MagicMock()
+    tc.is_available = True
+    tc.get_chat_info = AsyncMock(return_value=MagicMock(member_count=8, title="Cap"))
+
+    bot = MagicMock()
+    bot.get_chat = AsyncMock(return_value=MagicMock(photo=MagicMock(big_file_id="bot-photo-1", small_file_id="s")))
+
+    await snapshot_once(session_maker=db_session_maker, telethon=tc, bot=bot)
+
+    async with db_session_maker() as session:
+        chat = (await session.execute(select(Chat).where(Chat.id == -600))).scalar_one()
+    assert chat.photo_file_id == "bot-photo-1"
+
+
+async def test_snapshot_once_skips_photo_fetch_when_recently_synced(
+    db_session_maker: async_sessionmaker[AsyncSession],
+) -> None:
+    """A chat with last_synced_at <24h ago doesn't trigger a Bot API call,
+    saving rate-limit budget for chats that actually need it."""
+    fresh = utc_now() - datetime.timedelta(hours=1)
+    async with db_session_maker() as session:
+        chat = Chat(id=-610, title="Fresh")
+        chat.last_synced_at = fresh
+        session.add(chat)
+        await session.commit()
+
+    tc = MagicMock()
+    tc.is_available = True
+    tc.get_chat_info = AsyncMock(return_value=MagicMock(member_count=3, title="Fresh"))
+
+    bot = MagicMock()
+    bot.get_chat = AsyncMock()
+
+    await snapshot_once(session_maker=db_session_maker, telethon=tc, bot=bot)
+
+    bot.get_chat.assert_not_called()
+
+
 async def test_snapshot_once_skips_unchanged_title(
     db_session_maker: async_sessionmaker[AsyncSession],
 ) -> None:
