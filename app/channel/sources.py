@@ -6,6 +6,7 @@ import asyncio
 import hashlib
 import re
 from dataclasses import dataclass, field
+from enum import StrEnum
 from functools import partial
 from typing import TYPE_CHECKING
 
@@ -22,6 +23,21 @@ if TYPE_CHECKING:
 logger = get_logger("channel.sources")
 
 _HTML_TAG_RE = re.compile(r"<[^>]+>")
+
+
+class ContentSource(StrEnum):
+    """Discriminator for how a ContentItem was produced.
+
+    Used as a prefix in `ContentItem.source_url` (e.g. ``perplexity:<model>``)
+    so downstream stages can tell synthesised content apart from RSS items.
+    """
+
+    RSS = "rss"
+    PERPLEXITY = "perplexity"
+    BRAVE = "brave"
+    SPLIT = "split"
+    ENRICHED = "enriched"
+    ASSISTANT = "assistant"
 
 
 @dataclass
