@@ -2,6 +2,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { goto } from '$app/navigation';
+	import ChatAvatar from '$lib/components/chat/ChatAvatar.svelte';
 	import { useLivePoll } from '$lib/hooks/useLivePoll.svelte';
 	import { MessagesSquare, Network, Shield, UserPlus, Users } from '@lucide/svelte';
 	import type { components } from '$lib/api/types';
@@ -107,7 +108,17 @@
 								class="cursor-pointer hover:bg-zinc-50"
 								onclick={() => goto(`/chats/${chat.id}`)}
 							>
-								<Table.Cell class="font-medium">{chat.title ?? `#${chat.id}`}</Table.Cell>
+								<Table.Cell class="font-medium">
+									<div class="flex items-center gap-2">
+										<ChatAvatar
+											chatId={chat.id}
+											title={chat.title}
+											hasPhoto={chat.has_photo}
+											size="sm"
+										/>
+										<span class="truncate">{chat.title ?? `#${chat.id}`}</span>
+									</div>
+								</Table.Cell>
 								<Table.Cell>{fmtMembers(chat.member_count)}</Table.Cell>
 								<Table.Cell>{chat.is_captcha_enabled ? 'on' : 'off'}</Table.Cell>
 								<Table.Cell>{chat.is_welcome_enabled ? 'on' : 'off'}</Table.Cell>

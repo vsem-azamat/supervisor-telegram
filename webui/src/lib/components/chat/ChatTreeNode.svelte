@@ -4,7 +4,8 @@
 	import { SvelteSet } from 'svelte/reactivity';
 	import { untrack } from 'svelte';
 	import Self from './ChatTreeNode.svelte';
-	import { hashId, initialsFor, type EnrichedNode } from './tree';
+	import ChatAvatar from './ChatAvatar.svelte';
+	import { type EnrichedNode } from './tree';
 
 	type Props = {
 		node: EnrichedNode;
@@ -31,18 +32,6 @@
 		}
 	}
 
-	const palette = [
-		'bg-amber-100 text-amber-700',
-		'bg-emerald-100 text-emerald-700',
-		'bg-sky-100 text-sky-700',
-		'bg-violet-100 text-violet-700',
-		'bg-rose-100 text-rose-700',
-		'bg-fuchsia-100 text-fuchsia-700',
-		'bg-lime-100 text-lime-700',
-		'bg-orange-100 text-orange-700'
-	];
-	const avatarClass = $derived(palette[hashId(node.id) % palette.length]);
-	const initials = $derived(initialsFor(node.title, node.id));
 	const label = $derived(node.title ?? `#${node.id}`);
 
 	type Segment = { text: string; matched: boolean };
@@ -90,12 +79,8 @@
 			<span class="h-5 w-5 shrink-0"></span>
 		{/if}
 
-		<span
-			class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold tracking-tight {avatarClass}"
-			aria-hidden="true"
-		>
-			{initials}
-		</span>
+		<ChatAvatar chatId={node.id} title={node.title} hasPhoto={node.has_photo} />
+
 
 		<button
 			type="button"

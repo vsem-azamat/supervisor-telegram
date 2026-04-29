@@ -418,6 +418,65 @@ export interface paths {
         patch: operations["update_chat_api_chats__chat_id__patch"];
         trace?: never;
     };
+    "/api/chats/{chat_id}/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Chat Avatar
+         * @description Stream the chat's avatar JPEG.
+         *
+         *     Reads the cached ``photo_file_id`` from the row, calls Bot API
+         *     ``getFile`` to resolve the file_path, then proxies ``download_file``
+         *     bytes back to the client. We proxy rather than 302-redirecting because
+         *     the Telegram file URL contains the bot token; redirecting would leak it.
+         *
+         *     Browsers cache the response for 1h via Cache-Control. Cached bytes
+         *     invalidate naturally when ``photo_file_id`` changes (the URL stays the
+         *     same but the bytes don't — we accept the staleness window since the
+         *     icon swap on rename is a low-impact event for an admin tool).
+         */
+        get: operations["get_chat_avatar_api_chats__chat_id__avatar_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/chats/{chat_id}/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refresh Chat From Telegram
+         * @description Synchronously pull latest title + photo from Telegram for one chat.
+         *
+         *     Manual counterpart to the hourly snapshot loop. Updates ``title`` (only
+         *     if upstream gave us a non-empty string), ``photo_file_id``, and bumps
+         *     ``last_synced_at`` to now. Member count is not refreshed here because
+         *     it's served live by the TelethonStatsService cache (60–300s TTL) — a
+         *     separate refresh would burn a Telethon RPC for marginal recency gain.
+         *
+         *     Telethon is optional; missing it just means we skip the title-sync leg
+         *     and the response carries whatever title was already in the DB.
+         */
+        post: operations["refresh_chat_from_telegram_api_chats__chat_id__refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/costs/session": {
         parameters: {
             query?: never;
@@ -968,6 +1027,13 @@ export interface components {
             /** Member Count */
             member_count?: number | null;
             /**
+             * Has Photo
+             * @default false
+             */
+            has_photo: boolean;
+            /** Last Synced At */
+            last_synced_at?: string | null;
+            /**
              * Created At
              * Format: date-time
              */
@@ -1032,6 +1098,11 @@ export interface components {
             /** Relation Notes */
             relation_notes?: string | null;
             /**
+             * Has Photo
+             * @default false
+             */
+            has_photo: boolean;
+            /**
              * Children
              * @default []
              */
@@ -1058,6 +1129,13 @@ export interface components {
             relation_notes?: string | null;
             /** Member Count */
             member_count?: number | null;
+            /**
+             * Has Photo
+             * @default false
+             */
+            has_photo: boolean;
+            /** Last Synced At */
+            last_synced_at?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -2486,6 +2564,68 @@ export interface operations {
                 "application/json": components["schemas"]["ChatUpdate"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_chat_avatar_api_chats__chat_id__avatar_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chat_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refresh_chat_from_telegram_api_chats__chat_id__refresh_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                chat_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
