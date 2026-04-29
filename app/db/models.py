@@ -52,6 +52,8 @@ class Chat(Base):
         index=True,
     )
     relation_notes: Mapped[str | None] = mapped_column(String, nullable=True)
+    photo_file_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    last_synced_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
     modified_at: Mapped[datetime.datetime] = mapped_column(
         DateTime,

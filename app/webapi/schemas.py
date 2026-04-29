@@ -175,6 +175,8 @@ class ChatRead(BaseModel):
     parent_chat_id: int | None = None
     relation_notes: str | None = None
     member_count: int | None = None  # enriched from Telethon, None when unavailable
+    has_photo: bool = False
+    last_synced_at: datetime.datetime | None = None
     created_at: datetime.datetime
 
 
@@ -202,6 +204,7 @@ class ChatNode(BaseModel):
     id: int
     title: str | None
     relation_notes: str | None = None
+    has_photo: bool = False
     children: list[ChatNode] = []
 
 

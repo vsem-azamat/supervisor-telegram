@@ -11,15 +11,27 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import io
 from typing import Annotated
 
+from aiogram import Bot
+from aiogram.exceptions import TelegramBadRequest
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.logging import get_logger
 from app.core.time import utc_now
 from app.db.models import Chat, ChatMemberSnapshot, Message, SpamPing, User
-from app.webapi.deps import get_session, get_telethon_stats, require_super_admin
+from app.telethon.telethon_client import TelethonClient
+from app.webapi.deps import (
+    get_publish_bot,
+    get_session,
+    get_telethon,
+    get_telethon_stats,
+    require_super_admin,
+)
 from app.webapi.schemas import (
     ChatDetail,
     ChatNode,
@@ -30,7 +42,10 @@ from app.webapi.schemas import (
     MemberSnapshotPoint,
     SpamPingRead,
 )
+from app.webapi.services.chat_sync import fetch_chat_photo_file_id
 from app.webapi.services.telethon_stats import TelethonStatsService
+
+logger = get_logger("webapi.routes.chats")
 
 router = APIRouter(prefix="/chats", tags=["chats"])
 
@@ -68,6 +83,8 @@ async def list_chats(
             parent_chat_id=chat.parent_chat_id,
             relation_notes=chat.relation_notes,
             member_count=member_count,
+            has_photo=chat.photo_file_id is not None,
+            last_synced_at=chat.last_synced_at,
             created_at=chat.created_at,
         )
         for chat, member_count in zip(chats, member_counts, strict=True)
@@ -92,7 +109,14 @@ async def get_chat_graph(
     """
     chats = (await session.execute(select(Chat))).scalars().all()
     by_id: dict[int, ChatNode] = {
-        c.id: ChatNode(id=c.id, title=c.title, relation_notes=c.relation_notes, children=[]) for c in chats
+        c.id: ChatNode(
+            id=c.id,
+            title=c.title,
+            relation_notes=c.relation_notes,
+            has_photo=c.photo_file_id is not None,
+            children=[],
+        )
+        for c in chats
     }
     roots: list[ChatNode] = []
     for c in chats:
@@ -157,7 +181,14 @@ async def get_chat(
         (await session.execute(select(Chat).where(Chat.parent_chat_id == chat_id).order_by(Chat.title))).scalars().all()
     )
     children_nodes = [
-        ChatNode(id=c.id, title=c.title, relation_notes=c.relation_notes, children=[]) for c in children_rows
+        ChatNode(
+            id=c.id,
+            title=c.title,
+            relation_notes=c.relation_notes,
+            has_photo=c.photo_file_id is not None,
+            children=[],
+        )
+        for c in children_rows
     ]
 
     spam_rows = (
@@ -229,6 +260,8 @@ async def get_chat(
         parent_chat_id=chat.parent_chat_id,
         relation_notes=chat.relation_notes,
         member_count=member_count,
+        has_photo=chat.photo_file_id is not None,
+        last_synced_at=chat.last_synced_at,
         created_at=chat.created_at,
         welcome_message=chat.welcome_message,
         time_delete=chat.time_delete,
@@ -276,5 +309,110 @@ async def update_chat(
         parent_chat_id=chat.parent_chat_id,
         relation_notes=chat.relation_notes,
         member_count=member_count,
+        has_photo=chat.photo_file_id is not None,
+        last_synced_at=chat.last_synced_at,
+        created_at=chat.created_at,
+    )
+
+
+@router.get("/{chat_id}/avatar")
+async def get_chat_avatar(
+    chat_id: int,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    bot: Annotated[Bot, Depends(get_publish_bot)],
+    _admin_id: Annotated[int, Depends(require_super_admin)],
+) -> StreamingResponse:
+    """Stream the chat's avatar JPEG.
+
+    Reads the cached ``photo_file_id`` from the row, calls Bot API
+    ``getFile`` to resolve the file_path, then proxies ``download_file``
+    bytes back to the client. We proxy rather than 302-redirecting because
+    the Telegram file URL contains the bot token; redirecting would leak it.
+
+    Browsers cache the response for 1h via Cache-Control. Cached bytes
+    invalidate naturally when ``photo_file_id`` changes (the URL stays the
+    same but the bytes don't — we accept the staleness window since the
+    icon swap on rename is a low-impact event for an admin tool).
+    """
+    chat = (await session.execute(select(Chat).where(Chat.id == chat_id))).scalar_one_or_none()
+    if chat is None:
+        raise HTTPException(status_code=404, detail=f"Chat {chat_id} not found")
+    if chat.photo_file_id is None:
+        raise HTTPException(status_code=404, detail="No avatar cached")
+
+    try:
+        downloaded = await bot.download(chat.photo_file_id)
+    except TelegramBadRequest as e:
+        # File expired upstream — clear cache so next sync re-pulls.
+        logger.warning("avatar download failed", chat_id=chat_id, error=str(e))
+        chat.photo_file_id = None
+        await session.commit()
+        raise HTTPException(status_code=404, detail="Avatar unavailable") from None
+
+    if downloaded is None:
+        raise HTTPException(status_code=404, detail="Avatar unavailable")
+
+    payload = downloaded.read()
+    return StreamingResponse(
+        io.BytesIO(payload),
+        media_type="image/jpeg",
+        headers={"Cache-Control": "public, max-age=3600"},
+    )
+
+
+@router.post("/{chat_id}/refresh", response_model=ChatRead)
+async def refresh_chat_from_telegram(
+    chat_id: int,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    bot: Annotated[Bot, Depends(get_publish_bot)],
+    stats: Annotated[TelethonStatsService, Depends(get_telethon_stats)],
+    telethon: Annotated[TelethonClient | None, Depends(get_telethon)],
+    _admin_id: Annotated[int, Depends(require_super_admin)],
+) -> ChatRead:
+    """Synchronously pull latest title + photo from Telegram for one chat.
+
+    Manual counterpart to the hourly snapshot loop. Updates ``title`` (only
+    if upstream gave us a non-empty string), ``photo_file_id``, and bumps
+    ``last_synced_at`` to now. Member count is not refreshed here because
+    it's served live by the TelethonStatsService cache (60–300s TTL) — a
+    separate refresh would burn a Telethon RPC for marginal recency gain.
+
+    Telethon is optional; missing it just means we skip the title-sync leg
+    and the response carries whatever title was already in the DB.
+    """
+    chat = (await session.execute(select(Chat).where(Chat.id == chat_id))).scalar_one_or_none()
+    if chat is None:
+        raise HTTPException(status_code=404, detail=f"Chat {chat_id} not found")
+
+    if telethon is not None and telethon.is_available:
+        try:
+            info = await telethon.get_chat_info(chat_id)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("manual refresh: get_chat_info failed", chat_id=chat_id, error=str(e))
+        else:
+            upstream_title = getattr(info, "title", None) if info is not None else None
+            if isinstance(upstream_title, str) and upstream_title and upstream_title != chat.title:
+                chat.title = upstream_title
+
+    file_id = await fetch_chat_photo_file_id(bot=bot, chat_id=chat_id)
+    if file_id and file_id != chat.photo_file_id:
+        chat.photo_file_id = file_id
+
+    chat.last_synced_at = utc_now()
+    await session.commit()
+    await session.refresh(chat)
+
+    member_count = await stats.get_member_count(chat.id)
+    return ChatRead(
+        id=chat.id,
+        title=chat.title,
+        is_forum=chat.is_forum,
+        is_welcome_enabled=chat.is_welcome_enabled,
+        is_captcha_enabled=chat.is_captcha_enabled,
+        parent_chat_id=chat.parent_chat_id,
+        relation_notes=chat.relation_notes,
+        member_count=member_count,
+        has_photo=chat.photo_file_id is not None,
+        last_synced_at=chat.last_synced_at,
         created_at=chat.created_at,
     )

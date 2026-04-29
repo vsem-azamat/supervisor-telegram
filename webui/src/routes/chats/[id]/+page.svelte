@@ -3,12 +3,14 @@
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
+	import ChatAvatar from '$lib/components/chat/ChatAvatar.svelte';
 	import HeatmapGrid from '$lib/components/chat/HeatmapGrid.svelte';
 	import Sparkline from '$lib/components/charts/Sparkline.svelte';
 	import SpamPingsList from '$lib/components/spam/SpamPingsList.svelte';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { useLivePoll } from '$lib/hooks/useLivePoll.svelte';
 	import { apiFetch } from '$lib/api/client';
+	import { RefreshCw } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import type { components } from '$lib/api/types';
 
@@ -22,6 +24,30 @@
 	let busyUserId = $state<number | null>(null);
 	let editing = $state(false);
 	let saving = $state(false);
+	let refreshing = $state(false);
+
+	async function refreshFromTelegram(): Promise<void> {
+		refreshing = true;
+		const res = await apiFetch<ChatRead>(`/api/chats/${chatId}/refresh`, { method: 'POST' });
+		refreshing = false;
+		if (res.error) toast.error(res.error.message);
+		else {
+			toast.success(`Refreshed — title: ${res.data.title ?? '—'}`);
+			await detail.refresh();
+		}
+	}
+
+	function fmtRelative(iso: string | null | undefined): string {
+		if (!iso) return 'never synced';
+		const ageMs = Date.now() - new Date(iso).getTime();
+		const mins = Math.floor(ageMs / 60_000);
+		if (mins < 1) return 'just now';
+		if (mins < 60) return `${mins}m ago`;
+		const hours = Math.floor(mins / 60);
+		if (hours < 24) return `${hours}h ago`;
+		const days = Math.floor(hours / 24);
+		return `${days}d ago`;
+	}
 	let edit = $state({
 		title: '',
 		welcome_message: '',
@@ -101,13 +127,41 @@
 </script>
 
 <div class="mx-auto max-w-5xl space-y-4 px-6 py-6">
-	<header>
-		<h2 class="text-lg font-semibold tracking-tight">
-			{detail.data?.title ?? `Chat #${chatId}`}
-		</h2>
-		{#if detail.lastUpdatedAt}
-			<span class="text-xs text-zinc-500">Updated {detail.lastUpdatedAt.toLocaleTimeString()}</span>
-		{/if}
+	<header class="flex items-center justify-between gap-3">
+		<div class="flex min-w-0 items-center gap-3">
+			{#if detail.data}
+				<ChatAvatar
+					chatId={detail.data.id}
+					title={detail.data.title}
+					hasPhoto={detail.data.has_photo}
+					size="lg"
+				/>
+			{/if}
+			<div class="min-w-0">
+				<h2 class="truncate text-lg font-semibold tracking-tight">
+					{detail.data?.title ?? `Chat #${chatId}`}
+				</h2>
+				<div class="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-zinc-500">
+					{#if detail.lastUpdatedAt}
+						<span>Page updated {detail.lastUpdatedAt.toLocaleTimeString()}</span>
+					{/if}
+					{#if detail.data}
+						<span>· Synced from Telegram {fmtRelative(detail.data.last_synced_at)}</span>
+					{/if}
+				</div>
+			</div>
+		</div>
+		<Button
+			type="button"
+			variant="outline"
+			size="sm"
+			disabled={refreshing}
+			onclick={refreshFromTelegram}
+			class="shrink-0 gap-1.5"
+		>
+			<RefreshCw class="h-3.5 w-3.5 {refreshing ? 'animate-spin' : ''}" />
+			{refreshing ? 'Refreshing…' : 'Refresh from Telegram'}
+		</Button>
 	</header>
 
 	{#if detail.loading}

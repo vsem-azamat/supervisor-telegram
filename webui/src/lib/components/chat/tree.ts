@@ -6,6 +6,7 @@ export type EnrichedNode = {
 	id: number;
 	title: string | null;
 	relation_notes: string | null | undefined;
+	has_photo: boolean;
 	depth: number;
 	subtreeSize: number; // 1 + sum of children's subtreeSize
 	children: EnrichedNode[];
@@ -22,6 +23,7 @@ export function enrichTree(nodes: RawNode[], depth = 0): EnrichedNode[] {
 			id: n.id,
 			title: n.title,
 			relation_notes: n.relation_notes,
+			has_photo: n.has_photo ?? false,
 			depth,
 			subtreeSize,
 			children
