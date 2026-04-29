@@ -29,6 +29,16 @@ class DiscoveryError(ChannelPipelineError):
     """Failed during content or source discovery."""
 
 
+class TopicSplitError(ChannelPipelineError):
+    """Failed to split or enrich content items into individual topics.
+
+    Raised on LLM response parse failures inside ``topic_splitter``. The
+    pipeline still degrades gracefully (returns the original items) but
+    callers can distinguish topic-split issues from other pipeline errors
+    when narrower handling is needed.
+    """
+
+
 class ImagePipelineError(ChannelPipelineError):
     """Recoverable failure in the image pipeline.
 

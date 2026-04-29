@@ -7,14 +7,15 @@ optionally enriches sparse items with additional details via Brave Search.
 
 from __future__ import annotations
 
-from enum import StrEnum
 from hashlib import sha256
 from typing import TYPE_CHECKING
 
-from pydantic import BaseModel, TypeAdapter
+from pydantic import BaseModel, TypeAdapter, ValidationError
 
+from app.channel.exceptions import TopicSplitError
 from app.channel.llm_client import openrouter_chat_completion
 from app.channel.sanitize import sanitize_external_text, substitute_template
+from app.channel.sources import ContentSource
 from app.core.logging import get_logger
 from app.core.time import utc_now
 
@@ -29,35 +30,23 @@ logger = get_logger("channel.topic_splitter")
 # ---------------------------------------------------------------------------
 
 
-class SplitTopic(BaseModel):
-    """A single news topic extracted by the split LLM."""
+class Topic(BaseModel):
+    """A single news topic returned by the split / enrich LLM calls.
+
+    Both stages emit the same shape, so they share one model.
+    """
 
     title: str
     summary: str = ""
     url: str | None = None
 
 
-class EnrichedTopic(BaseModel):
-    """A topic enriched with a source URL from web search."""
+# Back-compat aliases — external callers and tests may still import these.
+SplitTopic = Topic
+EnrichedTopic = Topic
 
-    title: str
-    summary: str = ""
-    url: str | None = None
-
-
-class ContentSource(StrEnum):
-    """Discriminator for how a ContentItem was produced."""
-
-    RSS = "rss"
-    PERPLEXITY = "perplexity"
-    BRAVE = "brave"
-    SPLIT = "split"
-    ENRICHED = "enriched"
-    ASSISTANT = "assistant"
-
-
-_split_topics_adapter: TypeAdapter[list[SplitTopic]] = TypeAdapter(list[SplitTopic])
-_enriched_topic_adapter: TypeAdapter[EnrichedTopic] = TypeAdapter(EnrichedTopic)
+_split_topics_adapter: TypeAdapter[list[Topic]] = TypeAdapter(list[Topic])
+_enriched_topic_adapter: TypeAdapter[Topic] = TypeAdapter(Topic)
 
 
 # ---------------------------------------------------------------------------
@@ -117,7 +106,7 @@ def _is_synthesized(item: ContentItem) -> bool:
 
 
 def _topic_to_content_item(
-    topic: SplitTopic | EnrichedTopic,
+    topic: Topic,
     source_label: str,
 ) -> ContentItem:
     """Convert a Pydantic topic model to a ContentItem."""
@@ -188,7 +177,10 @@ async def split_topics(
             import json
 
             response = json.dumps(response)
-        topics = _split_topics_adapter.validate_json(response)
+        try:
+            topics = _split_topics_adapter.validate_json(response)
+        except ValidationError as exc:
+            raise TopicSplitError(f"split_response_invalid: {exc}") from exc
         source_label = f"{ContentSource.SPLIT}:{model}"
         split_items = [_topic_to_content_item(t, source_label) for t in topics if t.title]
 
@@ -199,6 +191,9 @@ async def split_topics(
         )
         return rss_items + split_items
 
+    except TopicSplitError:
+        logger.exception("topic_split_invalid_response")
+        return items
     except Exception:
         logger.exception("topic_split_error")
         return items
@@ -273,13 +268,19 @@ async def enrich_items(
                     import json
 
                     response = json.dumps(response)
-                topic = _enriched_topic_adapter.validate_json(response)
+                try:
+                    topic = _enriched_topic_adapter.validate_json(response)
+                except ValidationError as exc:
+                    raise TopicSplitError(f"enrich_response_invalid: {exc}") from exc
                 source_label = f"{ContentSource.ENRICHED}:{model}"
                 enriched_item = _topic_to_content_item(topic, source_label)
                 enriched_item.discovered_at = item.discovered_at
                 logger.info("topic_enriched", title=topic.title[:60], url=topic.url)
                 return enriched_item
 
+            except TopicSplitError:
+                logger.exception("topic_enrich_invalid_response", title=item.title[:60])
+                return item
             except Exception:
                 logger.exception("topic_enrich_error", title=item.title[:60])
                 return item
