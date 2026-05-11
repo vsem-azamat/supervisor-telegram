@@ -39,8 +39,18 @@ jobs:
           target: production
           push: true
           tags: |
-            ghcr.io/vsem-azamat/supervisor-telegram:latest
             ghcr.io/vsem-azamat/supervisor-telegram:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push webui
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: webui
+          push: true
+          tags: |
+            ghcr.io/vsem-azamat/supervisor-telegram-webui:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -68,8 +78,14 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             cd ~/deploy/supervisor-telegram
+            pkill -f "vite.*5173" || true
+            if grep -q '^IMAGE_TAG=' .env; then
+              sed -i 's|^IMAGE_TAG=.*|IMAGE_TAG=${{ github.sha }}|' .env
+            else
+              printf '\nIMAGE_TAG=${{ github.sha }}\n' >> .env
+            fi
             docker compose pull
-            docker compose up -d
+            docker compose up -d --remove-orphans
             echo "--- Container status ---"
             docker compose ps
             echo "--- Recent logs ---"

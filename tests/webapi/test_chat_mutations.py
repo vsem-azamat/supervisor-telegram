@@ -94,6 +94,25 @@ async def test_update_chat_self_parent_422(client_factory, db_session_maker) -> 
     assert resp.status_code == 422
 
 
+async def test_update_chat_missing_parent_422(client_factory, db_session_maker) -> None:
+    async with db_session_maker() as s:
+        s.add(Chat(id=-2005, title="x"))
+        await s.commit()
+    async with client_factory() as client:
+        resp = await client.patch("/api/chats/-2005", json={"parent_chat_id": -9999})
+    assert resp.status_code == 422
+
+
+async def test_update_chat_parent_cycle_422(client_factory, db_session_maker) -> None:
+    async with db_session_maker() as s:
+        s.add(Chat(id=-2006, title="root"))
+        s.add(Chat(id=-2007, title="child", parent_chat_id=-2006))
+        await s.commit()
+    async with client_factory() as client:
+        resp = await client.patch("/api/chats/-2006", json={"parent_chat_id": -2007})
+    assert resp.status_code == 422
+
+
 async def test_update_chat_partial_keeps_other_fields(client_factory, db_session_maker) -> None:
     async with db_session_maker() as s:
         s.add(Chat(id=-2004, title="orig", welcome_message="orig-welcome"))

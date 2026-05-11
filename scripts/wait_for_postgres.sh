@@ -1,18 +1,40 @@
 #!/bin/sh
 set -e
 
-host=${DB_HOST:-db}
-max_attempts=${POSTGRES_WAIT_ATTEMPTS:-60}
-attempts=0
+python - <<'PY'
+import asyncio
+import os
+import sys
 
-while ! PGPASSWORD="$DB_PASSWORD" psql -h "$host" -U "$DB_USER" -d "$DB_NAME" -c '\q' >/dev/null 2>&1; do
-  attempts=$((attempts + 1))
-  if [ "$attempts" -ge "$max_attempts" ]; then
-    echo "Postgres still not reachable after $attempts attempts, exiting."
-    exit 1
-  fi
-  echo "Waiting for Postgres at $host..."
-  sleep 1
-done
+import asyncpg
 
-exit 0
+
+async def main() -> int:
+    host = os.getenv("DB_HOST", "db")
+    port = int(os.getenv("DB_PORT", "5432"))
+    max_attempts = int(os.getenv("POSTGRES_WAIT_ATTEMPTS", "60"))
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            conn = await asyncpg.connect(
+                user=os.environ["DB_USER"],
+                password=os.environ["DB_PASSWORD"],
+                database=os.environ["DB_NAME"],
+                host=host,
+                port=port,
+                timeout=5,
+            )
+            await conn.close()
+            return 0
+        except Exception as exc:
+            if attempt >= max_attempts:
+                print(f"Postgres still not reachable after {attempt} attempts: {exc}", file=sys.stderr)
+                return 1
+            print(f"Waiting for Postgres at {host}:{port}...")
+            await asyncio.sleep(1)
+
+    return 1
+
+
+raise SystemExit(asyncio.run(main()))
+PY

@@ -83,6 +83,7 @@ async def get_system_status(
         allowed_origins=list(settings.webapi.allowed_origins),
         session_ttl_days=settings.webapi.session_ttl_days,
         feature_flags=[
+            FeatureFlagRead(name=f"auth_mode_{settings.webapi.auth_mode}", enabled=True),
             FeatureFlagRead(name="dev_bypass_auth", enabled=settings.webapi.dev_bypass_auth),
             FeatureFlagRead(name="moderation_enabled", enabled=settings.moderation.enabled),
             FeatureFlagRead(name="ad_detector_enabled", enabled=settings.moderation.ad_detector_enabled),

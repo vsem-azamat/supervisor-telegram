@@ -1,11 +1,12 @@
 # Konnekt admin web UI
 
-SvelteKit + Tailwind + FastAPI admin panel. Dev-mode scaffold only — no auth, no Docker.
+SvelteKit + Tailwind + FastAPI admin panel.
 
 ## Stack
 
 - **Frontend**: SvelteKit 2 (Svelte 5, TS) + Tailwind v4 — served by Vite on **:5173**
 - **Backend**: FastAPI + SQLAlchemy (shares `app.db.models` with the bot) — served by uvicorn on **:8787**
+- **Production**: static SvelteKit build served by Caddy; `/api/*` proxies to the FastAPI container
 - **UI kit**: shadcn-svelte configured via `components.json`. Add components with
   `pnpm dlx shadcn-svelte@latest add <name>` (runs interactively — use a real terminal).
 

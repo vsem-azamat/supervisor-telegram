@@ -9,10 +9,20 @@ echo "Running entrypoint..."
 # Wait for remote PostgreSQL to be ready
 ./scripts/wait_for_postgres.sh
 
-# Run database migrations
-echo "Running Alembic migrations..."
-alembic upgrade head
+case "${1:-bot}" in
+  bot)
+    # Run database migrations before starting the primary worker.
+    echo "Running Alembic migrations..."
+    alembic upgrade head
 
-# Start the bot as PID 1
-echo "Starting bot..."
-exec python -m app.presentation.telegram
+    echo "Starting bot..."
+    exec python -m app.presentation.telegram
+    ;;
+  webapi)
+    echo "Starting webapi..."
+    exec uvicorn app.webapi.main:app --host 0.0.0.0 --port 8787
+    ;;
+  *)
+    exec "$@"
+    ;;
+esac

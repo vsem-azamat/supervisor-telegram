@@ -1,13 +1,36 @@
 services:
   bot:
-    image: ghcr.io/vsem-azamat/supervisor-telegram:latest
-    container_name: supervisor-telegram
+    image: ghcr.io/vsem-azamat/supervisor-telegram:${IMAGE_TAG:?Set IMAGE_TAG to a published image tag}
+    container_name: supervisor-telegram-bot
+    command: ["bot"]
     env_file: .env
     environment:
       PYTHONUNBUFFERED: "1"
     volumes:
       - ./moderator_userbot.session:/app/moderator_userbot.session
       - bot-logs:/app/logs
+    restart: unless-stopped
+
+  webapi:
+    image: ghcr.io/vsem-azamat/supervisor-telegram:${IMAGE_TAG:?Set IMAGE_TAG to a published image tag}
+    container_name: supervisor-telegram-webapi
+    command: ["webapi"]
+    env_file: .env
+    environment:
+      PYTHONUNBUFFERED: "1"
+      LOG_FILE_PATH: logs/webapi.log
+      WEBAPI_DEV_BYPASS_AUTH: "false"
+    volumes:
+      - bot-logs:/app/logs
+    restart: unless-stopped
+
+  webui:
+    image: ghcr.io/vsem-azamat/supervisor-telegram-webui:${IMAGE_TAG:?Set IMAGE_TAG to a published image tag}
+    container_name: supervisor-telegram-webui
+    ports:
+      - "${WEBUI_PORT:-5173}:80"
+    depends_on:
+      - webapi
     restart: unless-stopped
 
 volumes:

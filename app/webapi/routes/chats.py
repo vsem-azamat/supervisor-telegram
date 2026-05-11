@@ -293,6 +293,25 @@ async def update_chat(
         raise HTTPException(status_code=422, detail="time_delete must be positive")
     if "parent_chat_id" in fields and fields["parent_chat_id"] == chat_id:
         raise HTTPException(status_code=422, detail="A chat cannot be its own parent")
+    if "parent_chat_id" in fields and fields["parent_chat_id"] is not None:
+        parent_id = fields["parent_chat_id"]
+        parent_rows = (
+            await session.execute(select(Chat.id, Chat.parent_chat_id).where(Chat.id.in_([chat_id, parent_id])))
+        ).all()
+        known_ids = {row.id for row in parent_rows}
+        if parent_id not in known_ids:
+            raise HTTPException(status_code=422, detail=f"Parent chat {parent_id} not found")
+
+        all_links = (await session.execute(select(Chat.id, Chat.parent_chat_id))).all()
+        parent_by_id = {row.id: row.parent_chat_id for row in all_links}
+        parent_by_id[chat_id] = parent_id
+        seen: set[int] = set()
+        cursor = parent_id
+        while cursor is not None:
+            if cursor == chat_id or cursor in seen:
+                raise HTTPException(status_code=422, detail="Chat hierarchy cannot contain cycles")
+            seen.add(cursor)
+            cursor = parent_by_id.get(cursor)
 
     for key, value in fields.items():
         setattr(chat, key, value)
