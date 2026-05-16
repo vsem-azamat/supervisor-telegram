@@ -78,7 +78,6 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             cd ~/deploy/supervisor-telegram
-            pkill -f "vite.*5173" || true
             if grep -q '^IMAGE_TAG=' .env; then
               sed -i 's|^IMAGE_TAG=.*|IMAGE_TAG=${{ github.sha }}|' .env
             else
