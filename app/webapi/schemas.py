@@ -555,8 +555,13 @@ class TelegramLoginPayload(BaseModel):
     hash: str
 
 
+class MagicLinkLoginPayload(BaseModel):
+    token: str
+
+
 class AuthMeResponse(BaseModel):
     user_id: int
+    auth_mode: str = "telegram"
     is_authenticated: bool = True
 
 

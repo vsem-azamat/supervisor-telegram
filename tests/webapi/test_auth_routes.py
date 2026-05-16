@@ -35,10 +35,12 @@ def client_factory(db_session_maker: async_sessionmaker[AsyncSession]):
     app.dependency_overrides[get_session] = _override_session
     orig_admins = list(settings.admin.super_admins)
     orig_token = settings.telegram.token
+    orig_auth_mode = settings.webapi.auth_mode
     orig_bypass = settings.webapi.dev_bypass_auth
     orig_secure = settings.webapi.session_cookie_secure
     settings.admin.super_admins = [268388996]
     settings.telegram.token = "test:bot:token"  # noqa: S105
+    settings.webapi.auth_mode = "telegram"
     settings.webapi.dev_bypass_auth = False
     settings.webapi.session_cookie_secure = False
     transport = ASGITransport(app=app)
@@ -50,6 +52,7 @@ def client_factory(db_session_maker: async_sessionmaker[AsyncSession]):
     app.dependency_overrides.pop(get_session, None)
     settings.admin.super_admins = orig_admins
     settings.telegram.token = orig_token
+    settings.webapi.auth_mode = orig_auth_mode
     settings.webapi.dev_bypass_auth = orig_bypass
     settings.webapi.session_cookie_secure = orig_secure
 
@@ -74,6 +77,7 @@ async def test_full_login_flow(client_factory) -> None:
         me = await client.get("/api/auth/me")
         assert me.status_code == 200
         assert me.json()["user_id"] == 268388996
+        assert me.json()["auth_mode"] == "telegram"
 
         out = await client.post("/api/auth/logout")
         assert out.status_code == 204
@@ -87,3 +91,39 @@ async def test_non_admin_rejected(client_factory) -> None:
     async with client_factory() as client:
         resp = await client.post("/api/auth/login", json=json_payload)
     assert resp.status_code == 403
+
+
+async def test_magic_link_flow(client_factory, db_session_maker: async_sessionmaker[AsyncSession]) -> None:
+    from app.db.magic_link_store import create_magic_link
+
+    settings.webapi.auth_mode = "magic_link"
+
+    async with db_session_maker() as session:
+        token, _ = await create_magic_link(session, user_id=268388996, ttl_minutes=15)
+
+    async with client_factory() as client:
+        bad = await client.post("/api/auth/magic-link", json={"token": "wrong"})
+        assert bad.status_code == 401
+
+        resp = await client.post("/api/auth/magic-link", json={"token": token})
+        assert resp.status_code == 200, resp.text
+        assert resp.cookies.get(settings.webapi.session_cookie_name)
+        assert resp.json()["auth_mode"] == "magic_link"
+
+        reused = await client.post("/api/auth/magic-link", json={"token": token})
+        assert reused.status_code == 401
+
+        me = await client.get("/api/auth/me")
+        assert me.status_code == 200
+        assert me.json()["user_id"] == 268388996
+
+
+async def test_public_mode_me_without_cookie(client_factory) -> None:
+    settings.webapi.auth_mode = "public"
+
+    async with client_factory() as client:
+        resp = await client.get("/api/auth/me")
+
+    assert resp.status_code == 200
+    assert resp.json()["user_id"] == 268388996
+    assert resp.json()["auth_mode"] == "public"

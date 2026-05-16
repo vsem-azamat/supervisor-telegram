@@ -69,8 +69,8 @@
 	}
 </script>
 
-<div class="space-y-4 px-6 py-6">
-	<header class="flex items-center justify-between">
+<div class="mx-auto max-w-5xl space-y-4 px-6 py-6">
+	<header class="flex items-baseline justify-between">
 		<div>
 			<h2 class="text-lg font-semibold tracking-tight">Channels</h2>
 			<p class="mt-0.5 text-xs text-zinc-500">Publishing destinations and content sources.</p>
@@ -141,37 +141,46 @@
 	{:else if error}
 		<p class="text-sm text-red-600">Error: {error}</p>
 	{:else}
-		<Table.Root>
-			<Table.Header>
-				<Table.Row>
-					<Table.Head>Name</Table.Head>
-					<Table.Head class="w-32">Language</Table.Head>
-					<Table.Head class="w-32">Enabled</Table.Head>
-					<Table.Head class="w-32">Posts/day</Table.Head>
-					<Table.Head class="w-40">Telegram ID</Table.Head>
-				</Table.Row>
-			</Table.Header>
-			<Table.Body>
-				{#each channels as c (c.id)}
-					<Table.Row>
-						<Table.Cell>
-							<a
-								href={`/channels/${c.id}`}
-								class="font-medium text-zinc-900 hover:underline">{c.name}</a
-							>
-							{#if c.username}
-								<span class="ml-1 text-xs text-zinc-500">@{c.username}</span>
-							{/if}
-						</Table.Cell>
-						<Table.Cell class="text-xs text-zinc-600 uppercase">{c.language}</Table.Cell>
-						<Table.Cell>
-							{#if c.enabled}<Badge>on</Badge>{:else}<Badge variant="secondary">off</Badge>{/if}
-						</Table.Cell>
-						<Table.Cell class="text-sm text-zinc-700">{c.max_posts_per_day}</Table.Cell>
-						<Table.Cell class="font-mono text-xs text-zinc-600">{c.telegram_id}</Table.Cell>
-					</Table.Row>
-				{/each}
-			</Table.Body>
-		</Table.Root>
+		<div class="overflow-hidden rounded-md border border-zinc-200 bg-white">
+			{#if channels.length === 0}
+				<p class="p-4 text-sm text-zinc-500">No channels registered yet.</p>
+			{:else}
+				<Table.Root>
+					<Table.Header>
+						<Table.Row class="bg-zinc-50/80">
+							<Table.Head>Name</Table.Head>
+							<Table.Head class="w-32">Language</Table.Head>
+							<Table.Head class="w-32">Enabled</Table.Head>
+							<Table.Head class="w-32">Posts/day</Table.Head>
+							<Table.Head class="w-40">Telegram ID</Table.Head>
+						</Table.Row>
+					</Table.Header>
+					<Table.Body>
+						{#each channels as c (c.id)}
+							<Table.Row class="cursor-pointer hover:bg-zinc-50" onclick={() => goto(`/channels/${c.id}`)}>
+								<Table.Cell>
+									<div class="min-w-0">
+										<a
+											href={`/channels/${c.id}`}
+											class="font-medium text-zinc-900 hover:underline"
+											onclick={(event) => event.stopPropagation()}>{c.name}</a
+										>
+										{#if c.username}
+											<span class="ml-1 text-xs text-zinc-500">@{c.username}</span>
+										{/if}
+									</div>
+								</Table.Cell>
+								<Table.Cell class="text-xs text-zinc-600 uppercase">{c.language}</Table.Cell>
+								<Table.Cell>
+									{#if c.enabled}<Badge>on</Badge>{:else}<Badge variant="secondary">off</Badge>{/if}
+								</Table.Cell>
+								<Table.Cell class="text-sm text-zinc-700">{c.max_posts_per_day}</Table.Cell>
+								<Table.Cell class="font-mono text-xs text-zinc-600">{c.telegram_id}</Table.Cell>
+							</Table.Row>
+						{/each}
+					</Table.Body>
+				</Table.Root>
+			{/if}
+		</div>
 	{/if}
 </div>

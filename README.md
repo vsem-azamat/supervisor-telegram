@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/python-3.12+-blue?logo=python&logoColor=white" alt="Python 3.12+">
   <img src="https://img.shields.io/badge/aiogram-3.x-blue?logo=telegram" alt="aiogram 3.x">
   <img src="https://img.shields.io/badge/PydanticAI-agents-purple" alt="PydanticAI">
-  <img src="https://img.shields.io/badge/PostgreSQL-17-blue?logo=postgresql&logoColor=white" alt="PostgreSQL 17">
+  <img src="https://img.shields.io/badge/PostgreSQL-18-blue?logo=postgresql&logoColor=white" alt="PostgreSQL 18">
   <img src="https://img.shields.io/badge/pgvector-semantic_search-green" alt="pgvector">
   <img src="https://img.shields.io/badge/tests-700+-brightgreen" alt="Tests">
 </p>
@@ -46,7 +46,7 @@ graph TB
     end
 
     subgraph Data["Data Layer"]
-        PG[("PostgreSQL 17<br/>+ pgvector")]
+        PG[("PostgreSQL 18<br/>+ pgvector")]
         Sources["RSS / Brave / Perplexity"]
     end
 
@@ -196,7 +196,7 @@ Messages revoked in 3 chats.
 | **Bot Framework** | aiogram 3.x, Telethon (Client API) |
 | **AI/Agents** | PydanticAI, OpenRouter (Claude Sonnet, Gemini Flash, Perplexity Sonar) |
 | **State Machine** | Burr (checkpointable HITL workflow) |
-| **Database** | PostgreSQL 17 + pgvector, SQLAlchemy 2.x async, Alembic |
+| **Database** | PostgreSQL 18 + pgvector, SQLAlchemy 2.x async, Alembic |
 | **Search** | Brave Search API (web + images), Perplexity Sonar (synthesis) |
 | **Architecture** | Feature-based modular (moderation/channel/assistant), service locator DI |
 | **Quality** | ruff, ty (Astral type checker), pytest, pre-commit, structlog |

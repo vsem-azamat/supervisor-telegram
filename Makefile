@@ -28,8 +28,8 @@ format: ## Format code with ruff
 format-check: ## Check code formatting
 	uv run ruff format --check app tests
 
-type-check: ## Run type checking with mypy
-	uv run mypy app tests
+type-check: ## Run type checking with ty
+	uv run ty check app tests
 
 quality: lint format-check type-check ## Run all code quality checks
 

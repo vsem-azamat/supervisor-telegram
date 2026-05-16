@@ -749,6 +749,31 @@ class AdminSession(Base):
         self.ip = ip
 
 
+class AdminMagicLink(Base):
+    __tablename__ = "admin_magic_links"
+
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, nullable=False, index=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False)
+    expires_at: Mapped[datetime.datetime] = mapped_column(DateTime, nullable=False, index=True)
+    used_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+
+    def __init__(
+        self,
+        token_hash: str,
+        user_id: int,
+        *,
+        created_at: datetime.datetime,
+        expires_at: datetime.datetime,
+        used_at: datetime.datetime | None = None,
+    ) -> None:
+        self.token_hash = token_hash
+        self.user_id = user_id
+        self.created_at = created_at
+        self.expires_at = expires_at
+        self.used_at = used_at
+
+
 class CostEvent(Base):
     """Persistent record of one LLM API call.
 

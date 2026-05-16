@@ -9,10 +9,11 @@
 	function currentTitle(pathname: string): string {
 		const map: Record<string, string> = {
 			'/': 'Dashboard',
+			'/catalog': 'Catalog',
+			'/catalog/hierarchy': 'Hierarchy',
 			'/posts': 'Posts',
 			'/channels': 'Channels',
 			'/chats': 'Chats',
-			'/chats/graph': 'Chat graph',
 			'/costs': 'Costs',
 			'/agent': 'Agent',
 			'/settings': 'Settings'

@@ -222,7 +222,7 @@
 						{/each}
 					</ul>
 					<a
-						href="/chats/graph"
+						href="/catalog/hierarchy"
 						class="mt-2 inline-block text-xs text-zinc-500 hover:underline"
 					>
 						View full tree →

@@ -3,8 +3,6 @@
 	import {
 		Hash,
 		LayoutDashboard,
-		MessagesSquare,
-		Network,
 		Newspaper,
 		Receipt,
 		Settings,
@@ -23,11 +21,7 @@
 		},
 		{
 			label: 'Resources',
-			items: [
-				{ href: '/channels', label: 'Channels', icon: Tv },
-				{ href: '/chats', label: 'Chats', icon: MessagesSquare },
-				{ href: '/chats/graph', label: 'Chat graph', icon: Network }
-			]
+			items: [{ href: '/catalog', label: 'Catalog', icon: Tv }]
 		},
 		{
 			label: 'Workflow',
@@ -47,8 +41,12 @@
 
 	function isActive(href: string): boolean {
 		if (href === '/') return page.url.pathname === '/';
-		if (href === '/chats') {
-			return page.url.pathname === '/chats' || /^\/chats\/-?\d+/.test(page.url.pathname);
+		if (href === '/catalog') {
+			return (
+				page.url.pathname === '/catalog' ||
+				page.url.pathname.startsWith('/channels') ||
+				page.url.pathname.startsWith('/chats')
+			);
 		}
 		return page.url.pathname === href || page.url.pathname.startsWith(href + '/');
 	}

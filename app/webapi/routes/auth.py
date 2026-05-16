@@ -9,10 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.db import magic_link_store
 from app.webapi.auth import session_store
 from app.webapi.auth.telegram_login import LoginWidgetError, verify_login_payload
 from app.webapi.deps import get_session, require_super_admin
-from app.webapi.schemas import AuthMeResponse, TelegramLoginPayload
+from app.webapi.schemas import AuthMeResponse, MagicLinkLoginPayload, TelegramLoginPayload
 
 logger = get_logger("webapi.auth")
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -25,6 +26,9 @@ async def login(
     response: Response,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AuthMeResponse:
+    if settings.webapi.auth_mode != "telegram":
+        raise HTTPException(status_code=404, detail="telegram login disabled")
+
     # Dump dict with extras so HMAC sees the whole payload.
     raw = {k: str(v) for k, v in payload.model_dump().items()}
     try:
@@ -53,7 +57,44 @@ async def login(
         samesite=cast("Literal['lax', 'strict', 'none']", settings.webapi.session_cookie_samesite),
         path="/",
     )
-    return AuthMeResponse(user_id=user_id)
+    return AuthMeResponse(user_id=user_id, auth_mode=settings.webapi.auth_mode)
+
+
+@router.post("/magic-link")
+async def magic_link_login(
+    payload: MagicLinkLoginPayload,
+    request: Request,
+    response: Response,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> AuthMeResponse:
+    if settings.webapi.auth_mode != "magic_link":
+        raise HTTPException(status_code=404, detail="magic link login disabled")
+    if not settings.admin.super_admins:
+        raise HTTPException(status_code=503, detail="No super_admin configured")
+
+    user_id = await magic_link_store.consume_magic_link(session, payload.token)
+    main_admin_id = settings.admin.super_admins[0]
+    if user_id is None or user_id != main_admin_id:
+        logger.warning("magic_link_rejected", ip=request.client.host if request.client else None)
+        raise HTTPException(status_code=401, detail="login failed")
+
+    row = await session_store.create_session(
+        session,
+        user_id=user_id,
+        ttl_days=settings.webapi.session_ttl_days,
+        user_agent=request.headers.get("user-agent"),
+        ip=request.client.host if request.client else None,
+    )
+    response.set_cookie(
+        key=settings.webapi.session_cookie_name,
+        value=row.session_id,
+        max_age=settings.webapi.session_ttl_days * 86400,
+        secure=settings.webapi.session_cookie_secure,
+        httponly=True,
+        samesite=cast("Literal['lax', 'strict', 'none']", settings.webapi.session_cookie_samesite),
+        path="/",
+    )
+    return AuthMeResponse(user_id=user_id, auth_mode=settings.webapi.auth_mode)
 
 
 @router.post("/logout", status_code=204)
@@ -70,4 +111,4 @@ async def logout(
 
 @router.get("/me")
 async def me(user_id: Annotated[int, Depends(require_super_admin)]) -> AuthMeResponse:
-    return AuthMeResponse(user_id=user_id)
+    return AuthMeResponse(user_id=user_id, auth_mode=settings.webapi.auth_mode)
