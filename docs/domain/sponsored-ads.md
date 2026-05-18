@@ -33,6 +33,16 @@ this document owns the behavioral rules that tests and code must enforce.
   factors, recommended price, bounds, final price, admin override status, and a
   negotiation transcript or summary.
 
+## Persistence Contract
+
+- `sponsored_ad_requests` stores one advertiser request for one target chat.
+- It keeps the source flagged message, advertiser Telegram user, target chat,
+  current status, category policy, quote bounds, final accepted price, currency,
+  admin override flag, and quote provenance.
+- Admin payment confirmation is a separate transition from admin approval:
+  `pending_admin_review -> awaiting_payment -> payment_confirmed`.
+- Invalid quote proposals must fail before mutating stored request state.
+
 ## Category Rules
 
 - Automatic category classification is advisory.

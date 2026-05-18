@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.enums import EscalationStatus, PostStatus
 from app.core.time import utc_now
 from app.db.base import Base
+from app.sponsored_ads.domain import AdCategoryPolicy, AdRequestStatus
 
 
 class Admin(Base):
@@ -716,6 +717,67 @@ class SpamPing(Base):
         self.snippet = snippet
         if detected_at is not None:
             self.detected_at = detected_at
+
+
+class SponsoredAdRequest(Base):
+    """Admin-reviewed paid placement request for a managed Telegram chat."""
+
+    __tablename__ = "sponsored_ad_requests"
+    __table_args__ = (
+        Index("ix_sponsored_ad_requests_chat_status", "target_chat_id", "status"),
+        Index("ix_sponsored_ad_requests_advertiser_created", "advertiser_user_id", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    target_chat_id: Mapped[int] = mapped_column(BigInteger)
+    advertiser_user_id: Mapped[int] = mapped_column(BigInteger)
+    source_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    source_message_text: Mapped[str | None] = mapped_column(String, nullable=True)
+    content_text: Mapped[str | None] = mapped_column(String, nullable=True)
+    status: Mapped[str] = mapped_column(String(32), default=AdRequestStatus.DRAFT.value, index=True)
+    category: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    category_policy: Mapped[str] = mapped_column(String(16), default=AdCategoryPolicy.ALLOWED.value)
+    wants_pin: Mapped[bool] = mapped_column(Boolean, default=False)
+    pin_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    quote_recommended_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    quote_min_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    quote_max_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    final_price: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    currency: Mapped[str] = mapped_column(String(8), default="CZK")
+    admin_override: Mapped[bool] = mapped_column(Boolean, default=False)
+    quote_provenance: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    approved_by_admin_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    approved_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    payment_confirmed_by_admin_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    payment_confirmed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    resolution_note: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
+    updated_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
+
+    def __init__(
+        self,
+        *,
+        target_chat_id: int,
+        advertiser_user_id: int,
+        source_message_id: int | None = None,
+        source_message_text: str | None = None,
+        content_text: str | None = None,
+        status: str = AdRequestStatus.DRAFT.value,
+        category: str | None = None,
+        category_policy: str = AdCategoryPolicy.ALLOWED.value,
+        wants_pin: bool = False,
+        pin_enabled: bool = False,
+    ) -> None:
+        self.target_chat_id = target_chat_id
+        self.advertiser_user_id = advertiser_user_id
+        self.source_message_id = source_message_id
+        self.source_message_text = source_message_text
+        self.content_text = content_text
+        self.status = status
+        self.category = category
+        self.category_policy = category_policy
+        self.wants_pin = wants_pin
+        self.pin_enabled = pin_enabled
 
 
 class AdminSession(Base):

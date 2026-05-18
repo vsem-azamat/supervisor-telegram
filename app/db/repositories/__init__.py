@@ -6,5 +6,7 @@ from .chat_link import ChatLinkRepository as ChatLinkRepository
 from .chat_link import get_chat_link_repository as get_chat_link_repository
 from .message import MessageRepository as MessageRepository
 from .message import get_message_repository as get_message_repository
+from .sponsored_ads import SponsoredAdRequestRepository as SponsoredAdRequestRepository
+from .sponsored_ads import get_sponsored_ad_request_repository as get_sponsored_ad_request_repository
 from .user import UserRepository as UserRepository
 from .user import get_user_repository as get_user_repository
