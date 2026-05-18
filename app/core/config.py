@@ -106,9 +106,9 @@ class AdminSettings(BaseSettings):
 class WebApiSettings(BaseSettings):
     """Admin web UI / HTTP API configuration."""
 
-    auth_mode: Literal["telegram", "magic_link", "public"] = Field(
+    auth_mode: Literal["telegram", "magic_link"] = Field(
         default="telegram",
-        description="Dashboard auth mode: telegram login, bot-issued magic links, or public access.",
+        description="Admin auth mode: telegram login or bot-issued magic links.",
     )
     public_url: str = Field(
         default="",
@@ -129,10 +129,6 @@ class WebApiSettings(BaseSettings):
         description="Set Secure flag on session cookie. Disable only for local http:// dev.",
     )
     session_cookie_samesite: str = Field(default="lax", description="SameSite: lax|strict|none")
-    dev_bypass_auth: bool = Field(
-        default=False,
-        description="Dev-only: skip session validation, act as super_admins[0]. NEVER set in prod.",
-    )
 
     model_config = SettingsConfigDict(
         env_prefix="WEBAPI_",

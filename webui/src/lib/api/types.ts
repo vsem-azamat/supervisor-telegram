@@ -21,6 +21,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/magic-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Magic Link Login */
+        post: operations["magic_link_login_api_auth_magic_link_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/logout": {
         parameters: {
             query?: never;
@@ -277,6 +294,26 @@ export interface paths {
         post?: never;
         /** Image Clear */
         delete: operations["image_clear_api_posts__post_id__images_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Public Catalog
+         * @description Return only the fields that are safe to show without admin auth.
+         */
+        get: operations["get_public_catalog_api_public_catalog_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -804,6 +841,11 @@ export interface components {
         AuthMeResponse: {
             /** User Id */
             user_id: number;
+            /**
+             * Auth Mode
+             * @default telegram
+             */
+            auth_mode: string;
             /**
              * Is Authenticated
              * @default true
@@ -1356,6 +1398,11 @@ export interface components {
             /** Position */
             position?: number | null;
         };
+        /** MagicLinkLoginPayload */
+        MagicLinkLoginPayload: {
+            /** Token */
+            token: string;
+        };
         /** MemberSnapshotPoint */
         MemberSnapshotPoint: {
             /**
@@ -1534,6 +1581,23 @@ export interface components {
             published_at: string;
             /** Views */
             views: number;
+        };
+        /**
+         * PublicCatalogItem
+         * @description Safe public projection for the mixed chat/channel catalog.
+         */
+        PublicCatalogItem: {
+            /**
+             * Resource Type
+             * @enum {string}
+             */
+            resource_type: "chat" | "channel";
+            /** Id */
+            id: number;
+            /** Title */
+            title: string;
+            /** Subtitle */
+            subtitle?: string | null;
         };
         /**
          * ScheduledPostEntry
@@ -1746,6 +1810,39 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["TelegramLoginPayload"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthMeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    magic_link_login_api_auth_magic_link_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MagicLinkLoginPayload"];
             };
         };
         responses: {
@@ -2222,6 +2319,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_public_catalog_api_public_catalog_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicCatalogItem"][];
                 };
             };
         };

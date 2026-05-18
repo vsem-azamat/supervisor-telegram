@@ -34,7 +34,6 @@ def client_factory(db_session_maker: async_sessionmaker[AsyncSession]):
     app.dependency_overrides[get_session] = _override_session
     app.dependency_overrides[get_publish_bot] = _override_publish_bot
     settings.admin.super_admins = [1]
-    settings.webapi.dev_bypass_auth = True
     transport = ASGITransport(app=app)
 
     def make() -> AsyncClient:

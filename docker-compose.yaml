@@ -19,7 +19,6 @@ services:
     environment:
       PYTHONUNBUFFERED: "1"
       LOG_FILE_PATH: logs/webapi.log
-      WEBAPI_DEV_BYPASS_AUTH: "false"
     volumes:
       - bot-logs:/app/logs
     restart: unless-stopped

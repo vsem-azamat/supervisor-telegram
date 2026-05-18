@@ -1,15 +1,17 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { apiFetch } from '$lib/api/client';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import ChatAvatar from '$lib/components/chat/ChatAvatar.svelte';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
-	import { useLivePoll } from '$lib/hooks/useLivePoll.svelte';
+	import { auth } from '$lib/stores/auth.svelte';
 	import { CheckCircle2, Hash, MessageSquare, Network, Plus, Search, ShieldCheck, ShieldQuestion, Tv, XCircle } from '@lucide/svelte';
 	import type { components } from '$lib/api/types';
 
 	type Channel = components['schemas']['ChannelRead'];
 	type Chat = components['schemas']['ChatRead'];
+	type PublicCatalogItem = components['schemas']['PublicCatalogItem'];
 	type Filter = 'all' | 'chat' | 'channel';
 	type Resource = {
 		key: string;
@@ -25,14 +27,15 @@
 		hasPhoto?: boolean;
 	};
 
-	const chats = useLivePoll<Chat[]>('/api/chats', 60_000);
-	const channels = useLivePoll<Channel[]>('/api/channels', 60_000);
-
 	let filter = $state<Filter>('all');
 	let query = $state('');
+	let resources = $state<Resource[]>([]);
+	let loading = $state(true);
+	let error = $state<string | null>(null);
+	let lastUpdatedAt = $state<Date | null>(null);
 
-	const resources = $derived.by<Resource[]>(() => {
-		const chatRows = (chats.data ?? []).map((chat) => ({
+	function buildAdminResources(chats: Chat[], channels: Channel[]): Resource[] {
+		const chatRows = chats.map((chat) => ({
 			key: `chat:${chat.id}`,
 			type: 'chat' as const,
 			id: chat.id,
@@ -51,7 +54,7 @@
 			hasPhoto: chat.has_photo
 		}));
 
-		const channelRows = (channels.data ?? []).map((channel) => ({
+		const channelRows = channels.map((channel) => ({
 			key: `channel:${channel.id}`,
 			type: 'channel' as const,
 			id: channel.id,
@@ -69,6 +72,65 @@
 			if (title !== 0) return title;
 			return a.key.localeCompare(b.key);
 		});
+	}
+
+	function buildPublicResources(items: PublicCatalogItem[]): Resource[] {
+		return items.map((item) => ({
+			key: `${item.resource_type}:${item.id}`,
+			type: item.resource_type,
+			id: item.id,
+			title: item.title,
+			subtitle: item.subtitle ?? '',
+			status: '',
+			statusKind: 'basic',
+			metric: '',
+			identity: '',
+			path: item.resource_type === 'chat' ? `/chats/${item.id}` : `/channels/${item.id}`,
+			hasPhoto: false
+		}));
+	}
+
+	async function refreshResources(): Promise<void> {
+		loading = true;
+		error = null;
+		try {
+			if (auth.me) {
+				const [chatRes, channelRes] = await Promise.all([
+					apiFetch<Chat[]>('/api/chats'),
+					apiFetch<Channel[]>('/api/channels')
+				]);
+				if (chatRes.error) {
+					error = chatRes.error.message;
+					resources = [];
+					return;
+				}
+				if (channelRes.error) {
+					error = channelRes.error.message;
+					resources = [];
+					return;
+				}
+				resources = buildAdminResources(chatRes.data, channelRes.data);
+			} else {
+				const res = await apiFetch<PublicCatalogItem[]>('/api/public/catalog');
+				if (res.error) {
+					error = res.error.message;
+					resources = [];
+					return;
+				}
+				resources = buildPublicResources(res.data);
+			}
+			lastUpdatedAt = new Date();
+		} finally {
+			loading = false;
+		}
+	}
+
+	$effect(() => {
+		auth.initialized;
+		auth.me;
+		void refreshResources();
+		const id = setInterval(refreshResources, 60_000);
+		return () => clearInterval(id);
 	});
 
 	const filtered = $derived.by(() => {
@@ -84,42 +146,54 @@
 	});
 
 	const summary = $derived.by(() => {
-		const chatCount = chats.data?.length ?? 0;
-		const channelCount = channels.data?.length ?? 0;
-		const enabledChannels = channels.data?.filter((channel) => channel.enabled).length ?? 0;
-		const members =
-			chats.data?.reduce((acc, chat) => acc + (chat.member_count ?? 0), 0).toLocaleString() ?? '0';
-		return { total: chatCount + channelCount, chatCount, channelCount, enabledChannels, members };
+		const chatRows = resources.filter((resource) => resource.type === 'chat');
+		const channelRows = resources.filter((resource) => resource.type === 'channel');
+		const enabledChannels = auth.me
+			? resources.filter((resource) => resource.type === 'channel' && resource.statusKind === 'enabled').length
+			: channelRows.length;
+		const members = auth.me
+			? chatRows
+					.reduce((acc, resource) => acc + Number(resource.metric.replaceAll(',', '') || 0), 0)
+					.toLocaleString()
+			: null;
+		return {
+			total: resources.length,
+			chatCount: chatRows.length,
+			channelCount: channelRows.length,
+			enabledChannels,
+			members
+		};
 	});
-
-	const loading = $derived((chats.loading && !chats.data) || (channels.loading && !channels.data));
-	const error = $derived(chats.error || channels.error);
 </script>
 
 <div class="mx-auto max-w-6xl space-y-4 px-6 py-6">
 	<header class="flex items-baseline justify-between">
 		<div>
 			<h2 class="text-lg font-semibold tracking-tight">Catalog</h2>
-			<p class="mt-0.5 text-xs text-zinc-500">Telegram resources managed by the platform.</p>
+			<p class="mt-0.5 text-xs text-zinc-500">
+				{auth.me ? 'Telegram resources managed by the platform.' : 'Public Telegram resources in the network.'}
+			</p>
 		</div>
 		<div class="flex items-center gap-2">
-			{#if chats.lastUpdatedAt || channels.lastUpdatedAt}
+			{#if lastUpdatedAt}
 				<span class="hidden text-xs text-zinc-500 md:inline">
-					Updated {(chats.lastUpdatedAt ?? channels.lastUpdatedAt)?.toLocaleTimeString()}
+					Updated {lastUpdatedAt.toLocaleTimeString()}
 				</span>
 			{/if}
-			<Button variant="outline" size="sm" href="/catalog/hierarchy">
-				<Network class="h-3.5 w-3.5" />
-				Hierarchy
-			</Button>
-			<Button size="sm" href="/channels">
-				<Plus class="h-3.5 w-3.5" />
-				New channel
-			</Button>
+			{#if auth.me}
+				<Button variant="outline" size="sm" href="/catalog/hierarchy">
+					<Network class="h-3.5 w-3.5" />
+					Hierarchy
+				</Button>
+				<Button size="sm" href="/channels">
+					<Plus class="h-3.5 w-3.5" />
+					New channel
+				</Button>
+			{/if}
 		</div>
 	</header>
 
-	<div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+	<div class="grid grid-cols-2 gap-3 {auth.me ? 'md:grid-cols-4' : 'md:grid-cols-3'}">
 		<div class="flex items-center gap-3 rounded-md border border-zinc-200 bg-white px-3 py-2.5">
 			<Hash class="h-4 w-4 text-zinc-500" />
 			<div class="min-w-0">
@@ -141,13 +215,15 @@
 				<div class="text-lg font-semibold tracking-tight text-zinc-900">{summary.channelCount}</div>
 			</div>
 		</div>
-		<div class="flex items-center gap-3 rounded-md border border-zinc-200 bg-white px-3 py-2.5">
-			<Hash class="h-4 w-4 text-zinc-500" />
-			<div class="min-w-0">
-				<div class="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Members</div>
-				<div class="text-lg font-semibold tracking-tight text-zinc-900">{summary.members}</div>
+		{#if auth.me}
+			<div class="flex items-center gap-3 rounded-md border border-zinc-200 bg-white px-3 py-2.5">
+				<Hash class="h-4 w-4 text-zinc-500" />
+				<div class="min-w-0">
+					<div class="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Members</div>
+					<div class="text-lg font-semibold tracking-tight text-zinc-900">{summary.members}</div>
+				</div>
 			</div>
-		</div>
+		{/if}
 	</div>
 
 	<div class="flex flex-col gap-3 border-b border-zinc-200 pb-3 md:flex-row md:items-center md:justify-between">
@@ -183,14 +259,19 @@
 					<Table.Row class="bg-zinc-50/80">
 						<Table.Head>Name</Table.Head>
 						<Table.Head class="w-16 text-center">Type</Table.Head>
-						<Table.Head class="w-20 text-center">Status</Table.Head>
-						<Table.Head class="w-28">Metric</Table.Head>
-						<Table.Head class="w-44">Telegram ID</Table.Head>
+						{#if auth.me}
+							<Table.Head class="w-20 text-center">Status</Table.Head>
+							<Table.Head class="w-28">Metric</Table.Head>
+							<Table.Head class="w-44">Telegram ID</Table.Head>
+						{/if}
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
 					{#each filtered as resource (resource.key)}
-						<Table.Row class="cursor-pointer hover:bg-zinc-50" onclick={() => goto(resource.path)}>
+						<Table.Row
+							class="{auth.me ? 'cursor-pointer' : ''} hover:bg-zinc-50"
+							onclick={() => auth.me && goto(resource.path)}
+						>
 							<Table.Cell>
 								<div class="flex min-w-0 items-center gap-2">
 									{#if resource.type === 'chat'}
@@ -226,29 +307,31 @@
 									{/if}
 								</span>
 							</Table.Cell>
-							<Table.Cell class="text-center">
-								<span
-									class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white {resource.statusKind === 'enabled' || resource.statusKind === 'guarded'
-										? 'text-emerald-600'
-										: resource.statusKind === 'disabled'
-											? 'text-zinc-400'
-											: 'text-zinc-500'}"
-									title={resource.status}
-									aria-label={resource.status}
-								>
-									{#if resource.statusKind === 'enabled'}
-										<CheckCircle2 class="h-3.5 w-3.5" />
-									{:else if resource.statusKind === 'disabled'}
-										<XCircle class="h-3.5 w-3.5" />
-									{:else if resource.statusKind === 'guarded'}
-										<ShieldCheck class="h-3.5 w-3.5" />
-									{:else}
-										<ShieldQuestion class="h-3.5 w-3.5" />
-									{/if}
-								</span>
-							</Table.Cell>
-							<Table.Cell class="text-sm text-zinc-700">{resource.metric}</Table.Cell>
-							<Table.Cell class="font-mono text-xs text-zinc-600">{resource.identity}</Table.Cell>
+							{#if auth.me}
+								<Table.Cell class="text-center">
+									<span
+										class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white {resource.statusKind === 'enabled' || resource.statusKind === 'guarded'
+											? 'text-emerald-600'
+											: resource.statusKind === 'disabled'
+												? 'text-zinc-400'
+												: 'text-zinc-500'}"
+										title={resource.status}
+										aria-label={resource.status}
+									>
+										{#if resource.statusKind === 'enabled'}
+											<CheckCircle2 class="h-3.5 w-3.5" />
+										{:else if resource.statusKind === 'disabled'}
+											<XCircle class="h-3.5 w-3.5" />
+										{:else if resource.statusKind === 'guarded'}
+											<ShieldCheck class="h-3.5 w-3.5" />
+										{:else}
+											<ShieldQuestion class="h-3.5 w-3.5" />
+										{/if}
+									</span>
+								</Table.Cell>
+								<Table.Cell class="text-sm text-zinc-700">{resource.metric}</Table.Cell>
+								<Table.Cell class="font-mono text-xs text-zinc-600">{resource.identity}</Table.Cell>
+							{/if}
 						</Table.Row>
 					{/each}
 				</Table.Body>

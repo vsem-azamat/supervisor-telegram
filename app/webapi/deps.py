@@ -31,17 +31,14 @@ async def require_super_admin(
     Cookie name is ``settings.webapi.session_cookie_name``. Reading via
     ``request.cookies.get(name)`` keeps the name config-driven (FastAPI's
     ``Cookie(alias=...)`` would bake it into the signature at import time).
-    FastAPI injects a real Request at runtime. Production defaults to the
-    Telegram/session path; public access must be explicitly enabled.
+    FastAPI injects a real Request at runtime. Public read-only endpoints
+    live under ``/api/public`` and do not use this dependency.
     """
     from app.core.config import settings
     from app.webapi.auth import session_store
 
     if not settings.admin.super_admins:
         raise HTTPException(status_code=503, detail="No super_admin configured")
-
-    if settings.webapi.auth_mode == "public" or settings.webapi.dev_bypass_auth:
-        return settings.admin.super_admins[0]
 
     token = request.cookies.get(settings.webapi.session_cookie_name)
     if not token:

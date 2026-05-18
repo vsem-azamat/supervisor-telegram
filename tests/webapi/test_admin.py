@@ -28,7 +28,6 @@ def client_factory(db_session_maker: async_sessionmaker[AsyncSession]):
 
     app.dependency_overrides[get_session] = _override_session
     settings.admin.super_admins = [1]
-    settings.webapi.dev_bypass_auth = True
     transport = ASGITransport(app=app)
 
     def make() -> AsyncClient:
@@ -135,7 +134,6 @@ async def test_get_system_status(client_factory) -> None:
     flag_names = {f["name"] for f in body["feature_flags"]}
     assert flag_names == {
         "auth_mode_telegram",
-        "dev_bypass_auth",
         "moderation_enabled",
         "ad_detector_enabled",
         "assistant_bot_enabled",
