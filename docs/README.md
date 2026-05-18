@@ -6,14 +6,16 @@ This directory is the documentation hub for the project.
 
 Use the docs by decision layer:
 
-1. [Domain](domain/) - current behavioral rules that code and tests must enforce.
-2. [Architecture](architecture.md) - code structure, module ownership, and
+1. [Product](product/) - intended users, jobs, outcomes, promises, and scope.
+2. [Domain](domain/) - current behavioral rules that code and tests must enforce.
+3. [Architecture](architecture.md) - code structure, module ownership, and
    technical decisions.
-3. [Testing](testing/) - test lanes, verification strategy, and test placement.
-4. [Project](project/) - operational learnings and non-canonical notes.
+4. [Testing](testing/) - test lanes, verification strategy, and test placement.
+5. [Project](project/) - operational learnings and non-canonical notes.
 
 If documents conflict, do not guess:
 
+- Product docs explain who the system serves and why it exists.
 - Domain docs decide current behavior.
 - Architecture docs explain implementation structure.
 - Testing docs explain how behavior is verified.
@@ -36,6 +38,7 @@ externally visible API or UI contracts.
 
 | Category | Description |
 | --- | --- |
+| [Product](product/) | Product framing, personas, jobs-to-be-done, outcomes, capabilities, and scope |
 | [Domain](domain/) | Canonical behavior for moderation, publishing, Telegram identities, and the admin web surface |
 | [Testing](testing/) | Test lanes and verification rules |
 | [Project](project/) | Learning log and operational notes |
@@ -44,6 +47,18 @@ externally visible API or UI contracts.
 | [Superpowers](superpowers/) | Historical specs and implementation plans |
 
 ## Quick Navigation
+
+### For Product Context
+
+1. Start with the root [README](../README.md).
+2. Read the [product overview](product/overview.md) for the canonical product
+   frame.
+3. Read the [Konnekt strategy](konnekt-strategy.md) for deployment-specific,
+   point-in-time positioning and goals.
+4. Use the [content style guide](content-style-guide.md) for Konnekt editorial
+   direction.
+5. Consult the [ČVUT chat analysis](cvut-chat-deep-analysis.md) as dated
+   audience research for the current Konnekt deployment.
 
 ### For Behavior Changes
 
@@ -55,9 +70,10 @@ externally visible API or UI contracts.
 
 1. Start with the root [README](../README.md).
 2. Read [AGENTS.md](../AGENTS.md).
-3. Read the [architecture overview](architecture.md).
-4. Review the [testing strategy](testing/).
-5. Check the [learning log](project/learning.md) for sharp edges.
+3. Read the [product overview](product/overview.md).
+4. Read the [architecture overview](architecture.md).
+5. Review the [testing strategy](testing/).
+6. Check the [learning log](project/learning.md) for sharp edges.
 
 ### For Existing Context
 

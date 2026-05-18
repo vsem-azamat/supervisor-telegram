@@ -21,6 +21,7 @@ refactors, or internal cleanup that preserves existing contracts.
 
 Use the documentation hierarchy from `docs/README.md`:
 
+- `docs/product/` defines business intent, product scope, and the users we serve.
 - `docs/domain/` owns current behavioral rules.
 - `docs/architecture.md` explains code structure and technical decisions.
 - `docs/testing/` defines the verification strategy.

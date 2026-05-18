@@ -18,9 +18,36 @@
 
 > **Alpha** — actively developed, core features working in production but APIs and architecture may change.
 
-A multi-agent system that manages Telegram communities and automates content pipelines. Originally built for educational chat communities in the Czech Republic — now a general-purpose platform combining **mechanical moderation**, **AI-driven content generation**, and a **conversational admin interface**.
+A multi-agent system that helps Telegram operators keep communities useful,
+publish relevant content consistently, and spend less time on repetitive admin
+work. Originally built for educational chat communities in the Czech Republic,
+it now combines **mechanical moderation**, **AI-assisted publishing**, and a
+**conversational admin interface** in one platform.
 
 The system runs **three separate Telegram identities** working in concert: a rule-enforcing moderator bot, an LLM-powered assistant, and a Telethon userbot for Client API features unavailable to standard bots.
+
+## Product Outcomes
+
+- Keep community conversations healthier by handling routine abuse quickly and
+  escalating uncertain cases to humans.
+- Turn scattered source material into a steady publishing workflow with
+  human review where a review channel is configured.
+- Let admins manage channels, moderation, publishing, and operating visibility
+  from Telegram and authenticated web surfaces instead of stitching together
+  separate tools and manual processes.
+
+## Product Capabilities
+
+| Capability group | User value |
+|---|---|
+| **Community safety** | Routine abuse is handled quickly, while uncertain cases are escalated for human review. |
+| **Content operations** | Sources move through intake, screening, drafting, optional review, and publishing in one workflow. |
+| **Operator control** | Admins manage moderation, publishing, catalog source data, and spend visibility from coherent operating surfaces. |
+| **Learning loop** | Corrections and editorial decisions are preserved so later moderation and content output can reflect operator judgment. |
+
+See [`docs/product/`](docs/product/) for personas, jobs-to-be-done, business
+outcomes, product promises, and the separation between capabilities and
+technical enablers.
 
 ## System Architecture
 
@@ -120,7 +147,9 @@ flowchart LR
 
 ### Content Pipeline
 
-A **Burr state machine** orchestrates the full content lifecycle — from source fetching to publication — with a human-in-the-loop review step that halts execution until an admin approves.
+A **Burr state machine** orchestrates the full content lifecycle — from source
+fetching to publication. Channels with a review chat halt for human approval;
+channels without one publish directly after generation.
 
 ```mermaid
 flowchart TB
@@ -137,8 +166,10 @@ flowchart TB
     Screen --> Feedback["Load Admin Feedback<br/><i>last 20 approve/reject<br/>summarized as preferences</i>"]
     Feedback --> Generate["generate_post<br/><i>LLM + image search</i><br/><i>900 char limit</i>"]
     Generate --> Review["send_for_review<br/><i>→ Review Group</i>"]
+    Generate --> Direct["no review chat<br/><i>direct publish</i>"]
     Review --> HITL{"⏸️ HITL Halt"}
     HITL -->|"✅ Approve"| Publish["publish_post<br/><i>→ Channel</i>"]
+    Direct --> Publish
     HITL -->|"✏️ Edit"| Agent["Review Agent<br/><i>multi-turn conversation</i>"]
     Agent --> HITL
     HITL -->|"❌ Reject"| Reject["handle_rejection<br/><i>feedback stored</i>"]
@@ -148,7 +179,8 @@ flowchart TB
     style HITL fill:#ffd700,stroke:#333,color:#000
 ```
 
-**Feedback loop**: The pipeline learns from admin decisions. Before generating each post, it summarizes the last 20 approve/reject decisions into preference bullets and injects them into the generation prompt.
+**Feedback loop**: The pipeline can retain recent approve/reject decisions and
+summarize them into preference context for later generation.
 
 **Source discovery**: Periodically, Perplexity Sonar discovers new RSS feeds for each channel's topic. Each discovered URL is validated by actually fetching it and passes SSRF checks before being stored.
 
@@ -173,21 +205,6 @@ Admin: "Ban user 123456 in all chats"
 User @spammer added to global blacklist.
 Messages revoked in 3 chats.
 ```
-
-## Key Features
-
-| Area | What it does |
-|---|---|
-| **AI Moderation** | LLM-based message analysis with self-calibrating decisions, admin escalation with timeout, cross-chat risk profiles |
-| **Content Pipeline** | Automated fetch → screen → generate → review → publish with Burr state machine and HITL |
-| **Semantic Dedup** | pgvector embeddings prevent duplicate topics across a configurable time window |
-| **Conversational Review** | Multi-turn post editing through natural language in a Telegram review group |
-| **Admin Feedback Loop** | Generation learns from past approve/reject decisions |
-| **Source Management** | RSS health tracking, auto-discovery via Perplexity Sonar, SSRF-protected validation |
-| **Scheduled Publishing** | Telegram Client API (Telethon) for native scheduled messages |
-| **Mechanical Moderation** | /mute, /ban, /blacklist, welcome messages, spam detection — no LLM overhead |
-| **Cost Tracking** | Per-operation LLM cost breakdown with cache savings visibility |
-| **700+ Tests** | Unit, integration, e2e with FakeTelegramServer and testcontainers |
 
 ## Tech Stack
 

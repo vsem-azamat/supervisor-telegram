@@ -5,6 +5,7 @@ The web surface has a public read layer and an authenticated admin layer.
 ## Core Rules
 
 - Public visitors may access only explicitly public, read-only endpoints.
+- The current public endpoint is `GET /api/public/catalog`.
 - Public responses must expose only fields intended for anonymous viewers.
 - Administrative reads and all mutations require an authenticated admin session.
 - Authentication shortcuts or bypass flags are not valid production or remote

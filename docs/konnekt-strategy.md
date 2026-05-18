@@ -2,6 +2,10 @@
 
 *2026-03-11 22:43 UTC*
 
+> Deployment-specific, point-in-time context for the Konnekt audience. This is
+> not the canonical Supervisor Telegram product contract; use
+> `docs/product/overview.md` for durable product scope.
+
 На основе: анализ 3 конкурентов (300 постов), 45,494 сообщений чата ČVUT (3.5 года), сравнение 3 LLM-моделей
 
 ---

@@ -2,6 +2,10 @@
 
 *Дата: 2026-03-11 22:40 UTC*
 
+> Deployment-specific, dated audience research for Konnekt. This is not the
+> canonical Supervisor Telegram product contract; use
+> `docs/product/overview.md` for durable product scope.
+
 Модель: google/gemini-2.5-flash-lite | Сообщений: 45,494 | Период: 2022-08 → 2026-03 | Месяцев: 44
 
 ---
