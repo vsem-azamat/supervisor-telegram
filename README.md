@@ -242,6 +242,10 @@ docker compose up -d
 uv sync --dev
 uv run alembic upgrade head
 uv run -m app.presentation.telegram
+
+# Remote web UI development on a VPS
+uv run uvicorn app.webapi.main:app --host 127.0.0.1 --port 8787
+pnpm --dir webui run dev  # serves on 0.0.0.0:5174, auth still required
 ```
 
 ## Security

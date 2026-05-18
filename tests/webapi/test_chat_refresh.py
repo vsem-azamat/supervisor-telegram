@@ -56,7 +56,6 @@ def client_factory(db_session_maker):
     app.dependency_overrides[get_publish_bot] = _override_publish_bot
     app.dependency_overrides[get_telethon] = _override_telethon
     settings.admin.super_admins = [1]
-    settings.webapi.dev_bypass_auth = True
     transport = ASGITransport(app=app)
 
     def make() -> AsyncClient:

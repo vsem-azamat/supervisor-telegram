@@ -36,13 +36,14 @@ def client_factory(db_session_maker: async_sessionmaker[AsyncSession]):
     orig_admins = list(settings.admin.super_admins)
     orig_token = settings.telegram.token
     orig_auth_mode = settings.webapi.auth_mode
-    orig_bypass = settings.webapi.dev_bypass_auth
     orig_secure = settings.webapi.session_cookie_secure
     settings.admin.super_admins = [268388996]
     settings.telegram.token = "test:bot:token"  # noqa: S105
     settings.webapi.auth_mode = "telegram"
-    settings.webapi.dev_bypass_auth = False
     settings.webapi.session_cookie_secure = False
+    from app.webapi.deps import require_super_admin
+
+    app.dependency_overrides.pop(require_super_admin, None)
     transport = ASGITransport(app=app)
 
     def make() -> AsyncClient:
@@ -53,7 +54,6 @@ def client_factory(db_session_maker: async_sessionmaker[AsyncSession]):
     settings.admin.super_admins = orig_admins
     settings.telegram.token = orig_token
     settings.webapi.auth_mode = orig_auth_mode
-    settings.webapi.dev_bypass_auth = orig_bypass
     settings.webapi.session_cookie_secure = orig_secure
 
 
@@ -116,14 +116,3 @@ async def test_magic_link_flow(client_factory, db_session_maker: async_sessionma
         me = await client.get("/api/auth/me")
         assert me.status_code == 200
         assert me.json()["user_id"] == 268388996
-
-
-async def test_public_mode_me_without_cookie(client_factory) -> None:
-    settings.webapi.auth_mode = "public"
-
-    async with client_factory() as client:
-        resp = await client.get("/api/auth/me")
-
-    assert resp.status_code == 200
-    assert resp.json()["user_id"] == 268388996
-    assert resp.json()["auth_mode"] == "public"

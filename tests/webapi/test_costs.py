@@ -37,7 +37,6 @@ def history_client(db_session_maker: async_sessionmaker[AsyncSession]):
             yield s
 
     settings.admin.super_admins = [1]
-    settings.webapi.dev_bypass_auth = True
     app.dependency_overrides[get_session] = _override_session
     transport = ASGITransport(app=app)
     yield AsyncClient(transport=transport, base_url="http://test")

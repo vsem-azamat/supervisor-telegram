@@ -22,6 +22,7 @@ from app.webapi.routes import (
     costs,
     health,
     posts,
+    public,
     spam,
     stats,
     suggestions,
@@ -91,6 +92,7 @@ def create_app() -> FastAPI:
     app.include_router(auth.router, prefix="/api")
     app.include_router(health.router, prefix="/api")
     app.include_router(posts.router, prefix="/api")
+    app.include_router(public.router, prefix="/api")
     app.include_router(channels.router, prefix="/api")
     app.include_router(chats.router, prefix="/api")
     app.include_router(costs.router, prefix="/api")

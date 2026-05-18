@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -83,6 +83,15 @@ class ChannelRead(BaseModel):
     max_posts_per_day: int
     critic_enabled: bool | None
     created_at: datetime.datetime
+
+
+class PublicCatalogItem(BaseModel):
+    """Safe public projection for the mixed chat/channel catalog."""
+
+    resource_type: Literal["chat", "channel"]
+    id: int
+    title: str
+    subtitle: str | None = None
 
 
 class ChannelSourceRead(BaseModel):
