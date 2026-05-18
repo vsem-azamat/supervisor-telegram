@@ -12,6 +12,8 @@ contracts.
   and scheduling rules.
 - [Admin Web](admin-web.md) - public read access, authenticated admin actions,
   and the web surface contract.
+- [Sponsored Ads](sponsored-ads.md) - admin-reviewed paid placement rules,
+  quote validation, pinning, and payment gates.
 - [Telegram Identities](telegram-identities.md) - responsibilities of the
   moderator bot, assistant bot, and Telethon userbot.
 

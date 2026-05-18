@@ -39,7 +39,7 @@ externally visible API or UI contracts.
 | Category | Description |
 | --- | --- |
 | [Product](product/) | Product framing, personas, jobs-to-be-done, outcomes, capabilities, and scope |
-| [Domain](domain/) | Canonical behavior for moderation, publishing, Telegram identities, and the admin web surface |
+| [Domain](domain/) | Canonical behavior for moderation, publishing, sponsored ads, Telegram identities, and the admin web surface |
 | [Testing](testing/) | Test lanes and verification rules |
 | [Project](project/) | Learning log and operational notes |
 | [Reviews](reviews/) | Point-in-time audits and review reports |
