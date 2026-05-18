@@ -1,15 +1,19 @@
 # Architecture
 
-> Last updated: 2026-03-13
+> Last updated: 2026-05-18
 
 ## Design Philosophy
 
-**Feature-based modular architecture** — not pure DDD, not flat scripts. Each feature module groups its own models, services, and handlers. Shared infrastructure (DB, config, logging) lives in `core/` and `infrastructure/`. ORM models serve as the single data representation — no entity/model mapping layer.
+**Feature-based modular architecture** — not pure DDD, not flat scripts. Each
+feature module groups its own models, services, and handlers. Shared foundations
+live in `core/`, persistence lives in `db/`, and Telegram client access lives in
+`telethon/`. ORM models serve as the single data representation — no
+entity/model mapping layer.
 
 Key principles:
 - **ORM models are the domain models** where there's a single data source (which is most of the codebase)
 - **No abstract interfaces** unless there are multiple implementations
-- **Feature modules** (`moderation/`, `agent/channel/`, `assistant/`) own their vertical slice
+- **Feature modules** (`moderation/`, `channel/`, `assistant/`) own their vertical slice
 - **No backward-compat shims** — all migrations complete, no legacy re-export files
 
 ## Module Map
@@ -188,9 +192,4 @@ All shared enums in `app/core/enums.py`: `PostStatus`, `EscalationStatus`, `Revi
 
 ## Testing
 
-- **600+ tests**, ~20s runtime
-- **Unit**: SQLite in-memory, mocked dependencies
-- **Integration**: testcontainers PostgreSQL (real DB)
-- **E2E**: `FakeTelegramServer` (aiohttp-based Bot API simulator)
-- **Pre-commit**: ruff + ty on commit, pytest on push
-- **Factories**: `tests/factories.py` — ORM model factories (User, Chat, Admin, Message, ChatLink)
+See [Testing Strategy](testing/README.md) for the canonical verification model.

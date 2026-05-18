@@ -1,5 +1,9 @@
 # Konnekt Content Style Guide
 
+> Deployment-specific editorial guidance for Konnekt. This is not the canonical
+> Supervisor Telegram product contract; use `docs/product/overview.md` for
+> durable product scope.
+
 ## Competitor Analysis (March 2026)
 
 ### @the_cesko (~5k views/post)
