@@ -1,6 +1,7 @@
 # Testing Guide
 
-This document provides guidance for testing the moderator-bot project.
+This file contains practical testing examples and fixture notes. The canonical
+test strategy lives in [`docs/testing/README.md`](../docs/testing/README.md).
 
 ## Testing Strategy
 

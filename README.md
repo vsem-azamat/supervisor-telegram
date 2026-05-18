@@ -223,7 +223,8 @@ app/
 │   ├── agent.py            # PydanticAI agent (Claude Sonnet)
 │   ├── bot.py              # Conversation management
 │   └── tools/              # 30+ tools across 5 modules
-├── infrastructure/         # DB models, repositories, Telethon
+├── db/                     # SQLAlchemy models, repositories, session management
+├── telethon/               # Telethon userbot client
 └── presentation/           # Telegram handlers, middlewares
 ```
 
@@ -258,3 +259,8 @@ pnpm --dir webui run dev  # serves on 0.0.0.0:5174, auth still required
 ## License
 
 MIT
+
+## Documentation
+
+Start with the [documentation hub](docs/README.md) for domain rules,
+architecture, testing strategy, and project learnings.
