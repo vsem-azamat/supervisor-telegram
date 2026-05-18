@@ -46,6 +46,7 @@ class Chat(Base):
     time_delete: Mapped[int] = mapped_column(Integer, default=60)
     is_welcome_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     is_captcha_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    ad_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     parent_chat_id: Mapped[int | None] = mapped_column(
         BigInteger,
         ForeignKey("chats.id", ondelete="SET NULL"),
@@ -83,6 +84,7 @@ class Chat(Base):
         time_delete: int = 60,
         is_welcome_enabled: bool = False,
         is_captcha_enabled: bool = False,
+        ad_enabled: bool = False,
         parent_chat_id: int | None = None,
         relation_notes: str | None = None,
     ) -> None:
@@ -93,6 +95,7 @@ class Chat(Base):
         self.time_delete = time_delete
         self.is_welcome_enabled = is_welcome_enabled
         self.is_captcha_enabled = is_captcha_enabled
+        self.ad_enabled = ad_enabled
         self.parent_chat_id = parent_chat_id
         self.relation_notes = relation_notes
 

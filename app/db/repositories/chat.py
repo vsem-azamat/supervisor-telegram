@@ -33,6 +33,7 @@ class ChatRepository:
             chat_model.time_delete = chat.time_delete
             chat_model.is_welcome_enabled = chat.is_welcome_enabled
             chat_model.is_captcha_enabled = chat.is_captcha_enabled
+            chat_model.ad_enabled = chat.ad_enabled
         else:
             chat_model = Chat(
                 id=chat.id,
@@ -42,6 +43,7 @@ class ChatRepository:
                 time_delete=chat.time_delete,
                 is_welcome_enabled=chat.is_welcome_enabled,
                 is_captcha_enabled=chat.is_captcha_enabled,
+                ad_enabled=chat.ad_enabled,
             )
             self.db.add(chat_model)
 
@@ -91,6 +93,17 @@ class ChatRepository:
         """Update welcome message."""
         await self.db.execute(update(Chat).filter(Chat.id == id_tg_chat).values(welcome_message=message))
         await self.db.commit()
+
+    async def set_ad_enabled(self, id_tg_chat: int, *, enabled: bool) -> Chat | None:
+        """Enable or disable sponsored ad placements for a managed chat."""
+        chat_model = await self._get_chat_model(id_tg_chat)
+        if chat_model is None:
+            return None
+
+        chat_model.ad_enabled = enabled
+        await self.db.commit()
+        await self.db.refresh(chat_model)
+        return chat_model
 
 
 def get_chat_repository(db: AsyncSession) -> ChatRepository:

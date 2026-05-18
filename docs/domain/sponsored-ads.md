@@ -36,6 +36,8 @@ this document owns the behavioral rules that tests and code must enforce.
 ## Persistence Contract
 
 - `sponsored_ad_requests` stores one advertiser request for one target chat.
+- `chats.ad_enabled` is the opt-in gate; existing chats remain disabled until
+  an admin enables sponsored placements.
 - It keeps the source flagged message, advertiser Telegram user, target chat,
   current status, category policy, quote bounds, final accepted price, currency,
   admin override flag, and quote provenance.
