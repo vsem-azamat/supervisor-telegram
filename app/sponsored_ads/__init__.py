@@ -1,0 +1,1 @@
+"""Sponsored ads domain helpers."""
