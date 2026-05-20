@@ -23,7 +23,7 @@ admin-approved, and governed by category policy.
 
 ## MVP Principles
 
-- Ads are enabled per chat with a single `ad_enabled` policy switch.
+- Sponsored placements can be offered only inside managed chats.
 - Detected ad-like messages become admin-reviewed leads, not automatic posts.
 - The sponsored-ad flow opens only when an admin reviewing a flagged message
   chooses to offer paid placement; ad detection itself remains part of
@@ -40,12 +40,12 @@ admin-approved, and governed by category policy.
 
 ## First Pilot Defaults
 
-The MVP should not enable ads globally by default. Each pilot chat must be
-configured intentionally before it can accept sponsored placements.
+The MVP runs only in chats already managed by the bot. Per-chat enablement is
+intentionally skipped for now; admins control whether to offer paid placement on
+each flagged message.
 
-Required per-chat rollout values:
+Required pricing values:
 
-- `ad_enabled`;
 - base price;
 - hard floor price;
 - currency;
@@ -101,7 +101,7 @@ Default quota:
 
 The bot may post a sponsored ad only when all conditions are true:
 
-- the target chat has `ad_enabled`;
+- the target chat is managed by the bot;
 - the bot has permission to send messages in the target chat;
 - the category policy is `allowed` or explicitly admin-approved as `restricted`;
 - content is approved by an admin;

@@ -6,7 +6,7 @@ this document owns the behavioral rules that tests and code must enforce.
 
 ## Core Rules
 
-- Sponsored ads are disabled unless the target chat has `ad_enabled`.
+- Sponsored ads may be opened only for chats managed by the bot.
 - The flow opens only from an admin action on a flagged moderation item, not from
   automatic spam detection alone.
 - Blocked categories must be rejected before payment instructions are shown.
@@ -36,8 +36,6 @@ this document owns the behavioral rules that tests and code must enforce.
 ## Persistence Contract
 
 - `sponsored_ad_requests` stores one advertiser request for one target chat.
-- `chats.ad_enabled` is the opt-in gate; existing chats remain disabled until
-  an admin enables sponsored placements.
 - It keeps the source flagged message, advertiser Telegram user, target chat,
   current status, category policy, quote bounds, final accepted price, currency,
   admin override flag, and quote provenance.

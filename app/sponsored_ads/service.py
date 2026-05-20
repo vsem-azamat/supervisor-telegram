@@ -27,8 +27,6 @@ class SponsoredAdRequestService:
         chat = await self._chat_repo.get_by_id(target_chat_id)
         if chat is None:
             raise ValueError("chat_not_found")
-        if not chat.ad_enabled:
-            raise ValueError("ads_disabled_for_chat")
 
         return await self._request_repo.create_from_flagged_message(
             target_chat_id=target_chat_id,
