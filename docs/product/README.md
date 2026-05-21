@@ -16,8 +16,8 @@ Use it to answer:
 
 - [Product Overview](overview.md) - target users, jobs-to-be-done, outcomes,
   capabilities, promises, enablers, and scope boundaries.
-- [Sponsored Ads](sponsored-ads.md) - product intent for converting unmanaged
-  ad attempts into admin-approved paid placements.
+- [Sponsored Ads](sponsored-ads.md) - product intent for detecting ad-spam and
+  redirecting would-be advertisers to an external paid-placement article.
 
 ## Relationship To Other Docs
 
