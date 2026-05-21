@@ -718,6 +718,39 @@ class SpamPing(Base):
             self.detected_at = detected_at
 
 
+class AdLead(Base):
+    """A would-be advertiser redirected to the paid-placement rate card.
+
+    Created when a moderator removes a flagged ad via the `Удалить` action.
+    Tracks how the advertiser was reached and whether they opened the
+    rate-card smart link.
+    """
+
+    __tablename__ = "ad_leads"
+    __table_args__ = (Index("ix_ad_leads_created_at", "created_at"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    chat_id: Mapped[int] = mapped_column(BigInteger)
+    user_id: Mapped[int] = mapped_column(BigInteger)
+    snippet: Mapped[str | None] = mapped_column(String, nullable=True)
+    reached_via: Mapped[str] = mapped_column(String(8), default="failed")
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
+    link_clicked_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+
+    def __init__(
+        self,
+        *,
+        chat_id: int,
+        user_id: int,
+        snippet: str | None = None,
+        reached_via: str = "failed",
+    ) -> None:
+        self.chat_id = chat_id
+        self.user_id = user_id
+        self.snippet = snippet
+        self.reached_via = reached_via
+
+
 class AdminSession(Base):
     __tablename__ = "admin_sessions"
 
