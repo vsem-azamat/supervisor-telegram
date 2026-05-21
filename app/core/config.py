@@ -296,6 +296,32 @@ class TelethonSettings(BaseSettings):
     )
 
 
+class SponsoredAdsSettings(BaseSettings):
+    """Sponsored ads rate-card funnel configuration."""
+
+    enabled: bool = Field(default=False, description="Whether the sponsored-ads rate-card funnel is active")
+    moderator_chat_id: int = Field(
+        default=0,
+        description="Chat that receives ad-review alerts (0 disables alerts)",
+    )
+    pricing_article_url: str = Field(
+        default="",
+        description="External article (Telegraph/Notion) with pricing and the chat list",
+    )
+    sales_contact: str = Field(
+        default="",
+        description="@username shown in the rate card for ad-sales questions",
+    )
+
+    model_config = SettingsConfigDict(
+        env_prefix="SPONSORED_ADS_",
+        case_sensitive=False,
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
 class AppSettings(BaseSettings):
     """Main application settings."""
 
@@ -313,6 +339,7 @@ class AppSettings(BaseSettings):
     assistant: AssistantSettings = Field(default_factory=AssistantSettings)
     telethon: TelethonSettings = Field(default_factory=TelethonSettings)
     webapi: WebApiSettings = Field(default_factory=WebApiSettings)
+    sponsored_ads: SponsoredAdsSettings = Field(default_factory=SponsoredAdsSettings)
 
     @property
     def channel(self) -> ChannelAgentSettings:
