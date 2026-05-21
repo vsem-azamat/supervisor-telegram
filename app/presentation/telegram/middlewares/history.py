@@ -7,6 +7,7 @@ from aiogram.types import TelegramObject
 from app.core.logging import get_logger
 from app.moderation import ad_detector_service, history_service, spam_service
 from app.presentation.telegram.utils import other
+from app.sponsored_ads import review as ad_review
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,13 +40,15 @@ class HistoryMiddleware(BaseMiddleware):
 
             if isinstance(user, types.User):
                 try:
-                    await ad_detector_service.record_ad_signals(
+                    signals = await ad_detector_service.record_ad_signals(
                         db,
                         chat_id=message.chat.id,
                         user_id=user.id,
                         message_id=message.message_id,
                         text=message.text or message.caption,
                     )
+                    if signals:
+                        await ad_review.notify_moderators(data["bot"], db, message)
                 except Exception as err:
                     logger.error("ad_detector_failed", error=str(err))
 
