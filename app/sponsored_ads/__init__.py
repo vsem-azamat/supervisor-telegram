@@ -1,1 +1,1 @@
-"""Sponsored ads domain helpers."""
+"""Sponsored ads rate-card funnel."""
