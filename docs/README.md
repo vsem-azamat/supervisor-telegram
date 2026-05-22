@@ -10,14 +10,17 @@ Use the docs by decision layer:
 2. [Domain](domain/) - current behavioral rules that code and tests must enforce.
 3. [Architecture](architecture.md) - code structure, module ownership, and
    technical decisions.
-4. [Testing](testing/) - test lanes, verification strategy, and test placement.
-5. [Project](project/) - operational learnings and non-canonical notes.
+4. [Deployment](deployment/) - operational deployment contracts and production
+   credential handling.
+5. [Testing](testing/) - test lanes, verification strategy, and test placement.
+6. [Project](project/) - operational learnings and non-canonical notes.
 
 If documents conflict, do not guess:
 
 - Product docs explain who the system serves and why it exists.
 - Domain docs decide current behavior.
 - Architecture docs explain implementation structure.
+- Deployment docs explain production runtime and credential contracts.
 - Testing docs explain how behavior is verified.
 - Project docs record lessons and operational context, but do not override domain
   rules.
@@ -40,6 +43,7 @@ externally visible API or UI contracts.
 | --- | --- |
 | [Product](product/) | Product framing, personas, jobs-to-be-done, outcomes, capabilities, and scope |
 | [Domain](domain/) | Canonical behavior for moderation, publishing, sponsored ads, Telegram identities, and the admin web surface |
+| [Deployment](deployment/) | Production deploy and credential contracts |
 | [Testing](testing/) | Test lanes and verification rules |
 | [Project](project/) | Learning log and operational notes |
 | [Reviews](reviews/) | Point-in-time audits and review reports |
