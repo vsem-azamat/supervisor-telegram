@@ -30,6 +30,9 @@ retaining human control over high-impact decisions.
   intended public projection without granting administrative authority.
 - When AI-backed operations cost money, help operators see spend patterns before
   they become invisible operating risk.
+- When unmanaged ads appear in communities, help operators remove spam and
+  redirect acceptable advertisers to a human-owned paid placement path instead
+  of letting chaotic spam define the commercial surface.
 
 ## Business Outcomes
 
@@ -41,6 +44,8 @@ retaining human control over high-impact decisions.
   configured.
 - Reduce operational friction for admins managing moderation and channel work.
 - Make public catalog exposure and AI spend visible enough to operate.
+- Create a controlled path for monetizing acceptable advertising demand without
+  weakening moderation standards or community trust.
 
 ## Product Promises
 
@@ -51,6 +56,7 @@ retaining human control over high-impact decisions.
 | Feedback is preserved for later use | Admin corrections and editorial decisions are stored so future moderation and content workflows can use them as context |
 | Public visibility does not imply admin authority | Public read access and authenticated administrative actions remain separate |
 | Operating cost is inspectable | AI spend is visible to operators instead of hidden inside background automation |
+| Monetization stays moderated | The bot removes unmanaged ads and points advertisers to the public site catalog and sales contact; negotiation, approval, payment, and posting stay human-owned outside the bot |
 
 ## Product Capabilities
 
@@ -59,6 +65,7 @@ retaining human control over high-impact decisions.
 | Community safety | Keep chats healthier with less repetitive administrator effort | Mechanical moderation, assisted moderation, reports, spam workflows, cross-chat blacklist context, escalation |
 | Content operations | Move from source material to publication predictably | Source intake, duplicate filtering, drafting, optional review, publish, schedule |
 | Operator control | Let a small team run supported workflows coherently | Conversational administration, authenticated admin surface, public catalog projection, cross-workflow visibility |
+| Sponsored ad conversion | Turn unmanaged ad attempts into a controlled human-owned advertising path where the community allows it | Ad detection handoff, moderator removal decision, duplicate cleanup, advertiser outreach, `/ads` rate-card link |
 | Learning loop | Preserve the team's actual decisions for later context | Moderation corrections and content approve/reject feedback retained for future workflows |
 | Spend visibility | Keep AI-backed work financially inspectable | Session operation/model breakdowns, daily cost history, cache savings visibility |
 
@@ -85,6 +92,9 @@ current concrete choices live in [architecture](../architecture.md).
 - Administrator workflows exposed through Telegram and authenticated web
   surfaces.
 - Public read-only views only where they are intentionally exposed.
+- A rate-card funnel for chats that explicitly enable sponsored-ad handling:
+  remove unmanaged ads, clean up duplicates, and redirect advertisers to an
+  advertising description with a public site catalog link.
 - Cost and usage visibility for AI-backed operations.
 - Feedback from administrator decisions where it can improve later moderation or
   content workflows.
@@ -95,12 +105,16 @@ current concrete choices live in [architecture](../architecture.md).
 - Fully autonomous publishing as the default product posture for channels that
   are configured with a review workflow.
 - Removing human authority from uncertain moderation decisions.
+- Fully automatic conversion of detected spam into paid posts.
+- In-bot price negotiation, ad submission, payment gateway automation,
+  advertiser wallets, CRM, or a general-purpose ad marketplace.
+- Monetizing blocked or legally sensitive categories before explicit policy and
+  legal review.
 - Replacing operator ownership of community policy, factual verification, or
   editorial judgment.
 - Member-facing customer support or general chat assistance unrelated to the
   supported moderation workflows.
-- Business systems such as advertising, payments, CRM, or subscriber
-  monetization.
+- Subscriber monetization unrelated to the sponsored-ad rate-card funnel.
 
 ## Boundary With Domain Rules
 
@@ -118,6 +132,9 @@ the [domain docs](../domain/).
   channel is configured for review.
 - **"General-purpose platform"** overstates the current evidence unless we can
   name supported audiences and workflows beyond the present operating model.
+- **"Sponsored ad conversion"** means redirecting unmanaged advertisers to the
+  operator's external paid-placement path. It does not imply in-bot ad sales,
+  automatic purchase, bot-posted placements, or guaranteed results.
 - Workflow libraries, database extensions, model routers, Telegram client
   details, and the number of bots are enablers, not customer outcomes. Keep them
   out of high-level product promises.

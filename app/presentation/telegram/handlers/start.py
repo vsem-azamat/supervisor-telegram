@@ -1,17 +1,51 @@
 from urllib.parse import quote
 
-from aiogram import Router, types
-from aiogram.filters import Command
+from aiogram import Bot, F, Router, types
+from aiogram.filters import Command, CommandObject, CommandStart
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.logging import get_logger
 from app.db import magic_link_store
 from app.db.repositories import AdminRepository
 from app.db.session import create_session_maker
 from app.presentation.telegram.utils import buttons as buttons_service
 from app.presentation.telegram.utils import other
+from app.sponsored_ads.leads import AdLeadRepository
+from app.sponsored_ads.rate_card import render_rate_card
 
 router = Router()
+logger = get_logger("handlers.start")
+
+
+@router.message(CommandStart(deep_link=True, magic=F.args.regexp(r"^adlead_\d+$")))
+async def start_ad_lead(message: types.Message, command: CommandObject, db: AsyncSession, bot: Bot) -> None:
+    """Smart-link entry t.me/<bot>?start=adlead_<id> — mark the lead clicked, show the rate card."""
+    if command.args:
+        lead_id = int(command.args.removeprefix("adlead_"))
+        lead_repo = AdLeadRepository(db)
+        lead = await lead_repo.get_by_id(lead_id)
+        await lead_repo.mark_clicked(lead_id)
+        if lead and lead.ping_chat_id is not None and lead.ping_message_id is not None:
+            try:
+                await bot.delete_message(chat_id=lead.ping_chat_id, message_id=lead.ping_message_id)
+            except Exception as err:
+                logger.info("ad_ping_delete_failed", error=str(err), lead_id=lead_id)
+            else:
+                await lead_repo.clear_ping_message(lead_id)
+    await message.answer(render_rate_card(), disable_web_page_preview=True)
+
+
+@router.message(CommandStart(deep_link=True, magic=F.args == "ads"))
+async def start_ads_info(message: types.Message) -> None:
+    """Deep link t.me/<bot>?start=ads — public advertising info."""
+    await message.answer(render_rate_card(), disable_web_page_preview=True)
+
+
+@router.message(Command("ads", prefix="/!"))
+async def ads_command(message: types.Message) -> None:
+    """/ads — publicly show advertising info."""
+    await message.answer(render_rate_card(), disable_web_page_preview=True)
 
 
 @router.message(Command("start", "help", prefix="/!"))
@@ -27,6 +61,7 @@ async def start_private(message: types.Message, admin_repo: AdminRepository) -> 
         "• /contacts - контакты\n"
         "• /help - помощь\n"
         "• /report - пожаловаться (нужно переслать сообщение)\n"
+        "• /ads - реклама в наших чатах\n"
     )
 
     is_admin = message.from_user.id in settings.admin.super_admins or await admin_repo.is_admin(message.from_user.id)

@@ -46,3 +46,15 @@ class SchedulePreset(CallbackData, prefix="rvsch"):
 
     post_id: int
     minutes: int  # offset from now in minutes
+
+
+# ── Sponsored-ads moderator review ──
+
+
+class AdReviewAction(CallbackData, prefix="adrv"):
+    """A moderator's decision on a flagged ad message."""
+
+    action: str  # skip, delete, ban
+    chat_id: int
+    message_id: int
+    user_id: int
