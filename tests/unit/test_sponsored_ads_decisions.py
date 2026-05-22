@@ -1,9 +1,14 @@
 from types import SimpleNamespace
+from typing import TYPE_CHECKING, cast
 
-from app.db.models import Message
+import pytest
+from app.db.models import Chat, Message
 from app.sponsored_ads.decisions import apply_ad_decision
 from app.sponsored_ads.leads import AdLeadRepository
 from sqlalchemy.ext.asyncio import AsyncSession
+
+if TYPE_CHECKING:
+    from aiogram import Bot
 
 CHAT_A = -1001
 CHAT_B = -1002
@@ -37,6 +42,7 @@ class _StubBot:
 
 
 async def test_delete_decision_cleans_creates_lead_and_reaches(session: AsyncSession) -> None:
+    session.add_all([Chat(id=CHAT_A, title="A"), Chat(id=CHAT_B, title="B")])
     session.add_all(
         [
             Message(chat_id=CHAT_A, user_id=777, message_id=11, message="spam ad"),
@@ -47,7 +53,7 @@ async def test_delete_decision_cleans_creates_lead_and_reaches(session: AsyncSes
     bot = _StubBot(dm_ok=True)
 
     status = await apply_ad_decision(
-        bot,
+        cast("Bot", bot),
         session,
         action="delete",
         chat_id=CHAT_A,
@@ -70,7 +76,7 @@ async def test_delete_decision_falls_back_to_ping(session: AsyncSession) -> None
     bot = _StubBot(dm_ok=False)
 
     status = await apply_ad_decision(
-        bot,
+        cast("Bot", bot),
         session,
         action="delete",
         chat_id=CHAT_A,
@@ -90,7 +96,7 @@ async def test_ban_decision_bans_and_skips_outreach(session: AsyncSession) -> No
     bot = _StubBot()
 
     status = await apply_ad_decision(
-        bot,
+        cast("Bot", bot),
         session,
         action="ban",
         chat_id=CHAT_A,
@@ -101,3 +107,23 @@ async def test_ban_decision_bans_and_skips_outreach(session: AsyncSession) -> No
     assert bot.banned == [(CHAT_A, 777)]
     assert bot.sent == []  # no outreach on ban
     assert "забанен" in status
+
+
+async def test_unknown_decision_action_is_rejected_without_side_effects(session: AsyncSession) -> None:
+    session.add(Message(chat_id=CHAT_A, user_id=777, message_id=11, message="spam ad"))
+    await session.commit()
+    bot = _StubBot()
+
+    with pytest.raises(ValueError, match="Unknown ad-review action"):
+        await apply_ad_decision(
+            cast("Bot", bot),
+            session,
+            action="archive",
+            chat_id=CHAT_A,
+            message_id=11,
+            user_id=777,
+        )
+
+    assert bot.deleted == []
+    assert bot.banned == []
+    assert bot.sent == []

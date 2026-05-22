@@ -86,3 +86,20 @@ async def test_decision_error_is_finalized(session: AsyncSession, monkeypatch: p
 
     callback.message.edit_text.assert_awaited_once()
     callback.answer.assert_awaited_with("Ошибка")
+
+
+async def test_unknown_action_is_rejected_without_claiming_alert(
+    session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings.sponsored_ads, "moderator_chat_id", MOD_CHAT)
+    callback = _callback(chat_id=MOD_CHAT)
+    decision = AsyncMock()
+    monkeypatch.setattr("app.presentation.telegram.handlers.ad_review.apply_ad_decision", decision)
+    data = AdReviewAction(action="archive", chat_id=-1001, message_id=11, user_id=777)
+
+    await process_ad_review(callback, data, AsyncMock(), session)
+
+    callback.message.edit_reply_markup.assert_not_awaited()
+    callback.message.edit_text.assert_not_awaited()
+    decision.assert_not_awaited()
+    callback.answer.assert_awaited_with("Неизвестное действие")

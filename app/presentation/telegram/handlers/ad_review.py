@@ -17,6 +17,7 @@ from app.sponsored_ads.decisions import apply_ad_decision
 logger = get_logger("handlers.ad_review")
 
 ad_review_router = Router()
+_VALID_ACTIONS = {"skip", "delete", "ban"}
 
 
 @ad_review_router.callback_query(AdReviewAction.filter())
@@ -30,6 +31,9 @@ async def process_ad_review(
     message = callback.message
     if not isinstance(message, types.Message) or message.chat.id != settings.sponsored_ads.moderator_chat_id:
         await callback.answer()
+        return
+    if callback_data.action not in _VALID_ACTIONS:
+        await callback.answer("Неизвестное действие")
         return
 
     # Claim the alert: removing the keyboard fails if another moderator already acted.

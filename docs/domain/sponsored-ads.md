@@ -13,11 +13,16 @@
 - Alert dedup: no alert is sent if the same user already posted an identical
   message (normalized: trimmed, whitespace-collapsed, casefolded) within the
   last 24h.
-- A moderator decision is authoritative. Any non-skip action deletes the
+- A moderator decision is authoritative. Any valid non-skip action deletes the
   message.
+- Only `skip`, `delete`, and `ban` are valid moderator actions. Unknown
+  callback actions are rejected and must not delete messages, ban users, or
+  contact advertisers.
 - Cleanup deletes every identical message from the same user across all chats
-  within the last 24h. Telegram forbids bots deleting messages older than 48h;
-  such failures are logged and skipped.
+  registered in the managed `chats` table within the last 24h. The source
+  message from the moderator action is still deleted even if its history row is
+  missing. Telegram forbids bots deleting messages older than 48h; such
+  failures are logged and skipped.
 - The advertiser is reached by DM when possible, otherwise by a public ping in
   the source chat. `reached_via` records which.
 - The smart link (`?start=adlead_<id>`) marks `link_clicked_at` once; repeat

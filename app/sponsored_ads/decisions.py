@@ -20,6 +20,7 @@ _REACHED_LABEL = {
     "ping": "пинг в чате",
     "failed": "связаться не удалось",
 }
+_VALID_ACTIONS = {"delete", "ban"}
 
 
 async def apply_ad_decision(
@@ -36,6 +37,9 @@ async def apply_ad_decision(
     `delete` → remove the ad + cross-chat duplicates, create a lead, reach the
     advertiser. `ban` → remove the ad + duplicates, ban the user, no outreach.
     """
+    if action not in _VALID_ACTIONS:
+        raise ValueError(f"Unknown ad-review action: {action}")
+
     result = await cleanup.delete_ad_duplicates(
         bot,
         db,

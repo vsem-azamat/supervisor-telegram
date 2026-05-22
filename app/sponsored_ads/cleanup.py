@@ -10,7 +10,7 @@ from sqlalchemy import select
 
 from app.core.logging import get_logger
 from app.core.time import utc_now
-from app.db.models import Message
+from app.db.models import Chat, Message
 from app.sponsored_ads.text import normalize_text
 
 if TYPE_CHECKING:
@@ -38,8 +38,9 @@ async def delete_ad_duplicates(
     """Delete the origin ad and every identical message from the same user.
 
     "Identical" = same normalized text, posted within `window_hours`, in any
-    chat. The origin pair is always attempted, even if its `messages` row is
-    missing. Per-message delete failures are logged and skipped.
+    registered managed chat. The origin pair is always attempted, even if its
+    `messages` row is missing. Per-message delete failures are logged and
+    skipped.
     """
     cutoff = utc_now() - datetime.timedelta(hours=window_hours)
 
@@ -63,7 +64,9 @@ async def delete_ad_duplicates(
         rows = (
             (
                 await db.execute(
-                    select(Message).where(
+                    select(Message)
+                    .join(Chat, Message.chat_id == Chat.id)
+                    .where(
                         Message.user_id == user_id,
                         Message.timestamp >= cutoff,
                     )
