@@ -16,7 +16,8 @@ path on the public site catalog.
 5. **Бан** — same removal, plus the user is banned from the source chat; no
    outreach.
 6. The smart link and the `/ads` command open advertising info: hardcoded
-   placement guidance plus a link to the public site catalog with all chats.
+   placement guidance, a clear pricing rule, and a link to the public site
+   catalog with all chats.
 
 ## What it is not
 

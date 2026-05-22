@@ -34,3 +34,7 @@
   without lead tracking. When `WEBAPI_PUBLIC_URL` is configured, that message
   links to the public site catalog at `/catalog`. The legacy
   `SPONSORED_ADS_PRICING_ARTICLE_URL` setting is ignored.
+- The advertising description explains the pricing rule in broad terms:
+  one chat participant is the baseline for one Czech koruna, the final price
+  uses an administrator-chosen 0–2× coefficient, and bulk placements can receive
+  a discount.
