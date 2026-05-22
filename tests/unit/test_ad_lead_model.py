@@ -9,6 +9,8 @@ async def test_ad_lead_persists_with_defaults(session: AsyncSession) -> None:
 
     assert lead.id is not None
     assert lead.reached_via == "failed"
+    assert lead.ping_chat_id is None
+    assert lead.ping_message_id is None
     assert lead.created_at is not None
     assert lead.link_clicked_at is None
     assert lead.snippet == "buy now cheap"

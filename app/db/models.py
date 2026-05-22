@@ -734,6 +734,8 @@ class AdLead(Base):
     user_id: Mapped[int] = mapped_column(BigInteger)
     snippet: Mapped[str | None] = mapped_column(String, nullable=True)
     reached_via: Mapped[str] = mapped_column(String(8), default="failed")
+    ping_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    ping_message_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
     link_clicked_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
 
@@ -744,11 +746,15 @@ class AdLead(Base):
         user_id: int,
         snippet: str | None = None,
         reached_via: str = "failed",
+        ping_chat_id: int | None = None,
+        ping_message_id: int | None = None,
     ) -> None:
         self.chat_id = chat_id
         self.user_id = user_id
         self.snippet = snippet
         self.reached_via = reached_via
+        self.ping_chat_id = ping_chat_id
+        self.ping_message_id = ping_message_id
 
 
 class AdminSession(Base):

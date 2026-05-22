@@ -88,6 +88,8 @@ async def test_delete_decision_falls_back_to_ping(session: AsyncSession) -> None
     lead = await AdLeadRepository(session).get_by_id(1)
     assert lead is not None
     assert lead.reached_via == "ping"
+    assert lead.ping_chat_id == CHAT_A
+    assert lead.ping_message_id == 1
 
 
 async def test_ban_decision_bans_and_skips_outreach(session: AsyncSession) -> None:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from app.core.logging import get_logger
@@ -11,6 +12,13 @@ if TYPE_CHECKING:
     from aiogram import Bot
 
 logger = get_logger("sponsored_ads.outreach")
+
+
+@dataclass(frozen=True)
+class OutreachResult:
+    reached_via: str
+    ping_chat_id: int | None = None
+    ping_message_id: int | None = None
 
 
 async def build_smart_link(bot: Bot, lead_id: int) -> str:
@@ -25,12 +33,13 @@ async def reach_advertiser(
     user_id: int,
     origin_chat_id: int,
     lead_id: int,
-) -> str:
+) -> OutreachResult:
     """Try a DM first; on any failure fall back to a public ping.
 
-    Returns the channel actually used: "dm", "ping", or "failed". The DM
-    attempt is caught broadly on purpose — a bot cannot DM a user who never
-    started it, and any such failure should fall back to the public ping.
+    Returns the channel actually used, plus the public ping message reference
+    when a ping is sent. The DM attempt is caught broadly on purpose — a bot
+    cannot DM a user who never started it, and any such failure should fall
+    back to the public ping.
     """
     smart_link = await build_smart_link(bot, lead_id)
 
@@ -40,17 +49,17 @@ async def reach_advertiser(
             render_outreach_message(smart_link),
             disable_web_page_preview=True,
         )
-        return "dm"
+        return OutreachResult("dm")
     except Exception as err:
         logger.info("ad_outreach_dm_unavailable", user_id=user_id, error=str(err))
 
     try:
-        await bot.send_message(
+        ping = await bot.send_message(
             origin_chat_id,
             render_ping_message(user_id, smart_link),
             disable_web_page_preview=True,
         )
-        return "ping"
+        return OutreachResult("ping", ping_chat_id=origin_chat_id, ping_message_id=ping.message_id)
     except Exception as err:
         logger.warning("ad_outreach_ping_failed", chat_id=origin_chat_id, error=str(err))
-        return "failed"
+        return OutreachResult("failed")

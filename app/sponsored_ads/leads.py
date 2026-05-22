@@ -29,10 +29,30 @@ class AdLeadRepository:
         return lead
 
     async def set_reached_via(self, lead_id: int, reached_via: str) -> None:
+        await self.set_outreach_result(lead_id, reached_via)
+
+    async def set_outreach_result(
+        self,
+        lead_id: int,
+        reached_via: str,
+        *,
+        ping_chat_id: int | None = None,
+        ping_message_id: int | None = None,
+    ) -> None:
         lead = await self.get_by_id(lead_id)
         if lead is None:
             return
         lead.reached_via = reached_via
+        lead.ping_chat_id = ping_chat_id
+        lead.ping_message_id = ping_message_id
+        await self.db.commit()
+
+    async def clear_ping_message(self, lead_id: int) -> None:
+        lead = await self.get_by_id(lead_id)
+        if lead is None:
+            return
+        lead.ping_chat_id = None
+        lead.ping_message_id = None
         await self.db.commit()
 
     async def mark_clicked(self, lead_id: int) -> bool:

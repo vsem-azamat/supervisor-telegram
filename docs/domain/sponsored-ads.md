@@ -4,7 +4,8 @@
 
 - **`ad_leads`** — one row per advertiser redirected to the rate card.
   Fields: `chat_id`, `user_id`, `snippet`, `reached_via` (`dm` / `ping` /
-  `failed`), `created_at`, `link_clicked_at`.
+  `failed`), `ping_chat_id`, `ping_message_id`, `created_at`,
+  `link_clicked_at`.
 
 ## Rules
 
@@ -27,4 +28,6 @@
   the source chat. `reached_via` records which.
 - The smart link (`?start=adlead_<id>`) marks `link_clicked_at` once; repeat
   clicks do not overwrite it.
+- If the advertiser was reached by a public ping, opening the smart link deletes
+  that public ping best-effort. A delete failure must not block the rate card.
 - `/ads` and `?start=ads` show the same rate card without lead tracking.

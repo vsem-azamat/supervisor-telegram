@@ -62,12 +62,17 @@ async def apply_ad_decision(
     snippet = result.origin_text[:_SNIPPET_CHARS] if result.origin_text else None
     lead_repo = AdLeadRepository(db)
     lead = await lead_repo.create_lead(chat_id=chat_id, user_id=user_id, snippet=snippet)
-    reached_via = await outreach.reach_advertiser(
+    outreach_result = await outreach.reach_advertiser(
         bot,
         user_id=user_id,
         origin_chat_id=chat_id,
         lead_id=lead.id,
     )
-    await lead_repo.set_reached_via(lead.id, reached_via)
-    label = _REACHED_LABEL[reached_via]
+    await lead_repo.set_outreach_result(
+        lead.id,
+        outreach_result.reached_via,
+        ping_chat_id=outreach_result.ping_chat_id,
+        ping_message_id=outreach_result.ping_message_id,
+    )
+    label = _REACHED_LABEL[outreach_result.reached_via]
     return f"🗑 <b>Удалено сообщений: {result.deleted}. Рекламодатель: {label}.</b>"
