@@ -304,10 +304,6 @@ class SponsoredAdsSettings(BaseSettings):
         default=0,
         description="Chat that receives ad-review alerts (0 disables alerts)",
     )
-    pricing_article_url: str = Field(
-        default="",
-        description="External article (Telegraph/Notion) with pricing and the chat list",
-    )
     sales_contact: str = Field(
         default="",
         description="@username shown in the rate card for ad-sales questions",

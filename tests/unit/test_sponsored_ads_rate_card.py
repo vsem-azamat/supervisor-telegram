@@ -1,25 +1,33 @@
 import pytest
 from app.core.config import settings
 from app.sponsored_ads.rate_card import (
+    advertising_catalog_url,
     render_outreach_message,
     render_ping_message,
     render_rate_card,
 )
 
 
-def test_render_rate_card_includes_article_and_contact(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(settings.sponsored_ads, "pricing_article_url", "https://telegra.ph/ads")
+def test_render_rate_card_includes_site_catalog_and_contact(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings.webapi, "public_url", "https://konnekt.example")
     monkeypatch.setattr(settings.sponsored_ads, "sales_contact", "@konnekt_ads")
     text = render_rate_card()
-    assert "https://telegra.ph/ads" in text
+    assert "https://konnekt.example/catalog" in text
+    assert "telegra.ph" not in text
     assert "@konnekt_ads" in text
 
 
 def test_render_rate_card_omits_missing_fields(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(settings.sponsored_ads, "pricing_article_url", "")
+    monkeypatch.setattr(settings.webapi, "public_url", "")
     monkeypatch.setattr(settings.sponsored_ads, "sales_contact", "")
     text = render_rate_card()
     assert "Реклама" in text  # still renders a headline, no crash
+    assert "<a href=" not in text
+
+
+def test_advertising_catalog_url_normalizes_base_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings.webapi, "public_url", "https://konnekt.example/")
+    assert advertising_catalog_url() == "https://konnekt.example/catalog"
 
 
 def test_render_outreach_message_embeds_link() -> None:
@@ -34,7 +42,7 @@ def test_render_ping_message_mentions_user_and_link() -> None:
 
 
 def test_render_rate_card_escapes_special_characters(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(settings.sponsored_ads, "pricing_article_url", 'https://x.test/?q="><b')
+    monkeypatch.setattr(settings.webapi, "public_url", 'https://x.test/?q="><b')
     monkeypatch.setattr(settings.sponsored_ads, "sales_contact", "@a&b")
     text = render_rate_card()
     assert '"><b' not in text  # the raw quote+angle did not survive into the href

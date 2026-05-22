@@ -7,22 +7,35 @@ import html
 from app.core.config import settings
 from app.core.text import escape_html
 
+_CATALOG_PATH = "/catalog"
+
+
+def advertising_catalog_url() -> str | None:
+    """Public site catalog URL with all chats, if the web UI base URL is configured."""
+    base = settings.webapi.public_url.rstrip("/")
+    if not base:
+        return None
+    return f"{base}{_CATALOG_PATH}"
+
 
 def render_rate_card() -> str:
     """Public advertising info shown by /ads and the smart link."""
-    cfg = settings.sponsored_ads
     lines = [
         "📢 <b>Реклама в наших чатах</b>",
         "",
-        "Хотите разместить рекламу легально? Возможно платное размещение.",
+        "Можно разместить промо в наших студенческих чатах, если оно полезно аудитории и согласовано заранее.",
+        "Мы не публикуем спам, серые офферы и массовые сообщения без согласования.",
+        "",
+        "Посмотрите список чатов и выберите площадки, которые подходят вашему предложению.",
     ]
-    if cfg.pricing_article_url:
+    catalog_url = advertising_catalog_url()
+    if catalog_url:
         lines.append(
             # href attribute: quote-escape so a stray " can't break out
-            f'Цены, условия и список чатов: <a href="{html.escape(cfg.pricing_article_url)}">подробнее тут</a>.'
+            f'Каталог чатов: <a href="{html.escape(catalog_url)}">открыть на сайте</a>.'
         )
-    if cfg.sales_contact:
-        lines.append(f"По вопросам размещения: {escape_html(cfg.sales_contact)}")
+    if settings.sponsored_ads.sales_contact:
+        lines.append(f"По вопросам размещения: {escape_html(settings.sponsored_ads.sales_contact)}")
     return "\n".join(lines)
 
 

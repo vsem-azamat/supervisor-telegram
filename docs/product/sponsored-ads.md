@@ -2,7 +2,7 @@
 
 The bot does not sell or broker advertising. It detects ad-spam, lets a
 moderator remove it, and points the would-be advertiser at a legitimate paid
-path described in an external article.
+path on the public site catalog.
 
 ## Flow
 
@@ -15,16 +15,17 @@ path described in an external article.
    contacted (DM if possible, otherwise a public ping) with a smart link.
 5. **Бан** — same removal, plus the user is banned from the source chat; no
    outreach.
-6. The smart link and the `/ads` command open advertising info: a short blurb
-   plus a link to the pricing article.
+6. The smart link and the `/ads` command open advertising info: hardcoded
+   placement guidance plus a link to the public site catalog with all chats.
 
 ## What it is not
 
 No conversational submission, no price negotiation, no payment handling, no
-in-bot pricing. Pricing lives in an externally-maintained article. Selling is
-a human job; the bot only redirects.
+in-bot pricing. The bot does not depend on an externally-maintained pricing
+article. Selling is a human job; the bot only redirects to the public site
+catalog and the configured sales contact.
 
 ## Configuration
 
 `SPONSORED_ADS_ENABLED`, `SPONSORED_ADS_MODERATOR_CHAT_ID`,
-`SPONSORED_ADS_PRICING_ARTICLE_URL`, `SPONSORED_ADS_SALES_CONTACT`.
+`SPONSORED_ADS_SALES_CONTACT`, `WEBAPI_PUBLIC_URL`.

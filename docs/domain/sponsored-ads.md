@@ -30,4 +30,7 @@
   clicks do not overwrite it.
 - If the advertiser was reached by a public ping, opening the smart link deletes
   that public ping best-effort. A delete failure must not block the rate card.
-- `/ads` and `?start=ads` show the same rate card without lead tracking.
+- `/ads` and `?start=ads` show the same hardcoded advertising description
+  without lead tracking. When `WEBAPI_PUBLIC_URL` is configured, that message
+  links to the public site catalog at `/catalog`. The legacy
+  `SPONSORED_ADS_PRICING_ARTICLE_URL` setting is ignored.

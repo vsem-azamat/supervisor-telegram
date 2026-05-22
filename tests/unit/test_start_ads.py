@@ -9,11 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def test_ads_command_sends_rate_card(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(settings.sponsored_ads, "pricing_article_url", "https://telegra.ph/ads")
+    monkeypatch.setattr(settings.webapi, "public_url", "https://konnekt.example")
     message = AsyncMock()
     await ads_command(message)
     message.answer.assert_awaited_once()
-    assert "https://telegra.ph/ads" in message.answer.await_args.args[0]
+    assert "https://konnekt.example/catalog" in message.answer.await_args.args[0]
 
 
 async def test_start_ads_info_sends_rate_card() -> None:

@@ -56,7 +56,7 @@ retaining human control over high-impact decisions.
 | Feedback is preserved for later use | Admin corrections and editorial decisions are stored so future moderation and content workflows can use them as context |
 | Public visibility does not imply admin authority | Public read access and authenticated administrative actions remain separate |
 | Operating cost is inspectable | AI spend is visible to operators instead of hidden inside background automation |
-| Monetization stays moderated | The bot removes unmanaged ads and points advertisers to the operator's external paid-placement article; negotiation, approval, payment, and posting stay human-owned outside the bot |
+| Monetization stays moderated | The bot removes unmanaged ads and points advertisers to the public site catalog and sales contact; negotiation, approval, payment, and posting stay human-owned outside the bot |
 
 ## Product Capabilities
 
@@ -94,7 +94,7 @@ current concrete choices live in [architecture](../architecture.md).
 - Public read-only views only where they are intentionally exposed.
 - A rate-card funnel for chats that explicitly enable sponsored-ad handling:
   remove unmanaged ads, clean up duplicates, and redirect advertisers to an
-  external pricing article.
+  advertising description with a public site catalog link.
 - Cost and usage visibility for AI-backed operations.
 - Feedback from administrator decisions where it can improve later moderation or
   content workflows.
