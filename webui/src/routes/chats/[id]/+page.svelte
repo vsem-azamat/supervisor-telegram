@@ -16,6 +16,7 @@
 
 	type ChatDetail = components['schemas']['ChatDetail'];
 	type ChatRead = components['schemas']['ChatRead'];
+	type ChatStatus = ChatRead['resource_status'];
 	type UserBlockResponse = components['schemas']['UserBlockResponse'];
 
 	const chatId = page.params.id;
@@ -24,6 +25,7 @@
 	let busyUserId = $state<number | null>(null);
 	let editing = $state(false);
 	let saving = $state(false);
+	let savingStatus = $state(false);
 	let refreshing = $state(false);
 
 	async function refreshFromTelegram(): Promise<void> {
@@ -91,6 +93,27 @@
 		}
 	}
 
+	function statusLabel(status: ChatStatus): string {
+		if (status === 'approved') return 'Approved';
+		if (status === 'disabled') return 'Disabled';
+		return 'Pending';
+	}
+
+	async function setResourceStatus(status: ChatStatus): Promise<void> {
+		if (!detail.data || detail.data.resource_status === status) return;
+		savingStatus = true;
+		const res = await apiFetch<ChatRead>(`/api/chats/${chatId}`, {
+			method: 'PATCH',
+			body: JSON.stringify({ resource_status: status })
+		});
+		savingStatus = false;
+		if (res.error) toast.error(res.error.message);
+		else {
+			toast.success(`Resource is ${statusLabel(status).toLowerCase()}`);
+			await detail.refresh();
+		}
+	}
+
 	function senderLabel(s: components['schemas']['ChatSender']): string {
 		if (s.username) return `@${s.username}`;
 		const name = [s.first_name, s.last_name].filter(Boolean).join(' ').trim();
@@ -147,6 +170,7 @@
 					{/if}
 					{#if detail.data}
 						<span>· Synced from Telegram {fmtRelative(detail.data.last_synced_at)}</span>
+						<span>· {statusLabel(detail.data.resource_status)}</span>
 					{/if}
 				</div>
 			</div>
@@ -217,9 +241,27 @@
 					<div class="grid grid-cols-2 gap-2">
 						<div>Members: <strong>{detail.data.member_count ?? '—'}</strong></div>
 						<div>Forum: {detail.data.is_forum ? 'yes' : 'no'}</div>
+						<div>Status: {statusLabel(detail.data.resource_status)}</div>
 						<div>Captcha: {detail.data.is_captcha_enabled ? 'on' : 'off'}</div>
 						<div>Welcome: {detail.data.is_welcome_enabled ? 'on' : 'off'}</div>
 						<div>Auto-delete: {detail.data.time_delete}s</div>
+					</div>
+					<div class="flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-3">
+						<Button
+							size="sm"
+							disabled={savingStatus || detail.data.resource_status === 'approved'}
+							onclick={() => setResourceStatus('approved')}
+						>
+							Approve resource
+						</Button>
+						<Button
+							variant="outline"
+							size="sm"
+							disabled={savingStatus || detail.data.resource_status === 'disabled'}
+							onclick={() => setResourceStatus('disabled')}
+						>
+							Disable
+						</Button>
 					</div>
 					{#if detail.data.welcome_message}
 						<div class="rounded-md border border-zinc-100 bg-zinc-50 p-2 text-xs text-zinc-600">

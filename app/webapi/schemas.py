@@ -7,6 +7,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
+ChatResourceStatus = Literal["discovered", "approved", "disabled"]
+
 
 class PostRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -178,6 +180,7 @@ class ChatRead(BaseModel):
 
     id: int
     title: str | None
+    resource_status: ChatResourceStatus
     is_forum: bool
     is_welcome_enabled: bool
     is_captcha_enabled: bool
@@ -194,6 +197,7 @@ class ChatUpdate(BaseModel):
     keys present in the body are applied (``exclude_unset``)."""
 
     title: str | None = None
+    resource_status: ChatResourceStatus | None = None
     welcome_message: str | None = None
     is_welcome_enabled: bool | None = None
     is_captcha_enabled: bool | None = None

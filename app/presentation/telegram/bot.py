@@ -26,6 +26,7 @@ if TYPE_CHECKING:
 from app.db.session import close_db, create_session_maker, insert_chat_link
 from app.presentation.telegram.handlers import router
 from app.presentation.telegram.middlewares import (
+    ApprovedChatGateMiddleware,
     BlacklistMiddleware,
     DependenciesMiddleware,
     HistoryMiddleware,
@@ -106,6 +107,7 @@ def _setup_main_bot(
     dp.update.middleware(DependenciesMiddleware(session_pool=session_maker, bot=bot))
     dp.update.middleware(ManagedChatsMiddleware())
     dp.update.middleware(HistoryMiddleware())
+    dp.update.middleware(ApprovedChatGateMiddleware())
     dp.message.middleware(BlacklistMiddleware())
     dp.callback_query.middleware(CallbackAnswerMiddleware())
 

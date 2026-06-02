@@ -1056,6 +1056,11 @@ export interface components {
             id: number;
             /** Title */
             title: string | null;
+            /**
+             * Resource Status
+             * @enum {string}
+             */
+            resource_status: "discovered" | "approved" | "disabled";
             /** Is Forum */
             is_forum: boolean;
             /** Is Welcome Enabled */
@@ -1159,6 +1164,11 @@ export interface components {
             id: number;
             /** Title */
             title: string | null;
+            /**
+             * Resource Status
+             * @enum {string}
+             */
+            resource_status: "discovered" | "approved" | "disabled";
             /** Is Forum */
             is_forum: boolean;
             /** Is Welcome Enabled */
@@ -1215,6 +1225,8 @@ export interface components {
         ChatUpdate: {
             /** Title */
             title?: string | null;
+            /** Resource Status */
+            resource_status?: ("discovered" | "approved" | "disabled") | null;
             /** Welcome Message */
             welcome_message?: string | null;
             /** Is Welcome Enabled */

@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import datetime
 import io
-from typing import Annotated
+from typing import Annotated, cast
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest
@@ -36,6 +36,7 @@ from app.webapi.schemas import (
     ChatDetail,
     ChatNode,
     ChatRead,
+    ChatResourceStatus,
     ChatSender,
     ChatUpdate,
     HeatmapCell,
@@ -55,6 +56,10 @@ _SNAPSHOTS_LIMIT = 50
 _SPAM_PINGS_LIMIT = 30
 _RECENT_SENDERS_LOOKBACK_DAYS = 7
 _RECENT_SENDERS_LIMIT = 25
+
+
+def _resource_status(status: str) -> ChatResourceStatus:
+    return cast("ChatResourceStatus", status)
 
 
 def _build_heatmap(timestamps: list[datetime.datetime]) -> list[HeatmapCell]:
@@ -77,6 +82,7 @@ async def list_chats(
         ChatRead(
             id=chat.id,
             title=chat.title,
+            resource_status=_resource_status(chat.resource_status),
             is_forum=chat.is_forum,
             is_welcome_enabled=chat.is_welcome_enabled,
             is_captcha_enabled=chat.is_captcha_enabled,
@@ -254,6 +260,7 @@ async def get_chat(
     return ChatDetail(
         id=chat.id,
         title=chat.title,
+        resource_status=_resource_status(chat.resource_status),
         is_forum=chat.is_forum,
         is_welcome_enabled=chat.is_welcome_enabled,
         is_captcha_enabled=chat.is_captcha_enabled,
@@ -291,6 +298,10 @@ async def update_chat(
     fields = payload.model_dump(exclude_unset=True)
     if "time_delete" in fields and fields["time_delete"] is not None and fields["time_delete"] <= 0:
         raise HTTPException(status_code=422, detail="time_delete must be positive")
+    if "resource_status" in fields and fields["resource_status"] is not None:
+        status: ChatResourceStatus = fields["resource_status"]
+        if status not in Chat.VALID_RESOURCE_STATUSES:
+            raise HTTPException(status_code=422, detail="Unknown resource status")
     if "parent_chat_id" in fields and fields["parent_chat_id"] == chat_id:
         raise HTTPException(status_code=422, detail="A chat cannot be its own parent")
     if "parent_chat_id" in fields and fields["parent_chat_id"] is not None:
@@ -322,6 +333,7 @@ async def update_chat(
     return ChatRead(
         id=chat.id,
         title=chat.title,
+        resource_status=_resource_status(chat.resource_status),
         is_forum=chat.is_forum,
         is_welcome_enabled=chat.is_welcome_enabled,
         is_captcha_enabled=chat.is_captcha_enabled,
@@ -425,6 +437,7 @@ async def refresh_chat_from_telegram(
     return ChatRead(
         id=chat.id,
         title=chat.title,
+        resource_status=_resource_status(chat.resource_status),
         is_forum=chat.is_forum,
         is_welcome_enabled=chat.is_welcome_enabled,
         is_captcha_enabled=chat.is_captcha_enabled,

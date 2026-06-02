@@ -38,6 +38,9 @@ class HistoryMiddleware(BaseMiddleware):
             except Exception as err:
                 logger.error("save_message_failed", error=str(err))
 
+            if not data.get("chat_is_approved", True):
+                return await handler(event, data)
+
             if isinstance(user, types.User):
                 try:
                     signals = await ad_detector_service.record_ad_signals(

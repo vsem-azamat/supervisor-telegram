@@ -28,7 +28,10 @@ from aiogram.types import (
 )
 from aiogram.utils.callback_answer import CallbackAnswerMiddleware
 from app.db.models import AgentEscalation
+from app.db.models import Chat as DbChat
+from app.db.models import Message as DbMessage
 from app.presentation.telegram.middlewares import (
+    ApprovedChatGateMiddleware,
     DependenciesMiddleware,
     HistoryMiddleware,
     ManagedChatsMiddleware,
@@ -219,8 +222,13 @@ async def dispatcher(
     dp.update.middleware(DependenciesMiddleware(session_pool=db_session_maker, bot=bot))
     dp.update.middleware(ManagedChatsMiddleware())
     dp.update.middleware(HistoryMiddleware())
+    dp.update.middleware(ApprovedChatGateMiddleware())
     dp.callback_query.middleware(CallbackAnswerMiddleware())
     dp.include_router(_build_router())
+
+    async with db_session_maker() as session:
+        await session.merge(DbChat(id=CHAT_ID, title="Test Chat", resource_status=DbChat.STATUS_APPROVED))
+        await session.commit()
 
     yield dp
 
@@ -583,19 +591,21 @@ class TestEscalationCallback:
 class TestManagedChatsMiddleware:
     """Tests for the managed chats filtering."""
 
-    async def test_unmanaged_chat_triggers_leave(
+    async def test_unapproved_chat_is_recorded_without_public_actions(
         self,
         bot: Bot,
         db_session_maker: async_sessionmaker[AsyncSession],
         fake_tg: FakeTelegramServer,
     ):
-        """Bot should leave chats where no super admin is an admin."""
+        """Bot records discovered chats but does not interact until approved."""
         UNMANAGED_CHAT_ID = -1009999999999
         fake_tg.set_chat_admins(UNMANAGED_CHAT_ID, [777777777])  # no super admin
 
         dp = Dispatcher()
         dp.update.middleware(DependenciesMiddleware(session_pool=db_session_maker, bot=bot))
         dp.update.middleware(ManagedChatsMiddleware())
+        dp.update.middleware(HistoryMiddleware())
+        dp.update.middleware(ApprovedChatGateMiddleware())
         dp.include_router(_build_router())
 
         update = Update(
@@ -612,5 +622,17 @@ class TestManagedChatsMiddleware:
         await dp.feed_update(bot, update)
 
         leave_calls = fake_tg.get_calls("leaveChat")
-        assert len(leave_calls) >= 1
-        assert int(leave_calls[0].params["chat_id"]) == UNMANAGED_CHAT_ID
+        assert leave_calls == []
+
+        async with db_session_maker() as session:
+            chat = await session.get(DbChat, UNMANAGED_CHAT_ID)
+            assert chat is not None
+            assert chat.resource_status == DbChat.STATUS_DISCOVERED
+
+            stored_message = await session.scalar(
+                select(DbMessage).where(
+                    DbMessage.chat_id == UNMANAGED_CHAT_ID,
+                    DbMessage.message_id == 1,
+                )
+            )
+            assert stored_message is not None

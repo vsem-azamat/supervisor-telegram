@@ -55,8 +55,28 @@ async def test_list_chats_returns_all(client_factory, db_session_maker) -> None:
     assert len(body) == 2
     titles = sorted(c["title"] for c in body)
     assert titles == ["A", "B"]
+    assert {c["resource_status"] for c in body} == {"discovered"}
     # member_count is None when telethon is absent
     assert all(c["member_count"] is None for c in body)
+
+
+async def test_update_chat_resource_status(client_factory, db_session_maker) -> None:
+    chat_id = -1003
+    async with db_session_maker() as session:
+        session.add(Chat(id=chat_id, title="Pending"))
+        await session.commit()
+
+    async with client_factory() as client:
+        resp = await client.patch(f"/api/chats/{chat_id}", json={"resource_status": "approved"})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["resource_status"] == "approved"
+
+    async with db_session_maker() as session:
+        chat = await session.get(Chat, chat_id)
+        assert chat is not None
+        assert chat.resource_status == "approved"
 
 
 async def test_chat_detail_heatmap_aggregates_messages(client_factory, db_session_maker) -> None:

@@ -28,6 +28,7 @@ class ChatRepository:
         chat_model = await self._get_chat_model(chat.id)
         if chat_model:
             chat_model.title = chat.title
+            chat_model.resource_status = chat.resource_status
             chat_model.is_forum = chat.is_forum
             chat_model.welcome_message = chat.welcome_message
             chat_model.time_delete = chat.time_delete
@@ -37,6 +38,7 @@ class ChatRepository:
             chat_model = Chat(
                 id=chat.id,
                 title=chat.title,
+                resource_status=chat.resource_status,
                 is_forum=chat.is_forum,
                 welcome_message=chat.welcome_message,
                 time_delete=chat.time_delete,
