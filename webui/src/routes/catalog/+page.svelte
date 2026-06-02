@@ -20,7 +20,7 @@
 		title: string;
 		subtitle: string;
 		status: string;
-		statusKind: 'enabled' | 'disabled' | 'guarded' | 'basic';
+		statusKind: 'enabled' | 'disabled' | 'guarded' | 'pending' | 'basic';
 		metric: string;
 		identity: string;
 		path: string;
@@ -41,10 +41,22 @@
 			id: chat.id,
 			title: chat.title ?? `#${chat.id}`,
 			subtitle: chat.relation_notes ?? '',
-			status: [chat.is_captcha_enabled ? 'captcha' : null, chat.is_welcome_enabled ? 'welcome' : null]
-				.filter(Boolean)
-				.join(', ') || 'basic',
-			statusKind: chat.is_captcha_enabled || chat.is_welcome_enabled ? ('guarded' as const) : ('basic' as const),
+			status:
+				chat.resource_status === 'approved'
+					? [chat.is_captcha_enabled ? 'captcha' : null, chat.is_welcome_enabled ? 'welcome' : null]
+							.filter(Boolean)
+							.join(', ') || 'approved'
+					: chat.resource_status === 'disabled'
+						? 'disabled'
+						: 'pending approval',
+			statusKind:
+				chat.resource_status === 'disabled'
+					? ('disabled' as const)
+					: chat.resource_status === 'discovered'
+						? ('pending' as const)
+						: chat.is_captcha_enabled || chat.is_welcome_enabled
+							? ('guarded' as const)
+							: ('enabled' as const),
 			metric:
 				chat.member_count === null || chat.member_count === undefined
 					? '-'
@@ -312,7 +324,9 @@
 									<span
 										class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-200 bg-white {resource.statusKind === 'enabled' || resource.statusKind === 'guarded'
 											? 'text-emerald-600'
-											: resource.statusKind === 'disabled'
+											: resource.statusKind === 'pending'
+												? 'text-amber-600'
+												: resource.statusKind === 'disabled'
 												? 'text-zinc-400'
 												: 'text-zinc-500'}"
 										title={resource.status}
@@ -324,6 +338,8 @@
 											<XCircle class="h-3.5 w-3.5" />
 										{:else if resource.statusKind === 'guarded'}
 											<ShieldCheck class="h-3.5 w-3.5" />
+										{:else if resource.statusKind === 'pending'}
+											<ShieldQuestion class="h-3.5 w-3.5" />
 										{:else}
 											<ShieldQuestion class="h-3.5 w-3.5" />
 										{/if}

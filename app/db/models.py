@@ -38,8 +38,14 @@ class Admin(Base):
 class Chat(Base):
     __tablename__ = "chats"
 
+    STATUS_DISCOVERED = "discovered"
+    STATUS_APPROVED = "approved"
+    STATUS_DISABLED = "disabled"
+    VALID_RESOURCE_STATUSES = frozenset({STATUS_DISCOVERED, STATUS_APPROVED, STATUS_DISABLED})
+
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
     title: Mapped[str | None] = mapped_column(String, nullable=True)
+    resource_status: Mapped[str] = mapped_column(String, default=STATUS_DISCOVERED, nullable=False)
     is_forum: Mapped[bool] = mapped_column(Boolean, default=False)
     welcome_message: Mapped[str | None] = mapped_column(String, nullable=True)
     time_delete: Mapped[int] = mapped_column(Integer, default=60)
@@ -77,6 +83,7 @@ class Chat(Base):
         self,
         id: int,
         title: str | None = None,
+        resource_status: str = STATUS_DISCOVERED,
         is_forum: bool = False,
         welcome_message: str | None = None,
         time_delete: int = 60,
@@ -87,6 +94,7 @@ class Chat(Base):
     ) -> None:
         self.id = id
         self.title = title
+        self.set_resource_status(resource_status)
         self.is_forum = is_forum
         self.welcome_message = welcome_message
         self.time_delete = time_delete
@@ -123,6 +131,16 @@ class Chat(Base):
     def disable_captcha(self) -> None:
         """Disable captcha"""
         self.is_captcha_enabled = False
+
+    def set_resource_status(self, status: str) -> None:
+        """Set whether the bot may actively operate in this chat."""
+        if status not in self.VALID_RESOURCE_STATUSES:
+            raise ValueError(f"Unknown chat resource status: {status}")
+        self.resource_status = status
+
+    @property
+    def is_approved(self) -> bool:
+        return self.resource_status == self.STATUS_APPROVED
 
 
 class User(Base):

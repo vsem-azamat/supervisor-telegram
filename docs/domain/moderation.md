@@ -7,6 +7,16 @@ decision layer. Human administrators remain the authority for uncertain cases.
 
 - The moderator bot owns mechanical moderation commands such as mute, ban,
   blacklist, welcome, report, and spam workflows.
+- Telegram group and supergroup resources have an explicit operating status:
+  `discovered`, `approved`, or `disabled`.
+- When the bot sees a group or supergroup that is not yet approved, it records
+  the chat, users, and messages it can observe, but it must not leave the chat
+  and must not perform public moderation actions there.
+- Public bot actions, including moderation commands, blacklist enforcement,
+  welcome/captcha behavior, spam prompts, and sponsored-ad moderator alerts, run
+  only for chats with status `approved`.
+- Administrators approve or disable discovered resources from the authenticated
+  admin web surface.
 - AI moderation may recommend or execute actions only within the supported
   moderation action set.
 - Uncertain decisions must be escalated to administrators with a bounded timeout
