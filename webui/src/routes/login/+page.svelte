@@ -50,17 +50,24 @@
 	}
 </script>
 
-<div class="flex min-h-screen items-center justify-center bg-zinc-50 px-4">
-	<div class="w-full max-w-sm space-y-4 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-		<h1 class="text-lg font-semibold tracking-tight">Konnekt Admin</h1>
-		<p class="text-sm text-zinc-500">
+<div class="flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
+	<div class="w-full max-w-sm space-y-5 rounded-lg border bg-card p-6 shadow-sm">
+		<div class="flex items-center gap-2.5">
+			<div
+				class="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-sm font-semibold text-primary-foreground"
+			>
+				K
+			</div>
+			<h1 class="text-lg font-semibold">Konnekt Admin</h1>
+		</div>
+		<p class="text-sm text-muted-foreground">
 			{magicBusy ? 'Signing in…' : 'Sign in with your Telegram account to continue.'}
 		</p>
 		{#if !magicBusy}
 			<TelegramLoginButton botUsername={BOT_USERNAME} onAuth={handleAuth} />
 		{/if}
 		{#if error}
-			<p class="text-xs text-red-600">{error}</p>
+			<p class="text-xs text-destructive">{error}</p>
 		{/if}
 	</div>
 </div>

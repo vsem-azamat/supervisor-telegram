@@ -26,11 +26,17 @@
 </script>
 
 <header
-	class="flex h-14 shrink-0 items-center justify-between border-b border-zinc-200 bg-white px-6"
+	class="flex h-14 shrink-0 items-center justify-between border-b px-6 backdrop-blur"
+	style="border-color: var(--shell-border); background: var(--shell-header);"
 >
-	<h1 class="text-base font-medium text-zinc-900">{currentTitle(page.url.pathname)}</h1>
-	<div class="flex items-center gap-2 text-xs text-zinc-500">
-		<span class="rounded-full bg-emerald-50 px-2.5 py-1 font-medium text-emerald-700">dev</span>
+	<h1 class="text-base font-semibold text-foreground">{currentTitle(page.url.pathname)}</h1>
+	<div class="flex items-center gap-2 text-xs text-muted-foreground">
+		<span
+			class="rounded-full border px-2.5 py-1 font-medium"
+			style="border-color: color-mix(in srgb, var(--signal-success) 22%, transparent); color: var(--signal-success); background: color-mix(in srgb, var(--signal-success) 8%, transparent);"
+		>
+			dev
+		</span>
 		{#if auth.me}
 			<div class="flex items-center gap-1.5 rounded-md px-2 py-1">
 				<User class="h-3.5 w-3.5" />
@@ -38,7 +44,7 @@
 			</div>
 			<button
 				type="button"
-				class="flex items-center gap-1.5 rounded-md px-2 py-1 font-medium hover:bg-zinc-100 hover:text-zinc-800"
+				class="flex items-center gap-1.5 rounded-md px-2 py-1 font-medium transition-colors hover:bg-muted hover:text-foreground"
 				onclick={() => onLogout?.()}
 			>
 				<LogOut class="h-3.5 w-3.5" />
