@@ -4,6 +4,23 @@
  */
 
 export interface paths {
+    "/api/auth/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Auth Config */
+        get: operations["auth_config_api_auth_config_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/login": {
         parameters: {
             query?: never;
@@ -836,6 +853,21 @@ export interface components {
         AgentTurnRequest: {
             /** Message */
             message: string;
+        };
+        /**
+         * AuthConfigResponse
+         * @description Public, non-secret auth configuration for the login UI.
+         */
+        AuthConfigResponse: {
+            /**
+             * Auth Mode
+             * @enum {string}
+             */
+            auth_mode: "telegram" | "magic_link";
+            /** Bot Username */
+            bot_username?: string | null;
+            /** Bot Start Url */
+            bot_start_url?: string | null;
         };
         /** AuthMeResponse */
         AuthMeResponse: {
@@ -1812,6 +1844,26 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    auth_config_api_auth_config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthConfigResponse"];
+                };
+            };
+        };
+    };
     login_api_auth_login_post: {
         parameters: {
             query?: never;

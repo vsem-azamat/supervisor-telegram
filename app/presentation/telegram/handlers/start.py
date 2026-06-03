@@ -1,7 +1,7 @@
 from urllib.parse import quote
 
 from aiogram import Bot, F, Router, types
-from aiogram.filters import Command, CommandObject, CommandStart
+from aiogram.filters import BaseFilter, Command, CommandObject, CommandStart
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -16,6 +16,14 @@ from app.sponsored_ads.rate_card import render_rate_card
 
 router = Router()
 logger = get_logger("handlers.start")
+
+
+class WebAdminLoginStartFilter(BaseFilter):
+    """Match the configured web-admin Telegram /start payload at runtime."""
+
+    async def __call__(self, _message: types.Message, command: CommandObject) -> bool:
+        payload = settings.webapi.login_start_payload.strip()
+        return bool(payload and command.args == payload)
 
 
 @router.message(CommandStart(deep_link=True, magic=F.args.regexp(r"^adlead_\d+$")))
@@ -40,6 +48,12 @@ async def start_ad_lead(message: types.Message, command: CommandObject, db: Asyn
 async def start_ads_info(message: types.Message) -> None:
     """Deep link t.me/<bot>?start=ads — public advertising info."""
     await message.answer(render_rate_card(), disable_web_page_preview=True)
+
+
+@router.message(CommandStart(deep_link=True), WebAdminLoginStartFilter())
+async def start_web_admin_login(message: types.Message, db: AsyncSession) -> None:
+    """Trusted Telegram deep link entrypoint that issues a web login link."""
+    await _answer_admin_magic_link(message, db)
 
 
 @router.message(Command("ads", prefix="/!"))
@@ -93,8 +107,7 @@ async def start_private(message: types.Message, admin_repo: AdminRepository) -> 
     other.sleep_and_delete(bot_message)
 
 
-@router.message(Command("adminlink", "webadmin", prefix="/!"))
-async def generate_admin_magic_link(message: types.Message) -> None:
+async def _answer_admin_magic_link(message: types.Message, session: AsyncSession) -> None:
     if not message.from_user:
         return
     if message.chat.type != "private":
@@ -107,13 +120,11 @@ async def generate_admin_magic_link(message: types.Message) -> None:
         await message.answer("WEBAPI_AUTH_MODE=magic_link не включен.")
         return
 
-    session_maker = create_session_maker()
-    async with session_maker() as session:
-        token, _ = await magic_link_store.create_magic_link(
-            session,
-            user_id=message.from_user.id,
-            ttl_minutes=settings.webapi.magic_link_ttl_minutes,
-        )
+    token, _ = await magic_link_store.create_magic_link(
+        session,
+        user_id=message.from_user.id,
+        ttl_minutes=settings.webapi.magic_link_ttl_minutes,
+    )
 
     if settings.webapi.public_url:
         url = f"{settings.webapi.public_url.rstrip('/')}/login#token={quote(token)}"
@@ -128,6 +139,17 @@ async def generate_admin_magic_link(message: types.Message) -> None:
             f"{token}\n\n"
             f"Действует {settings.webapi.magic_link_ttl_minutes} минут."
         )
+
+
+@router.message(Command("adminlink", "webadmin", prefix="/!"))
+async def generate_admin_magic_link(message: types.Message, db: AsyncSession | None = None) -> None:
+    if db is not None:
+        await _answer_admin_magic_link(message, db)
+        return
+
+    session_maker = create_session_maker()
+    async with session_maker() as session:
+        await _answer_admin_magic_link(message, session)
 
 
 @router.message(Command("chats", prefix="/!"))

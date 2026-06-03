@@ -87,6 +87,21 @@ Use for:
 When a web UI change only rearranges client presentation, use frontend checks in
 addition to the API tests rather than forcing the behavior into backend tests.
 
+### Web Smoke Tests
+
+Use a browser or HTTP smoke lane for public-origin behavior that unit and ASGI
+tests cannot prove:
+
+- the public HTTPS origin serves the web UI;
+- same-origin `/api/*` routes to FastAPI rather than the web dev server;
+- the login page renders the configured auth mechanism;
+- public catalog and health endpoints load through the same origin.
+
+These checks are required after changes to Caddy/proxy routing, auth-mode
+selection, frontend login behavior, TLS/domain setup, or deployment web ports.
+They complement `pnpm --dir webui run check` and `pnpm --dir webui run build`;
+they do not replace backend route tests.
+
 ## Test Authoring Rules
 
 - Add the smallest test that fails for the right reason.
@@ -113,6 +128,7 @@ uv run pytest tests/e2e
 uv run pytest tests/webapi
 pnpm --dir webui run check
 pnpm --dir webui run build
+uv run python scripts/smoke_web_origin.py https://dev.konnekt.azamat.io
 ```
 
 CI runs linting, formatting, typing, the full pytest suite with coverage, and
