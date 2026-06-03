@@ -38,7 +38,9 @@ Required production values:
 - `WEBAPI_PUBLIC_URL`: public HTTPS URL of the web UI.
 - `WEBAPI_ALLOWED_ORIGINS`: the same public HTTPS origin as `WEBAPI_PUBLIC_URL`.
 - `WEBAPI_SESSION_COOKIE_SECURE=true`: required for production HTTPS sessions.
-- `WEBUI_PORT`: host port exposed by the static web UI container.
+- `WEBUI_PORT`: loopback-only host port used by the server-level edge Caddy
+  to reach the static web UI container. Production currently uses `18083`;
+  do not publish this port on `0.0.0.0`.
 
 Feature-specific production values:
 
