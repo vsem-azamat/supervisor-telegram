@@ -52,18 +52,30 @@
 	}
 </script>
 
-<nav class="flex h-full w-56 shrink-0 flex-col border-r border-zinc-200 bg-zinc-50">
-	<div class="flex items-center gap-2 px-4 py-5">
-		<div class="flex h-7 w-7 items-center justify-center rounded-md bg-zinc-900 text-white">
+<nav
+	class="flex h-full w-60 shrink-0 flex-col border-r"
+	style="border-color: var(--shell-border); background: var(--shell-sidebar); color: var(--shell-sidebar-foreground);"
+>
+	<div class="flex items-center gap-2.5 px-4 py-5">
+		<div
+			class="flex h-8 w-8 items-center justify-center rounded-md"
+			style="background: var(--shell-sidebar-active); color: var(--shell-sidebar-active-foreground);"
+		>
 			<Hash class="h-4 w-4" />
 		</div>
-		<span class="text-sm font-semibold tracking-tight text-zinc-900">Konnekt admin</span>
+		<div class="min-w-0">
+			<div class="text-sm font-semibold">Konnekt</div>
+			<div class="text-[11px]" style="color: var(--shell-sidebar-muted);">Admin console</div>
+		</div>
 	</div>
 
-	<div class="flex flex-col gap-4 px-2 pb-4">
+	<div class="flex flex-col gap-4 px-2.5 pb-4">
 		{#each groups as group (group.label)}
 			<div class="flex flex-col gap-0.5">
-				<div class="px-3 pb-1 text-[10px] font-semibold tracking-wider text-zinc-400 uppercase">
+				<div
+					class="px-3 pb-1 text-[10px] font-semibold tracking-wider uppercase"
+					style="color: var(--shell-sidebar-muted);"
+				>
 					{group.label}
 				</div>
 				{#each group.items as item (item.href)}
@@ -71,10 +83,16 @@
 					{@const active = isActive(item.href)}
 					<a
 						href={item.href}
-						class="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors
-							{active ? 'bg-zinc-900 text-white' : 'text-zinc-700 hover:bg-zinc-200'}"
+						class="nav-link flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors"
+						class:active
+						style={active
+							? 'background: var(--shell-sidebar-active); color: var(--shell-sidebar-active-foreground);'
+							: 'color: var(--shell-sidebar-foreground);'}
 					>
-						<Icon class="h-4 w-4 shrink-0 {active ? 'text-white' : 'text-zinc-500'}" />
+						<Icon
+							class="h-4 w-4 shrink-0"
+							style={active ? '' : 'color: var(--shell-sidebar-muted);'}
+						/>
 						<span>{item.label}</span>
 					</a>
 				{/each}
@@ -82,3 +100,9 @@
 		{/each}
 	</div>
 </nav>
+
+<style>
+	.nav-link:not(.active):hover {
+		background: var(--shell-sidebar-hover);
+	}
+</style>

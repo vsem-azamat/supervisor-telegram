@@ -10,11 +10,13 @@
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"test:e2e": "playwright test",
 		"api:sync": "openapi-typescript http://127.0.0.1:8787/api/openapi.json -o src/lib/api/types.ts"
 	},
 	"devDependencies": {
 		"@internationalized/date": "^3.12.1",
 		"@lucide/svelte": "^1.8.0",
+		"@playwright/test": "^1.60.0",
 		"@sveltejs/adapter-auto": "^7.0.1",
 		"@sveltejs/adapter-static": "^3.0.10",
 		"@sveltejs/kit": "^2.57.0",

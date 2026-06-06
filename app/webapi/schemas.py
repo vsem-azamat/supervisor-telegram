@@ -96,6 +96,14 @@ class PublicCatalogItem(BaseModel):
     subtitle: str | None = None
 
 
+class AuthConfigResponse(BaseModel):
+    """Public, non-secret auth configuration for the login UI."""
+
+    auth_mode: Literal["telegram", "magic_link"]
+    bot_username: str | None = None
+    bot_start_url: str | None = None
+
+
 class ChannelSourceRead(BaseModel):
     """RSS source attached to a channel."""
 

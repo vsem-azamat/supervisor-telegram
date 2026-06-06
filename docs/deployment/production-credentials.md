@@ -51,6 +51,10 @@ Feature-specific production values:
 - `SPONSORED_ADS_MODERATOR_CHAT_ID` and `SPONSORED_ADS_SALES_CONTACT`: required
   for the sponsored-ads funnel to send review alerts and show a sales contact.
 
+Production and remote development must use different Telegram bot tokens. The
+web-admin magic-link Telegram payload is the code-owned `/start web_admin_login`
+contract and is not a credential or production environment variable.
+
 ## Dev Values To Remove From Production
 
 These values are development-only or stale and should not be present in the VPS

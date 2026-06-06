@@ -39,18 +39,20 @@
 {#if page.url.pathname === '/login'}
 	{@render children()}
 {:else if publicPath && !auth.me}
-	<div class="min-h-screen bg-zinc-50 text-zinc-900">
-		<header class="border-b border-zinc-200 bg-white">
+	<div class="min-h-screen bg-background text-foreground">
+		<header class="border-b bg-card">
 			<div class="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
 				<div class="flex items-center gap-2">
-					<div class="flex h-7 w-7 items-center justify-center rounded-md bg-zinc-900 text-sm font-semibold text-white">
+					<div
+						class="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-sm font-semibold text-primary-foreground"
+					>
 						K
 					</div>
-					<span class="text-sm font-semibold tracking-tight text-zinc-900">Konnekt</span>
+					<span class="text-sm font-semibold text-foreground">Konnekt</span>
 				</div>
 				<a
 					href="/login"
-					class="rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
+					class="rounded-md border bg-card px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
 				>
 					Admin sign in
 				</a>
@@ -61,15 +63,17 @@
 		</main>
 	</div>
 {:else if !auth.initialized}
-	<div class="flex min-h-screen items-center justify-center text-sm text-zinc-400">Loading…</div>
+	<div class="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
+		Loading…
+	</div>
 {:else if !auth.me}
 	<!-- The effect above has already started navigation away from this protected route. -->
 {:else}
-	<div class="flex h-screen w-screen bg-white text-zinc-900">
+	<div class="flex h-screen w-screen bg-background text-foreground">
 		<Sidebar />
 		<div class="flex min-w-0 flex-1 flex-col">
 			<Header onLogout={doLogout} />
-			<main class="flex-1 overflow-auto">
+			<main class="app-page flex-1 overflow-auto">
 				{@render children()}
 			</main>
 		</div>

@@ -114,3 +114,9 @@ jobs:
 
     - name: Build webui
       run: pnpm --dir webui run build
+
+    - name: Install Playwright browsers
+      run: pnpm --dir webui exec playwright install --with-deps chromium
+
+    - name: Test webui e2e
+      run: pnpm --dir webui run test:e2e

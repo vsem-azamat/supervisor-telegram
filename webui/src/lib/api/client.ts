@@ -2,7 +2,8 @@
  * Thin typed fetch wrapper. Call sites get back { data } on success or
  * { error } on failure — forces them to handle the failure path.
  *
- * The frontend hits same-origin /api/* which Vite proxies to FastAPI.
+ * The frontend hits same-origin /api/*. Local Vite, production Caddy, or the
+ * remote dev edge proxy owns the final hop to FastAPI.
  */
 
 export type ApiResult<T> = { data: T; error: null } | { data: null; error: ApiError };

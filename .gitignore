@@ -179,5 +179,6 @@ scripts/*
 !scripts/wait_for_postgres.sh
 !scripts/entrypoint.sh
 !scripts/backfill_embeddings.py
+!scripts/smoke_web_origin.py
 docs/archive/
 .claude/
