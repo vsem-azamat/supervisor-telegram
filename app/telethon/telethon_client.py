@@ -122,12 +122,29 @@ class TelethonClient:
         """
         try:
             self._client = self._create_client()
+            await self._client.connect()
+            if await self._client.is_user_authorized():
+                self._connected = True
+                logger.info("Telethon client started successfully")
+                return
+
+            if not self.settings.phone:
+                msg = "TELETHON_PHONE is required for first-time Telethon auth"
+                raise ValueError(msg)
+
             await self._client.start(phone=self.settings.phone)
             self._connected = True
             logger.info("Telethon client started successfully")
         except Exception:
             logger.error("Failed to start Telethon client", exc_info=True)
             self._connected = False
+            if self._client is not None:
+                try:
+                    await self._client.disconnect()
+                except Exception:
+                    logger.error("Error disconnecting failed Telethon client", exc_info=True)
+                finally:
+                    self._client = None
             raise
 
     async def stop(self) -> None:

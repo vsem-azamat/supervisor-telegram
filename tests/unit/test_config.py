@@ -70,3 +70,9 @@ def test_init_telethon_wires_client_without_enabled_flag(monkeypatch: pytest.Mon
 
     assert client is not None
     assert container.get_telethon_client() is client
+
+
+def test_telethon_empty_phone_is_treated_as_missing() -> None:
+    settings = TelethonSettings(api_id=1, api_hash="hash", session_name="test_session", phone="")
+
+    assert settings.phone is None

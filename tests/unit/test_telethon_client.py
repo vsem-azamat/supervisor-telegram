@@ -30,6 +30,8 @@ def enabled_settings():
 def mock_telegram_client():
     """Mock Telethon TelegramClient."""
     client = AsyncMock()
+    client.connect = AsyncMock()
+    client.is_user_authorized = AsyncMock(return_value=False)
     client.start = AsyncMock()
     client.disconnect = AsyncMock()
     return client
@@ -60,13 +62,50 @@ class TestInitialization:
 
 
 class TestLifecycle:
-    async def test_start_connects(self, enabled_settings, mock_telegram_client):
+    async def test_start_uses_authorized_session_without_phone(self, mock_telegram_client):
+        settings = TelethonSettings(
+            api_id=12345,
+            api_hash="test_hash",
+            session_name="test_session",
+            phone=None,
+        )
+        mock_telegram_client.is_user_authorized.return_value = True
+        tc = TelethonClient(settings=settings)
+        with patch.object(tc, "_create_client", return_value=mock_telegram_client):
+            await tc.start()
+        assert tc._connected
+        assert tc._client is mock_telegram_client
+        mock_telegram_client.connect.assert_awaited_once()
+        mock_telegram_client.is_user_authorized.assert_awaited_once()
+        mock_telegram_client.start.assert_not_awaited()
+
+    async def test_start_connects_with_phone_for_first_time_auth(self, enabled_settings, mock_telegram_client):
         tc = TelethonClient(settings=enabled_settings)
         with patch.object(tc, "_create_client", return_value=mock_telegram_client):
             await tc.start()
         assert tc._connected
         assert tc._client is mock_telegram_client
+        mock_telegram_client.connect.assert_awaited_once()
+        mock_telegram_client.is_user_authorized.assert_awaited_once()
         mock_telegram_client.start.assert_awaited_once_with(phone="+1234567890")
+
+    async def test_start_requires_phone_when_session_is_not_authorized(self, mock_telegram_client):
+        settings = TelethonSettings(
+            api_id=12345,
+            api_hash="test_hash",
+            session_name="test_session",
+            phone=None,
+        )
+        tc = TelethonClient(settings=settings)
+        with patch.object(tc, "_create_client", return_value=mock_telegram_client):
+            with pytest.raises(ValueError, match="TELETHON_PHONE is required"):
+                await tc.start()
+        assert not tc._connected
+        assert tc._client is None
+        mock_telegram_client.connect.assert_awaited_once()
+        mock_telegram_client.is_user_authorized.assert_awaited_once()
+        mock_telegram_client.start.assert_not_awaited()
+        mock_telegram_client.disconnect.assert_awaited_once()
 
     async def test_start_failure_sets_not_connected(self, enabled_settings, mock_telegram_client):
         mock_telegram_client.start.side_effect = ConnectionError("network down")
@@ -75,6 +114,8 @@ class TestLifecycle:
             with pytest.raises(ConnectionError):
                 await tc.start()
         assert not tc._connected
+        assert tc._client is None
+        mock_telegram_client.disconnect.assert_awaited_once()
 
     async def test_stop_disconnects(self, telethon_client_enabled, mock_telegram_client):
         await telethon_client_enabled.stop()

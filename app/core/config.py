@@ -286,6 +286,17 @@ class TelethonSettings(BaseSettings):
     session_name: str = Field(default="moderator_userbot", description="Session file name")
     phone: str | None = Field(default=None, description="Phone number for initial auth")
 
+    @field_validator("phone", mode="before")
+    @classmethod
+    def normalize_empty_phone(cls, v: object) -> str | None:
+        """Treat an empty env value as no first-time login phone."""
+        if v is None:
+            return None
+        if isinstance(v, str):
+            stripped = v.strip()
+            return stripped or None
+        return str(v)
+
     model_config = SettingsConfigDict(
         env_prefix="TELETHON_",
         case_sensitive=False,
