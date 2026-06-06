@@ -37,8 +37,6 @@ Required production values:
   enabled.
 - `WEBAPI_PUBLIC_URL`: public HTTPS URL of the web UI.
 - `WEBAPI_ALLOWED_ORIGINS`: the same public HTTPS origin as `WEBAPI_PUBLIC_URL`.
-- `WEBAPI_LOGIN_START_PAYLOAD`: Telegram `/start` payload used for the trusted
-  web login request. Required when `WEBAPI_AUTH_MODE=magic_link`.
 - `WEBAPI_SESSION_COOKIE_SECURE=true`: required for production HTTPS sessions.
 - `WEBUI_PORT`: host port exposed by the static web UI container.
 
@@ -50,6 +48,10 @@ Feature-specific production values:
   required only when `TELETHON_ENABLED=true`.
 - `SPONSORED_ADS_MODERATOR_CHAT_ID` and `SPONSORED_ADS_SALES_CONTACT`: required
   for the sponsored-ads funnel to send review alerts and show a sales contact.
+
+Production and remote development must use different Telegram bot tokens. The
+web-admin magic-link Telegram payload is the code-owned `/start web_admin_login`
+contract and is not a credential or production environment variable.
 
 ## Dev Values To Remove From Production
 
@@ -77,8 +79,8 @@ When preparing real production:
 6. Recreate the Telethon session only if the existing session was used for
    development or belongs to the wrong Telegram account.
 7. Remove `TELETHON_PHONE` after Telethon login succeeds.
-8. Set `WEBAPI_PUBLIC_URL`, `WEBAPI_ALLOWED_ORIGINS`,
-   `WEBAPI_LOGIN_START_PAYLOAD`, and `WEBAPI_SESSION_COOKIE_SECURE=true`.
+8. Set `WEBAPI_PUBLIC_URL`, `WEBAPI_ALLOWED_ORIGINS`, and
+   `WEBAPI_SESSION_COOKIE_SECURE=true`.
 9. Restart with `docker compose up -d --remove-orphans`.
 10. Check `docker compose ps` and `docker compose logs --tail=100`.
 

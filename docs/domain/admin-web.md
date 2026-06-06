@@ -21,15 +21,15 @@ The web surface has a public read layer and an authenticated admin layer.
   configured in BotFather. `magic_link` mode must not load the Telegram widget;
   it should accept a one-time token from the URL and otherwise offer a Telegram
   bot deep link that asks the bot to issue a trusted magic link.
-- The Telegram bot deep link for web admin login is built from the configured
-  `WEBAPI_LOGIN_START_PAYLOAD` and the moderator bot username. The username is
-  resolved from `MODERATOR_BOT_TOKEN` through Telegram `getMe()` and cached for
-  the process. In `magic_link` mode, the bot may issue a one-time web login URL
-  only to the configured main super admin. It must not put reusable credentials
-  or raw session values in the public login page.
-- The web-login `/start` payload must stay in the bot's web-admin namespace and
-  must not collide with public advertising deep links such as `ads` or
-  `adlead_*`.
+- The Telegram bot deep link for web admin login uses the code-owned
+  `/start web_admin_login` payload and the moderator bot username. The username
+  is resolved from `MODERATOR_BOT_TOKEN` through Telegram `getMe()` and cached
+  for the process. In `magic_link` mode, the bot may issue a one-time web login
+  URL only to the configured main super admin. It must not put reusable
+  credentials or raw session values in the public login page.
+- Production and remote development must use separate Telegram bot tokens. The
+  web-login `/start` payload is not an environment-specific routing knob; bot
+  identity separates environments.
 
 ## Tests
 
@@ -41,7 +41,7 @@ The web surface has a public read layer and an authenticated admin layer.
   selected mode without exposing secrets or admin-only fields.
 - Magic-link UI tests must prove the login page offers the bot deep link without
   loading Telegram Login Widget.
-- Telegram handler tests must prove the configured web-login deep link issues a
+- Telegram handler tests must prove the web-login deep link issues a
   one-time web login URL only through the trusted bot conversation.
 - UI tests should preserve the distinction between public browsing and
   authenticated administration.

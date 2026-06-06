@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.web_admin_auth import WEB_ADMIN_LOGIN_START_PAYLOAD
 from app.db import magic_link_store
 from app.db.repositories import AdminRepository
 from app.db.session import create_session_maker
@@ -19,11 +20,10 @@ logger = get_logger("handlers.start")
 
 
 class WebAdminLoginStartFilter(BaseFilter):
-    """Match the configured web-admin Telegram /start payload at runtime."""
+    """Match the web-admin Telegram /start payload."""
 
     async def __call__(self, _message: types.Message, command: CommandObject) -> bool:
-        payload = settings.webapi.login_start_payload.strip()
-        return bool(payload and command.args == payload)
+        return command.args == WEB_ADMIN_LOGIN_START_PAYLOAD
 
 
 @router.message(CommandStart(deep_link=True, magic=F.args.regexp(r"^adlead_\d+$")))

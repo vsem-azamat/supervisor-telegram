@@ -26,6 +26,10 @@ BotFather for the bot used by the UI. If the domain is not configured in
 BotFather, use `WEBAPI_AUTH_MODE=magic_link` for that environment instead of
 loading the Telegram widget.
 
+Remote development must use a development Telegram bot token. Do not point a
+remote development instance at the production `MODERATOR_BOT_TOKEN`; Telegram
+updates and Bot API writes belong to the bot token, not to the web domain.
+
 ## Web Smoke Check
 
 After changing web routing, auth mode, TLS, or public domain configuration, run

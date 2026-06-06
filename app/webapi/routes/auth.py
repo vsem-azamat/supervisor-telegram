@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.web_admin_auth import WEB_ADMIN_LOGIN_START_PAYLOAD
 from app.db import magic_link_store
 from app.webapi.auth import session_store
 from app.webapi.auth.telegram_login import LoginWidgetError, verify_login_payload
@@ -72,11 +73,6 @@ async def _login_bot_username() -> str | None:
     return _login_bot_username_cache
 
 
-def _login_start_payload() -> str | None:
-    payload = settings.webapi.login_start_payload.strip()
-    return payload or None
-
-
 @cache
 def _bot_start_url(username: str, payload: str) -> str:
     return f"https://t.me/{username}?start={payload}"
@@ -85,10 +81,9 @@ def _bot_start_url(username: str, payload: str) -> str:
 @router.get("/config", response_model_exclude_none=True)
 async def auth_config() -> AuthConfigResponse:
     username = await _login_bot_username()
-    payload = _login_start_payload()
     bot_start_url = None
-    if settings.webapi.auth_mode == "magic_link" and username and payload:
-        bot_start_url = _bot_start_url(username, payload)
+    if settings.webapi.auth_mode == "magic_link" and username:
+        bot_start_url = _bot_start_url(username, WEB_ADMIN_LOGIN_START_PAYLOAD)
     return AuthConfigResponse(
         auth_mode=settings.webapi.auth_mode,
         bot_username=username,

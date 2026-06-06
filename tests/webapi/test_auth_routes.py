@@ -39,12 +39,10 @@ def client_factory(db_session_maker: async_sessionmaker[AsyncSession]):
     orig_admins = list(settings.admin.super_admins)
     orig_token = settings.telegram.token
     orig_auth_mode = settings.webapi.auth_mode
-    orig_login_start_payload = settings.webapi.login_start_payload
     orig_secure = settings.webapi.session_cookie_secure
     settings.admin.super_admins = [268388996]
     settings.telegram.token = "test:bot:token"  # noqa: S105
     settings.webapi.auth_mode = "telegram"
-    settings.webapi.login_start_payload = "web_admin_login"
     settings.webapi.session_cookie_secure = False
     from app.webapi.deps import require_super_admin
 
@@ -59,7 +57,6 @@ def client_factory(db_session_maker: async_sessionmaker[AsyncSession]):
     settings.admin.super_admins = orig_admins
     settings.telegram.token = orig_token
     settings.webapi.auth_mode = orig_auth_mode
-    settings.webapi.login_start_payload = orig_login_start_payload
     settings.webapi.session_cookie_secure = orig_secure
     auth_routes._clear_login_bot_username_cache()
 
@@ -78,7 +75,6 @@ async def test_auth_config_returns_current_auth_mode(client_factory, monkeypatch
 
     monkeypatch.setattr(auth_routes, "_fetch_login_bot_username", fake_fetch_bot_username)
     settings.webapi.auth_mode = "magic_link"
-    settings.webapi.login_start_payload = "admin_login_dev"
 
     async with client_factory() as client:
         resp = await client.get("/api/auth/config")
@@ -87,7 +83,7 @@ async def test_auth_config_returns_current_auth_mode(client_factory, monkeypatch
     assert resp.json() == {
         "auth_mode": "magic_link",
         "bot_username": "dynamic_bot",
-        "bot_start_url": "https://t.me/dynamic_bot?start=admin_login_dev",
+        "bot_start_url": "https://t.me/dynamic_bot?start=web_admin_login",
     }
 
 
@@ -106,7 +102,6 @@ async def test_auth_config_resolves_bot_username_from_token_once(
     auth_routes._clear_login_bot_username_cache()
     monkeypatch.setattr(auth_routes, "_fetch_login_bot_username", fake_fetch_bot_username)
     settings.webapi.auth_mode = "magic_link"
-    settings.webapi.login_start_payload = "resolved_payload"
 
     async with client_factory() as client:
         first = await client.get("/api/auth/config")
@@ -116,7 +111,7 @@ async def test_auth_config_resolves_bot_username_from_token_once(
     assert first.json() == {
         "auth_mode": "magic_link",
         "bot_username": "resolved_bot",
-        "bot_start_url": "https://t.me/resolved_bot?start=resolved_payload",
+        "bot_start_url": "https://t.me/resolved_bot?start=web_admin_login",
     }
     assert second.json() == first.json()
     assert calls == 1
@@ -137,7 +132,6 @@ async def test_auth_config_without_bot_username_degrades_when_get_me_fails(
     auth_routes._clear_login_bot_username_cache()
     monkeypatch.setattr(auth_routes, "_fetch_login_bot_username", fail_fetch_bot_username)
     settings.webapi.auth_mode = "magic_link"
-    settings.webapi.login_start_payload = "resolved_payload"
 
     async with client_factory() as client:
         first = await client.get("/api/auth/config")
@@ -170,7 +164,6 @@ async def test_auth_config_does_not_expose_secrets_or_admins(client_factory, mon
         "session_cookie_name",
         "session_cookie_secure",
         "public_url",
-        "login_start_payload",
     }
     assert body == {"auth_mode": "telegram", "bot_username": "resolved_bot"}
     assert forbidden.isdisjoint(body)

@@ -56,9 +56,7 @@ async def test_start_ads_info_sends_rate_card() -> None:
     message.answer.assert_awaited_once()
 
 
-async def test_start_web_admin_login_router_matches_configured_payload(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(settings.webapi, "login_start_payload", "web_admin_login")
-
+async def test_start_web_admin_login_router_matches_web_admin_payload() -> None:
     assert await _handler_filters_match("start_web_admin_login", _start_message("web_admin_login"))
     assert not await _handler_filters_match("start_web_admin_login", _start_message("ads"))
     assert not await _handler_filters_match("start_web_admin_login", _start_message("adlead_123"))
