@@ -91,8 +91,8 @@ class TelethonClient:
     - Message search within chats
     - Message forwarding
 
-    All methods are no-ops when the client is disabled or not connected.
-    FloodWait errors are handled automatically with exponential backoff.
+    All methods are no-ops when the client is not connected. FloodWait errors
+    are handled automatically with exponential backoff.
     """
 
     settings: TelethonSettings
@@ -111,20 +111,15 @@ class TelethonClient:
 
     @property
     def is_available(self) -> bool:
-        """Check if the client is enabled and connected."""
-        return self.settings.enabled and self._connected
+        """Check if the client is connected."""
+        return self._connected and self._client is not None
 
     async def start(self) -> None:
         """Connect and start the Telethon client.
 
-        Does nothing if the client is disabled in settings.
         For first-time auth, settings.phone must be provided
         and interactive terminal access is required.
         """
-        if not self.settings.enabled:
-            logger.info("Telethon client disabled, skipping start")
-            return
-
         try:
             self._client = self._create_client()
             await self._client.start(phone=self.settings.phone)
@@ -726,8 +721,8 @@ class TelethonClient:
         """Return a {message_id: view_count} map for the given messages.
 
         Missing or deleted messages are omitted. Returns an empty dict when
-        Telethon is disabled or not connected, so callers can treat
-        unavailability as "zero data" rather than an error.
+        Telethon is not connected, so callers can treat unavailability as
+        "zero data" rather than an error.
         """
         if not self.is_available or self._client is None or not message_ids:
             return {}

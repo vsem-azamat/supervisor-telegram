@@ -5,7 +5,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 import pytest
-from app.core.config import ModerationSettings
+from app.core.config import ModerationSettings, TelethonSettings
 
 # ---------------------------------------------------------------------------
 # ModerationSettings validation
@@ -53,3 +53,20 @@ class TestContainerTryGetBot:
         c = Container()
         with pytest.raises(ValueError, match="Bot not set"):
             c.get_bot()
+
+
+def test_init_telethon_wires_client_without_enabled_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.core.container import container
+    from app.presentation.telegram import bot as telegram_bot
+
+    monkeypatch.setattr(container, "_telethon_client", None, raising=False)
+    monkeypatch.setattr(
+        telegram_bot.settings,
+        "telethon",
+        TelethonSettings(api_id=1, api_hash="hash", session_name="test_session", phone=None),
+    )
+
+    client = telegram_bot._init_telethon()
+
+    assert client is not None
+    assert container.get_telethon_client() is client

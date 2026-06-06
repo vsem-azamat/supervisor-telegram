@@ -16,25 +16,12 @@ from app.telethon.telethon_client import (
 
 
 @pytest.fixture
-def disabled_settings():
-    """TelethonSettings with enabled=False."""
-    return TelethonSettings(
-        api_id=12345,
-        api_hash="test_hash",
-        session_name="test_session",
-        enabled=False,
-        phone=None,
-    )
-
-
-@pytest.fixture
 def enabled_settings():
-    """TelethonSettings with enabled=True."""
+    """TelethonSettings with valid connection settings."""
     return TelethonSettings(
         api_id=12345,
         api_hash="test_hash",
         session_name="test_session",
-        enabled=True,
         phone="+1234567890",
     )
 
@@ -46,12 +33,6 @@ def mock_telegram_client():
     client.start = AsyncMock()
     client.disconnect = AsyncMock()
     return client
-
-
-@pytest.fixture
-def telethon_client_disabled(disabled_settings):
-    """TelethonClient in disabled state."""
-    return TelethonClient(settings=disabled_settings)
 
 
 @pytest.fixture
@@ -67,11 +48,6 @@ def telethon_client_enabled(enabled_settings, mock_telegram_client):
 
 
 class TestInitialization:
-    def test_disabled_client_not_available(self, telethon_client_disabled):
-        assert not telethon_client_disabled.is_available
-        assert telethon_client_disabled._client is None
-        assert not telethon_client_disabled._connected
-
     def test_enabled_connected_client_is_available(self, telethon_client_enabled):
         assert telethon_client_enabled.is_available
 
@@ -84,12 +60,7 @@ class TestInitialization:
 
 
 class TestLifecycle:
-    async def test_start_disabled_is_noop(self, telethon_client_disabled):
-        await telethon_client_disabled.start()
-        assert not telethon_client_disabled._connected
-        assert telethon_client_disabled._client is None
-
-    async def test_start_enabled_connects(self, enabled_settings, mock_telegram_client):
+    async def test_start_connects(self, enabled_settings, mock_telegram_client):
         tc = TelethonClient(settings=enabled_settings)
         with patch.object(tc, "_create_client", return_value=mock_telegram_client):
             await tc.start()
@@ -111,9 +82,9 @@ class TestLifecycle:
         assert not telethon_client_enabled._connected
         assert telethon_client_enabled._client is None
 
-    async def test_stop_when_not_started_is_safe(self, telethon_client_disabled):
+    async def test_stop_when_not_started_is_safe(self, enabled_settings):
         # Should not raise
-        await telethon_client_disabled.stop()
+        await TelethonClient(settings=enabled_settings).stop()
 
     async def test_stop_handles_disconnect_error(self, telethon_client_enabled, mock_telegram_client):
         mock_telegram_client.disconnect.side_effect = RuntimeError("disconnect failed")
@@ -123,11 +94,11 @@ class TestLifecycle:
         assert telethon_client_enabled._client is None
 
 
-# --- Disabled state no-op tests ---
+# --- Not-connected no-op tests ---
 
 
-class TestDisabledNoOp:
-    """All data methods should return empty results when disabled."""
+class TestNotConnectedNoOp:
+    """All data methods should return empty results when not connected."""
 
     @pytest.mark.parametrize(
         ("method", "args", "expected"),
@@ -144,8 +115,9 @@ class TestDisabledNoOp:
             ("send_message", (123, "hello"), None),
         ],
     )
-    async def test_disabled_returns_empty(self, telethon_client_disabled, method, args, expected):
-        result = await getattr(telethon_client_disabled, method)(*args)
+    async def test_not_connected_returns_empty(self, enabled_settings, method, args, expected):
+        client = TelethonClient(settings=enabled_settings)
+        result = await getattr(client, method)(*args)
         assert result == expected
 
 
@@ -341,24 +313,6 @@ class TestForwardMessages:
         assert len(result) == 1
         assert result[0].message_id == 10
         assert result[0].chat_id == 456
-
-
-class TestNotConnectedNoOp:
-    """Methods should return empty results when enabled but not connected."""
-
-    @pytest.mark.parametrize(
-        ("method", "args", "expected"),
-        [
-            ("create_supergroup", ("Test",), None),
-            ("add_chat_admin", (123, 456), False),
-            ("invite_to_chat", (123, 456), False),
-            ("send_message", (123, "hello"), None),
-        ],
-    )
-    async def test_not_connected_returns_empty(self, enabled_settings, method, args, expected):
-        tc = TelethonClient(settings=enabled_settings)
-        result = await getattr(tc, method)(*args)
-        assert result == expected
 
 
 class TestCreateSupergroup:

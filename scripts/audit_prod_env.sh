@@ -80,6 +80,7 @@ case "$(value_of WEBAPI_PUBLIC_URL)" in
   *localhost:5173*) echo "WEBAPI_PUBLIC_URL contains localhost:5173" >> "$tmp_dir/dev.keys" ;;
 esac
 has_key WEBAPI_DEV_BYPASS_AUTH && echo "WEBAPI_DEV_BYPASS_AUTH is obsolete" >> "$tmp_dir/dev.keys"
+has_key TELETHON_ENABLED && echo "TELETHON_ENABLED is obsolete" >> "$tmp_dir/dev.keys"
 has_key TELETHON_PHONE && echo "TELETHON_PHONE should be removed after first login" >> "$tmp_dir/dev.keys"
 print_keys_or_ok "$tmp_dir/dev.keys"
 
@@ -105,10 +106,8 @@ if is_true CHANNEL_BRAVE_DISCOVERY_ENABLED && { ! has_key BRAVE_API_KEY || is_em
   echo "BRAVE_API_KEY (required by CHANNEL_BRAVE_DISCOVERY_ENABLED=true)" >> "$tmp_dir/empty.keys"
 fi
 
-if is_true TELETHON_ENABLED; then
-  if [ "$(value_of TELETHON_API_ID)" = "0" ] || is_empty TELETHON_API_HASH; then
-    echo "TELETHON_API_ID/TELETHON_API_HASH (required by TELETHON_ENABLED=true)" >> "$tmp_dir/empty.keys"
-  fi
+if [ "$(value_of TELETHON_API_ID)" = "0" ] || is_empty TELETHON_API_HASH; then
+  echo "TELETHON_API_ID/TELETHON_API_HASH" >> "$tmp_dir/empty.keys"
 fi
 
 if is_true SPONSORED_ADS_ENABLED; then

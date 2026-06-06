@@ -284,7 +284,6 @@ class TelethonSettings(BaseSettings):
     api_id: int = Field(default=0, description="API ID from https://my.telegram.org")
     api_hash: str = Field(default="", description="API hash from https://my.telegram.org")
     session_name: str = Field(default="moderator_userbot", description="Session file name")
-    enabled: bool = Field(default=False, description="Enable Telethon client")
     phone: str | None = Field(default=None, description="Phone number for initial auth")
 
     model_config = SettingsConfigDict(

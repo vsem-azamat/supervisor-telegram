@@ -39,13 +39,13 @@ Required production values:
 - `WEBAPI_ALLOWED_ORIGINS`: the same public HTTPS origin as `WEBAPI_PUBLIC_URL`.
 - `WEBAPI_SESSION_COOKIE_SECURE=true`: required for production HTTPS sessions.
 - `WEBUI_PORT`: host port exposed by the static web UI container.
+- `TELETHON_API_ID`, `TELETHON_API_HASH`, and `moderator_userbot.session`:
+  Telethon userbot credentials/session for Client API features.
 
 Feature-specific production values:
 
 - `ASSISTANT_BOT_TOKEN`: required only when `ASSISTANT_BOT_ENABLED=true`.
 - `BRAVE_API_KEY`: required only when Brave-backed discovery is enabled.
-- `TELETHON_API_ID`, `TELETHON_API_HASH`, and `moderator_userbot.session`:
-  required only when `TELETHON_ENABLED=true`.
 - `SPONSORED_ADS_MODERATOR_CHAT_ID` and `SPONSORED_ADS_SALES_CONTACT`: required
   for the sponsored-ads funnel to send review alerts and show a sales contact.
 
@@ -64,6 +64,7 @@ production `.env`:
 - `WEBAPI_ALLOWED_ORIGINS=http://localhost:5173`
 - `WEBAPI_PUBLIC_URL=http://localhost:5173`
 - `WEBAPI_DEV_BYPASS_AUTH` - obsolete and ignored by current code.
+- `TELETHON_ENABLED` - obsolete and ignored by current code.
 - `TELETHON_PHONE` after the first Telethon login has completed.
 - Any token created for local testing or a development bot.
 
