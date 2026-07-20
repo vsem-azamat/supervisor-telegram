@@ -16,6 +16,17 @@ if TYPE_CHECKING:
 
 logger = get_logger("assistant.tools.channel.pipeline")
 
+# Ad-hoc generation failures, rendered for the assistant's Russian-speaking
+# operator. Values may reference {channel_id}.
+_ADHOC_FAILURE_TEXT = {
+    "empty_topic": "Укажите тему или текст для генерации поста.",
+    "channel_not_found": "Канал {channel_id} не найден в базе.",
+    "generation_failed": "Не удалось сгенерировать пост. Проверьте логи.",
+    "generation_empty": "Генерация не вернула результат. Попробуйте другую тему.",
+    "review_send_failed": "Пост сгенерирован, но не удалось отправить на ревью.",
+    "publish_failed": "Пост сгенерирован, но публикация не удалась.",
+}
+
 
 def register_pipeline_tools(agent: Agent[AssistantDeps, str]) -> None:
     """Register pipeline/content tools on the agent."""
@@ -142,109 +153,24 @@ def register_pipeline_tools(agent: Agent[AssistantDeps, str]) -> None:
         source_url: str = "",
     ) -> str:
         """Generate a styled post from a topic and send it for admin review. Use after search_news to turn a found article into a post. IMPORTANT: topic must contain the FULL details of the specific news story — title, key facts, context. Do NOT pass a vague summary. source_url: the article URL from search results (pass it!)."""
-        from hashlib import sha256
-
-        from sqlalchemy import select
-
-        from app.channel.config import language_name
-        from app.channel.exceptions import GenerationError
-        from app.channel.generator import generate_post as _generate
-        from app.channel.sources import ContentItem
-        from app.core.config import settings
-        from app.db.models import Channel
+        from app.channel.adhoc import generate_for_review
 
         error = await _validate_channel_id(ctx, channel_id)
         if error:
             return error
 
-        if not topic.strip():
-            return "Укажите тему или текст для генерации поста."
-
-        async with ctx.deps.session_maker() as session:
-            result = await session.execute(select(Channel).where(Channel.telegram_id == channel_id))
-            channel = result.scalar_one_or_none()
-
-        if not channel:
-            return f"Канал {channel_id} не найден в базе."
-
-        ext_id = sha256(f"{channel_id}:{topic[:100]}".encode()).hexdigest()[:16]
-        item = ContentItem(
-            source_url=source_url or "assistant",
-            external_id=ext_id,
-            title=topic[:200],
-            body=topic,
-            url=source_url or None,
+        result = await generate_for_review(
+            session_maker=ctx.deps.session_maker,
+            review_bot=ctx.deps.review_bot or ctx.deps.main_bot,
+            publish_bot=ctx.deps.main_bot,
+            channel_id=channel_id,
+            topic=topic,
+            source_url=source_url,
         )
 
-        api_key = settings.openrouter.api_key
-        gen_model = settings.channel.generation_model
-        lang = language_name(channel.language)
-
-        channel_context = ""
-        if channel.discovery_query:
-            channel_context = f"Channel focus: {channel.discovery_query}"
-
-        try:
-            post = await _generate(
-                [item],
-                api_key=api_key,
-                model=gen_model,
-                language=lang,
-                footer=channel.footer,
-                channel_name=channel.name,
-                channel_context=channel_context,
-                channel_id=channel_id,
-                session_maker=ctx.deps.session_maker,
-                vision_model=settings.channel.vision_model,
-                phash_threshold=settings.channel.image_phash_threshold,
-                phash_lookback=settings.channel.image_phash_lookback_posts,
-            )
-        except GenerationError:
-            logger.exception("generate_and_review_failed", channel_id=channel_id)
-            return "Не удалось сгенерировать пост. Проверьте логи."
-        except Exception:
-            logger.exception("generate_and_review_failed", channel_id=channel_id)
-            return "Не удалось сгенерировать пост. Проверьте логи."
-
-        if not post:
-            return "Генерация не вернула результат. Попробуйте другую тему."
-
-        review_chat_id = channel.review_chat_id
-        if review_chat_id:
-            from app.channel.review import send_for_review as _send_review
-
-            try:
-                post_id = await _send_review(
-                    bot=ctx.deps.review_bot or ctx.deps.main_bot,
-                    review_chat_id=review_chat_id,
-                    channel_id=channel_id,
-                    post=post,
-                    source_items=[item],
-                    session_maker=ctx.deps.session_maker,
-                    api_key=api_key,
-                    embedding_model=settings.channel.embedding_model,
-                    channel_name=channel.name,
-                    channel_username=channel.username,
-                )
-            except Exception:
-                logger.exception("generate_and_review_send_failed", channel_id=channel_id)
-                return "Пост сгенерирован, но не удалось отправить на ревью."
-
-            if not post_id:
-                return "Пост сгенерирован, но отправка на ревью не удалась."
-
-            preview = post.text[:300] + ("..." if len(post.text) > 300 else "")
-            return f"Пост #{post_id} отправлен на ревью.\n\nПревью:\n{preview}"
-        from app.channel.publisher import publish_post as _publish
-
-        try:
-            msg_id = await _publish(ctx.deps.main_bot, channel.telegram_id, post)
-        except Exception:
-            logger.exception("generate_and_review_publish_failed", channel_id=channel_id)
-            return "Пост сгенерирован, но публикация не удалась."
-
-        if not msg_id:
-            return "Пост сгенерирован, но публикация не удалась."
-
-        preview = post.text[:300] + ("..." if len(post.text) > 300 else "")
-        return f"Пост опубликован (нет review_chat_id). msg_id={msg_id}\n\nПревью:\n{preview}"
+        if result.status == "sent_for_review":
+            return f"Пост #{result.post_id} отправлен на ревью.\n\nПревью:\n{result.preview}"
+        if result.status == "published":
+            return f"Пост опубликован (нет review_chat_id). msg_id={result.message_id}\n\nПревью:\n{result.preview}"
+        template = _ADHOC_FAILURE_TEXT.get(result.status, "Не удалось выполнить генерацию.")
+        return template.format(channel_id=channel_id)
