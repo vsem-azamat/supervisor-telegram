@@ -269,6 +269,17 @@ class AssistantSettings(BaseSettings):
         description="Model for the assistant bot (channel/chat management)",
     )
 
+    @property
+    def active(self) -> bool:
+        """True when the assistant bot actually runs.
+
+        Load-bearing beyond the bot process: when the assistant is active it owns
+        the review inline-keyboard callbacks (``channel_review_router`` is attached
+        to its dispatcher), so anything sending a review message must use the same
+        bot identity or the buttons are delivered to a bot that cannot handle them.
+        """
+        return self.enabled and bool(self.token)
+
     model_config = SettingsConfigDict(
         env_prefix="ASSISTANT_BOT_",
         case_sensitive=False,
@@ -318,6 +329,42 @@ class SponsoredAdsSettings(BaseSettings):
     )
 
 
+class McpSettings(BaseSettings):
+    """MCP server exposed by the web API for external agent clients.
+
+    The MCP endpoint is a second admin control plane alongside the cookie-authed
+    web UI, so it is disabled unless both a token is set and ``MCP_ENABLED`` is
+    true. The token is a shared secret presented as ``Authorization: Bearer``;
+    it is not a user session and grants the fixed read-plus-review toolset only.
+    """
+
+    enabled: bool = Field(default=False, description="Mount the MCP endpoint on the web API")
+    token: str = Field(default="", description="Bearer token required by MCP clients")
+    path: str = Field(default="/api/mcp", description="Mount path for the MCP endpoint")
+    max_drafts_per_hour: int = Field(
+        default=10,
+        description="Cap on generate_and_send_for_review calls per hour (0 disables the cap)",
+    )
+
+    @property
+    def active(self) -> bool:
+        """True when the endpoint should actually be mounted.
+
+        An enabled-but-tokenless config is treated as inactive rather than as an
+        open endpoint: failing closed keeps a misconfigured deploy from exposing
+        admin tooling without authentication.
+        """
+        return self.enabled and bool(self.token)
+
+    model_config = SettingsConfigDict(
+        env_prefix="MCP_",
+        case_sensitive=False,
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+
 class AppSettings(BaseSettings):
     """Main application settings."""
 
@@ -336,6 +383,7 @@ class AppSettings(BaseSettings):
     telethon: TelethonSettings = Field(default_factory=TelethonSettings)
     webapi: WebApiSettings = Field(default_factory=WebApiSettings)
     sponsored_ads: SponsoredAdsSettings = Field(default_factory=SponsoredAdsSettings)
+    mcp: McpSettings = Field(default_factory=McpSettings)
 
     @property
     def channel(self) -> ChannelAgentSettings:

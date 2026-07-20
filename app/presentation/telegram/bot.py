@@ -263,7 +263,7 @@ async def main() -> None:
     telethon_client = _init_telethon()
 
     # Phase 2: Setup main bot first (needed as main_bot dep for assistant)
-    assistant_enabled = settings.assistant.enabled and settings.assistant.token
+    assistant_enabled = settings.assistant.active
     main_bot, main_dp = _setup_main_bot(
         session_maker,
         include_review_router=not assistant_enabled,

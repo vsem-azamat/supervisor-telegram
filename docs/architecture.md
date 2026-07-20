@@ -61,6 +61,7 @@ app/
 │   ├── cost_tracker.py            # LLM cost tracking
 │   ├── topic_splitter.py          # Multi-topic splitting
 │   ├── channel_repo.py            # Channel DB operations
+│   ├── adhoc.py                   # Operator-initiated topic → review draft (shared by assistant + MCP)
 │   ├── discovery.py               # Source discovery helpers
 │   ├── exceptions.py              # Channel-specific exceptions
 │   └── review/                    # Review submodule
@@ -92,6 +93,13 @@ app/
 ├── telethon/                      # Telethon userbot client
 │   └── telethon_client.py
 │
+├── webapi/                        # FastAPI admin + public HTTP surface
+│   ├── main.py                    # App factory, lifespan, router + MCP mounting
+│   ├── deps.py                    # Session, auth, Telethon, publish-bot dependencies
+│   ├── mcp_server.py              # MCP endpoint for external agent runtimes (bearer auth)
+│   ├── routes/                    # Public (/api/public) and admin route modules
+│   └── services/                  # publish_bot, review_bot, chat_sync, telethon_stats
+│
 ├── presentation/                  # Telegram bot handlers
 │   └── telegram/
 │       ├── bot.py                 # Main entry point, dispatcher setup
@@ -116,6 +124,7 @@ AppSettings                        # APP_DEBUG, APP_ENVIRONMENT, APP_TIMEZONE
 ├── moderation: ModerationSettings # MODERATION_MODEL, MODERATION_ENABLED, MODERATION_ESCALATION_TIMEOUT_MINUTES
 ├── assistant: AssistantSettings   # ASSISTANT_BOT_TOKEN, ASSISTANT_BOT_ENABLED, ASSISTANT_BOT_MODEL
 ├── telethon: TelethonSettings     # TELETHON_API_ID, TELETHON_API_HASH, TELETHON_ENABLED
+├── mcp: McpSettings               # MCP_ENABLED, MCP_TOKEN, MCP_PATH
 └── channel: ChannelAgentSettings  # CHANNEL_ENABLED, CHANNEL_GENERATION_MODEL, ... (lazy-loaded)
 ```
 

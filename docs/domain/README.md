@@ -16,6 +16,8 @@ contracts.
   actions, cross-chat cleanup, and advertiser-redirect rules.
 - [Telegram Identities](telegram-identities.md) - responsibilities of the
   moderator bot, assistant bot, and Telethon userbot.
+- [Agent Control Plane](agent-control-plane.md) - the MCP endpoint for external
+  agent runtimes: exposed toolset, authentication, and review-only guarantee.
 
 ## Rules
 

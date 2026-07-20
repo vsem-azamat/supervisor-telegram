@@ -62,7 +62,15 @@ async def _lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     else:
         logger.info("snapshot_loop not started — telethon unavailable")
     try:
-        yield
+        # A mounted sub-app's lifespan is not run by Starlette, and the MCP
+        # transport needs its session manager started, so chain it here.
+        mcp_app = getattr(_app.state, "mcp_app", None)
+        if mcp_app is None:
+            yield
+        else:
+            async with mcp_app.router.lifespan_context(mcp_app):
+                logger.info("mcp_mounted", path=settings.mcp.path)
+                yield
     finally:
         if task is not None:
             task.cancel()
@@ -107,6 +115,16 @@ def create_app() -> FastAPI:
     # lifespan). _lifespan replaces this with the real instance at startup.
     app.state.telethon_stats = TelethonStatsService(telethon=None)
     app.state.publish_bot = None  # _lifespan replaces with real Bot at startup
+
+    app.state.mcp_app = None
+    if settings.mcp.active:
+        from app.webapi.mcp_server import build_mcp_asgi_app
+
+        mcp_app = build_mcp_asgi_app(token=settings.mcp.token)
+        app.state.mcp_app = mcp_app
+        app.mount(settings.mcp.path, mcp_app)
+    else:
+        logger.info("mcp_disabled")
 
     return app
 
