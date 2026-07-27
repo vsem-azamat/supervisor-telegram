@@ -134,6 +134,5 @@ async def test_get_system_status(client_factory) -> None:
     flag_names = {f["name"] for f in body["feature_flags"]}
     assert flag_names == {
         "auth_mode_telegram",
-        "moderation_enabled",
         "ad_detector_enabled",
     }

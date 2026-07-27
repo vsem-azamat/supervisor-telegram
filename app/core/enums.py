@@ -13,14 +13,6 @@ class PostStatus(StrEnum):
     SKIPPED = "skipped"
 
 
-class EscalationStatus(StrEnum):
-    """Status of an agent escalation."""
-
-    PENDING = "pending"
-    RESOLVED = "resolved"
-    TIMEOUT = "timeout"
-
-
 class ReviewDecision(StrEnum):
     """Admin decision on a channel post review."""
 
@@ -28,14 +20,29 @@ class ReviewDecision(StrEnum):
     REJECTED = "rejected"
 
 
+class ModerationAction(StrEnum):
+    """An action a proposal can ask for.
+
+    Only removals: everything else a moderator does has its own command and
+    happens immediately. Typed rather than a string so an unsupported name
+    fails where it is written, not when a human has already pressed confirm.
+    """
+
+    BAN = "ban"
+    BLACKLIST = "blacklist"
+
+
+class PendingActionOrigin(StrEnum):
+    """Where a proposal came from. Recorded so a ban stays attributable."""
+
+    MCP = "mcp"
+
+
 class PendingActionStatus(StrEnum):
     """Status of a destructive action awaiting a human press.
 
-    Note EXPIRED against EscalationStatus.TIMEOUT: an escalation that runs out
-    of time carries out its default action, because the bot already judged
-    something wrong and was only asking for a second opinion. A pending action
-    that runs out of time does nothing at all — it was proposed from outside,
-    and silence there has to mean no.
+    Expiry does nothing. A proposal that runs out of time was made from
+    outside and never answered, and silence there has to mean no.
     """
 
     PENDING = "pending"

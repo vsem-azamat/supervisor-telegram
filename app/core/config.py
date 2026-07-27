@@ -206,18 +206,12 @@ class BraveSettings(BaseSettings):
 
 
 class ModerationSettings(BaseSettings):
-    """Moderation agent configuration."""
+    """Heuristic moderation configuration.
 
-    model: str = Field(
-        default="google/gemini-3.1-flash-lite-preview",
-        description="Model for spam/moderation agent in chats",
-    )
-    escalation_timeout_minutes: int = Field(default=30, description="Minutes before escalation times out")
-    default_timeout_action: str = Field(
-        default="ignore",
-        description="Default action on escalation timeout (mute/ban/delete/warn/blacklist/escalate/ignore)",
-    )
-    enabled: bool = Field(default=False, description="Whether the moderation agent is enabled")
+    What remains after the LLM agent: the ad detector, which matches t.me links
+    and @handles and records what it finds. No model, no escalation timeout —
+    both belonged to a decision step that a person now makes.
+    """
 
     ad_detector_enabled: bool = Field(
         default=True,
@@ -231,27 +225,6 @@ class ModerationSettings(BaseSettings):
         default=200,
         description="Max chars of message text stored alongside each spam_ping",
     )
-
-    @field_validator("default_timeout_action")
-    @classmethod
-    def validate_timeout_action(cls, v: str) -> str:
-        """Validate that the timeout action is a known moderation action."""
-        valid = {"mute", "ban", "delete", "warn", "blacklist", "escalate", "ignore"}
-        if v not in valid:
-            raise ValueError(f"default_timeout_action must be one of {valid}, got '{v}'")
-        return v
-
-    @field_validator("ad_detector_whitelist", mode="before")
-    @classmethod
-    def parse_ad_detector_whitelist(cls, v: object) -> list[str]:
-        """Accept comma-separated env strings as well as native lists."""
-        if v is None or v == "":
-            return []
-        if isinstance(v, str):
-            return [item.strip() for item in v.split(",") if item.strip()]
-        if isinstance(v, list):
-            return [str(item) for item in v]
-        raise TypeError(f"ad_detector_whitelist: unsupported type {type(v)}")
 
     model_config = SettingsConfigDict(
         env_prefix="MODERATION_",
@@ -327,8 +300,8 @@ class McpSettings(BaseSettings):
 
     It runs in the bot process rather than the web API because moderation tools
     need what only that process holds: the Telethon user session, whose SQLite
-    file a second process cannot open, and the escalation timers, which are
-    in-process asyncio tasks.
+    file a second process cannot open, and the bot whose dispatcher answers the
+    confirmation buttons it sends.
     """
 
     token: str = Field(default="", description="Bearer token required by MCP clients; unset disables the endpoint")

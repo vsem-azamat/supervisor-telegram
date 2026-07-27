@@ -84,9 +84,8 @@ reversible or self-expiring, and removals are only ever proposed.
 **Removing a person is never performed by a tool call.** `propose_ban` and
 `propose_blacklist` create a pending action and return. A super admin presses
 confirm in the moderator bot, or it expires having done nothing. Any tool that
-bans directly re-opens this, which is why `analyze_message` stays unexposed:
-it runs the moderation agent and then carries out its verdict, up to a global
-blacklist.
+bans directly re-opens this — as would any tool that decides and acts in one
+call, which is what the removed assistant's `analyze_message` did.
 
 **A ban is attributable, and the token is not a person.** Every proposal records
 the admin it acts for — the first super admin, the same one escalations and

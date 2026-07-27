@@ -62,7 +62,7 @@ retaining human control over high-impact decisions.
 
 | Capability Group | Business Meaning | Included Capabilities |
 | --- | --- | --- |
-| Community safety | Keep chats healthier with less repetitive administrator effort | Mechanical moderation, assisted moderation, reports, spam workflows, cross-chat blacklist context, escalation |
+| Community safety | Keep chats healthier with less repetitive administrator effort | Mechanical moderation, reports, spam workflows, cross-chat blacklist, join checks |
 | Content operations | Move from source material to publication predictably | Source intake, duplicate filtering, drafting, optional review, publish, schedule |
 | Operator control | Let a small team run supported workflows coherently | Conversational administration, authenticated admin surface, public catalog projection, cross-workflow visibility |
 | Sponsored ad conversion | Turn unmanaged ad attempts into a controlled human-owned advertising path where the community allows it | Ad detection handoff, moderator removal decision, duplicate cleanup, advertiser outreach, `/ads` rate-card link |

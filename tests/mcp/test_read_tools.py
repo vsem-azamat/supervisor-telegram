@@ -17,7 +17,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
-from app.db.models import AgentDecision, Chat, User
+from app.db.models import Chat, Message, PendingAction, SpamPing, User
 from app.mcp.tools.read import register_read_tools
 from app.telethon.telethon_client import ChatInfo, ChatMember, MessageInfo, UserInfo
 
@@ -244,45 +244,47 @@ async def test_get_user_info_works_for_an_unknown_user(mcp_session, telethon_stu
     assert PHONE not in repr(data)
 
 
-async def test_moderation_history_withholds_the_free_text_rationale(mcp_session) -> None:
-    """The reason quotes the message and reads as internal moderator reasoning.
+async def test_moderation_history_counts_what_the_bot_recorded(mcp_session) -> None:
+    """Built from traces the bot actually leaves, not a decision log it stopped keeping."""
+    import datetime
 
-    The override is reported as a flag: an external runtime should know a human
-    disagreed without being handed the wording of the correction.
-    """
+    from app.core.time import utc_now
+
     async with mcp_session() as session:
+        session.add(Message(chat_id=MANAGED_CHAT_ID, user_id=USER_ID, message_id=1, message="hi"))
+        spam = Message(chat_id=MANAGED_CHAT_ID, user_id=USER_ID, message_id=2, message="buy now")
+        spam.mark_as_spam()
+        session.add(spam)
+        session.add(SpamPing(chat_id=MANAGED_CHAT_ID, user_id=USER_ID, message_id=2, kind="link", matches=["t.me/x"]))
         session.add(
-            AgentDecision(
-                event_type="report",
-                chat_id=MANAGED_CHAT_ID,
+            PendingAction(
+                origin="mcp",
+                initiator_id=1,
+                action="ban",
                 target_user_id=USER_ID,
-                action="mute",
-                reason="quoted the slur verbatim",
-                admin_override="unmute",
-                message_text="the offending message",
+                chat_id=MANAGED_CHAT_ID,
+                expires_at=utc_now() + datetime.timedelta(minutes=10),
+                reason="repeated ads",
             )
         )
         await session.commit()
 
     data = await _call("get_moderation_history", {"user_id": USER_ID})
 
-    assert data["total_reports"] == 1
-    assert data["admin_overrides"] == 1
-    decision = data["decisions"][0]
-    assert decision["action"] == "mute"
-    assert decision["overridden"] is True
-    assert "reason" not in decision
-    dumped = repr(data)
-    assert "quoted the slur verbatim" not in dumped
-    assert "the offending message" not in dumped
-    assert "unmute" not in dumped
+    assert data["messages_seen"] == 2
+    assert data["messages_marked_spam"] == 1
+    assert data["ad_detector_hits"] == 1
+    assert data["chats_seen_in"] == 1
+    assert [p["action"] for p in data["proposals"]] == ["ban"]
+    assert data["proposals"][0]["status"] == "pending"
 
 
 async def test_moderation_history_is_empty_for_a_clean_user(mcp_session) -> None:
     data = await _call("get_moderation_history", {"user_id": USER_ID})
 
-    assert data["total_reports"] == 0
-    assert data["decisions"] == []
+    assert data["known_locally"] is False
+    assert data["messages_seen"] == 0
+    assert data["proposals"] == []
 
 
 # ── bounded listings ──────────────────────────────────────────────────────

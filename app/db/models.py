@@ -6,7 +6,7 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy import JSON, BigInteger, Boolean, DateTime, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.enums import EscalationStatus, PendingActionStatus, PostStatus
+from app.core.enums import PendingActionStatus, PostStatus
 from app.core.time import utc_now
 from app.db.base import Base
 
@@ -551,89 +551,6 @@ class ChannelPost(Base):
             self.status = PostStatus.DRAFT
 
 
-class AgentDecision(Base):
-    __tablename__ = "agent_decisions"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    event_type: Mapped[str] = mapped_column(String(32))
-    chat_id: Mapped[int] = mapped_column(BigInteger, index=True)
-    message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    target_user_id: Mapped[int] = mapped_column(BigInteger, index=True)
-    reporter_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    message_text: Mapped[str | None] = mapped_column(String, nullable=True)
-    action: Mapped[str] = mapped_column(String(32))
-    reason: Mapped[str] = mapped_column(String)
-    confidence: Mapped[float | None] = mapped_column(default=None)
-    admin_override: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
-
-    def __init__(
-        self,
-        event_type: str,
-        chat_id: int,
-        target_user_id: int,
-        action: str,
-        reason: str,
-        message_id: int | None = None,
-        reporter_id: int | None = None,
-        message_text: str | None = None,
-        confidence: float | None = None,
-        admin_override: str | None = None,
-    ) -> None:
-        self.event_type = event_type
-        self.chat_id = chat_id
-        self.target_user_id = target_user_id
-        self.action = action
-        self.reason = reason
-        self.message_id = message_id
-        self.reporter_id = reporter_id
-        self.message_text = message_text
-        self.confidence = confidence
-        self.admin_override = admin_override
-
-
-class AgentEscalation(Base):
-    __tablename__ = "agent_escalations"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    decision_id: Mapped[int | None] = mapped_column(Integer, index=True, nullable=True)
-    chat_id: Mapped[int] = mapped_column(BigInteger, index=True)
-    target_user_id: Mapped[int] = mapped_column(BigInteger, index=True)
-    message_text: Mapped[str | None] = mapped_column(String, nullable=True)
-    suggested_action: Mapped[str] = mapped_column(String(32))
-    reason: Mapped[str] = mapped_column(String)
-    admin_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    admin_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    status: Mapped[str] = mapped_column(String(16), default=EscalationStatus.PENDING)
-    resolved_action: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    resolved_by: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    resolved_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
-    timeout_at: Mapped[datetime.datetime] = mapped_column(DateTime)
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
-
-    def __init__(
-        self,
-        chat_id: int,
-        target_user_id: int,
-        suggested_action: str,
-        reason: str,
-        timeout_at: datetime.datetime,
-        decision_id: int | None = None,
-        message_text: str | None = None,
-        admin_message_id: int | None = None,
-        admin_chat_id: int | None = None,
-    ) -> None:
-        self.chat_id = chat_id
-        self.target_user_id = target_user_id
-        self.suggested_action = suggested_action
-        self.reason = reason
-        self.timeout_at = timeout_at
-        self.decision_id = decision_id
-        self.message_text = message_text
-        self.admin_message_id = admin_message_id
-        self.admin_chat_id = admin_chat_id
-
-
 class PendingAction(Base):
     """A destructive action proposed from outside, awaiting an admin's press.
 
@@ -648,7 +565,13 @@ class PendingAction(Base):
     """
 
     __tablename__ = "pending_actions"
-    __table_args__ = (Index("ix_pending_actions_status_expires_at", "status", "expires_at"),)
+    __table_args__ = (
+        Index("ix_pending_actions_status_expires_at", "status", "expires_at"),
+        # The columns are text, so the enums are re-stated here: this is where a
+        # value that skipped the type system would otherwise land.
+        sa.CheckConstraint("action IN ('ban', 'blacklist')", name="ck_pending_actions_action"),
+        sa.CheckConstraint("origin IN ('mcp')", name="ck_pending_actions_origin"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     origin: Mapped[str] = mapped_column(String(16))

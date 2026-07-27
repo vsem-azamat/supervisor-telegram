@@ -2,8 +2,8 @@
 
 The endpoint used to be mounted on the web API, which cannot reach the two
 things moderation tools depend on: the Telethon user session, whose SQLite file
-only one process may open, and the escalation timers, which are asyncio tasks
-living in whichever process created them. Running here removes both gaps.
+only one process may open, and the bot that sends confirmation keyboards and
+owns their callbacks. Running here removes both gaps.
 """
 
 from __future__ import annotations

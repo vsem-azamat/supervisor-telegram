@@ -31,7 +31,8 @@ deploy workflow.
 ## Which process serves it
 
 The `bot` process, not `webapi`. Moderation tools need the Telethon user
-session, whose SQLite file only one process may open, and the escalation timers,
+session, whose SQLite file only one process may open, and the bot whose
+dispatcher answers confirmation buttons,
 which are asyncio tasks belonging to whichever process created them. Both are in
 `bot`.
 

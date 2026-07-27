@@ -1,17 +1,16 @@
 """Destructive actions proposed from outside, held until an admin presses.
 
-Deliberately not an extension of :class:`EscalationService`. Half of that class
-is about the moderation domain — an ``AgentEvent``, a suggested action, and a
-timeout that *carries out* its default. That last part is the whole difference:
-an escalation times out into action because the bot already judged something
-wrong and wanted a second opinion, while a proposal from an external runtime
-must time out into nothing.
+Expiry is a stored timestamp, checked when the action is read and swept in the
+background — not an ``asyncio`` task in a module-level dict. A timer exists only
+in the process that created it, so a proposal raised in one process and
+confirmed in another would never expire; a timestamp survives restarts and
+process boundaries alike. The moderation agent's escalations worked the other
+way and were lost on every restart.
 
-Expiry here is a stored timestamp, checked when the action is read and swept in
-the background — not an ``asyncio`` task in a module-level dict. A timer only
-exists in the process that created it, so a proposal raised in one process and
-confirmed in another would never expire; a timestamp survives both restarts and
-process boundaries.
+Expiry also does nothing. That is the other half of the difference: an
+escalation timed out *into* its default action, which suits a bot that has
+already judged something wrong and wants a second opinion. A proposal arrives
+from outside, and silence about one has to mean no.
 """
 
 from __future__ import annotations
@@ -23,7 +22,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy import select, update
 
-from app.core.enums import PendingActionStatus
+from app.core.enums import ModerationAction, PendingActionOrigin, PendingActionStatus
 from app.core.logging import get_logger
 from app.core.text import escape_html
 from app.core.time import utc_now
@@ -39,8 +38,8 @@ logger = get_logger("moderation.pending_actions")
 DEFAULT_EXPIRY_MINUTES = 60
 
 _ACTION_LABELS = {
-    "ban": "забанить",
-    "blacklist": "занести в чёрный список",
+    ModerationAction.BAN: "забанить",
+    ModerationAction.BLACKLIST: "занести в чёрный список",
 }
 
 
@@ -86,27 +85,18 @@ class ActionExecutor(Protocol):
 
 
 async def _execute(pending: PendingAction, bot: Bot, db: AsyncSession) -> None:
-    """Run the action through the existing moderation executor.
+    """Carry out a confirmed proposal."""
+    from app.moderation.actions import apply, parse
 
-    Reuses ``AgentCore.execute_action`` rather than reimplementing ban and
-    blacklist, so both paths keep behaving the same way.
-    """
-    from app.moderation.agent import AgentCore
-    from app.moderation.schemas import AgentEvent, EventType
-
-    event = AgentEvent(
-        event_type=EventType.REPORT,
-        chat_id=pending.chat_id or 0,
-        chat_title=None,
-        message_id=0,
-        # The admin who confirmed stands behind the action.
-        reporter_id=pending.resolved_by or pending.initiator_id,
-        target_user_id=pending.target_user_id,
-        target_username=None,
-        target_display_name=str(pending.target_user_id),
-        target_message_text=None,
+    params = dict(pending.params or {})
+    await apply(
+        parse(pending.action),
+        bot=bot,
+        db=db,
+        user_id=pending.target_user_id,
+        chat_id=pending.chat_id,
+        revoke_messages=bool(params.get("revoke_messages", False)),
     )
-    await AgentCore().execute_action(pending.action, event, bot, db, params=dict(pending.params or {}))
 
 
 class PendingActionService:
@@ -125,9 +115,9 @@ class PendingActionService:
     async def propose(
         self,
         *,
-        origin: str,
+        origin: PendingActionOrigin,
         initiator_id: int,
-        action: str,
+        action: ModerationAction,
         target_user_id: int,
         chat_id: int | None = None,
         params: dict[str, Any] | None = None,

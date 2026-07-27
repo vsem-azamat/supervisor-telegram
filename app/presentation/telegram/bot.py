@@ -117,18 +117,6 @@ def _setup_main_bot(session_maker: async_sessionmaker[AsyncSession]) -> tuple[Bo
     return bot, dp
 
 
-def _init_escalation_recovery(session_maker: async_sessionmaker[AsyncSession]) -> None:
-    """Set up EscalationService session maker for timeout handlers."""
-    if not (settings.moderation.enabled and settings.openrouter.api_key):
-        logger.info("agent_disabled")
-        return
-
-    from app.moderation.escalation import EscalationService
-
-    EscalationService.set_session_maker(session_maker)
-    logger.info("escalation_service_configured")
-
-
 async def _resolve_channel_ids(
     bot: Bot,
     session_maker: async_sessionmaker[AsyncSession],
@@ -239,18 +227,10 @@ async def main() -> None:
     # Validate: features requiring OpenRouter API key
     if settings.channel.enabled and not settings.openrouter.api_key:
         raise ValueError("CHANNEL_ENABLED=true requires OPENROUTER_API_KEY")
-    if settings.moderation.enabled and not settings.openrouter.api_key:
-        raise ValueError("MODERATION_ENABLED=true requires OPENROUTER_API_KEY")
 
     session_maker = create_session_maker()
 
     # Phase 1: Initialize shared services
-    _init_escalation_recovery(session_maker)
-    if settings.moderation.enabled and settings.openrouter.api_key:
-        from app.moderation.escalation import EscalationService
-
-        await EscalationService.recover_stale_escalations(session_maker)
-
     # Registers itself in the container; nothing here needs the handle.
     _init_telethon()
 
@@ -278,7 +258,7 @@ async def main() -> None:
     ]
 
     # The MCP control plane runs here, not in the web API: its tools need the
-    # Telethon session and the escalation timers, and both belong to this
+    # Telethon session and the confirmation handlers, and both belong to this
     # process. Returns immediately when MCP is inactive.
     from app.mcp.runner import run_mcp_server
     from app.moderation.pending_actions import run_expiry_sweep

@@ -12,8 +12,8 @@ class BlacklistConfirm(CallbackData, prefix="blconfirm"):
 class PendingActionDecision(CallbackData, prefix="pact"):
     """Confirm or drop a destructive action proposed from outside.
 
-    Typed rather than a hand-built string like the `esc:` escalation callbacks,
-    so aiogram validates the 64-byte limit instead of leaving it to arithmetic.
+    Typed rather than hand-built from an f-string, so aiogram validates the
+    64-byte limit instead of leaving it to arithmetic.
     """
 
     pending_id: int

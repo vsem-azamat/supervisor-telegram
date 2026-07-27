@@ -285,43 +285,63 @@ def register_read_tools(mcp: FastMCP[None]) -> None:
     @mcp.tool
     @_guarded
     async def get_moderation_history(user_id: int, limit: int = 10) -> dict[str, Any]:
-        """Get a user's moderation record — how often reported, what was done.
+        """What this deployment has on record about a user's behaviour.
 
         Use it before proposing an action, to tell a first-time report from a
-        repeat offender. admin_overrides counts the times a human corrected the
-        agent, which is the signal that its calls on this user were unreliable.
+        repeat offender. Built from what the bot actually writes down: messages
+        it saw, the ones an admin marked as spam, hits from the ad detector, and
+        removals proposed through this plane.
 
-        Each past decision reports its action and whether an admin overrode it;
-        the free-text rationale is withheld, since it is internal moderator
-        reasoning and often quotes the message verbatim. limit caps how many
-        decisions to return (1-50), newest first.
+        Note what is *not* here: a ban issued with /ban in a chat leaves no row
+        anywhere, so a quiet record does not prove a clean history. limit caps
+        the recent proposals returned (1-50), newest first.
         """
-        from app.moderation.memory import AgentMemory
+        from sqlalchemy import func, select
+
+        from app.db.models import Message, PendingAction, SpamPing, User
 
         limit = clamp(limit, 1, 50)
         async with session_maker()() as session:
-            memory = AgentMemory(session)
-            profile = await memory.get_user_risk_profile(user_id)
-            history = await memory.get_user_history(user_id, limit=limit)
+            user = await session.scalar(select(User).where(User.id == user_id))
+            seen = (
+                await session.execute(
+                    select(func.count(), func.count(func.distinct(Message.chat_id))).where(Message.user_id == user_id)
+                )
+            ).one()
+            flagged = (
+                await session.execute(select(func.count()).where(Message.user_id == user_id, Message.spam.is_(True)))
+            ).scalar() or 0
+            ad_hits = (await session.execute(select(func.count()).where(SpamPing.user_id == user_id))).scalar() or 0
+            proposals = (
+                (
+                    await session.execute(
+                        select(PendingAction)
+                        .where(PendingAction.target_user_id == user_id)
+                        .order_by(PendingAction.created_at.desc())
+                        .limit(limit)
+                    )
+                )
+                .scalars()
+                .all()
+            )
 
         return {
             "user_id": user_id,
-            "total_reports": profile.total_reports,
-            "distinct_reporters": profile.distinct_reporters,
-            "distinct_chats": profile.distinct_chats,
-            "admin_overrides": profile.overridden_count,
-            "actions": dict(profile.actions_taken),
-            "last_action": profile.last_action or "",
-            "decisions": [
+            "known_locally": user is not None,
+            "blacklisted": bool(user and user.blocked),
+            "messages_seen": seen[0],
+            "chats_seen_in": seen[1],
+            "messages_marked_spam": flagged,
+            "ad_detector_hits": ad_hits,
+            "proposals": [
                 {
-                    "decision_id": decision.id,
-                    "chat_id": decision.chat_id,
-                    "event_type": decision.event_type,
-                    "action": decision.action,
-                    "overridden": decision.admin_override is not None,
-                    "created_at": _iso(decision.created_at),
+                    "action": row.action,
+                    "chat_id": row.chat_id,
+                    "status": row.status,
+                    "reason": row.reason or "",
+                    "created_at": _iso(row.created_at),
                 }
-                for decision in history
+                for row in proposals
             ],
         }
 

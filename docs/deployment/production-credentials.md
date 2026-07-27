@@ -40,18 +40,14 @@ repository access, so nothing sensitive goes here.
 | --- | --- |
 | `ADMIN_SUPER_ADMINS` | Comma-separated Telegram IDs |
 | `ADMIN_REPORT_CHAT_ID` | Defaults to the first super admin |
-| `MODERATION_ENABLED` | Requires `OPENROUTER_API_KEY` |
 | `WEBAPI_PUBLIC_URL` | Also becomes the allowed CORS origin |
 | `SPONSORED_ADS_MODERATOR_CHAT_ID` | Unset disables the funnel |
 | `SPONSORED_ADS_SALES_CONTACT` | |
 
 ## Features switch themselves on
 
-There is one enable-flag, `MODERATION_ENABLED`, and it exists because an LLM
-acting in your chats is the thing you may need to stop in a hurry — and because
-it has no credential of its own to infer from.
-
-Everything else is on when it is configured and off otherwise:
+Nothing here is switched on by a flag. A feature is on when it is configured
+and off otherwise:
 
 | Feature | On when |
 | --- | --- |
@@ -83,7 +79,6 @@ Before anything reaches the VPS the workflow fails on:
   crash on boot without them;
 - one half of the Telethon credential pair without the other, which activates
   nothing and looks like a working deploy with a userbot that never connects;
-- `MODERATION_ENABLED` or `CHANNEL_ENABLED` without `OPENROUTER_API_KEY`.
 
 A test pins the forwarded list against `docker-compose.yaml`, so a setting added
 to one and not the other fails in CI rather than in production.

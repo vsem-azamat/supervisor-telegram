@@ -21,15 +21,15 @@ So the boundary moved from *which tools exist* to *what a leaked token can do*:
 * **Content** still cannot be published: ``generate_and_send_for_review``
   reaches a review chat and nothing further.
 
-``analyze_message`` is deliberately absent. It runs the moderation agent and
-then *carries out* whatever that agent decides, up to a global blacklist — a
-straight path around the confirmation tier. Exposing it needs its analysis
-split from its execution first.
+There is no tool that analyses a message and acts on its own verdict. One
+existed on the removed assistant, and it decided *and* executed in a single
+call, which is a straight path around the confirmation tier. Judgement belongs
+to the runtime reading these tools, and to the human pressing confirm.
 
-Authentication is a shared bearer token (``MCP_TOKEN``), not an admin session.
-Because it names a runtime rather than a person, and a ban is an attributable
-act, ``MCP_INITIATOR_ID`` says which admin it acts as; the proposal tools refuse
-to work until it is set.
+Authentication is a shared bearer token (``MCP_TOKEN``), not an admin session,
+and the token is also the switch: no token, no endpoint. Because it names a
+runtime rather than a person, and a ban is an attributable act, every proposal
+is recorded against the first super admin — overridable, but never absent.
 
 Served by the bot process (see ``app.mcp.runner``), not the web API: the
 Telethon session and the confirmation handlers both live there.
@@ -144,8 +144,9 @@ class RateLimiter:
     message in a review chat. The endpoint cannot publish, but a leaked token
     could still burn money and flood the operator, so the cost is bounded here.
 
-    In-process state is enough because the web API runs a single uvicorn worker
-    (``scripts/entrypoint.sh``); with multiple workers this becomes per-worker.
+    In-process state is enough because the bot process serving this endpoint is
+    a single process by construction — it also owns the Telethon session, which
+    cannot be opened twice.
     """
 
     def __init__(self, limit: int, window_seconds: float = 3600.0) -> None:

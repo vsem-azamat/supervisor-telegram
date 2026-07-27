@@ -16,6 +16,7 @@ from __future__ import annotations
 import datetime
 from typing import TYPE_CHECKING, Any
 
+from app.core.enums import ModerationAction, PendingActionOrigin
 from app.core.logging import get_logger
 from app.mcp.deps import ToolError, approved_chat_id, clamp, initiator_id, moderator_bot, session_maker
 
@@ -173,7 +174,7 @@ def register_moderation_tools(mcp: FastMCP[None]) -> None:
         the request expires on its own if nobody does. Returns the pending id so
         you can tell the operator what is waiting for them.
         """
-        return await _propose("ban", chat_id=chat_id, user_id=user_id, reason=reason)
+        return await _propose(ModerationAction.BAN, chat_id=chat_id, user_id=user_id, reason=reason)
 
     @mcp.tool
     async def propose_blacklist(user_id: int, reason: str = "") -> dict[str, Any]:
@@ -182,10 +183,10 @@ def register_moderation_tools(mcp: FastMCP[None]) -> None:
         The widest action available here, and the one least worth getting wrong,
         so it waits for a human press and expires unanswered.
         """
-        return await _propose("blacklist", chat_id=None, user_id=user_id, reason=reason)
+        return await _propose(ModerationAction.BLACKLIST, chat_id=None, user_id=user_id, reason=reason)
 
 
-async def _propose(action: str, *, chat_id: int | None, user_id: int, reason: str) -> dict[str, Any]:
+async def _propose(action: ModerationAction, *, chat_id: int | None, user_id: int, reason: str) -> dict[str, Any]:
     from app.moderation.pending_actions import PendingActionService
 
     try:
@@ -195,7 +196,7 @@ async def _propose(action: str, *, chat_id: int | None, user_id: int, reason: st
             if chat_id is not None:
                 await approved_chat_id(session, chat_id)
             pending = await PendingActionService(bot=bot, db=session).propose(
-                origin="mcp",
+                origin=PendingActionOrigin.MCP,
                 initiator_id=admin_id,
                 action=action,
                 target_user_id=user_id,
