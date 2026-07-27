@@ -156,3 +156,88 @@ class TestRemovalsWait:
 
         assert result["error"] == "initiator_not_configured"
         bot.send_message.assert_not_awaited()
+
+
+class TestRemainingWrites:
+    async def test_unmute_restores_posting(self, wired, bot) -> None:
+        await _seed_chat(wired)
+
+        result = await _call("unmute_user", {"chat_id": CHAT_ID, "user_id": USER_ID})
+
+        assert result["status"] == "unmuted"
+        permissions = bot.restrict_chat_member.await_args.kwargs["permissions"]
+        assert permissions.can_send_messages is True
+        assert permissions.can_react_to_messages is True
+
+    async def test_unmute_refuses_an_unapproved_chat(self, wired, bot) -> None:
+        async with wired() as session:
+            session.add(Chat(id=CHAT_ID, title="Pending", resource_status=Chat.STATUS_DISCOVERED))
+            await session.commit()
+
+        result = await _call("unmute_user", {"chat_id": CHAT_ID, "user_id": USER_ID})
+
+        assert result["error"] == "chat_not_approved"
+        bot.restrict_chat_member.assert_not_awaited()
+
+    async def test_unblacklist_lifts_the_block(self, wired, bot) -> None:
+        async with wired() as session:
+            blocked = User(id=USER_ID, username="spammer")
+            blocked.blocked = True
+            session.add(blocked)
+            await session.commit()
+
+        result = await _call("unblacklist_user", {"user_id": USER_ID})
+
+        assert result["status"] == "unblacklisted"
+        async with wired() as session:
+            row = await session.scalar(select(User).where(User.id == USER_ID))
+        assert row is not None
+        assert row.blocked is False
+
+    async def test_unblacklist_says_so_for_an_unknown_user(self, wired, bot) -> None:
+        result = await _call("unblacklist_user", {"user_id": 12345})
+
+        assert result["error"] == "unknown_user"
+
+    async def test_set_welcome_stores_the_text(self, wired, bot) -> None:
+        await _seed_chat(wired)
+
+        result = await _call("set_welcome", {"chat_id": CHAT_ID, "message": "Привет!", "enabled": True})
+
+        assert result["status"] == "updated"
+        async with wired() as session:
+            chat = await session.scalar(select(Chat).where(Chat.id == CHAT_ID))
+        assert chat is not None
+        assert chat.welcome_message == "Привет!"
+        assert chat.is_welcome_enabled is True
+
+    async def test_set_welcome_can_disable_without_losing_the_text(self, wired, bot) -> None:
+        """An empty message means "leave the wording, flip the switch"."""
+        async with wired() as session:
+            session.add(
+                Chat(
+                    id=CHAT_ID,
+                    title="Managed",
+                    resource_status=Chat.STATUS_APPROVED,
+                    welcome_message="Старое приветствие",
+                    is_welcome_enabled=True,
+                )
+            )
+            await session.commit()
+
+        await _call("set_welcome", {"chat_id": CHAT_ID, "enabled": False})
+
+        async with wired() as session:
+            chat = await session.scalar(select(Chat).where(Chat.id == CHAT_ID))
+        assert chat is not None
+        assert chat.welcome_message == "Старое приветствие"
+        assert chat.is_welcome_enabled is False
+
+    async def test_set_welcome_refuses_an_unapproved_chat(self, wired, bot) -> None:
+        async with wired() as session:
+            session.add(Chat(id=CHAT_ID, title="Pending", resource_status=Chat.STATUS_DISCOVERED))
+            await session.commit()
+
+        result = await _call("set_welcome", {"chat_id": CHAT_ID, "message": "Привет"})
+
+        assert result["error"] == "chat_not_approved"

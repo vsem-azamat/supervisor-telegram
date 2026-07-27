@@ -200,6 +200,11 @@ markers = [
 
 [tool.coverage.run]
 source = ["app"]
+# SQLAlchemy's async layer hands off to a greenlet, and without this the tracer
+# loses the frame there: every line after an awaited query in the same function
+# is reported as unrun even when it demonstrably executes. Worth ~3 points of
+# project coverage, and it made whole handler bodies look untested.
+concurrency = ["greenlet"]
 omit = [
     "*/tests/*",
     "*/test_*",
