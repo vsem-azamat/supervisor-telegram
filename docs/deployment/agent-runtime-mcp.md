@@ -40,23 +40,21 @@ Restarting `bot` therefore drops MCP connections along with polling, and
 
 ## Network exposure
 
-The bot container publishes `MCP_PORT` on `127.0.0.1` only. Nothing reaches the
-endpoint from outside the host until the edge proxy is pointed at it — unlike
-the previous arrangement under `webapi`, where the existing `/api/*` proxy rule
-made enabling the flag sufficient to publish it.
+**This endpoint is not published to the internet.** The bot container binds
+`MCP_PORT` on `127.0.0.1` only, and the edge proxy has no rule for it: the
+`/api/*` rule in `docker/Caddyfile` points at `webapi`, which no longer carries
+the control plane. Reaching it is a local-network concern — a client on the
+host, or a private link such as WireGuard, Tailscale or an SSH tunnel.
 
-Prefer keeping it off the public internet:
+This is a change from the earlier arrangement, where the endpoint lived on the
+web API behind the existing `/api/*` rule and turning `MCP_ENABLED` on was
+enough to publish it. Do not restore that by adding an edge rule for
+`bot:8788`; the toolset now includes privileged moderation, and its safety
+rests on more than the bearer token.
 
-- Reach it over a private network — WireGuard, Tailscale, or an SSH tunnel from
-  the machine running the agent runtime.
-- If it must be public, add an explicit edge rule and treat the token as an
-  internet-facing secret: high entropy, rotated on any suspicion, never logged
-  or pasted into agent chat history.
-
-An unauthenticated request is rejected before any MCP session is established and
-returns `401` with `WWW-Authenticate: Bearer`. Routing answers before
-authentication does, so an unauthenticated prober can still tell the endpoint
-exists. Treat its existence as public and the token as the only secret.
+Authentication still applies on the local network. An unauthenticated request
+is rejected before any MCP session is established and returns `401` with
+`WWW-Authenticate: Bearer`.
 
 ## Client configuration
 
