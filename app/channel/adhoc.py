@@ -6,9 +6,9 @@ topic and a post is generated immediately, then routed to the channel's review
 chat — or published directly when the channel has no review chat, mirroring the
 pipeline's ``send_for_review`` behaviour.
 
-Two entry points call this: the assistant tool ``generate_and_review`` and the
-MCP tool ``generate_and_send_for_review``. The business rules live here so the
-two stay in sync.
+Called by the MCP tool ``generate_and_send_for_review``. It is a service rather
+than tool code because it once had two callers and may again — the rules about
+what may be published, and to where, do not belong to whichever surface asked.
 """
 
 from __future__ import annotations

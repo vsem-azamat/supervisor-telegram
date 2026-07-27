@@ -44,7 +44,6 @@ Required production values:
 
 Feature-specific production values:
 
-- `ASSISTANT_BOT_TOKEN`: required only when `ASSISTANT_BOT_ENABLED=true`.
 - `BRAVE_API_KEY`: required only when Brave-backed discovery is enabled.
 - `TELETHON_API_ID`, `TELETHON_API_HASH`, and `moderator_userbot.session`:
   required only when `TELETHON_ENABLED=true`.
@@ -73,14 +72,13 @@ When preparing real production:
 2. Rotate `MODERATOR_BOT_TOKEN` on the VPS.
 3. Rotate `OPENROUTER_API_KEY` and set provider billing/usage limits.
 4. Rotate PostgreSQL password if the current database was used by development.
-5. Rotate `ASSISTANT_BOT_TOKEN` if the assistant bot is enabled.
-6. Recreate the Telethon session only if the existing session was used for
+5. Recreate the Telethon session only if the existing session was used for
    development or belongs to the wrong Telegram account.
-7. Remove `TELETHON_PHONE` after Telethon login succeeds.
-8. Set `WEBAPI_PUBLIC_URL`, `WEBAPI_ALLOWED_ORIGINS`, and
+6. Remove `TELETHON_PHONE` after Telethon login succeeds.
+7. Set `WEBAPI_PUBLIC_URL`, `WEBAPI_ALLOWED_ORIGINS`, and
    `WEBAPI_SESSION_COOKIE_SECURE=true`.
-9. Restart with `docker compose up -d --remove-orphans`.
-10. Check `docker compose ps` and `docker compose logs --tail=100`.
+8. Restart with `docker compose up -d --remove-orphans`.
+9. Check `docker compose ps` and `docker compose logs --tail=100`.
 
 ## Safe Audit Commands
 

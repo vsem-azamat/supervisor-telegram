@@ -21,10 +21,10 @@
 A multi-agent system that helps Telegram operators keep communities useful,
 publish relevant content consistently, and spend less time on repetitive admin
 work. Originally built for educational chat communities in the Czech Republic,
-it now combines **mechanical moderation**, **AI-assisted publishing**, and a
-**conversational admin interface** in one platform.
+it now combines **mechanical moderation**, **AI-assisted publishing**, and
+**admin control surfaces** in one platform.
 
-The system runs **three separate Telegram identities** working in concert: a rule-enforcing moderator bot, an LLM-powered assistant, and a Telethon userbot for Client API features unavailable to standard bots.
+The system runs **two Telegram identities** working in concert: a rule-enforcing moderator bot, and a Telethon userbot for Client API features unavailable to standard bots. Admin work happens through Telegram commands, an authenticated web UI, and an MCP control plane an external agent runtime can drive.
 
 ## Product Outcomes
 
@@ -62,7 +62,7 @@ graph TB
 
     subgraph System["Supervisor Platform"]
         ModBot["🤖 Moderator Bot<br/><i>Mechanical commands</i><br/>/mute /ban /black /report"]
-        Assistant["🧠 Assistant Bot<br/><i>Claude Sonnet 4.6</i><br/>tool-calling, conversational"]
+        MCP["🔌 MCP Control Plane<br/><i>served by the bot process</i><br/>admin tools over HTTP"]
         Userbot["👤 Telethon Userbot<br/><i>Client API access</i><br/>history, search, schedule"]
     end
 
@@ -79,19 +79,20 @@ graph TB
 
     Users -->|messages| ModBot
     Users -->|/report /spam| ModBot
-    Admins -->|natural language| Assistant
+    Admins -->|via external agent runtime| MCP
     ModBot -->|forwards reports| ModAgent
     ModAgent -->|escalates uncertain cases| Admins
-    Assistant -->|manages| Pipeline
+    MCP -->|drafts posts| ReviewGroup
+    MCP -->|ban proposals await confirmation| ModBot
+    MCP -->|reads chat history through| Userbot
     Pipeline -->|fetches| Sources
     Pipeline -->|generates posts| ReviewGroup
     ReviewAgent -->|edits via conversation| ReviewGroup
     Admins -->|approve/reject| ReviewGroup
     Pipeline -->|publishes| Channel
     Userbot -->|schedules messages| Channel
-    Assistant -->|delegates| Userbot
     ModBot --> PG
-    Assistant --> PG
+    MCP --> PG
     Pipeline --> PG
 ```
 
@@ -101,8 +102,9 @@ The platform uses **PydanticAI** agents with typed dependencies and structured o
 
 ```mermaid
 graph LR
-    subgraph Agents
-        A1["🧠 Assistant Agent<br/>Claude Sonnet 4.6"]
+    Runtime["🛰️ External Agent Runtime<br/><i>outside this repository</i>"]
+
+    subgraph Agents["In-process agents"]
         A2["⚖️ Moderation Agent<br/>Gemini Flash Lite"]
         A3["📰 Screening Agent<br/>Gemini 2.0 Flash"]
         A4["✏️ Generation Agent<br/>Gemini Flash Lite"]
@@ -110,18 +112,14 @@ graph LR
     end
 
     subgraph Tools["Tools"]
-        T1["Channel Management<br/>add/remove channels,<br/>sources, schedules"]
-        T2["Moderation<br/>mute, ban, blacklist,<br/>risk profiles"]
-        T3["Content Intelligence<br/>semantic dedup,<br/>topic search, Brave"]
-        T4["Telethon<br/>chat history, search,<br/>member lists"]
-        T5["Post Editing<br/>get/update post,<br/>image search/replace"]
+        T2["Moderation context<br/>user history, risk profile,<br/>recent actions, corrections"]
+        T5["Post editing<br/>get/update post,<br/>web + image search"]
+        T6["MCP control plane<br/>reads, bounded writes,<br/>ban proposals, draft to review"]
     end
 
-    A1 --> T1
-    A1 --> T2
-    A1 --> T3
-    A1 --> T4
+    A2 --> T2
     A5 --> T5
+    Runtime --> T6
 ```
 
 ### Moderation Agent
@@ -184,27 +182,21 @@ summarize them into preference context for later generation.
 
 **Source discovery**: Periodically, Perplexity Sonar discovers new RSS feeds for each channel's topic. Each discovered URL is validated by actually fetching it and passes SSRF checks before being stored.
 
-### Assistant Bot
+### MCP Control Plane
 
-A conversational interface where admins manage everything through natural language. The PydanticAI agent has tools spanning moderation, chat settings, channels and search, and keeps per-user conversation history with safe trimming that respects tool call boundaries.
+Day-to-day admin work happens through moderator-bot commands and the
+authenticated web UI. Alongside them, the bot process can serve an **MCP endpoint**
+so an agent runtime living outside this repository drives the same admin surface
+from whatever chat the operator already uses.
 
-```
-Admin: "Run the pipeline for @my_channel"
-{🔧 Channel status} ✓ — @my_channel: active
-{🔧 Run pipeline} ✓
-
-Pipeline started for @my_channel. 3 sources will be fetched,
-screened, and sent to review.
-```
-
-```
-Admin: "Ban user 123456 in all chats"
-{🔧 User info} ✓ — User: @spammer, 47 messages across 3 chats
-{🔧 Add to blacklist} ✓
-
-User @spammer added to global blacklist.
-Messages revoked in 3 chats.
-```
+The boundary is what a leaked token can do, not which tools exist: reads never
+reach outside the chats and channels this deployment manages, writes are
+reversible or self-expiring, and generation can only reach a review chat — never
+publish. Removing a person is never carried out by a tool call at all; a ban is
+*proposed*, and a super admin confirms it in the moderator bot or it expires
+having done nothing. The plane stays closed unless `MCP_ENABLED` is true and
+`MCP_TOKEN` is set. The rules it rests on are in
+[`docs/invariants.md`](docs/invariants.md).
 
 ## Tech Stack
 
@@ -215,7 +207,8 @@ Messages revoked in 3 chats.
 | **State Machine** | Burr (checkpointable HITL workflow) |
 | **Database** | PostgreSQL 18 + pgvector, SQLAlchemy 2.x async, Alembic |
 | **Search** | Brave Search API (web + images), Perplexity Sonar (synthesis) |
-| **Architecture** | Feature-based modular (moderation/channel/assistant), service locator DI |
+| **Architecture** | Feature-based modular packages, service locator DI |
+| **Control plane** | MCP over HTTP (FastMCP), bearer-token auth, served by the bot process |
 | **Quality** | ruff, ty (Astral type checker), pytest, pre-commit, structlog |
 | **Infrastructure** | Docker multi-stage, uv package manager |
 

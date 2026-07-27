@@ -494,30 +494,6 @@ class SessionCostSummary(BaseModel):
         )
 
 
-class AgentMessage(BaseModel):
-    """One row in the chat-UI projection of the agent conversation."""
-
-    role: str  # "user" | "assistant" | "tool"
-    text: str | None = None
-    tool_name: str | None = None
-    tool_label: str | None = None
-    result_preview: str | None = None
-
-
-class AgentHistory(BaseModel):
-    """Persisted-conversation snapshot for /agent."""
-
-    user_id: int
-    message_count: int
-    messages: list[AgentMessage]
-
-
-class AgentTurnRequest(BaseModel):
-    """Body of POST /api/agent/turn."""
-
-    message: str
-
-
 class SuggestionItem(BaseModel):
     """One actionable setup-gap detected by a mechanical rule.
 

@@ -1,10 +1,10 @@
 """Read-only moderation tools for the MCP control plane.
 
-These are ports of the in-process assistant's read tools, with three changes
-that the earlier home-grown surface did not need but this one does.
+These began as the read tools of an in-process assistant that has since been
+removed, and three things changed on the way out.
 
-*Structured output.* The assistant returned prose because its only consumer was
-a prompt. Here the consumer is an external runtime, so every tool returns an
+*Structured output.* The old tools returned prose because their only consumer
+was a prompt. Here the consumer is an external runtime, so every tool returns an
 explicit projection: named fields, no ORM rows, nothing that changes shape when
 a column is added.
 

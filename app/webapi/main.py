@@ -15,7 +15,6 @@ from app.core.logging import get_logger
 from app.db.session import create_session_maker
 from app.webapi.routes import (
     admin,
-    agent,
     auth,
     channels,
     chats,
@@ -101,7 +100,6 @@ def create_app() -> FastAPI:
     app.include_router(spam.router, prefix="/api")
     app.include_router(stats.router, prefix="/api")
     app.include_router(suggestions.router, prefix="/api")
-    app.include_router(agent.router, prefix="/api")
     app.include_router(users.router, prefix="/api")
     app.include_router(admin.router, prefix="/api")
 

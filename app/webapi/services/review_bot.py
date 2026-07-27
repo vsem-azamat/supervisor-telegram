@@ -1,15 +1,16 @@
 """Outgoing-only ``aiogram.Bot`` that owns review messages.
 
 A review message carries an inline keyboard, and Telegram delivers a button's
-callback to the bot that sent the message. In the bot process
-``channel_review_router`` is attached to the assistant dispatcher whenever the
-assistant is active, and to the moderator dispatcher otherwise
-(``app/presentation/telegram/bot.py``). Any other process that sends a review
-message must therefore pick the same identity, or the approve/reject buttons
-reach a bot with no handler for them and silently do nothing.
+callback to the bot that sent the message. ``channel_review_router`` lives on
+the moderator dispatcher, so any other process sending a review message must
+use the moderator identity — otherwise the approve/reject buttons reach a bot
+with no handler for them and silently do nothing.
 
-This is deliberately not ``build_publish_bot``: that one is always the moderator
-token because publishing to a channel needs no callback handling.
+There used to be a second identity to choose between, and this function existed
+to make the choice. It now returns one thing, and survives because its name
+records *why* that identity: ``build_publish_bot`` returns the same token for an
+unrelated reason, and collapsing the two would lose the distinction the moment a
+second identity comes back.
 """
 
 from __future__ import annotations
@@ -26,14 +27,7 @@ logger = get_logger("webapi.review_bot")
 
 
 def build_review_bot() -> Bot:
-    """Construct the outgoing-only Bot whose identity owns review callbacks.
-
-    Mirrors how each identity is constructed in the bot process: the assistant
-    bot runs without a default parse mode so entity-based formatting survives,
-    while the moderator bot defaults to HTML.
-    """
-    if settings.assistant.active:
-        return Bot(token=settings.assistant.token)
+    """Construct the outgoing-only Bot whose identity owns review callbacks."""
     return Bot(token=settings.telegram.token, default=DefaultBotProperties(parse_mode="HTML"))
 
 

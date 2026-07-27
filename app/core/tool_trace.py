@@ -29,48 +29,6 @@ TOOL_LABELS: dict[str, str] = {
     "remove_image": "Удаление картинки",
     "reorder_images": "Переупорядочивание картинок",
     "clear_images": "Очистка картинок",
-    # ── Assistant bot — channel management ──
-    "get_status": "Статус каналов",
-    "list_channels": "Список каналов",
-    "add_channel": "Добавление канала",
-    "remove_channel": "Удаление канала",
-    "get_sources": "Источники канала",
-    "add_source": "Добавление источника",
-    "remove_source": "Удаление источника",
-    "run_pipeline": "Запуск пайплайна",
-    "get_recent_posts": "Последние посты",
-    "get_cost_report": "Отчёт по расходам",
-    "publish_text": "Публикация текста",
-    "set_schedule": "Настройка расписания",
-    "list_scheduled": "Запланированные посты",
-    "cancel_scheduled_post_tool": "Отмена поста",
-    # ── Assistant bot — moderation ──
-    "list_chats": "Список чатов",
-    "mute_user": "Мут пользователя",
-    "unmute_user": "Размут пользователя",
-    "ban_user": "Бан пользователя",
-    "unban_user": "Разбан пользователя",
-    "get_blacklist": "Чёрный список",
-    "blacklist_user": "Добавление в ЧС",
-    "unblacklist_user": "Удаление из ЧС",
-    # ── Assistant bot — chat ──
-    "get_chat_info": "Информация о чате",
-    "set_welcome": "Настройка приветствия",
-    "get_user_info": "Информация о юзере",
-    # ── Assistant bot — dedup ──
-    "check_duplicate": "Проверка дубликатов",
-    "list_recent_topics": "Последние темы",
-    "backfill_embeddings": "Загрузка эмбеддингов",
-    "search_news": "Поиск новостей",
-    "fetch_url": "Чтение страницы",
-    "fetch_rss": "Загрузка RSS",
-    # ── Assistant bot — telethon ──
-    "get_chat_history": "История чата",
-    "search_messages": "Поиск сообщений",
-    "get_chat_members": "Участники чата",
-    # ── Assistant bot — agent moderation ──
-    "analyze_message": "Анализ сообщения",
-    "get_moderation_history": "История модерации",
 }
 
 _BRIEF_MAX_LEN = 80

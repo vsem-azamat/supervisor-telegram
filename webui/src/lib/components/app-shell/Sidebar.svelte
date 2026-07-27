@@ -6,7 +6,6 @@
 		Newspaper,
 		Receipt,
 		Settings,
-		Sparkles,
 		Tv
 	} from '@lucide/svelte';
 	import type { Component } from 'svelte';
@@ -27,7 +26,6 @@
 			label: 'Workflow',
 			items: [
 				{ href: '/posts', label: 'Posts', icon: Newspaper },
-				{ href: '/agent', label: 'Agent', icon: Sparkles }
 			]
 		},
 		{

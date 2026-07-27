@@ -91,14 +91,21 @@ for key in IMAGE_TAG MODERATOR_BOT_TOKEN ADMIN_SUPER_ADMINS DB_USER DB_PASSWORD 
   fi
 done
 
-if is_true MODERATION_ENABLED || is_true CHANNEL_ENABLED || is_true ASSISTANT_BOT_ENABLED; then
+if is_true MODERATION_ENABLED || is_true CHANNEL_ENABLED; then
   if ! has_key OPENROUTER_API_KEY || is_empty OPENROUTER_API_KEY; then
     echo "OPENROUTER_API_KEY (required by enabled LLM features)" >> "$tmp_dir/empty.keys"
   fi
 fi
 
-if is_true ASSISTANT_BOT_ENABLED && { ! has_key ASSISTANT_BOT_TOKEN || is_empty ASSISTANT_BOT_TOKEN; }; then
-  echo "ASSISTANT_BOT_TOKEN (required by ASSISTANT_BOT_ENABLED=true)" >> "$tmp_dir/empty.keys"
+# The control plane fails closed without either half, so an enabled-but-
+# unconfigured deployment is a silently dead endpoint rather than an open one.
+if is_true MCP_ENABLED; then
+  if ! has_key MCP_TOKEN || is_empty MCP_TOKEN; then
+    echo "MCP_TOKEN (required by MCP_ENABLED=true)" >> "$tmp_dir/empty.keys"
+  fi
+  if ! has_key MCP_INITIATOR_ID || [ "$(value_of MCP_INITIATOR_ID)" = "0" ]; then
+    echo "MCP_INITIATOR_ID (ban proposals refuse without an admin to attribute them to)" >> "$tmp_dir/empty.keys"
+  fi
 fi
 
 if is_true CHANNEL_BRAVE_DISCOVERY_ENABLED && { ! has_key BRAVE_API_KEY || is_empty BRAVE_API_KEY; }; then

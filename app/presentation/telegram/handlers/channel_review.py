@@ -438,7 +438,7 @@ async def on_publish_now(callback: CallbackQuery, callback_data: PublishNow) -> 
 
                 await cancel_scheduled_post(tc, session_maker, post_id, channel)
 
-        # Use moderator bot for publishing (callback.bot may be the assistant bot)
+        # Publish as the moderator identity, which is the channel's administrator
         publish_bot = container.try_get_bot() or bot
         result = await handle_approve(publish_bot, post_id, channel.telegram_id, session_maker)
         await callback.answer(result, show_alert=True)
@@ -530,7 +530,7 @@ class _IsReviewReply(Filter):
     """Only match replies that resolve to a review post_id.
 
     Returns False for non-review replies so they propagate to the next router
-    (e.g. the assistant bot's generic F.text handler).
+    (a generic F.text handler must not swallow an unrelated reply).
 
     Resolution order:
     1. Inline keyboard on replied-to message (direct reply to review post)

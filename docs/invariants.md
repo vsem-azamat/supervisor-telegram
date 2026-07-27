@@ -17,13 +17,13 @@ code moving.
 ## Telegram
 
 **A callback belongs to the bot that sent the message.** Telegram delivers an
-inline-keyboard press to the sending identity. A review draft sent by the wrong
-bot renders perfectly and its buttons do nothing at all — no error, no log. The
-review router is attached to the assistant dispatcher when
-`settings.assistant.active` and to the moderator dispatcher otherwise, so
-whatever sends a review message must use the matching token. Escalations and
-pending-action confirmations are moderator-bot only, because that is the
-dispatcher holding their handlers.
+inline-keyboard press to the sending identity. A message whose buttons were sent
+under a different token renders perfectly and does nothing at all when pressed —
+no error, no log. Every inline-keyboard handler lives on the moderator
+dispatcher, so any process that sends such a message — the web API, the MCP
+plane — must send it with the moderator token, not merely with some working bot
+token. This is why the outgoing-only review bot exists as its own thing rather
+than as whichever `Bot` was nearest.
 
 **`parse_mode=None` whenever you pass entities.** The moderator bot defaults to
 HTML, and that default silently overrides explicit `entities` /
@@ -113,11 +113,12 @@ conversation log; a failed database connection would carry its DSN along.
 multiplies the cap by the worker count with no error and no log — just a larger
 model bill and a flooded review chat.
 
-**Turning `MCP_ENABLED` on publishes the endpoint.** The edge already proxies
-the path; there is no second step that exposes it. The bearer token is the only
-control, and an unauthenticated scanner can still see that the endpoint exists,
-because routing answers before authentication does. Treat the path as public
-and the token as the entire secret.
+**The control plane is not published to the internet, and that is a decision
+rather than an oversight.** It binds loopback in the bot container and the edge
+has no rule for it. This was not always so: the endpoint used to live on the web
+API behind the existing `/api/*` proxy, where enabling the flag was enough to
+expose it. Do not restore that convenience — the toolset now includes
+privileged moderation, and its safety rests on more than a bearer token.
 
 ## Deployment
 

@@ -259,36 +259,6 @@ class ModerationSettings(BaseSettings):
     )
 
 
-class AssistantSettings(BaseSettings):
-    """Settings for the conversational assistant bot."""
-
-    token: str = Field(default="", description="Telegram bot token for assistant bot")
-    enabled: bool = Field(default=False, description="Enable assistant bot")
-    model: str = Field(
-        default="anthropic/claude-sonnet-4-6",
-        description="Model for the assistant bot (channel/chat management)",
-    )
-
-    @property
-    def active(self) -> bool:
-        """True when the assistant bot actually runs.
-
-        Load-bearing beyond the bot process: when the assistant is active it owns
-        the review inline-keyboard callbacks (``channel_review_router`` is attached
-        to its dispatcher), so anything sending a review message must use the same
-        bot identity or the buttons are delivered to a bot that cannot handle them.
-        """
-        return self.enabled and bool(self.token)
-
-    model_config = SettingsConfigDict(
-        env_prefix="ASSISTANT_BOT_",
-        case_sensitive=False,
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
-
-
 class TelethonSettings(BaseSettings):
     """Telethon (Telegram Client API) configuration for userbot features."""
 
@@ -394,7 +364,6 @@ class AppSettings(BaseSettings):
     openrouter: OpenRouterSettings = Field(default_factory=OpenRouterSettings)
     brave: BraveSettings = Field(default_factory=BraveSettings)
     moderation: ModerationSettings = Field(default_factory=ModerationSettings)
-    assistant: AssistantSettings = Field(default_factory=AssistantSettings)
     telethon: TelethonSettings = Field(default_factory=TelethonSettings)
     webapi: WebApiSettings = Field(default_factory=WebApiSettings)
     sponsored_ads: SponsoredAdsSettings = Field(default_factory=SponsoredAdsSettings)

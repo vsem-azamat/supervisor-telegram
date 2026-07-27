@@ -136,5 +136,4 @@ async def test_get_system_status(client_factory) -> None:
         "auth_mode_telegram",
         "moderation_enabled",
         "ad_detector_enabled",
-        "assistant_bot_enabled",
     }

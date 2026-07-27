@@ -319,6 +319,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/join-check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pass Join Check
+         * @description Approve the caller's own pending join request.
+         */
+        post: operations["pass_join_check_api_public_join_check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/channels": {
         parameters: {
             query?: never;
@@ -612,65 +632,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/agent/history": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get History */
-        get: operations["get_history_api_agent_history_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/agent/clear": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Clear Conversation */
-        post: operations["clear_conversation_api_agent_clear_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/agent/turn": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Turn
-         * @description SSE stream of one agent turn.
-         *
-         *     We open a fresh session_maker session inside the generator so the
-         *     long-lived connection isn't tied to the request's get_session
-         *     lifecycle (which closes when the route returns — generator continues
-         *     afterwards).
-         */
-        post: operations["turn_api_agent_turn_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/users/{user_id}/block": {
         parameters: {
             query?: never;
@@ -800,42 +761,6 @@ export interface components {
              * @default false
              */
             is_current: boolean;
-        };
-        /**
-         * AgentHistory
-         * @description Persisted-conversation snapshot for /agent.
-         */
-        AgentHistory: {
-            /** User Id */
-            user_id: number;
-            /** Message Count */
-            message_count: number;
-            /** Messages */
-            messages: components["schemas"]["AgentMessage"][];
-        };
-        /**
-         * AgentMessage
-         * @description One row in the chat-UI projection of the agent conversation.
-         */
-        AgentMessage: {
-            /** Role */
-            role: string;
-            /** Text */
-            text?: string | null;
-            /** Tool Name */
-            tool_name?: string | null;
-            /** Tool Label */
-            tool_label?: string | null;
-            /** Result Preview */
-            result_preview?: string | null;
-        };
-        /**
-         * AgentTurnRequest
-         * @description Body of POST /api/agent/turn.
-         */
-        AgentTurnRequest: {
-            /** Message */
-            message: string;
         };
         /** AuthMeResponse */
         AuthMeResponse: {
@@ -1409,6 +1334,24 @@ export interface components {
             pool_index: number;
             /** Position */
             position?: number | null;
+        };
+        /** JoinCheckRequest */
+        JoinCheckRequest: {
+            /**
+             * Init Data
+             * @description Raw Telegram.WebApp.initData string
+             */
+            init_data: string;
+            /**
+             * Query Id
+             * @description Join request query id, carried in the Mini App URL
+             */
+            query_id: string;
+        };
+        /** JoinCheckResult */
+        JoinCheckResult: {
+            /** Status */
+            status: string;
         };
         /** MagicLinkLoginPayload */
         MagicLinkLoginPayload: {
@@ -2355,6 +2298,39 @@ export interface operations {
             };
         };
     };
+    pass_join_check_api_public_join_check_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JoinCheckRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JoinCheckResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_channels_api_channels_get: {
         parameters: {
             query?: never;
@@ -2898,77 +2874,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SuggestionsResponse"];
-                };
-            };
-        };
-    };
-    get_history_api_agent_history_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AgentHistory"];
-                };
-            };
-        };
-    };
-    clear_conversation_api_agent_clear_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    turn_api_agent_turn_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["AgentTurnRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
