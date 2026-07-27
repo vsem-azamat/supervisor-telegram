@@ -61,6 +61,46 @@ jobs:
     steps:
       - uses: actions/checkout@v6.0.2
 
+      # Fails before anything reaches the VPS. The five settings below have no
+      # defaults, so a deploy missing one starts containers that crash on
+      # boot; the rest would come up quietly wrong instead, which is worse.
+      - name: Check required configuration is present
+        env:
+          DB_USER: ${{ vars.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ vars.DB_NAME }}
+          MODERATOR_BOT_TOKEN: ${{ secrets.MODERATOR_BOT_TOKEN }}
+          ADMIN_SUPER_ADMINS: ${{ vars.ADMIN_SUPER_ADMINS }}
+          MCP_ENABLED: ${{ vars.MCP_ENABLED }}
+          MCP_TOKEN: ${{ secrets.MCP_TOKEN }}
+          MCP_INITIATOR_ID: ${{ vars.MCP_INITIATOR_ID }}
+          MODERATION_ENABLED: ${{ vars.MODERATION_ENABLED }}
+          CHANNEL_ENABLED: ${{ vars.CHANNEL_ENABLED }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          missing=""
+          for name in DB_USER DB_PASSWORD DB_NAME MODERATOR_BOT_TOKEN ADMIN_SUPER_ADMINS; do
+            [ -n "$(printenv "$name")" ] || missing="$missing $name"
+          done
+
+          # The control plane fails closed without either half, which reads as a
+          # dead endpoint rather than an open one — quiet, and easy to miss.
+          if [ "$MCP_ENABLED" = "true" ]; then
+            [ -n "$MCP_TOKEN" ] || missing="$missing MCP_TOKEN"
+            case "$MCP_INITIATOR_ID" in ""|0) missing="$missing MCP_INITIATOR_ID" ;; esac
+          fi
+
+          if [ "$MODERATION_ENABLED" = "true" ] || [ "$CHANNEL_ENABLED" = "true" ]; then
+            [ -n "$OPENROUTER_API_KEY" ] || missing="$missing OPENROUTER_API_KEY"
+          fi
+
+          if [ -n "$missing" ]; then
+            echo "Missing required configuration:$missing" >&2
+            echo "Set them as repository secrets or variables." >&2
+            exit 1
+          fi
+          echo "Required configuration present."
+
       - name: Copy docker-compose to VPS
         uses: appleboy/scp-action@v1.0.0
         with:
@@ -70,19 +110,54 @@ jobs:
           source: docker-compose.yaml
           target: ~/deploy/supervisor-telegram/
 
+      # Configuration travels with the command and is never written to the host.
+      # Secrets hold credentials; variables hold everything else that differs
+      # between environments. Anything not listed falls back to the default in
+      # app/core/config.py — the list is not a second copy of every setting, and
+      # a test pins it against docker-compose.yaml so the two cannot drift.
       - name: Deploy on VPS
         uses: appleboy/ssh-action@v1.2.5
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+          WEBUI_PORT: ${{ vars.WEBUI_PORT }}
+          APP_ENVIRONMENT: ${{ vars.APP_ENVIRONMENT }}
+          LOG_LEVEL: ${{ vars.LOG_LEVEL }}
+          DB_USER: ${{ vars.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_HOST: ${{ vars.DB_HOST }}
+          DB_PORT: ${{ vars.DB_PORT }}
+          DB_NAME: ${{ vars.DB_NAME }}
+          MODERATOR_BOT_TOKEN: ${{ secrets.MODERATOR_BOT_TOKEN }}
+          ADMIN_SUPER_ADMINS: ${{ vars.ADMIN_SUPER_ADMINS }}
+          ADMIN_REPORT_CHAT_ID: ${{ vars.ADMIN_REPORT_CHAT_ID }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
+          MODERATION_ENABLED: ${{ vars.MODERATION_ENABLED }}
+          CHANNEL_ENABLED: ${{ vars.CHANNEL_ENABLED }}
+          TELETHON_ENABLED: ${{ vars.TELETHON_ENABLED }}
+          TELETHON_API_ID: ${{ vars.TELETHON_API_ID }}
+          TELETHON_API_HASH: ${{ secrets.TELETHON_API_HASH }}
+          TELETHON_SESSION_NAME: ${{ vars.TELETHON_SESSION_NAME }}
+          WEBAPI_AUTH_MODE: ${{ vars.WEBAPI_AUTH_MODE }}
+          WEBAPI_PUBLIC_URL: ${{ vars.WEBAPI_PUBLIC_URL }}
+          WEBAPI_ALLOWED_ORIGINS: ${{ vars.WEBAPI_ALLOWED_ORIGINS }}
+          WEBAPI_SESSION_COOKIE_SECURE: ${{ vars.WEBAPI_SESSION_COOKIE_SECURE }}
+          SPONSORED_ADS_ENABLED: ${{ vars.SPONSORED_ADS_ENABLED }}
+          SPONSORED_ADS_MODERATOR_CHAT_ID: ${{ vars.SPONSORED_ADS_MODERATOR_CHAT_ID }}
+          SPONSORED_ADS_SALES_CONTACT: ${{ vars.SPONSORED_ADS_SALES_CONTACT }}
+          MCP_ENABLED: ${{ vars.MCP_ENABLED }}
+          MCP_TOKEN: ${{ secrets.MCP_TOKEN }}
+          MCP_PATH: ${{ vars.MCP_PATH }}
+          MCP_PORT: ${{ vars.MCP_PORT }}
+          MCP_INITIATOR_ID: ${{ vars.MCP_INITIATOR_ID }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          envs: IMAGE_TAG,WEBUI_PORT,APP_ENVIRONMENT,LOG_LEVEL,DB_USER,DB_PASSWORD,DB_HOST,DB_PORT,DB_NAME,MODERATOR_BOT_TOKEN,ADMIN_SUPER_ADMINS,ADMIN_REPORT_CHAT_ID,OPENROUTER_API_KEY,BRAVE_API_KEY,MODERATION_ENABLED,CHANNEL_ENABLED,TELETHON_ENABLED,TELETHON_API_ID,TELETHON_API_HASH,TELETHON_SESSION_NAME,WEBAPI_AUTH_MODE,WEBAPI_PUBLIC_URL,WEBAPI_ALLOWED_ORIGINS,WEBAPI_SESSION_COOKIE_SECURE,SPONSORED_ADS_ENABLED,SPONSORED_ADS_MODERATOR_CHAT_ID,SPONSORED_ADS_SALES_CONTACT,MCP_ENABLED,MCP_TOKEN,MCP_PATH,MCP_PORT,MCP_INITIATOR_ID
           script: |
+            set -e
             cd ~/deploy/supervisor-telegram
-            if grep -q '^IMAGE_TAG=' .env; then
-              sed -i 's|^IMAGE_TAG=.*|IMAGE_TAG=${{ github.sha }}|' .env
-            else
-              printf '\nIMAGE_TAG=${{ github.sha }}\n' >> .env
-            fi
             docker compose pull
             docker compose up -d --remove-orphans
             echo "--- Container status ---"

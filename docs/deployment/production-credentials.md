@@ -1,109 +1,92 @@
 # Production Credentials
 
-This is the operational contract for production credentials. Keep real values
-only in the VPS `~/deploy/supervisor-telegram/.env`, GitHub Actions secrets, or
-the provider consoles. Do not commit real tokens, database passwords, Telethon
-sessions, or exported `.env` files.
+Production configuration lives in **GitHub**, as repository secrets and
+variables. The VPS holds no copy: the deploy workflow forwards everything over
+SSH with the deploy command, so a value changes in one place and reaches the
+host on the next deploy.
 
-## Where Credentials Live
+Nothing here belongs in commits, issues, agent transcripts, screenshots, or a
+file on the server.
 
-Production deploys from GitHub Actions on pushes to `main`.
+## Secrets
 
-- GitHub Actions secrets store only deploy access:
-  - `VPS_HOST`
-  - `VPS_USER`
-  - `VPS_SSH_KEY`
-- The application runtime credentials live on the VPS in:
-  - `~/deploy/supervisor-telegram/.env`
-- The Telethon userbot session is mounted from:
-  - `~/deploy/supervisor-telegram/moderator_userbot.session`
+Credentials. Once set, GitHub will not show them again — rotate rather than
+recover.
 
-The deploy workflow updates `IMAGE_TAG` in the VPS `.env` on each deploy. The
-other values are managed manually on the VPS.
+| Secret | What it is |
+| --- | --- |
+| `DB_PASSWORD` | PostgreSQL password |
+| `MODERATOR_BOT_TOKEN` | Bot token from BotFather |
+| `OPENROUTER_API_KEY` | Model access for moderation and content |
+| `BRAVE_API_KEY` | Search, used by content discovery |
+| `TELETHON_API_HASH` | Half of the userbot's API credentials |
+| `MCP_TOKEN` | Bearer token for the control plane |
+| `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY` | Deploy target and key |
 
-## Production Baseline
+`MCP_TOKEN` is the entire protection on a plane that can mute, unmute, unban and
+read chat history through a user session. Generate with `openssl rand -hex 32`.
 
-Use `.env.production.example` as the non-secret template for the VPS `.env`.
+The Telethon **session file** is not a GitHub secret — it is a file on the host,
+mounted into the bot container from
+`~/deploy/supervisor-telegram/moderator_userbot.session`. It authenticates a
+real Telegram account and grants far more than any bot token; treat it as the
+most sensitive artefact in the deployment.
 
-Required production values:
+## Variables
 
-- `IMAGE_TAG`: maintained by GitHub Actions after deploy; needed for Docker
-  Compose bootstrap.
-- `MODERATOR_BOT_TOKEN`: production BotFather token, not a local/dev bot.
-- `ADMIN_SUPER_ADMINS`: real Telegram user IDs for production admins.
-- `DB_USER`, `DB_PASSWORD`, `DB_HOST`, `DB_PORT`, `DB_NAME`: production
-  PostgreSQL credentials.
-- `OPENROUTER_API_KEY`: production LLM API key when any LLM-backed feature is
-  enabled.
-- `WEBAPI_PUBLIC_URL`: public HTTPS URL of the web UI.
-- `WEBAPI_ALLOWED_ORIGINS`: the same public HTTPS origin as `WEBAPI_PUBLIC_URL`.
-- `WEBAPI_SESSION_COOKIE_SECURE=true`: required for production HTTPS sessions.
-- `WEBUI_PORT`: loopback-only host port used by the server-level edge Caddy
-  to reach the static web UI container. Production currently uses `18083`;
-  do not publish this port on `0.0.0.0`.
+Everything else that differs between environments. Readable by anyone with
+repository access, so nothing sensitive goes here.
 
-Feature-specific production values:
+| Variable | Notes |
+| --- | --- |
+| `DB_USER`, `DB_HOST`, `DB_PORT`, `DB_NAME` | |
+| `ADMIN_SUPER_ADMINS` | Comma-separated Telegram IDs |
+| `ADMIN_REPORT_CHAT_ID` | |
+| `APP_ENVIRONMENT`, `LOG_LEVEL` | |
+| `MODERATION_ENABLED`, `CHANNEL_ENABLED` | Both require `OPENROUTER_API_KEY` |
+| `TELETHON_ENABLED`, `TELETHON_API_ID`, `TELETHON_SESSION_NAME` | |
+| `WEBAPI_AUTH_MODE`, `WEBAPI_PUBLIC_URL`, `WEBAPI_ALLOWED_ORIGINS` | |
+| `WEBAPI_SESSION_COOKIE_SECURE` | `true` in production |
+| `SPONSORED_ADS_ENABLED`, `SPONSORED_ADS_MODERATOR_CHAT_ID`, `SPONSORED_ADS_SALES_CONTACT` | |
+| `MCP_ENABLED`, `MCP_PATH`, `MCP_PORT`, `MCP_INITIATOR_ID` | |
+| `WEBUI_PORT` | Loopback-only host port for the edge proxy |
 
-- `BRAVE_API_KEY`: required only when Brave-backed discovery is enabled.
-- `TELETHON_API_ID`, `TELETHON_API_HASH`, and `moderator_userbot.session`:
-  required only when `TELETHON_ENABLED=true`.
-- `SPONSORED_ADS_MODERATOR_CHAT_ID` and `SPONSORED_ADS_SALES_CONTACT`: required
-  for the sponsored-ads funnel to send review alerts and show a sales contact.
+Anything absent falls back to the default in `app/core/config.py`. The list is
+deliberately not a second copy of every setting — models, thresholds and
+intervals are code, and changing them should be a reviewed change rather than a
+click.
 
-## Dev Values To Remove From Production
+## What the deploy checks
 
-These values are development-only or stale and should not be present in the VPS
-production `.env`:
+Before anything reaches the VPS the workflow fails on:
 
-- `APP_ENVIRONMENT=development`
-- `APP_DEBUG=true`
-- `WEBAPI_SESSION_COOKIE_SECURE=false`
-- `WEBAPI_ALLOWED_ORIGINS=http://localhost:5173`
-- `WEBAPI_PUBLIC_URL=http://localhost:5173`
-- `WEBAPI_DEV_BYPASS_AUTH` - obsolete and ignored by current code.
-- `TELETHON_PHONE` after the first Telethon login has completed.
-- Any token created for local testing or a development bot.
+- any of `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `MODERATOR_BOT_TOKEN`,
+  `ADMIN_SUPER_ADMINS` being empty — these have no defaults, and containers
+  crash on boot without them;
+- `MCP_ENABLED=true` without `MCP_TOKEN`, or with `MCP_INITIATOR_ID` unset — the
+  plane would fail closed, which looks like a dead endpoint rather than a
+  misconfiguration;
+- `MODERATION_ENABLED` or `CHANNEL_ENABLED` without `OPENROUTER_API_KEY`.
 
-## Rotation Checklist
+A test pins the forwarded list against `docker-compose.yaml`, so a setting added
+to one and not the other fails in CI rather than in production.
 
-When preparing real production:
+## Rotation
 
-1. Create or choose the production Telegram bot token.
-2. Rotate `MODERATOR_BOT_TOKEN` on the VPS.
-3. Rotate `OPENROUTER_API_KEY` and set provider billing/usage limits.
-4. Rotate PostgreSQL password if the current database was used by development.
-5. Recreate the Telethon session only if the existing session was used for
-   development or belongs to the wrong Telegram account.
-6. Remove `TELETHON_PHONE` after Telethon login succeeds.
-7. Set `WEBAPI_PUBLIC_URL`, `WEBAPI_ALLOWED_ORIGINS`, and
-   `WEBAPI_SESSION_COOKIE_SECURE=true`.
-8. Restart with `docker compose up -d --remove-orphans`.
-9. Check `docker compose ps` and `docker compose logs --tail=100`.
+1. Generate the new value.
+2. Update the secret or variable in GitHub.
+3. Re-run the deploy workflow — the new value reaches the host with the command.
+4. Revoke the old value at its source: BotFather for bot tokens, the provider
+   console for API keys, `ALTER ROLE` for the database.
+5. Confirm the containers came up: `docker compose ps` and recent logs.
 
-## Safe Audit Commands
+Rotating `MCP_TOKEN` also means updating whatever client holds it.
 
-Use these commands on the VPS to inspect shape without printing secret values:
+## If a value leaks
 
-```bash
-cd ~/deploy/supervisor-telegram
-awk -F= '/^[A-Z][A-Z0-9_]*=/{print $1"=<redacted>"}' .env | sort
-```
+Rotate first, investigate after. For `MCP_TOKEN`, check `pending_actions` for
+proposals nobody made — the plane cannot ban on its own, so a leak shows up as
+requests awaiting confirmation rather than as damage already done.
 
-Run the repository audit script from a checkout to compare production `.env`
-against the non-secret template:
-
-```bash
-scripts/audit_prod_env.sh ~/deploy/supervisor-telegram/.env .env.production.example
-```
-
-Check for dev-only values without revealing the whole `.env`:
-
-```bash
-grep -nE 'APP_ENVIRONMENT=development|APP_DEBUG=true|WEBAPI_SESSION_COOKIE_SECURE=false|localhost:5173|WEBAPI_DEV_BYPASS_AUTH|TELETHON_PHONE=' .env
-```
-
-Check the deploy secrets configured in GitHub:
-
-```bash
-gh secret list --repo vsem-azamat/supervisor-telegram
-```
+For the Telethon session, terminate it from Telegram's own active-sessions list.
+Rotating API credentials does not invalidate an already-authorised session.
