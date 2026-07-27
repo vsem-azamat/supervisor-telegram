@@ -3,174 +3,20 @@
 from __future__ import annotations
 
 import datetime
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
 ChatResourceStatus = Literal["discovered", "approved", "disabled"]
 
 
-class PostRead(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    channel_id: int
-    title: str
-    post_text: str
-    status: str
-    image_url: str | None
-    image_urls: list[str] | None
-    source_url: str | None
-    scheduled_at: datetime.datetime | None
-    published_at: datetime.datetime | None
-    created_at: datetime.datetime
-
-
-class PostDetail(PostRead):
-    """Full post payload for the detail page — adds source_items blob."""
-
-    external_id: str
-    source_items: list[dict[str, Any]] | None = None
-    pre_critic_text: str | None = None
-    image_candidates: list[dict[str, Any]] | None = None
-
-
-class ImageUseRequest(BaseModel):
-    """POST /api/posts/{id}/images/use — promote a pool candidate to selected."""
-
-    pool_index: int
-    position: int | None = None
-
-
-class ImageAddUrlRequest(BaseModel):
-    """POST /api/posts/{id}/images/url — vet + attach an arbitrary URL."""
-
-    url: str
-    position: int | None = None
-
-
-class ImageSearchRequest(BaseModel):
-    """POST /api/posts/{id}/images/search — Brave search → vision-score → pool."""
-
-    query: str
-
-
-class ImageReorderRequest(BaseModel):
-    """POST /api/posts/{id}/images/reorder — permutation of current selected positions."""
-
-    order: list[int]
-
-
-class ImageMutationResponse(BaseModel):
-    """Common response shape for image-pool mutations."""
-
-    post_id: int
-    message: str
-    image_urls: list[str]
-    image_candidates: list[dict[str, Any]]
-
-
-class ChannelRead(BaseModel):
-    """List-page view of a channel — identifying + toggle fields only."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    telegram_id: int
-    username: str | None
-    name: str
-    description: str
-    language: str
-    enabled: bool
-    max_posts_per_day: int
-    critic_enabled: bool | None
-    created_at: datetime.datetime
-
-
 class PublicCatalogItem(BaseModel):
-    """Safe public projection for the mixed chat/channel catalog."""
+    """Safe public projection for the chat catalog."""
 
-    resource_type: Literal["chat", "channel"]
+    resource_type: Literal["chat"]
     id: int
     title: str
     subtitle: str | None = None
-
-
-class ChannelSourceRead(BaseModel):
-    """RSS source attached to a channel."""
-
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    url: str
-    source_type: str
-    title: str | None
-    language: str | None
-    enabled: bool
-    relevance_score: float
-    error_count: int
-    last_fetched_at: datetime.datetime | None
-    last_error: str | None
-
-
-class ChannelDetail(ChannelRead):
-    """Full channel payload — adds config + sources + recent posts summary."""
-
-    review_chat_id: int | None
-    posting_schedule: list[str] | None
-    publish_schedule: list[str] | None
-    footer_template: str | None
-    discovery_query: str
-    modified_at: datetime.datetime
-    sources: list[ChannelSourceRead]
-    recent_posts: list[PostRead]
-
-
-class ChannelCreate(BaseModel):
-    """Required + optional fields for creating a new channel."""
-
-    telegram_id: int
-    name: str
-    description: str = ""
-    language: str = "ru"
-    username: str | None = None
-    review_chat_id: int | None = None
-    max_posts_per_day: int = 3
-    posting_schedule: list[str] | None = None
-    discovery_query: str = ""
-    source_discovery_query: str = ""
-
-
-class ChannelUpdate(BaseModel):
-    """All fields are optional — only the keys present in the body are applied."""
-
-    name: str | None = None
-    description: str | None = None
-    language: str | None = None
-    username: str | None = None
-    enabled: bool | None = None
-    review_chat_id: int | None = None
-    max_posts_per_day: int | None = None
-    posting_schedule: list[str] | None = None
-    publish_schedule: list[str] | None = None
-    footer_template: str | None = None
-    discovery_query: str | None = None
-    source_discovery_query: str | None = None
-    critic_enabled: bool | None = None
-
-
-class ChannelMutationResponse(BaseModel):
-    channel_id: int
-    message: str
-
-
-class ChannelSourceCreate(BaseModel):
-    url: str
-    title: str | None = None
-
-
-class ChannelSourceUpdate(BaseModel):
-    enabled: bool
 
 
 class ChatRead(BaseModel):
@@ -315,17 +161,6 @@ class SystemStatus(BaseModel):
 ChatNode.model_rebuild()
 
 
-class PostViewsEntry(BaseModel):
-    """Home tile: post view counts for the last N published posts."""
-
-    post_id: int
-    channel_id: int
-    channel_name: str
-    title: str
-    published_at: datetime.datetime
-    views: int
-
-
 class ChatHeatmapSummary(BaseModel):
     """Home tile: per-chat total activity over the last 7 days.
 
@@ -352,14 +187,6 @@ class MembersDeltaEntry(BaseModel):
     delta_7d: int | None
 
 
-class DraftBucket(BaseModel):
-    """Home tile: drafts grouped by channel."""
-
-    channel_id: int
-    channel_name: str
-    count: int
-
-
 class SpamPingRead(BaseModel):
     """One ad-detection event surfaced to the UI."""
 
@@ -384,140 +211,6 @@ class SpamPingsSummary(BaseModel):
     recent: list[SpamPingRead] = []
 
 
-class ScheduledPostEntry(BaseModel):
-    """Home tile: scheduled post appearing in the next 24h window."""
-
-    post_id: int
-    channel_id: int
-    channel_name: str
-    title: str
-    scheduled_at: datetime.datetime
-
-
-class OperationCostBucket(BaseModel):
-    """Per-operation slice of the session cost summary.
-
-    Operation is the pipeline phase (screening, generation, discovery,
-    feedback, edit, source_discovery) — that's how cost_tracker groups
-    usage internally.
-    """
-
-    operation: str
-    tokens: int
-    cost_usd: float
-    calls: int
-    cache_savings_usd: float
-
-
-class ModelCostBucket(BaseModel):
-    """Per-model slice of the session cost summary."""
-
-    model: str
-    tokens: int
-    cost_usd: float
-    calls: int
-    cache_savings_usd: float
-
-
-class CostHistoryDay(BaseModel):
-    """One day in the persistent cost history series."""
-
-    day: str  # ISO yyyy-mm-dd
-    cost_usd: float
-    tokens: int
-    calls: int
-    cache_savings_usd: float
-
-
-class CostHistoryResponse(BaseModel):
-    """Daily roll-up of cost_events, oldest first."""
-
-    days: int
-    series: list[CostHistoryDay]
-    total_cost_usd: float
-    total_calls: int
-    total_tokens: int
-
-
-class SessionCostSummary(BaseModel):
-    """In-memory cost aggregation from app.channel.cost_tracker.
-
-    Resets whenever the bot restarts — this is a session view, not
-    persistent history. Persistent storage is Phase 1.5 scope.
-    """
-
-    total_tokens: int
-    total_cost_usd: float
-    total_calls: int
-    cache_read_tokens: int
-    cache_write_tokens: int
-    cache_savings_usd: float
-    by_operation: list[OperationCostBucket]
-    by_model: list[ModelCostBucket] = []
-
-    @classmethod
-    def from_tracker(cls, summary: dict[str, Any]) -> SessionCostSummary:
-        """Adapt `cost_tracker.get_session_summary()` output into a response.
-
-        Keeping the shape-conversion in one place prevents the /costs and
-        /stats/home endpoints from drifting apart as cost_tracker evolves.
-        """
-        op_buckets = [
-            OperationCostBucket(
-                operation=op_name,
-                tokens=int(data.get("tokens", 0)),
-                cost_usd=float(data.get("cost_usd", 0.0)),
-                calls=int(data.get("calls", 0)),
-                cache_savings_usd=float(data.get("cache_savings_usd", 0.0)),
-            )
-            for op_name, data in (summary.get("by_operation") or {}).items()
-        ]
-        model_buckets = [
-            ModelCostBucket(
-                model=model_name,
-                tokens=int(data.get("tokens", 0)),
-                cost_usd=float(data.get("cost_usd", 0.0)),
-                calls=int(data.get("calls", 0)),
-                cache_savings_usd=float(data.get("cache_savings_usd", 0.0)),
-            )
-            for model_name, data in (summary.get("by_model") or {}).items()
-        ]
-        return cls(
-            total_tokens=int(summary.get("total_tokens", 0)),
-            total_cost_usd=float(summary.get("total_cost_usd", 0.0)),
-            total_calls=int(summary.get("total_calls", 0)),
-            cache_read_tokens=int(summary.get("cache_read_tokens", 0)),
-            cache_write_tokens=int(summary.get("cache_write_tokens", 0)),
-            cache_savings_usd=float(summary.get("cache_savings_usd", 0.0)),
-            by_operation=op_buckets,
-            by_model=model_buckets,
-        )
-
-
-class SuggestionItem(BaseModel):
-    """One actionable setup-gap detected by a mechanical rule.
-
-    ``kind`` is a stable id (sibling_orphan, network_without_channel, …) that the
-    UI uses for icon + copy. ``severity`` drives the tone of the card. ``target_id``
-    is the chat / channel id the suggestion is about — the UI uses it to dedupe
-    when the same chat is flagged by multiple rules.
-    """
-
-    kind: str
-    severity: str  # "info" | "warning" | "attention"
-    title: str
-    hint: str
-    target_id: int | None = None
-    target_label: str | None = None
-    action_url: str | None = None
-    action_label: str | None = None
-
-
-class SuggestionsResponse(BaseModel):
-    items: list[SuggestionItem]
-    generated_at: datetime.datetime
-
-
 class HomeStats(BaseModel):
     """Aggregated response backing the home dashboard's live tiles.
 
@@ -525,10 +218,6 @@ class HomeStats(BaseModel):
     appear here.
     """
 
-    drafts: list[DraftBucket]
-    scheduled_next_24h: list[ScheduledPostEntry]
-    session_cost: SessionCostSummary
-    post_views: list[PostViewsEntry] = []
     chat_heatmap: list[ChatHeatmapSummary] = []
     members_delta: list[MembersDeltaEntry] = []
     spam_pings: SpamPingsSummary = SpamPingsSummary(count_24h=0, count_7d=0, recent=[])
@@ -552,20 +241,3 @@ class AuthMeResponse(BaseModel):
     user_id: int
     auth_mode: str = "telegram"
     is_authenticated: bool = True
-
-
-class PostMutationResponse(BaseModel):
-    """Outcome of a state-changing call against a post.
-
-    ``status`` is the post's PostStatus *after* the mutation; ``message`` is the
-    human-readable outcome from the service layer.
-    """
-
-    post_id: int
-    status: str
-    message: str
-    published_msg_id: int | None = None
-
-
-class PostTextEdit(BaseModel):
-    text: str

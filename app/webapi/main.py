@@ -16,16 +16,12 @@ from app.db.session import create_session_maker
 from app.webapi.routes import (
     admin,
     auth,
-    channels,
     chats,
-    costs,
     health,
     join_check,
-    posts,
     public,
     spam,
     stats,
-    suggestions,
     users,
 )
 from app.webapi.services.telethon_stats import TelethonStatsService
@@ -39,12 +35,10 @@ logger = get_logger("webapi.main")
 
 @asynccontextmanager
 async def _lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
-    from app.channel.cost_tracker import enable_persistence as enable_cost_persistence
     from app.core.container import container
     from app.webapi.services.publish_bot import build_publish_bot, close_publish_bot
 
     session_maker = create_session_maker()
-    enable_cost_persistence(True)
     telethon = container.get_telethon_client()
     _app.state.telethon_stats = TelethonStatsService(telethon=telethon)
     _app.state.publish_bot = build_publish_bot()
@@ -91,15 +85,11 @@ def create_app() -> FastAPI:
 
     app.include_router(auth.router, prefix="/api")
     app.include_router(health.router, prefix="/api")
-    app.include_router(posts.router, prefix="/api")
     app.include_router(public.router, prefix="/api")
     app.include_router(join_check.router, prefix="/api")
-    app.include_router(channels.router, prefix="/api")
     app.include_router(chats.router, prefix="/api")
-    app.include_router(costs.router, prefix="/api")
     app.include_router(spam.router, prefix="/api")
     app.include_router(stats.router, prefix="/api")
-    app.include_router(suggestions.router, prefix="/api")
     app.include_router(users.router, prefix="/api")
     app.include_router(admin.router, prefix="/api")
 

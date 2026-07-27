@@ -5,15 +5,13 @@ ever in one direction that matters: a flag saying yes over credentials that are
 absent. `TELETHON_ENABLED=true` without an api_id produced a userbot that
 started, failed, and said nothing.
 
-So the flags are gone and activation is derived. The exception is moderation,
-which has no credential of its own to derive from and is the one thing you may
-need to switch off in a hurry.
+So the flags are gone and activation is derived from what is configured.
 """
 
 from __future__ import annotations
 
 import pytest
-from app.core.config import McpSettings, SponsoredAdsSettings, TelethonSettings, WebApiSettings
+from app.core.config import McpSettings, TelethonSettings, WebApiSettings
 
 pytestmark = pytest.mark.unit
 
@@ -59,14 +57,6 @@ class TestMcp:
         settings = McpSettings(token="t")
         assert settings.path == "/api/mcp"
         assert settings.port == 8788
-
-
-class TestSponsoredAds:
-    def test_a_moderator_chat_switches_it_on(self) -> None:
-        assert SponsoredAdsSettings(moderator_chat_id=-100).active is True
-
-    def test_without_a_moderator_chat_there_is_nowhere_to_alert(self) -> None:
-        assert SponsoredAdsSettings(moderator_chat_id=0).active is False
 
 
 class TestWebApi:

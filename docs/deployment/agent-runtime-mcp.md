@@ -8,15 +8,12 @@ govern its behaviour are in [Invariants](../invariants.md).
 | Variable | Meaning |
 | --- | --- |
 | `MCP_TOKEN` | Shared bearer token the client must present, and the switch: no token, no endpoint. |
-| `MCP_MAX_DRAFTS_PER_HOUR` | Cap on `generate_and_send_for_review` calls per hour. Default `10`; `0` disables the cap. |
-
-The cap bounds what a leaked token can cost: the endpoint cannot publish, but
-each generation spends model budget and puts a message in a review chat.
 
 A ban is an attributable act while the token names a runtime, so proposals are
 recorded against the first super admin, which is also where the confirmation is
 sent. `MCP_INITIATOR_ID` overrides that if the token should answer to someone
-else on the list.
+else on the list — it is a local-only setting today, since the deploy workflow
+forwards no such variable.
 
 The token is the only switch: unset means no endpoint. Path and port are fixed
 in code at `/api/mcp` and `8788`, because the compose port mapping hard-codes

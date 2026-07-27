@@ -8,10 +8,9 @@
 # every setting.
 #
 # There are no enable-flags here at all. A feature is on when it is configured:
-# Telethon needs credentials, the control plane needs a token, sponsored ads
-# need a moderator chat. A flag that could disagree with the configuration it
-# gates can only ever be wrong in one direction, and it is the direction that
-# fails silently.
+# Telethon needs credentials, the control plane needs a token. A flag that could
+# disagree with the configuration it gates can only ever be wrong in one
+# direction, and it is the direction that fails silently.
 #
 # Consequence worth knowing: `docker compose up` run by hand on the host, with
 # none of this exported, recreates the containers without their configuration.
@@ -23,12 +22,9 @@ x-runtime-env: &runtime-env
   MODERATOR_BOT_TOKEN:
   ADMIN_SUPER_ADMINS:
   ADMIN_REPORT_CHAT_ID:
-  OPENROUTER_API_KEY:
   TELETHON_API_ID:
   TELETHON_API_HASH:
   WEBAPI_PUBLIC_URL:
-  SPONSORED_ADS_MODERATOR_CHAT_ID:
-  SPONSORED_ADS_SALES_CONTACT:
   MCP_TOKEN:
   # Fixed here rather than passed in: they do not differ between deployments,
   # and one of them is what "production" means.
@@ -40,11 +36,9 @@ x-runtime-env: &runtime-env
 
 services:
   # The database is part of this stack rather than something the host happens to
-  # be running. pgvector rather than plain postgres because channel_posts still
-  # carries an embedding column; that leaves with the content pipeline, and this
-  # can become a plain image when it does.
+  # be running.
   db:
-    image: pgvector/pgvector:0.8.2-pg18-trixie
+    image: postgres:18-trixie
     container_name: supervisor-telegram-db
     environment:
       POSTGRES_USER: konnekt

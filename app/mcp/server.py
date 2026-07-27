@@ -3,12 +3,7 @@
 A second control plane alongside the cookie-authenticated web UI, for a runtime
 (a Hermes gateway, say) that talks to the operator in their own chat surface.
 
-The boundary used to be the tool list itself: only reads plus one review-bound
-write existed, and the rule was that it must never grow. That worked while the
-plane only touched content. It cannot survive the operator's own moderation
-work moving here, because the point of that work is privileged mutation.
-
-So the boundary moved from *which tools exist* to *what a leaked token can do*:
+The boundary is not the tool list — it is what a leaked token can do:
 
 * **Reads** answer freely, but never outside what this deployment manages —
   see the peer resolver in ``app.mcp.deps``, which matters most for the tools
@@ -18,8 +13,6 @@ So the boundary moved from *which tools exist* to *what a leaked token can do*:
 * **Removals** are not performed at all. ``propose_ban`` and
   ``propose_blacklist`` create a pending action and return; a super admin
   presses confirm in the moderator bot, or it expires having done nothing.
-* **Content** still cannot be published: ``generate_and_send_for_review``
-  reaches a review chat and nothing further.
 
 There is no tool that analyses a message and acts on its own verdict. One
 existed on the removed assistant, and it decided *and* executed in a single
@@ -38,8 +31,6 @@ Telethon session and the confirmation handlers both live there.
 from __future__ import annotations
 
 import hmac
-import time
-from collections import deque
 from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
@@ -50,16 +41,11 @@ if TYPE_CHECKING:
 
 logger = get_logger("webapi.mcp")
 
-_MCP_INSTRUCTIONS = """Admin tools for supervisor-telegram: moderation and content.
+_MCP_INSTRUCTIONS = """Moderation tools for supervisor-telegram.
 
-Chats and channels are identified by their numeric Telegram ID (negative, e.g.
--1001234567890), never by @username. Call list_chats or list_channels first to
-resolve one. Anything absent from those lists is refused.
-
-Two things here never happen on your say-so alone.
-
-generate_and_send_for_review writes a draft into the channel's review chat,
-where a human approves or rejects it with inline buttons. It cannot publish.
+Chats are identified by their numeric Telegram ID (negative, e.g.
+-1001234567890), never by @username. Call list_chats first to resolve one.
+Anything absent from that list is refused.
 
 propose_ban and propose_blacklist do not remove anyone. They put a request in
 front of a super admin and return a pending id; a human presses confirm, or the
@@ -137,51 +123,6 @@ class BearerTokenMiddleware:
         await send({"type": "http.response.body", "body": b'{"error":"unauthorized"}'})
 
 
-class RateLimiter:
-    """Sliding-window cap on how often a tool may run.
-
-    Generation is the expensive tool: each call spends model budget and puts a
-    message in a review chat. The endpoint cannot publish, but a leaked token
-    could still burn money and flood the operator, so the cost is bounded here.
-
-    In-process state is enough because the bot process serving this endpoint is
-    a single process by construction — it also owns the Telethon session, which
-    cannot be opened twice.
-    """
-
-    def __init__(self, limit: int, window_seconds: float = 3600.0) -> None:
-        self._limit = limit
-        self._window = window_seconds
-        self._hits: deque[float] = deque()
-
-    def allow(self) -> bool:
-        """Record and admit a call, or refuse it when the window is full."""
-        if self._limit <= 0:
-            return True
-        now = time.monotonic()
-        while self._hits and now - self._hits[0] >= self._window:
-            self._hits.popleft()
-        if len(self._hits) >= self._limit:
-            return False
-        self._hits.append(now)
-        return True
-
-
-def _channel_summary(channel: Any) -> dict[str, Any]:
-    """Project a Channel row into the shape agent clients consume."""
-    return {
-        "channel_id": channel.telegram_id,
-        "username": channel.username,
-        "name": channel.name,
-        "language": channel.language,
-        "enabled": channel.enabled,
-        "has_review_chat": bool(channel.review_chat_id),
-        "max_posts_per_day": channel.max_posts_per_day,
-        "posts_today": channel.daily_posts_count,
-        "description": channel.description or "",
-    }
-
-
 def build_mcp_server() -> FastMCP[None]:
     """Construct the MCP server and register its tools."""
     from fastmcp import FastMCP
@@ -194,134 +135,6 @@ def build_mcp_server() -> FastMCP[None]:
         # all, into an external agent's context and from there into chat history.
         mask_error_details=True,
     )
-    from app.core.config import settings
-
-    draft_limiter = RateLimiter(settings.mcp.max_drafts_per_hour)
-
-    @mcp.tool
-    async def list_channels() -> dict[str, Any]:
-        """List every channel the pipeline manages, with its review-chat status.
-
-        Use this to resolve a channel name or @username into the numeric
-        channel_id that the other tools require.
-        """
-        from sqlalchemy import select
-
-        from app.db.models import Channel
-        from app.db.session import create_session_maker
-
-        session_maker = create_session_maker()
-        async with session_maker() as session:
-            rows = (await session.execute(select(Channel).order_by(Channel.id))).scalars().all()
-        return {"channels": [_channel_summary(row) for row in rows]}
-
-    @mcp.tool
-    async def get_channel(channel_id: int, recent_posts: int = 5) -> dict[str, Any]:
-        """Get one channel's configuration and its most recent posts.
-
-        channel_id is the numeric Telegram ID from list_channels. recent_posts
-        caps how many recent posts to include (1-50); each shows its review
-        status, so you can see what is waiting for approval.
-        """
-        from sqlalchemy import select
-
-        from app.channel.channel_repo import get_channel_by_telegram_id
-        from app.db.models import ChannelPost
-        from app.db.session import create_session_maker
-
-        session_maker = create_session_maker()
-        channel = await get_channel_by_telegram_id(session_maker, channel_id)
-        if channel is None:
-            return {"error": "channel_not_found", "channel_id": channel_id}
-
-        limit = min(max(1, recent_posts), 50)
-        async with session_maker() as session:
-            posts = (
-                (
-                    await session.execute(
-                        select(ChannelPost)
-                        .where(ChannelPost.channel_id == channel_id)
-                        .order_by(ChannelPost.id.desc())
-                        .limit(limit)
-                    )
-                )
-                .scalars()
-                .all()
-            )
-
-        summary = _channel_summary(channel)
-        summary["posting_schedule"] = list(channel.posting_schedule or [])
-        summary["publish_schedule"] = list(channel.publish_schedule or [])
-        summary["discovery_query"] = channel.discovery_query or ""
-        summary["recent_posts"] = [
-            {"post_id": post.id, "status": post.status, "title": post.title or ""} for post in posts
-        ]
-        return summary
-
-    @mcp.tool
-    async def generate_and_send_for_review(
-        channel_id: int,
-        topic: str,
-        source_url: str = "",
-    ) -> dict[str, Any]:
-        """Generate a post about a topic and send it to the channel's review chat.
-
-        A human approves or rejects it there — this tool never publishes. It
-        fails if the channel has no review chat configured.
-
-        topic must carry the full story: headline, key facts and context. A vague
-        one-line summary produces a poor post. source_url should be the article
-        URL when the topic came from a specific source.
-        """
-        from app.channel.adhoc import generate_for_review
-        from app.db.session import create_session_maker
-        from app.webapi.services.review_bot import build_review_bot, close_review_bot
-
-        if not draft_limiter.allow():
-            logger.warning("mcp_draft_rate_limited", channel_id=channel_id)
-            return {
-                "status": "rate_limited",
-                "channel_id": channel_id,
-                "detail": (
-                    "Too many drafts requested in the last hour. Wait before generating more, "
-                    "and tell the operator rather than retrying."
-                ),
-            }
-
-        review_bot = build_review_bot()
-        try:
-            result = await generate_for_review(
-                session_maker=create_session_maker(),
-                review_bot=review_bot,
-                channel_id=channel_id,
-                topic=topic,
-                source_url=source_url,
-                # No publish_bot on purpose: without it the service cannot take
-                # its direct-publish path, so this endpoint is incapable of
-                # making anything public regardless of channel configuration.
-            )
-        finally:
-            await close_review_bot(review_bot)
-
-        logger.info(
-            "mcp_generate_and_send_for_review",
-            channel_id=channel_id,
-            status=result.status,
-            post_id=result.post_id,
-        )
-        payload: dict[str, Any] = {
-            "status": result.status,
-            "channel_id": channel_id,
-            "post_id": result.post_id,
-            "preview": result.preview,
-        }
-        if result.status == "no_review_chat":
-            payload["detail"] = (
-                "This channel has no review chat, so a generated post could only be "
-                "published directly. Configure a review chat first."
-            )
-        return payload
-
     from app.mcp.tools.moderate import register_moderation_tools
     from app.mcp.tools.read import register_read_tools
 

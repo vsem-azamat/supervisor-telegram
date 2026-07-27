@@ -205,7 +205,9 @@ class PendingActionService:
         await self.db.commit()
 
     def _render(self, pending: PendingAction) -> str:
-        label = _ACTION_LABELS.get(pending.action, pending.action)
+        from app.moderation.actions import parse
+
+        label = _ACTION_LABELS[parse(pending.action)]
         lines = [
             f"Запрошено действие: <b>{escape_html(label)}</b>",
             f"Пользователь: <code>{pending.target_user_id}</code>",

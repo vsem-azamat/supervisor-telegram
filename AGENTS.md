@@ -36,10 +36,9 @@ stale map is worse than no map because it is trusted.
 
 ## Architecture
 
-Feature-based and modular: `moderation/`, `channel/`, `sponsored_ads/`,
-`webapi/`, `mcp/`, `presentation/telegram/`. ORM models are
-the domain models; there is no entity-mapping layer and no interface layer
-without a real second implementation.
+Feature-based and modular: one package per feature under `app/`, named for what
+it does. ORM models are the domain models; there is no entity-mapping layer and
+no interface layer without a real second implementation.
 
 - Keep feature behaviour inside the owning module.
 - Keep route handlers, Telegram handlers, and UI handlers thin. They orchestrate

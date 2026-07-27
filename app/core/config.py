@@ -2,13 +2,10 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Literal
+from typing import Any, Literal
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-
-if TYPE_CHECKING:
-    from app.channel.config import ChannelAgentSettings
 
 
 class DatabaseSettings(BaseSettings):
@@ -176,35 +173,6 @@ class LoggingSettings(BaseSettings):
     )
 
 
-class OpenRouterSettings(BaseSettings):
-    """Shared LLM credentials used by all agents."""
-
-    api_key: str = Field(default="", description="OpenRouter API key")
-    base_url: str = Field(default="https://openrouter.ai/api/v1", description="OpenRouter API base URL")
-
-    model_config = SettingsConfigDict(
-        env_prefix="OPENROUTER_",
-        case_sensitive=False,
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
-
-
-class BraveSettings(BaseSettings):
-    """Brave Search API configuration."""
-
-    api_key: str = Field(default="", description="Brave Search API key for web search")
-
-    model_config = SettingsConfigDict(
-        env_prefix="BRAVE_",
-        case_sensitive=False,
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
-
-
 class ModerationSettings(BaseSettings):
     """Heuristic moderation configuration.
 
@@ -265,32 +233,6 @@ class TelethonSettings(BaseSettings):
         return bool(self.api_id and self.api_hash)
 
 
-class SponsoredAdsSettings(BaseSettings):
-    """Sponsored ads rate-card funnel configuration."""
-
-    moderator_chat_id: int = Field(
-        default=0,
-        description="Chat that receives ad-review alerts; unset disables the funnel",
-    )
-    sales_contact: str = Field(
-        default="",
-        description="@username shown in the rate card for ad-sales questions",
-    )
-
-    @property
-    def active(self) -> bool:
-        """True when there is somewhere to send an alert."""
-        return bool(self.moderator_chat_id)
-
-    model_config = SettingsConfigDict(
-        env_prefix="SPONSORED_ADS_",
-        case_sensitive=False,
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
-
-
 class McpSettings(BaseSettings):
     """MCP server served by the bot process for external agent clients.
 
@@ -308,14 +250,10 @@ class McpSettings(BaseSettings):
     initiator_id: int = Field(
         default=0,
         description=(
-            "Telegram ID of the admin this token acts as. A ban is an attributable act, "
-            "and the token names a runtime rather than a person, so the attribution has "
-            "to be configured. Destructive tools stay closed while this is unset."
+            "Telegram ID of the admin this token acts as. Defaults to the first super "
+            "admin, which is where confirmations go; set it only when the token should "
+            "answer to someone else on that list."
         ),
-    )
-    max_drafts_per_hour: int = Field(
-        default=10,
-        description="Cap on generate_and_send_for_review calls per hour (0 disables the cap)",
     )
 
     # Not configurable. The compose port mapping hard-codes the container side,
@@ -355,22 +293,10 @@ class AppSettings(BaseSettings):
     telegram: TelegramSettings = Field(default_factory=TelegramSettings)
     admin: AdminSettings = Field(default_factory=AdminSettings)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
-    openrouter: OpenRouterSettings = Field(default_factory=OpenRouterSettings)
-    brave: BraveSettings = Field(default_factory=BraveSettings)
     moderation: ModerationSettings = Field(default_factory=ModerationSettings)
     telethon: TelethonSettings = Field(default_factory=TelethonSettings)
     webapi: WebApiSettings = Field(default_factory=WebApiSettings)
-    sponsored_ads: SponsoredAdsSettings = Field(default_factory=SponsoredAdsSettings)
     mcp: McpSettings = Field(default_factory=McpSettings)
-
-    @property
-    def channel(self) -> ChannelAgentSettings:
-        """Lazily load and cache ChannelAgentSettings singleton."""
-        if not hasattr(self, "_channel_settings"):
-            from app.channel.config import ChannelAgentSettings
-
-            object.__setattr__(self, "_channel_settings", ChannelAgentSettings())
-        return self._channel_settings  # ty: ignore[unresolved-attribute]
 
     model_config = SettingsConfigDict(
         env_prefix="APP_",

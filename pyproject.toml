@@ -24,14 +24,9 @@ dependencies = [
     "asyncpg>=0.29",
     "python-dotenv",
     "structlog>=23.2",
-    "pydantic-ai[openai]>=1.84",
     "httpx>=0.27",
-    "imagehash>=4.3",
-    "feedparser>=6.0.12",
     "telethon>=1.42.0",
-    "burr>=0.40.2",
     "telegramify-markdown>=1.1,<2",
-    "pgvector>=0.4.2",
     "fastapi>=0.136.0",
     "uvicorn[standard]>=0.44.0",
     "fastmcp>=3.2.4",
@@ -118,21 +113,8 @@ unresolved-import = "warn"
 # Telethon, burr, feedparser, pydantic-ai lack complete stubs
 replace-imports-with-any = [
     "telethon.**",
-    "burr.**",
-    "feedparser.**",
     "testcontainers.**",
 ]
-
-# Agent-heavy modules — PydanticAI dynamic patterns, framework constructors
-[[tool.ty.overrides]]
-include = ["app/channel/**", "app/moderation/**"]
-
-[tool.ty.overrides.rules]
-invalid-argument-type = "warn"       # PydanticAI/Pydantic constructor patterns
-invalid-return-type = "warn"         # dynamic returns from agent frameworks
-invalid-assignment = "warn"          # PydanticAI agent type variance
-unresolved-attribute = "warn"        # feedparser.entries, SA Result.rowcount surface typing
-call-non-callable = "warn"           # feedparser entries iteration on object type
 
 # Presentation layer — aiogram Message | InaccessibleMessage union patterns
 [[tool.ty.overrides]]

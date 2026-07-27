@@ -17,7 +17,6 @@ recover.
 | --- | --- |
 | `DB_PASSWORD` | PostgreSQL password. The database is a service in this stack, so this is whatever you choose — nothing else knows it. |
 | `MODERATOR_BOT_TOKEN` | Bot token from BotFather |
-| `OPENROUTER_API_KEY` | Model access for moderation and content |
 | `TELETHON_API_ID`, `TELETHON_API_HASH` | The userbot's API credentials. Together they reach a real account, so both are secrets — half a pair in `vars` protects nothing. |
 | `MCP_TOKEN` | Bearer token for the control plane |
 | `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY` | Deploy target and key |
@@ -41,8 +40,6 @@ repository access, so nothing sensitive goes here.
 | `ADMIN_SUPER_ADMINS` | Comma-separated Telegram IDs |
 | `ADMIN_REPORT_CHAT_ID` | Defaults to the first super admin |
 | `WEBAPI_PUBLIC_URL` | Also becomes the allowed CORS origin |
-| `SPONSORED_ADS_MODERATOR_CHAT_ID` | Unset disables the funnel |
-| `SPONSORED_ADS_SALES_CONTACT` | |
 
 ## Features switch themselves on
 
@@ -53,7 +50,6 @@ and off otherwise:
 | --- | --- |
 | Telethon userbot | `TELETHON_API_ID` and `TELETHON_API_HASH` are both set |
 | MCP control plane | `MCP_TOKEN` is set |
-| Sponsored ads | `SPONSORED_ADS_MODERATOR_CHAT_ID` is set |
 
 A separate flag could disagree with the configuration it gates, and only ever in
 the direction that fails quietly: `TELETHON_ENABLED=true` with no credentials
@@ -66,9 +62,8 @@ mount, and a mismatch there makes Telethon start an unauthorised session instead
 of failing.
 
 Anything absent falls back to the default in `app/core/config.py`. The list is
-deliberately not a second copy of every setting — models, thresholds and
-intervals are code, and changing them should be a reviewed change rather than a
-click.
+deliberately not a second copy of every setting — thresholds and intervals are
+code, and changing them should be a reviewed change rather than a click.
 
 ## What the deploy checks
 

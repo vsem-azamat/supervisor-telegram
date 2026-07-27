@@ -3,23 +3,6 @@
 from enum import StrEnum
 
 
-class PostStatus(StrEnum):
-    """Status of a channel post in the review pipeline."""
-
-    DRAFT = "draft"
-    SCHEDULED = "scheduled"
-    APPROVED = "approved"
-    REJECTED = "rejected"
-    SKIPPED = "skipped"
-
-
-class ReviewDecision(StrEnum):
-    """Admin decision on a channel post review."""
-
-    APPROVED = "approved"
-    REJECTED = "rejected"
-
-
 class ModerationAction(StrEnum):
     """An action a proposal can ask for.
 

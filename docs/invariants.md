@@ -20,19 +20,13 @@ code moving.
 inline-keyboard press to the sending identity. A message whose buttons were sent
 under a different token renders perfectly and does nothing at all when pressed —
 no error, no log. Every inline-keyboard handler lives on the moderator
-dispatcher, so any process that sends such a message — the web API, the MCP
-plane — must send it with the moderator token, not merely with some working bot
-token. This is why the outgoing-only review bot exists as its own thing rather
-than as whichever `Bot` was nearest.
+dispatcher, so any process that sends such a message must send it with the
+moderator token, not merely with some working bot token.
 
 **`parse_mode=None` whenever you pass entities.** The moderator bot defaults to
 HTML, and that default silently overrides explicit `entities` /
 `caption_entities`. The formatting is simply lost; nothing raises. Applies to
 every send and edit call, of which there are more than a dozen.
-
-**Scheduled publication requires the Telethon userbot.** The Bot API has no
-equivalent, so "simplifying" this onto the Bot API deletes the feature rather
-than reworking it.
 
 **The Telethon session is the whole account.** A bot token grants one bot; this
 grants every private conversation the account can see. Treat writes, scheduled
@@ -92,25 +86,10 @@ the admin it acts for — the first super admin, the same one escalations and
 magic links answer to. With no admin configured the proposal tools refuse
 rather than log an action against nobody.
 
-**Direct publication is unreachable by construction, not by a check.** The
-generation service publishes directly only when handed a publish bot, and the
-MCP tool hands it none. This is deliberately not a `review_chat_id` test: a
-check can be raced by a reconfiguration between check and send, while a missing
-argument cannot.
-
-**The review guarantee rests on `review_chat_id` pointing somewhere non-public,
-and nothing validates that.** A channel misconfigured through the admin API to
-review into itself would receive drafts publicly. Known, accepted, and not
-MCP's to fix — but do not mistake the guarantee for stronger than it is.
-
 **Tool errors are masked because they land in an operator's chat history.** An
 unmasked exception travels to the external runtime and from there into a
 conversation log; a failed database connection would carry its DSN along.
 `mask_error_details` is not a debugging convenience to toggle.
-
-**The rate limit is counted in-process, so it is per worker.** Adding workers
-multiplies the cap by the worker count with no error and no log — just a larger
-model bill and a flooded review chat.
 
 **The control plane is not published to the internet, and that is a decision
 rather than an oversight.** It binds loopback in the bot container and the edge

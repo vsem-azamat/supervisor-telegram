@@ -9,30 +9,20 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.channel.cost_tracker import get_session_summary
-from app.core.enums import PostStatus
 from app.core.time import utc_now
-from app.db.models import Channel, ChannelPost, Chat, ChatMemberSnapshot, Message, SpamPing
-from app.webapi.deps import get_session, get_telethon_stats, require_super_admin
+from app.db.models import Chat, ChatMemberSnapshot, Message, SpamPing
+from app.webapi.deps import get_session, require_super_admin
 from app.webapi.schemas import (
     ChatHeatmapSummary,
-    DraftBucket,
     HomeStats,
     MembersDeltaEntry,
-    PostViewsEntry,
-    ScheduledPostEntry,
-    SessionCostSummary,
     SpamPingRead,
     SpamPingsSummary,
 )
-from app.webapi.services.telethon_stats import TelethonStatsService
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
-_SCHEDULED_WINDOW_HOURS = 24
 _DELTA_LOOKBACK_DAYS = 30
-_POST_VIEWS_TOP_N = 5
-_POST_VIEWS_LOOKBACK_DAYS = 7
 _CHAT_HEATMAP_TOP_N = 8
 _CHAT_HEATMAP_LOOKBACK_DAYS = 7
 _SPAM_RECENT_LIMIT = 5
@@ -95,89 +85,9 @@ async def _compute_members_delta(session: AsyncSession, now: datetime.datetime) 
 @router.get("/home", response_model=HomeStats)
 async def home_stats(
     session: Annotated[AsyncSession, Depends(get_session)],
-    stats_svc: Annotated[TelethonStatsService, Depends(get_telethon_stats)],
     _admin_id: Annotated[int, Depends(require_super_admin)],
 ) -> HomeStats:
-    draft_count = func.count(ChannelPost.id).label("draft_count")
-    drafts_rows = (
-        await session.execute(
-            select(
-                ChannelPost.channel_id,
-                Channel.name,
-                draft_count,
-            )
-            .join(Channel, Channel.telegram_id == ChannelPost.channel_id, isouter=True)
-            .where(ChannelPost.status == PostStatus.DRAFT)
-            .group_by(ChannelPost.channel_id, Channel.name)
-            .order_by(draft_count.desc())
-        )
-    ).all()
-    drafts = [
-        DraftBucket(
-            channel_id=row.channel_id,
-            channel_name=row.name or f"#{row.channel_id}",
-            count=int(row.draft_count),
-        )
-        for row in drafts_rows
-    ]
-
     now = utc_now()
-    horizon = now + datetime.timedelta(hours=_SCHEDULED_WINDOW_HOURS)
-    scheduled_rows = (
-        await session.execute(
-            select(ChannelPost, Channel.name)
-            .join(Channel, Channel.telegram_id == ChannelPost.channel_id, isouter=True)
-            .where(ChannelPost.scheduled_at.is_not(None))
-            .where(ChannelPost.scheduled_at >= now)
-            .where(ChannelPost.scheduled_at <= horizon)
-            .order_by(ChannelPost.scheduled_at.asc())
-        )
-    ).all()
-    scheduled = [
-        ScheduledPostEntry(
-            post_id=post.id,
-            channel_id=post.channel_id,
-            channel_name=ch_name or f"#{post.channel_id}",
-            title=post.title,
-            scheduled_at=post.scheduled_at,
-        )
-        for post, ch_name in scheduled_rows
-    ]
-
-    # --- Post views (last N published posts, enriched via Telethon) ---
-    views_lookback = now - datetime.timedelta(days=_POST_VIEWS_LOOKBACK_DAYS)
-    published_rows = (
-        await session.execute(
-            select(ChannelPost, Channel.name)
-            .join(Channel, Channel.telegram_id == ChannelPost.channel_id, isouter=True)
-            .where(ChannelPost.status == PostStatus.APPROVED)
-            .where(ChannelPost.published_at.is_not(None))
-            .where(ChannelPost.published_at >= views_lookback)
-            .where(ChannelPost.telegram_message_id.is_not(None))
-            .order_by(ChannelPost.published_at.desc())
-            .limit(_POST_VIEWS_TOP_N)
-        )
-    ).all()
-
-    # Group message IDs by channel to batch Telethon calls.
-    views_by_channel: dict[int, dict[int, int]] = {}
-    channel_to_msgs: dict[int, list[int]] = {}
-    for post, _name in published_rows:
-        channel_to_msgs.setdefault(post.channel_id, []).append(post.telegram_message_id)
-    for ch_id, msg_ids in channel_to_msgs.items():
-        views_by_channel[ch_id] = await stats_svc.get_post_views_batch(ch_id, msg_ids)
-
-    post_views = [
-        PostViewsEntry(
-            post_id=post.id,
-            channel_id=post.channel_id,
-            channel_name=ch_name or f"#{post.channel_id}",
-            title=post.title,
-            published_at=post.published_at,
-            views=views_by_channel.get(post.channel_id, {}).get(post.telegram_message_id, 0),
-        )
-        for post, ch_name in published_rows
-    ]
 
     # --- Chat heatmap summary (top N chats by total messages, last 7d) ---
     heatmap_since = now - datetime.timedelta(days=_CHAT_HEATMAP_LOOKBACK_DAYS)
@@ -233,10 +143,6 @@ async def home_stats(
     ]
 
     return HomeStats(
-        drafts=drafts,
-        scheduled_next_24h=scheduled,
-        session_cost=SessionCostSummary.from_tracker(get_session_summary()),
-        post_views=post_views,
         chat_heatmap=chat_heatmap,
         members_delta=members_delta,
         spam_pings=SpamPingsSummary(count_24h=count_24h, count_7d=count_7d, recent=recent),

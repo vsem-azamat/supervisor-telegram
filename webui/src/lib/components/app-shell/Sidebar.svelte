@@ -1,13 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import {
-		Hash,
-		LayoutDashboard,
-		Newspaper,
-		Receipt,
-		Settings,
-		Tv
-	} from '@lucide/svelte';
+	import { Hash, LayoutDashboard, MessageSquare, Settings } from '@lucide/svelte';
 	import type { Component } from 'svelte';
 
 	type NavItem = { href: string; label: string; icon: Component };
@@ -20,31 +13,18 @@
 		},
 		{
 			label: 'Resources',
-			items: [{ href: '/catalog', label: 'Catalog', icon: Tv }]
-		},
-		{
-			label: 'Workflow',
-			items: [
-				{ href: '/posts', label: 'Posts', icon: Newspaper },
-			]
+			items: [{ href: '/catalog', label: 'Catalog', icon: MessageSquare }]
 		},
 		{
 			label: 'System',
-			items: [
-				{ href: '/costs', label: 'Costs', icon: Receipt },
-				{ href: '/settings', label: 'Settings', icon: Settings }
-			]
+			items: [{ href: '/settings', label: 'Settings', icon: Settings }]
 		}
 	];
 
 	function isActive(href: string): boolean {
 		if (href === '/') return page.url.pathname === '/';
 		if (href === '/catalog') {
-			return (
-				page.url.pathname === '/catalog' ||
-				page.url.pathname.startsWith('/channels') ||
-				page.url.pathname.startsWith('/chats')
-			);
+			return page.url.pathname === '/catalog' || page.url.pathname.startsWith('/chats');
 		}
 		return page.url.pathname === href || page.url.pathname.startsWith(href + '/');
 	}
