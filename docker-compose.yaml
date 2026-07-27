@@ -6,6 +6,10 @@ services:
     env_file: .env
     environment:
       PYTHONUNBUFFERED: "1"
+    # The MCP control plane is served here rather than by webapi: its tools need
+    # the Telethon session and the escalation timers, which live in this process.
+    ports:
+      - "127.0.0.1:${MCP_PORT:-8788}:8788"
     volumes:
       - ./moderator_userbot.session:/app/moderator_userbot.session
       - bot-logs:/app/logs

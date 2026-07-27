@@ -1,4 +1,4 @@
-"""MCP endpoint: mounting, bearer auth, and the exposed toolset's boundaries.
+"""MCP endpoint: serving, bearer auth, and the exposed toolset's boundaries.
 
 The security-relevant claims under test: the endpoint is absent unless explicitly
 configured, it rejects callers without the shared token, and the toolset cannot
@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 from app.core.config import settings
 from app.db.models import Channel, ChannelPost
-from app.webapi.mcp_server import BearerTokenMiddleware, build_mcp_server
+from app.mcp.server import BearerTokenMiddleware, build_mcp_server
 from httpx import ASGITransport, AsyncClient
 
 pytestmark = pytest.mark.asyncio
@@ -60,24 +60,33 @@ async def _call(tool: str, args: dict | None = None):
     return result.data
 
 
-# ── mounting ──────────────────────────────────────────────────────────────
+# ── serving ───────────────────────────────────────────────────────────────
 
 
-async def test_endpoint_absent_when_not_configured() -> None:
+async def test_runner_is_a_no_op_when_not_configured() -> None:
     """Default config must not expose an admin control plane."""
+    from app.mcp.runner import run_mcp_server
+
+    # Returns rather than binding a port: nothing to cancel, nothing listening.
+    await run_mcp_server()
+
+
+async def test_web_api_no_longer_carries_the_endpoint(mcp_settings) -> None:
+    """The control plane moved to the bot process; the web API must not re-mount it.
+
+    Two live endpoints would mean two Telethon clients on one session file.
+    """
     from app.webapi.main import create_app
 
     app = create_app()
-    assert app.state.mcp_app is None
     assert not any(getattr(route, "path", "").startswith("/api/mcp") for route in app.routes)
 
 
-async def test_endpoint_mounted_when_configured(mcp_settings) -> None:
-    from app.webapi.main import create_app
+async def test_app_answers_on_the_configured_path(mcp_settings) -> None:
+    from app.mcp.server import build_mcp_asgi_app
 
-    app = create_app()
-    assert app.state.mcp_app is not None
-    assert any(getattr(route, "path", "") == "/api/mcp" for route in app.routes)
+    app = build_mcp_asgi_app(token=TOKEN, path=settings.mcp.path)
+    assert any(getattr(route, "path", "") == settings.mcp.path for route in app.routes)
 
 
 async def test_enabled_without_token_stays_closed() -> None:
@@ -187,33 +196,32 @@ async def test_non_http_scope_is_not_forwarded() -> None:
 
 
 async def test_unauthenticated_request_over_http_gets_401(mcp_settings) -> None:
-    from app.webapi.main import create_app
+    from app.mcp.server import build_mcp_asgi_app
 
-    app = create_app()
+    app = build_mcp_asgi_app(token=TOKEN, path="/api/mcp")
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.post("/api/mcp/", json={"jsonrpc": "2.0", "method": "tools/list"})
+        response = await client.post("/api/mcp", json={"jsonrpc": "2.0", "method": "tools/list"})
 
     assert response.status_code == 401
     assert response.headers["www-authenticate"] == "Bearer"
 
 
 async def test_authenticated_request_works_with_the_app_lifespan_running(mcp_settings) -> None:
-    """A mounted sub-app's lifespan is not run by Starlette.
+    """The MCP transport needs its session manager started by the app lifespan.
 
-    Without the chaining in ``_lifespan`` the MCP transport's session manager is
-    never started and every authenticated call fails at runtime, while every
-    other test here still passes because they stop at the auth boundary. This is
-    the test that fails if that chaining is removed.
+    Without a running lifespan every authenticated call fails at runtime, while
+    every other test here still passes because they stop at the auth boundary.
+    This is the test that fails if the runner stops driving the lifespan.
     """
-    from app.webapi.main import create_app
+    from app.mcp.server import build_mcp_asgi_app
 
-    app = create_app()
+    app = build_mcp_asgi_app(token=TOKEN, path="/api/mcp")
     async with app.router.lifespan_context(app):
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.post(
-                "/api/mcp/",
+                "/api/mcp",
                 headers={
                     "Authorization": f"Bearer {TOKEN}",
                     "Content-Type": "application/json",

@@ -17,6 +17,9 @@ content but cannot make anything public on its own.
 Authentication is a shared bearer token (``MCP_TOKEN``), not an admin session.
 It identifies the calling runtime, not a person, so it grants exactly the
 toolset above regardless of who is chatting with that runtime.
+
+Served by the bot process (see ``app.mcp.runner``), not the web API: moderation
+tools need the Telethon session and the escalation timers, and both live there.
 """
 
 from __future__ import annotations
@@ -299,7 +302,7 @@ def build_mcp_server() -> FastMCP[None]:
 
 
 def build_mcp_asgi_app(token: str, path: str = "/") -> Any:
-    """Build the token-protected ASGI app to mount on the web API."""
+    """Build the token-protected ASGI app the bot process serves."""
     from starlette.middleware import Middleware
 
     mcp = build_mcp_server()

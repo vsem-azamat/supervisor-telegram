@@ -330,17 +330,24 @@ class SponsoredAdsSettings(BaseSettings):
 
 
 class McpSettings(BaseSettings):
-    """MCP server exposed by the web API for external agent clients.
+    """MCP server served by the bot process for external agent clients.
 
     The MCP endpoint is a second admin control plane alongside the cookie-authed
     web UI, so it is disabled unless both a token is set and ``MCP_ENABLED`` is
     true. The token is a shared secret presented as ``Authorization: Bearer``;
-    it is not a user session and grants the fixed read-plus-review toolset only.
+    it is not a user session.
+
+    It runs in the bot process rather than the web API because moderation tools
+    need what only that process holds: the Telethon user session, whose SQLite
+    file a second process cannot open, and the escalation timers, which are
+    in-process asyncio tasks.
     """
 
-    enabled: bool = Field(default=False, description="Mount the MCP endpoint on the web API")
+    enabled: bool = Field(default=False, description="Serve the MCP endpoint from the bot process")
     token: str = Field(default="", description="Bearer token required by MCP clients")
-    path: str = Field(default="/api/mcp", description="Mount path for the MCP endpoint")
+    path: str = Field(default="/api/mcp", description="Path the MCP endpoint answers on")
+    host: str = Field(default="0.0.0.0", description="Bind address for the MCP HTTP server")  # noqa: S104
+    port: int = Field(default=8788, description="Port for the MCP HTTP server")
     max_drafts_per_hour: int = Field(
         default=10,
         description="Cap on generate_and_send_for_review calls per hour (0 disables the cap)",
@@ -348,7 +355,7 @@ class McpSettings(BaseSettings):
 
     @property
     def active(self) -> bool:
-        """True when the endpoint should actually be mounted.
+        """True when the endpoint should actually be served.
 
         An enabled-but-tokenless config is treated as inactive rather than as an
         open endpoint: failing closed keeps a misconfigured deploy from exposing

@@ -325,6 +325,13 @@ async def main() -> None:
         ),
     ]
 
+    # The MCP control plane runs here, not in the web API: its tools need the
+    # Telethon session and the escalation timers, and both belong to this
+    # process. Returns immediately when MCP is inactive.
+    from app.mcp.runner import run_mcp_server
+
+    polling_tasks.append(run_mcp_server())
+
     if assistant_bot and assistant_dp:
         polling_tasks.append(
             _run_polling(
