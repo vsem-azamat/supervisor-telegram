@@ -54,7 +54,6 @@ TOOL_LABELS: dict[str, str] = {
     "blacklist_user": "Добавление в ЧС",
     "unblacklist_user": "Удаление из ЧС",
     # ── Assistant bot — chat ──
-    "send_message": "Отправка сообщения",
     "get_chat_info": "Информация о чате",
     "set_welcome": "Настройка приветствия",
     "get_user_info": "Информация о юзере",

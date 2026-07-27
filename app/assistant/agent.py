@@ -148,14 +148,16 @@ async def _validate_chat_id(ctx: RunContext[AssistantDeps], chat_id: int | str) 
 
 
 async def _validate_channel_id(ctx: RunContext[AssistantDeps], channel_id: int) -> str | None:
-    """Validate that channel_id is a known channel or managed chat. Returns error message or None."""
+    """Validate that channel_id is a known channel. Returns error message or None.
+
+    Channels only — deliberately not the managed-chat set. Every caller
+    publishes or configures channel content, and accepting moderated chats
+    here would let those tools address a community as the bot.
+    """
     known_channels = await _get_known_channel_ids(ctx.deps.session_maker)
     if channel_id in known_channels:
         return None
-    managed = await _get_managed_chat_ids(ctx.deps.session_maker)
-    if channel_id in managed:
-        return None
-    return f"Отказано: канал/чат {channel_id} не найден среди управляемых."
+    return f"Отказано: канал {channel_id} не найден среди известных каналов."
 
 
 _TELETHON_TOOLS = frozenset(

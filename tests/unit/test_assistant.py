@@ -94,6 +94,51 @@ class TestCreateAssistantAgent:
         tool_count = len(agent._function_toolset.tools)
         assert tool_count >= 30, f"Expected >= 30 tools, got {tool_count}: {list(agent._function_toolset.tools.keys())}"
 
+    def test_agent_cannot_speak_as_the_bot(self) -> None:
+        """No tool may let the agent post arbitrary text into an arbitrary chat.
+
+        A leaked credential that can ban is noisy and reversible; one that can
+        address the community as the bot is neither.
+        """
+        from app.assistant.agent import create_assistant_agent
+
+        agent = create_assistant_agent()
+        assert "send_message" not in agent._function_toolset.tools
+
+
+# ---------------------------------------------------------------------------
+# 5. Channel-id validation
+# ---------------------------------------------------------------------------
+
+
+class TestValidateChannelId:
+    """Channel tools must reach channels only, never ordinary moderated chats.
+
+    The validator used to fall back to the managed-chat set, which gave
+    publish_text the same reach the removed send_message tool had.
+    """
+
+    @staticmethod
+    def _ctx() -> MagicMock:
+        ctx = MagicMock()
+        ctx.deps.session_maker = MagicMock()
+        return ctx
+
+    async def test_known_channel_accepted(self) -> None:
+        from app.assistant import agent as agent_mod
+
+        with patch.object(agent_mod, "_get_known_channel_ids", AsyncMock(return_value={-1001})):
+            assert await agent_mod._validate_channel_id(self._ctx(), -1001) is None
+
+    async def test_managed_chat_rejected(self) -> None:
+        from app.assistant import agent as agent_mod
+
+        with patch.object(agent_mod, "_get_known_channel_ids", AsyncMock(return_value=set())):
+            error = await agent_mod._validate_channel_id(self._ctx(), -1002)
+
+        assert error is not None
+        assert "-1002" in error
+
 
 class TestCurrentDatePrompt:
     def test_current_date_prompt_contains_todays_date(self) -> None:
