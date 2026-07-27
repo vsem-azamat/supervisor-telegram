@@ -71,6 +71,23 @@ Before anything reaches the VPS the workflow fails on:
 A test pins the forwarded list against `docker-compose.yaml`, so a setting added
 to one and not the other fails in CI rather than in production.
 
+## Seeding and changing values
+
+`scripts/env_to_github.sh` loads an env file into this repository's secrets and
+variables — the old VPS `.env` for the first migration, or any file afterwards.
+It prints a plan and writes nothing until `--apply`, never prints a value, and
+names anything it ignored so a setting that is about to stop taking effect is
+visible rather than silently dropped.
+
+```bash
+scripts/env_to_github.sh ~/deploy/supervisor-telegram/.env
+scripts/env_to_github.sh ~/deploy/supervisor-telegram/.env --apply
+```
+
+Run it from a machine that can read the file. Once the values are in GitHub,
+delete the `.env` from the VPS: it is no longer read, and a stale copy of
+production credentials is worth less than nothing.
+
 ## Rotation
 
 1. Generate the new value.
