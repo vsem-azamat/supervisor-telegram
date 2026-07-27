@@ -15,10 +15,9 @@ recover.
 
 | Secret | What it is |
 | --- | --- |
-| `DB_PASSWORD` | PostgreSQL password |
+| `DB_PASSWORD` | PostgreSQL password. The database is a service in this stack, so this is whatever you choose — nothing else knows it. |
 | `MODERATOR_BOT_TOKEN` | Bot token from BotFather |
 | `OPENROUTER_API_KEY` | Model access for moderation and content |
-| `BRAVE_API_KEY` | Search, used by content discovery |
 | `TELETHON_API_ID`, `TELETHON_API_HASH` | The userbot's API credentials. Together they reach a real account, so both are secrets — half a pair in `vars` protects nothing. |
 | `MCP_TOKEN` | Bearer token for the control plane |
 | `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY` | Deploy target and key |
@@ -39,7 +38,6 @@ repository access, so nothing sensitive goes here.
 
 | Variable | Notes |
 | --- | --- |
-| `DB_HOST` | |
 | `ADMIN_SUPER_ADMINS` | Comma-separated Telegram IDs |
 | `ADMIN_REPORT_CHAT_ID` | Defaults to the first super admin |
 | `MODERATION_ENABLED` | Requires `OPENROUTER_API_KEY` |
