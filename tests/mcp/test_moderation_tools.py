@@ -40,7 +40,7 @@ def wired(db_session_maker, monkeypatch, bot):
 
     monkeypatch.setattr(session_module, "create_session_maker", lambda: db_session_maker)
     monkeypatch.setattr(container_module.container, "try_get_bot", lambda: bot)
-    monkeypatch.setattr(settings.mcp, "initiator_id", ADMIN_ID)
+    monkeypatch.setattr(settings.admin, "super_admins", [ADMIN_ID])
     return db_session_maker
 
 
@@ -148,13 +148,33 @@ class TestRemovalsWait:
 
         assert bot.send_message.await_args.kwargs["chat_id"] == ADMIN_ID
 
-    async def test_without_an_initiator_nothing_is_proposed(self, wired, bot, monkeypatch) -> None:
+    async def test_the_main_admin_is_the_initiator_by_default(self, wired, bot) -> None:
+        """Same convention escalations already follow: the first super admin.
+
+        A separate MCP_INITIATOR_ID duplicated that list for a single-admin
+        deployment, which is every deployment so far.
+        """
+        result = await _call("propose_blacklist", {"user_id": USER_ID})
+
+        assert result["status"] == "awaiting_confirmation"
+        assert bot.send_message.await_args.kwargs["chat_id"] == ADMIN_ID
+
+    async def test_an_override_still_wins(self, wired, bot, monkeypatch) -> None:
+        """Kept for the case where the token should answer to someone else."""
+        monkeypatch.setattr(settings.mcp, "initiator_id", 777)
+
+        await _call("propose_blacklist", {"user_id": USER_ID})
+
+        assert bot.send_message.await_args.kwargs["chat_id"] == 777
+
+    async def test_with_no_admins_at_all_nothing_is_proposed(self, wired, bot, monkeypatch) -> None:
         """Attribution is a precondition, not a nice-to-have on a ban."""
+        monkeypatch.setattr(settings.admin, "super_admins", [])
         monkeypatch.setattr(settings.mcp, "initiator_id", 0)
 
         result = await _call("propose_blacklist", {"user_id": USER_ID})
 
-        assert result["error"] == "initiator_not_configured"
+        assert result["error"] == "no_admin_configured"
         bot.send_message.assert_not_awaited()
 
 

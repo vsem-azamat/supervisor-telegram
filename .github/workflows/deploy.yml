@@ -69,8 +69,6 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           MODERATOR_BOT_TOKEN: ${{ secrets.MODERATOR_BOT_TOKEN }}
           ADMIN_SUPER_ADMINS: ${{ vars.ADMIN_SUPER_ADMINS }}
-          MCP_TOKEN: ${{ secrets.MCP_TOKEN }}
-          MCP_INITIATOR_ID: ${{ vars.MCP_INITIATOR_ID }}
           MODERATION_ENABLED: ${{ vars.MODERATION_ENABLED }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           TELETHON_API_ID: ${{ secrets.TELETHON_API_ID }}
@@ -82,12 +80,6 @@ jobs:
           for name in DB_PASSWORD MODERATOR_BOT_TOKEN ADMIN_SUPER_ADMINS; do
             [ -n "$(printenv "$name")" ] || missing="$missing $name"
           done
-
-          # A ban is attributable, so a plane that can propose one needs to know
-          # which admin it acts as — and that admin is where the button goes.
-          if [ -n "$MCP_TOKEN" ]; then
-            case "$MCP_INITIATOR_ID" in ""|0) missing="$missing MCP_INITIATOR_ID" ;; esac
-          fi
 
           if [ "$MODERATION_ENABLED" = "true" ] && [ -z "$OPENROUTER_API_KEY" ]; then
             missing="$missing OPENROUTER_API_KEY"
@@ -137,12 +129,11 @@ jobs:
           SPONSORED_ADS_MODERATOR_CHAT_ID: ${{ vars.SPONSORED_ADS_MODERATOR_CHAT_ID }}
           SPONSORED_ADS_SALES_CONTACT: ${{ vars.SPONSORED_ADS_SALES_CONTACT }}
           MCP_TOKEN: ${{ secrets.MCP_TOKEN }}
-          MCP_INITIATOR_ID: ${{ vars.MCP_INITIATOR_ID }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: IMAGE_TAG,DB_PASSWORD,MODERATOR_BOT_TOKEN,ADMIN_SUPER_ADMINS,ADMIN_REPORT_CHAT_ID,OPENROUTER_API_KEY,MODERATION_ENABLED,TELETHON_API_ID,TELETHON_API_HASH,WEBAPI_PUBLIC_URL,SPONSORED_ADS_MODERATOR_CHAT_ID,SPONSORED_ADS_SALES_CONTACT,MCP_TOKEN,MCP_INITIATOR_ID
+          envs: IMAGE_TAG,DB_PASSWORD,MODERATOR_BOT_TOKEN,ADMIN_SUPER_ADMINS,ADMIN_REPORT_CHAT_ID,OPENROUTER_API_KEY,MODERATION_ENABLED,TELETHON_API_ID,TELETHON_API_HASH,WEBAPI_PUBLIC_URL,SPONSORED_ADS_MODERATOR_CHAT_ID,SPONSORED_ADS_SALES_CONTACT,MCP_TOKEN
           script: |
             set -e
             cd ~/deploy/supervisor-telegram

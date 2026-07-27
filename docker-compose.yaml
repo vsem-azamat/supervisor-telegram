@@ -31,7 +31,6 @@ x-runtime-env: &runtime-env
   SPONSORED_ADS_MODERATOR_CHAT_ID:
   SPONSORED_ADS_SALES_CONTACT:
   MCP_TOKEN:
-  MCP_INITIATOR_ID:
   # Fixed here rather than passed in: they do not differ between deployments,
   # and one of them is what "production" means.
   APP_ENVIRONMENT: production

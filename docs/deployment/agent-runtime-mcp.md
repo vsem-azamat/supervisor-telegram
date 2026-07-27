@@ -9,15 +9,14 @@ govern its behaviour are in [Invariants](../invariants.md).
 | --- | --- |
 | `MCP_TOKEN` | Shared bearer token the client must present, and the switch: no token, no endpoint. |
 | `MCP_MAX_DRAFTS_PER_HOUR` | Cap on `generate_and_send_for_review` calls per hour. Default `10`; `0` disables the cap. |
-| `MCP_INITIATOR_ID` | Telegram ID of the admin the token acts as. No default; `propose_ban` and `propose_blacklist` refuse while unset. |
 
 The cap bounds what a leaked token can cost: the endpoint cannot publish, but
 each generation spends model budget and puts a message in a review chat.
 
-`MCP_INITIATOR_ID` exists because a ban is an attributable act while the token
-names a runtime. It is recorded on every proposal and carried into the decision
-log, and it is also where the confirmation request is sent — so it must be a
-super admin, or nobody will be able to press the button.
+A ban is an attributable act while the token names a runtime, so proposals are
+recorded against the first super admin, which is also where the confirmation is
+sent. `MCP_INITIATOR_ID` overrides that if the token should answer to someone
+else on the list.
 
 The token is the only switch: unset means no endpoint. Path and port are fixed
 in code at `/api/mcp` and `8788`, because the compose port mapping hard-codes

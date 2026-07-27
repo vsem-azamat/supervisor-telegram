@@ -76,10 +76,21 @@ def telethon() -> TelethonClient:
 
 
 def initiator_id() -> int:
-    """The admin this token acts as. Destructive tools refuse without it."""
-    if not settings.mcp.initiator_id:
-        raise ToolError("initiator_not_configured")
-    return settings.mcp.initiator_id
+    """The admin this token acts as, and where its confirmations go.
+
+    Defaults to the first super admin, which is the convention the rest of the
+    codebase already follows for "the main admin" — escalations, magic links,
+    the report chat. Configuring it separately duplicated the admin list for
+    every deployment that has one admin, which is all of them so far.
+
+    It stays overridable for the case where the token should answer to someone
+    other than the first name on that list.
+    """
+    if settings.mcp.initiator_id:
+        return settings.mcp.initiator_id
+    if settings.admin.super_admins:
+        return settings.admin.super_admins[0]
+    raise ToolError("no_admin_configured")
 
 
 async def managed_chat_id(session: AsyncSession, chat_id: int) -> int:

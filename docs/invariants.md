@@ -88,10 +88,10 @@ bans directly re-opens this, which is why `analyze_message` stays unexposed:
 it runs the moderation agent and then carries out its verdict, up to a global
 blacklist.
 
-**A ban is attributable, and the token is not a person.** `MCP_INITIATOR_ID`
-names the admin the token acts as, and it is recorded on every proposal. The
-proposal tools refuse while it is unset rather than logging an action against
-nobody.
+**A ban is attributable, and the token is not a person.** Every proposal records
+the admin it acts for — the first super admin, the same one escalations and
+magic links answer to. With no admin configured the proposal tools refuse
+rather than log an action against nobody.
 
 **Direct publication is unreachable by construction, not by a check.** The
 generation service publishes directly only when handed a publish bot, and the

@@ -44,7 +44,6 @@ repository access, so nothing sensitive goes here.
 | `WEBAPI_PUBLIC_URL` | Also becomes the allowed CORS origin |
 | `SPONSORED_ADS_MODERATOR_CHAT_ID` | Unset disables the funnel |
 | `SPONSORED_ADS_SALES_CONTACT` | |
-| `MCP_INITIATOR_ID` | The admin the control-plane token acts as |
 
 ## Features switch themselves on
 
@@ -82,8 +81,6 @@ Before anything reaches the VPS the workflow fails on:
 - any of `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `MODERATOR_BOT_TOKEN`,
   `ADMIN_SUPER_ADMINS` being empty — these have no defaults, and containers
   crash on boot without them;
-- `MCP_TOKEN` set with `MCP_INITIATOR_ID` unset — the proposal tools would
-  refuse, which looks like a broken plane rather than a missing setting;
 - one half of the Telethon credential pair without the other, which activates
   nothing and looks like a working deploy with a userbot that never connects;
 - `MODERATION_ENABLED` or `CHANNEL_ENABLED` without `OPENROUTER_API_KEY`.
