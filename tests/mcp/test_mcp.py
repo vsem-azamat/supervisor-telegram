@@ -403,11 +403,54 @@ async def test_rate_limit_refuses_further_drafts(mcp_session, monkeypatch) -> No
     assert generate.await_count == 1
 
 
-async def test_toolset_exposes_no_publish_or_ban_tools() -> None:
-    """The exposed surface is the security boundary — pin it explicitly."""
+async def _tool_names() -> set[str]:
     from fastmcp import Client
 
     async with Client(build_mcp_server()) as client:
-        names = {tool.name for tool in await client.list_tools()}
+        return {tool.name for tool in await client.list_tools()}
 
-    assert names == {"list_channels", "get_channel", "generate_and_send_for_review"}
+
+async def test_exposed_surface_is_pinned() -> None:
+    """Growing the surface should be a deliberate act, so compare as a set."""
+    assert await _tool_names() == {
+        # content
+        "list_channels",
+        "get_channel",
+        "generate_and_send_for_review",
+        # reads
+        "list_chats",
+        "get_blacklist",
+        "get_chat_info",
+        "get_user_info",
+        "get_moderation_history",
+        "get_chat_history",
+        "search_messages",
+        "get_chat_members",
+        # bounded writes
+        "mute_user",
+        "unmute_user",
+        "unban_user",
+        "unblacklist_user",
+        "set_welcome",
+        # confirm tier
+        "propose_ban",
+        "propose_blacklist",
+    }
+
+
+async def test_nothing_here_removes_a_person_on_its_own() -> None:
+    """The names that would bypass confirmation, called out by name.
+
+    The set assertion above already fails on any addition, but it fails the
+    same way for a harmless one. These say which additions are the dangerous
+    kind, so a future reader sees the reason rather than a diff.
+    """
+    names = await _tool_names()
+
+    assert "ban_user" not in names
+    assert "blacklist_user" not in names
+    assert "publish_text" not in names
+    assert "send_message" not in names
+    # Runs the moderation agent and then executes its verdict, up to a global
+    # blacklist — a straight path around the confirmation tier.
+    assert "analyze_message" not in names

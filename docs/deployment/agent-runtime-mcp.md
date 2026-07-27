@@ -12,9 +12,15 @@ govern its behaviour are in [Invariants](../invariants.md).
 | `MCP_PATH` | Path the endpoint answers on. Default `/api/mcp`. |
 | `MCP_PORT` | Port the bot process listens on. Default `8788`, published loopback-only. |
 | `MCP_MAX_DRAFTS_PER_HOUR` | Cap on `generate_and_send_for_review` calls per hour. Default `10`; `0` disables the cap. |
+| `MCP_INITIATOR_ID` | Telegram ID of the admin the token acts as. No default; `propose_ban` and `propose_blacklist` refuse while unset. |
 
 The cap bounds what a leaked token can cost: the endpoint cannot publish, but
 each generation spends model budget and puts a message in a review chat.
+
+`MCP_INITIATOR_ID` exists because a ban is an attributable act while the token
+names a runtime. It is recorded on every proposal and carried into the decision
+log, and it is also where the confirmation request is sent — so it must be a
+super admin, or nobody will be able to press the button.
 
 Both `MCP_ENABLED=true` and a non-empty `MCP_TOKEN` are required; either alone
 leaves the endpoint closed. The token is a production credential and belongs in

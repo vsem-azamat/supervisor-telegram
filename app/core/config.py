@@ -348,6 +348,14 @@ class McpSettings(BaseSettings):
     path: str = Field(default="/api/mcp", description="Path the MCP endpoint answers on")
     host: str = Field(default="0.0.0.0", description="Bind address for the MCP HTTP server")  # noqa: S104
     port: int = Field(default=8788, description="Port for the MCP HTTP server")
+    initiator_id: int = Field(
+        default=0,
+        description=(
+            "Telegram ID of the admin this token acts as. A ban is an attributable act, "
+            "and the token names a runtime rather than a person, so the attribution has "
+            "to be configured. Destructive tools stay closed while this is unset."
+        ),
+    )
     max_drafts_per_hour: int = Field(
         default=10,
         description="Cap on generate_and_send_for_review calls per hour (0 disables the cap)",

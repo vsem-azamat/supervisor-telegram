@@ -58,6 +58,25 @@ an operator needs in order to decide on approval.
 
 ## MCP control plane
 
+**The boundary is what a leaked token can do, not which tools exist.** The
+original rule was that the toolset must never grow. That held while the plane
+only touched content, and stopped holding when the operator's moderation work
+moved here, because the point of that work is privileged mutation. What
+replaced it: reads never reach outside managed chats, bounded writes are
+reversible or self-expiring, and removals are only ever proposed.
+
+**Removing a person is never performed by a tool call.** `propose_ban` and
+`propose_blacklist` create a pending action and return. A super admin presses
+confirm in the moderator bot, or it expires having done nothing. Any tool that
+bans directly re-opens this, which is why `analyze_message` stays unexposed:
+it runs the moderation agent and then carries out its verdict, up to a global
+blacklist.
+
+**A ban is attributable, and the token is not a person.** `MCP_INITIATOR_ID`
+names the admin the token acts as, and it is recorded on every proposal. The
+proposal tools refuse while it is unset rather than logging an action against
+nobody.
+
 **Direct publication is unreachable by construction, not by a check.** The
 generation service publishes directly only when handed a publish bot, and the
 MCP tool hands it none. This is deliberately not a `review_chat_id` test: a

@@ -1,25 +1,38 @@
-"""MCP endpoint exposing a read-plus-review toolset to external agent clients.
+"""MCP endpoint: the admin control plane for an external agent runtime.
 
-This is a second admin control plane alongside the cookie-authenticated web UI,
-intended for an external agent runtime (e.g. a Hermes gateway) that talks to the
-operator in Telegram. It deliberately exposes a narrow surface:
+A second control plane alongside the cookie-authenticated web UI, for a runtime
+(a Hermes gateway, say) that talks to the operator in their own chat surface.
 
-* reads — ``list_channels`` and ``get_channel``;
-* one write — ``generate_and_send_for_review``, which can only put a draft in
-  front of a human in the channel's review chat.
+The boundary used to be the tool list itself: only reads plus one review-bound
+write existed, and the rule was that it must never grow. That worked while the
+plane only touched content. It cannot survive the operator's own moderation
+work moving here, because the point of that work is privileged mutation.
 
-There is no publish, ban, blacklist or delete tool here, and the review path
-refuses channels that have no review chat rather than falling back to publishing
-directly. The approve/reject decision stays where it already is: the inline
-keyboard handled by the bot process. An external agent can therefore propose
-content but cannot make anything public on its own.
+So the boundary moved from *which tools exist* to *what a leaked token can do*:
+
+* **Reads** answer freely, but never outside what this deployment manages —
+  see the peer resolver in ``app.mcp.deps``, which matters most for the tools
+  backed by a Telethon user session that can otherwise see a whole account.
+* **Bounded writes** — mute, unmute, unban, welcome text — take effect on the
+  call. Each is reversible or self-expiring.
+* **Removals** are not performed at all. ``propose_ban`` and
+  ``propose_blacklist`` create a pending action and return; a super admin
+  presses confirm in the moderator bot, or it expires having done nothing.
+* **Content** still cannot be published: ``generate_and_send_for_review``
+  reaches a review chat and nothing further.
+
+``analyze_message`` is deliberately absent. It runs the moderation agent and
+then *carries out* whatever that agent decides, up to a global blacklist — a
+straight path around the confirmation tier. Exposing it needs its analysis
+split from its execution first.
 
 Authentication is a shared bearer token (``MCP_TOKEN``), not an admin session.
-It identifies the calling runtime, not a person, so it grants exactly the
-toolset above regardless of who is chatting with that runtime.
+Because it names a runtime rather than a person, and a ban is an attributable
+act, ``MCP_INITIATOR_ID`` says which admin it acts as; the proposal tools refuse
+to work until it is set.
 
-Served by the bot process (see ``app.mcp.runner``), not the web API: moderation
-tools need the Telethon session and the escalation timers, and both live there.
+Served by the bot process (see ``app.mcp.runner``), not the web API: the
+Telethon session and the confirmation handlers both live there.
 """
 
 from __future__ import annotations
@@ -37,14 +50,24 @@ if TYPE_CHECKING:
 
 logger = get_logger("webapi.mcp")
 
-_MCP_INSTRUCTIONS = """Admin tools for the supervisor-telegram content pipeline.
+_MCP_INSTRUCTIONS = """Admin tools for supervisor-telegram: moderation and content.
 
-Channels are identified by their numeric Telegram ID (negative, e.g.
--1001234567890), not by @username. Call list_channels first to resolve one.
+Chats and channels are identified by their numeric Telegram ID (negative, e.g.
+-1001234567890), never by @username. Call list_chats or list_channels first to
+resolve one. Anything absent from those lists is refused.
 
-generate_and_send_for_review writes a draft into the channel's review chat where
-a human approves or rejects it with inline buttons. It never publishes. Nothing
-you do here reaches a channel's audience without that human approval.
+Two things here never happen on your say-so alone.
+
+generate_and_send_for_review writes a draft into the channel's review chat,
+where a human approves or rejects it with inline buttons. It cannot publish.
+
+propose_ban and propose_blacklist do not remove anyone. They put a request in
+front of a super admin and return a pending id; a human presses confirm, or the
+request expires on its own and nothing happens. Tell the operator what is
+waiting for them rather than reporting the action as done.
+
+Mutes, unmutes and unbans do take effect immediately — each is bounded or
+restores access.
 """
 
 
@@ -297,6 +320,12 @@ def build_mcp_server() -> FastMCP[None]:
                 "published directly. Configure a review chat first."
             )
         return payload
+
+    from app.mcp.tools.moderate import register_moderation_tools
+    from app.mcp.tools.read import register_read_tools
+
+    register_read_tools(mcp)
+    register_moderation_tools(mcp)
 
     return mcp
 
