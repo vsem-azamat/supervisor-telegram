@@ -118,15 +118,18 @@ async def _rule_channels_without_username(session: AsyncSession) -> list[Suggest
 
 
 async def _rule_unmoderated_chats(session: AsyncSession, now: datetime.datetime) -> list[SuggestionItem]:
-    """Top-level chats with both welcome and captcha disabled, that have been
-    around long enough that "we just added it" is no longer a defence."""
+    """Top-level chats with no welcome message, around long enough that
+    "we just added it" is no longer a defence.
+
+    Captcha used to count here too, which made the hint claim joiners were
+    being filtered when the flag reached no code at all.
+    """
     cutoff = now - datetime.timedelta(days=_UNMODERATED_GRACE_DAYS)
     rows = (
         await session.execute(
             select(Chat.id, Chat.title)
             .where(Chat.parent_chat_id.is_(None))
             .where(Chat.is_welcome_enabled.is_(False))
-            .where(Chat.is_captcha_enabled.is_(False))
             .where(Chat.modified_at < cutoff)
             .order_by(Chat.modified_at.desc())
             .limit(_PER_RULE_CAP)
@@ -136,8 +139,8 @@ async def _rule_unmoderated_chats(session: AsyncSession, now: datetime.datetime)
         SuggestionItem(
             kind="unmoderated_chat",
             severity="warning",
-            title=f"No welcome/captcha: {_label_chat(cid, title)}",
-            hint="No welcome or captcha — new joiners aren't filtered.",
+            title=f"No welcome message: {_label_chat(cid, title)}",
+            hint="New members arrive without a greeting or the chat's rules.",
             target_id=cid,
             target_label=_label_chat(cid, title),
             action_url=f"/chats/{cid}",

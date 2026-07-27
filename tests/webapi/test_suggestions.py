@@ -116,7 +116,7 @@ async def test_channel_without_username_surfaces(client, db_session_maker) -> No
 
 
 async def test_unmoderated_chat_surfaces_only_after_grace(client, db_session_maker) -> None:
-    """Both is_welcome_enabled and is_captcha_enabled false AND modified_at older
+    """is_welcome_enabled false AND modified_at older
     than the grace window — only then does the rule trigger."""
     old = utc_now() - datetime.timedelta(days=30)
     async with db_session_maker() as s:
