@@ -139,8 +139,9 @@ def register_moderation_tools(mcp: FastMCP[None]) -> None:
     async def set_welcome(chat_id: int, message: str = "", enabled: bool = True) -> dict[str, Any]:
         """Set a chat's welcome text and whether it is enabled.
 
-        Note this only stores configuration: the bot does not currently send a
-        welcome on join, so nothing observable follows from calling it.
+        The greeting is posted when someone joins and removed again after the
+        chat's configured lifetime. Passing an empty message leaves the existing
+        text alone and only changes the toggle.
         """
         from sqlalchemy import select
 

@@ -15,13 +15,16 @@ if TYPE_CHECKING:
 def _group_chat(event: TelegramObject) -> types.Chat | None:
     """The group or supergroup this update concerns, if any.
 
-    Covers messages and membership changes alike: approval is a property of the
-    chat, not of an update type, and banning someone at the door is as public an
-    action as answering a command.
+    Covers messages, membership changes and join requests alike: approval is a
+    property of the chat, not of an update type. Banning someone at the door or
+    turning away an applicant is as public an action as answering a command,
+    and each arrives on a different carrier.
     """
     if not isinstance(event, types.Update):
         return None
-    carrier: types.Message | types.ChatMemberUpdated | None = event.message or event.chat_member
+    carrier: types.Message | types.ChatMemberUpdated | types.ChatJoinRequest | None = (
+        event.message or event.chat_member or event.chat_join_request
+    )
     if carrier is None:
         return None
     if carrier.chat.type not in ["group", "supergroup"]:
