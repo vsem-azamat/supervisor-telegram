@@ -14,6 +14,15 @@ from app.presentation.telegram.handlers.moderation.blacklist import (
     unblock_user_callback,
 )
 from app.presentation.telegram.handlers.moderation.blacklist import router as _blacklist_router
+from app.presentation.telegram.handlers.moderation.messages import (
+    delete_message,
+    kick_user,
+    pin_message,
+    purge_messages,
+    unpin_message,
+    user_info,
+)
+from app.presentation.telegram.handlers.moderation.messages import router as _messages_router
 from app.presentation.telegram.handlers.moderation.mute import mute_user, unmute_user
 from app.presentation.telegram.handlers.moderation.mute import router as _mute_router
 from app.presentation.telegram.handlers.moderation.welcome import router as _welcome_router
@@ -24,19 +33,26 @@ moderation_router.include_router(_mute_router)
 moderation_router.include_router(_ban_router)
 moderation_router.include_router(_blacklist_router)
 moderation_router.include_router(_welcome_router)
+moderation_router.include_router(_messages_router)
 
 __all__ = [
     "ban_user",
+    "delete_message",
     "full_ban",
     "handle_blacklist_pagination",
+    "kick_user",
     "label_spam",
     "moderation_router",
     "mute_user",
+    "pin_message",
     "process_blacklist_cancel",
     "process_blacklist_confirm",
+    "purge_messages",
     "show_blacklist",
     "unban_user",
     "unblock_user_callback",
     "unmute_user",
+    "unpin_message",
+    "user_info",
     "welcome_change",
 ]
