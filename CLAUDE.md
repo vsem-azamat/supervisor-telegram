@@ -1,20 +1,21 @@
 # CLAUDE.md
 
-See [AGENTS.md](AGENTS.md) for repository instructions.
+See [AGENTS.md](AGENTS.md) for the working contract and
+[docs/invariants.md](docs/invariants.md) for rules the code cannot state itself.
 
 ## Quick Reference
 
 ```bash
-# Run bot locally
+# Run bot locally (also serves the MCP control plane when MCP_ENABLED)
 uv run -m app.presentation.telegram
 
 # Run with Docker (production image)
 docker compose up -d
 
 # Tests
-uv run -m pytest                          # all tests
-uv run -m pytest tests/unit tests/e2e -x  # fast subset
-uv run -m pytest --cov=app                # with coverage
+uv run -m pytest                                        # all
+uv run -m pytest tests/unit tests/handlers tests/middleware -x
+uv run -m pytest --cov=app
 
 # Quality
 ruff check app tests && ruff format app tests
@@ -25,9 +26,4 @@ alembic revision --autogenerate -m "description"
 alembic upgrade head
 ```
 
-Use the canonical docs instead of duplicating repository guidance here:
-
-- [Documentation hub](docs/README.md)
-- [Architecture](docs/architecture.md)
-- [Domain rules](docs/domain/README.md)
-- [Testing strategy](docs/testing/README.md)
+Structure is not documented here on purpose — it drifts. Read `app/` directly.

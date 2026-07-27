@@ -1,9 +1,9 @@
 """The approval gate must cover joins, not just messages.
 
-`docs/domain/moderation.md` states that public moderation actions run only for
-chats with status `approved`. Once blacklist enforcement moved onto
-`dp.chat_member`, a gate that only understood `Update.message` let a ban fire in
-a chat the operator had never approved.
+Public moderation actions run only for chats with status `approved` — see the
+approval invariant in `docs/invariants.md`. Once blacklist enforcement moved
+onto `dp.chat_member`, a gate that only understood `Update.message` let a ban
+fire in a chat the operator had never approved.
 """
 
 from datetime import UTC, datetime

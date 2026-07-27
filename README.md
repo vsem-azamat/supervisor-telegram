@@ -7,11 +7,11 @@
 <p align="center">
   <img src="https://img.shields.io/badge/status-alpha-orange" alt="Alpha">
   <img src="https://img.shields.io/badge/python-3.12+-blue?logo=python&logoColor=white" alt="Python 3.12+">
-  <img src="https://img.shields.io/badge/aiogram-3.x-blue?logo=telegram" alt="aiogram 3.x">
+  <img src="https://img.shields.io/badge/aiogram-3.30-blue?logo=telegram" alt="aiogram 3.30">
   <img src="https://img.shields.io/badge/PydanticAI-agents-purple" alt="PydanticAI">
   <img src="https://img.shields.io/badge/PostgreSQL-18-blue?logo=postgresql&logoColor=white" alt="PostgreSQL 18">
   <img src="https://img.shields.io/badge/pgvector-semantic_search-green" alt="pgvector">
-  <img src="https://img.shields.io/badge/tests-700+-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-1000+-brightgreen" alt="Tests">
 </p>
 
 ---
@@ -62,7 +62,7 @@ graph TB
 
     subgraph System["Supervisor Platform"]
         ModBot["🤖 Moderator Bot<br/><i>Mechanical commands</i><br/>/mute /ban /black /report"]
-        Assistant["🧠 Assistant Bot<br/><i>Claude Sonnet 4.6</i><br/>30+ tools, conversational"]
+        Assistant["🧠 Assistant Bot<br/><i>Claude Sonnet 4.6</i><br/>tool-calling, conversational"]
         Userbot["👤 Telethon Userbot<br/><i>Client API access</i><br/>history, search, schedule"]
     end
 
@@ -102,14 +102,14 @@ The platform uses **PydanticAI** agents with typed dependencies and structured o
 ```mermaid
 graph LR
     subgraph Agents
-        A1["🧠 Assistant Agent<br/>Claude Sonnet 4.6<br/><i>$3/$15 per 1M tokens</i>"]
-        A2["⚖️ Moderation Agent<br/>Gemini Flash Lite<br/><i>$0.25/$1.50</i>"]
-        A3["📰 Screening Agent<br/>Gemini 2.0 Flash<br/><i>$0.10/$0.40</i>"]
-        A4["✏️ Generation Agent<br/>Gemini Flash Lite<br/><i>$0.25/$1.50</i>"]
+        A1["🧠 Assistant Agent<br/>Claude Sonnet 4.6"]
+        A2["⚖️ Moderation Agent<br/>Gemini Flash Lite"]
+        A3["📰 Screening Agent<br/>Gemini 2.0 Flash"]
+        A4["✏️ Generation Agent<br/>Gemini Flash Lite"]
         A5["🔍 Review Agent<br/>Gemini Flash Lite<br/><i>conversational</i>"]
     end
 
-    subgraph Tools["30+ Tools"]
+    subgraph Tools["Tools"]
         T1["Channel Management<br/>add/remove channels,<br/>sources, schedules"]
         T2["Moderation<br/>mute, ban, blacklist,<br/>risk profiles"]
         T3["Content Intelligence<br/>semantic dedup,<br/>topic search, Brave"]
@@ -186,7 +186,7 @@ summarize them into preference context for later generation.
 
 ### Assistant Bot
 
-A conversational interface where admins manage everything through natural language. The PydanticAI agent has access to **30+ tools** across 5 domains and maintains per-user conversation history with safe trimming that respects tool call boundaries.
+A conversational interface where admins manage everything through natural language. The PydanticAI agent has tools spanning moderation, chat settings, channels and search, and keeps per-user conversation history with safe trimming that respects tool call boundaries.
 
 ```
 Admin: "Run the pipeline for @my_channel"
@@ -210,7 +210,7 @@ Messages revoked in 3 chats.
 
 | Layer | Technologies |
 |---|---|
-| **Bot Framework** | aiogram 3.x, Telethon (Client API) |
+| **Bot Framework** | aiogram 3.30 (Bot API 10.2), Telethon (Client API) |
 | **AI/Agents** | PydanticAI, OpenRouter (Claude Sonnet, Gemini Flash, Perplexity Sonar) |
 | **State Machine** | Burr (checkpointable HITL workflow) |
 | **Database** | PostgreSQL 18 + pgvector, SQLAlchemy 2.x async, Alembic |
@@ -219,31 +219,8 @@ Messages revoked in 3 chats.
 | **Quality** | ruff, ty (Astral type checker), pytest, pre-commit, structlog |
 | **Infrastructure** | Docker multi-stage, uv package manager |
 
-## Project Structure
-
-> See [`docs/architecture.md`](docs/architecture.md) for full module map, config hierarchy, data flow, and design decisions.
-
-```
-app/
-├── core/                   # Config (9 Pydantic classes), logging, DI, enums, exceptions
-├── moderation/             # AI moderation: agent, escalation, blacklist, report, services
-├── agent/                  # AI agent infrastructure
-│   └── channel/            # Content pipeline
-│       ├── orchestrator.py # Per-channel orchestration + scheduling
-│       ├── workflow.py     # Burr state machine (9 actions)
-│       ├── generator.py    # LLM screening + post generation
-│       ├── review/         # Review submodule (agent, presentation, service)
-│       ├── semantic_dedup.py
-│       ├── sources.py      # RSS fetching + health tracking
-│       └── http.py         # SSRF-protected HTTP client
-├── assistant/              # Conversational admin bot
-│   ├── agent.py            # PydanticAI agent (Claude Sonnet)
-│   ├── bot.py              # Conversation management
-│   └── tools/              # 30+ tools across 5 modules
-├── db/                     # SQLAlchemy models, repositories, session management
-├── telethon/               # Telethon userbot client
-└── presentation/           # Telegram handlers, middlewares
-```
+> Structure is deliberately not mirrored here — read `app/` for it, and
+> [`docs/invariants.md`](docs/invariants.md) for the rules the code cannot state.
 
 ## Quick Start
 
@@ -268,7 +245,7 @@ pnpm --dir webui run dev  # serves on 0.0.0.0:5174, auth still required
 
 ## Security
 
-- **SSRF protection** — async DNS validation on all LLM-returned URLs before fetching (14 dedicated tests)
+- **SSRF protection** — async DNS validation on all LLM-returned URLs before fetching
 - **Prompt injection defense** — external content sandboxed in XML boundary tags, boundary markers escaped in sanitizer
 - **Global blacklist middleware** — TTL-cached, auto-bans across all managed chats
 - **Escalation timeouts** — uncertain AI decisions auto-resolve, never left hanging
@@ -279,5 +256,8 @@ MIT
 
 ## Documentation
 
-Start with the [documentation hub](docs/README.md) for domain rules,
-architecture, testing strategy, and project learnings.
+- [`AGENTS.md`](AGENTS.md) — the working contract.
+- [`docs/invariants.md`](docs/invariants.md) — rules the code cannot state for
+  itself. Behaviour is pinned by tests, not prose.
+- [`docs/deployment/`](docs/deployment/) — operational runbooks.
+- [`docs/product/`](docs/product/) — what this is for and who it serves.
