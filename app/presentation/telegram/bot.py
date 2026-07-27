@@ -109,6 +109,8 @@ def _setup_main_bot(
     dp.update.middleware(HistoryMiddleware())
     dp.update.middleware(ApprovedChatGateMiddleware())
     dp.message.middleware(BlacklistMiddleware())
+    # Also at the door: a blacklisted user who rejoins must not get to speak once first.
+    dp.chat_member.middleware(BlacklistMiddleware())
     dp.callback_query.middleware(CallbackAnswerMiddleware())
 
     dp.include_router(router)

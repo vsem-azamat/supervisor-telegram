@@ -12,15 +12,13 @@ from aiogram.types import (
     Chat,
     ChatMemberLeft,
     ChatMemberMember,
+    ChatMemberUnion,
     ChatMemberUpdated,
     Message,
     MessageEntity,
     Update,
     User,
 )
-
-# Union of all ChatMember subtypes, matching aiogram's ChatMemberUnion
-ChatMemberUnion = ChatMemberLeft | ChatMemberMember
 
 
 class TelegramObjectFactory:

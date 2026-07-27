@@ -1,10 +1,12 @@
 """Tests for BlacklistMiddleware."""
 
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from aiogram.types import TelegramObject
+from aiogram.enums import ChatMemberStatus
+from aiogram.types import ChatMemberBanned, ChatMemberMember, TelegramObject
 from app.presentation.telegram.middlewares import black_list
 from app.presentation.telegram.middlewares.black_list import BlacklistMiddleware
 
@@ -268,31 +270,83 @@ class TestBlacklistMiddlewareEdgeCases:
         # Should allow callback queries through (they're not Message events)
         assert mock_handler.called is True
 
-    async def test_blacklist_middleware_with_chat_member_update(
+    async def test_blacklisted_user_banned_on_rejoin(
         self,
         telegram_factory: TelegramObjectFactory,
         blacklist_middleware: BlacklistMiddleware,
         mock_user_repo: AsyncMock,
         mock_bot: MockBot,
     ):
-        """Test middleware with chat member update events."""
+        """A blacklisted user who rejoins is banned at the door.
+
+        Waiting for their first message gives them the floor once, which is
+        exactly what the blacklist exists to prevent.
+        """
         user = create_normal_user()
         chat = create_test_chat()
-
-        chat_member_update = telegram_factory.create_chat_member_updated(chat=chat, user=user)
+        join = telegram_factory.create_chat_member_updated(chat=chat, user=user)
 
         mock_handler = MockHandler()
         data = {"user_repo": mock_user_repo, "bot": mock_bot.mock}
 
-        # Mock user is blocked
         mock_blocked_user = AsyncMock()
         mock_blocked_user.id = user.id
         mock_user_repo.get_blocked_users.return_value = [mock_blocked_user]
 
-        await blacklist_middleware(mock_handler, chat_member_update, data)
+        await blacklist_middleware(mock_handler, join, data)
 
-        # Should allow non-Message events through
+        mock_bot.mock.ban_chat_member.assert_awaited_once_with(chat.id, user.id)
+        assert mock_handler.called is False
+
+    async def test_normal_user_may_join(
+        self,
+        telegram_factory: TelegramObjectFactory,
+        blacklist_middleware: BlacklistMiddleware,
+        mock_user_repo: AsyncMock,
+        mock_bot: MockBot,
+    ):
+        """An ordinary join is untouched."""
+        user = create_normal_user()
+        join = telegram_factory.create_chat_member_updated(chat=create_test_chat(), user=user)
+
+        mock_handler = MockHandler()
+        data = {"user_repo": mock_user_repo, "bot": mock_bot.mock}
+        mock_user_repo.get_blocked_users.return_value = []
+
+        await blacklist_middleware(mock_handler, join, data)
+
+        mock_bot.mock.ban_chat_member.assert_not_awaited()
         assert mock_handler.called is True
+
+    async def test_our_own_ban_does_not_retrigger(
+        self,
+        telegram_factory: TelegramObjectFactory,
+        blacklist_middleware: BlacklistMiddleware,
+        mock_user_repo: AsyncMock,
+        mock_bot: MockBot,
+    ):
+        """Banning emits its own chat_member update; it must not feed back."""
+        user = create_normal_user()
+        chat = create_test_chat()
+        kicked = telegram_factory.create_chat_member_updated(
+            chat=chat,
+            user=user,
+            old_chat_member=ChatMemberMember(user=user, status=ChatMemberStatus.MEMBER),
+            new_chat_member=ChatMemberBanned(
+                user=user, status=ChatMemberStatus.KICKED, until_date=datetime(1970, 1, 1, tzinfo=UTC)
+            ),
+        )
+
+        mock_handler = MockHandler()
+        data = {"user_repo": mock_user_repo, "bot": mock_bot.mock}
+
+        mock_blocked_user = AsyncMock()
+        mock_blocked_user.id = user.id
+        mock_user_repo.get_blocked_users.return_value = [mock_blocked_user]
+
+        await blacklist_middleware(mock_handler, kicked, data)
+
+        mock_bot.mock.ban_chat_member.assert_not_awaited()
 
     async def test_blacklist_middleware_exception_handling(
         self,
