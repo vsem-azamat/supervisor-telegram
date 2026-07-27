@@ -25,7 +25,7 @@ DEPLOY = ROOT / ".github" / "workflows" / "deploy.yml"
 
 # Set by the workflow itself rather than passed to the app, so they appear in
 # the deploy step but have no place in a service's environment.
-_DEPLOY_ONLY = {"IMAGE_TAG", "WEBUI_PORT"}
+_DEPLOY_ONLY = {"IMAGE_TAG"}
 
 
 def _compose_passthrough() -> set[str]:
@@ -37,7 +37,8 @@ def _compose_passthrough() -> set[str]:
     raw = COMPOSE.read_text()
     # Anchors and merge keys are not part of the YAML core schema that
     # safe_load resolves for us here, so read the anchor block directly.
-    block = re.search(r"^x-runtime-env: &runtime-env\n((?:  \S+:.*\n)+)", raw, re.M)
+    # Entries with a literal value are fixed in the file, not forwarded.
+    block = re.search(r"^x-runtime-env: &runtime-env\n((?:  \S.*\n)+)", raw, re.M)
     assert block, "the shared environment anchor is gone or was renamed"
     return set(re.findall(r"^  ([A-Z_]+):\s*$", block.group(1), re.M))
 
@@ -73,6 +74,7 @@ def test_credentials_come_from_secrets_and_the_rest_from_variables() -> None:
         "MODERATOR_BOT_TOKEN",
         "OPENROUTER_API_KEY",
         "BRAVE_API_KEY",
+        "TELETHON_API_ID",
         "TELETHON_API_HASH",
         "MCP_TOKEN",
     }

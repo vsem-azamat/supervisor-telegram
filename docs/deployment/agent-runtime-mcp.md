@@ -7,10 +7,7 @@ govern its behaviour are in [Invariants](../invariants.md).
 
 | Variable | Meaning |
 | --- | --- |
-| `MCP_ENABLED` | Serve the endpoint. Default `false`. |
-| `MCP_TOKEN` | Shared bearer token the client must present. No default. |
-| `MCP_PATH` | Path the endpoint answers on. Default `/api/mcp`. |
-| `MCP_PORT` | Port the bot process listens on. Default `8788`, published loopback-only. |
+| `MCP_TOKEN` | Shared bearer token the client must present, and the switch: no token, no endpoint. |
 | `MCP_MAX_DRAFTS_PER_HOUR` | Cap on `generate_and_send_for_review` calls per hour. Default `10`; `0` disables the cap. |
 | `MCP_INITIATOR_ID` | Telegram ID of the admin the token acts as. No default; `propose_ban` and `propose_blacklist` refuse while unset. |
 
@@ -22,11 +19,15 @@ names a runtime. It is recorded on every proposal and carried into the decision
 log, and it is also where the confirmation request is sent — so it must be a
 super admin, or nobody will be able to press the button.
 
-Both `MCP_ENABLED=true` and a non-empty `MCP_TOKEN` are required; either alone
-leaves the endpoint closed. The token is a production credential and belongs in
-the VPS `.env` alongside the bot tokens — see
+The token is the only switch: unset means no endpoint. Path and port are fixed
+in code at `/api/mcp` and `8788`, because the compose port mapping hard-codes
+the container side and a configurable port would bind the app to a number the
+mapping does not forward.
+
+The token is a production credential and lives as a GitHub secret — see
 [Production Credentials](production-credentials.md). Generate it with
-`openssl rand -hex 32` and rotate it by editing `.env` and restarting `bot`.
+`openssl rand -hex 32`; rotate it by updating the secret and re-running the
+deploy workflow.
 
 ## Which process serves it
 
@@ -41,13 +42,13 @@ Restarting `bot` therefore drops MCP connections along with polling, and
 ## Network exposure
 
 **This endpoint is not published to the internet.** The bot container binds
-`MCP_PORT` on `127.0.0.1` only, and the edge proxy has no rule for it: the
+port 8788 on `127.0.0.1` only, and the edge proxy has no rule for it: the
 `/api/*` rule in `docker/Caddyfile` points at `webapi`, which no longer carries
 the control plane. Reaching it is a local-network concern — a client on the
 host, or a private link such as WireGuard, Tailscale or an SSH tunnel.
 
 This is a change from the earlier arrangement, where the endpoint lived on the
-web API behind the existing `/api/*` rule and turning `MCP_ENABLED` on was
+web API behind the existing `/api/*` rule and setting a token was
 enough to publish it. Do not restore that by adding an edge rule for
 `bot:8788`; the toolset now includes privileged moderation, and its safety
 rests on more than the bearer token.

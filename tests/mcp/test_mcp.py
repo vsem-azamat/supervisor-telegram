@@ -22,11 +22,10 @@ TOKEN = "test-mcp-token"  # noqa: S105 — test fixture, not a credential
 @pytest.fixture
 def mcp_settings():
     """Enable the MCP endpoint for the duration of a test."""
-    original = (settings.mcp.enabled, settings.mcp.token)
-    settings.mcp.enabled = True
+    original = settings.mcp.token
     settings.mcp.token = TOKEN
     yield
-    settings.mcp.enabled, settings.mcp.token = original
+    settings.mcp.token = original
 
 
 @pytest.fixture
@@ -89,14 +88,14 @@ async def test_app_answers_on_the_configured_path(mcp_settings) -> None:
     assert any(getattr(route, "path", "") == settings.mcp.path for route in app.routes)
 
 
-async def test_enabled_without_token_stays_closed() -> None:
-    """A half-configured deploy must fail closed, not expose an open endpoint."""
-    original = (settings.mcp.enabled, settings.mcp.token)
-    settings.mcp.enabled, settings.mcp.token = True, ""
+async def test_without_a_token_it_stays_closed() -> None:
+    """The token is the switch; there is no second one to disagree with it."""
+    original = settings.mcp.token
+    settings.mcp.token = ""
     try:
         assert settings.mcp.active is False
     finally:
-        settings.mcp.enabled, settings.mcp.token = original
+        settings.mcp.token = original
 
 
 # ── authentication ────────────────────────────────────────────────────────

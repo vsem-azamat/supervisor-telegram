@@ -6,7 +6,7 @@ See [AGENTS.md](AGENTS.md) for the working contract and
 ## Quick Reference
 
 ```bash
-# Run bot locally (also serves the MCP control plane when MCP_ENABLED)
+# Run bot locally (also serves the MCP control plane when MCP_TOKEN is set)
 uv run -m app.presentation.telegram
 
 # Run with Docker (production image)

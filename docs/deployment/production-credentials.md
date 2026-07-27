@@ -19,7 +19,7 @@ recover.
 | `MODERATOR_BOT_TOKEN` | Bot token from BotFather |
 | `OPENROUTER_API_KEY` | Model access for moderation and content |
 | `BRAVE_API_KEY` | Search, used by content discovery |
-| `TELETHON_API_HASH` | Half of the userbot's API credentials |
+| `TELETHON_API_ID`, `TELETHON_API_HASH` | The userbot's API credentials. Together they reach a real account, so both are secrets — half a pair in `vars` protects nothing. |
 | `MCP_TOKEN` | Bearer token for the control plane |
 | `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY` | Deploy target and key |
 
@@ -39,17 +39,38 @@ repository access, so nothing sensitive goes here.
 
 | Variable | Notes |
 | --- | --- |
-| `DB_USER`, `DB_HOST`, `DB_PORT`, `DB_NAME` | |
+| `DB_HOST` | |
 | `ADMIN_SUPER_ADMINS` | Comma-separated Telegram IDs |
-| `ADMIN_REPORT_CHAT_ID` | |
-| `APP_ENVIRONMENT`, `LOG_LEVEL` | |
-| `MODERATION_ENABLED`, `CHANNEL_ENABLED` | Both require `OPENROUTER_API_KEY` |
-| `TELETHON_ENABLED`, `TELETHON_API_ID`, `TELETHON_SESSION_NAME` | |
-| `WEBAPI_AUTH_MODE`, `WEBAPI_PUBLIC_URL`, `WEBAPI_ALLOWED_ORIGINS` | |
-| `WEBAPI_SESSION_COOKIE_SECURE` | `true` in production |
-| `SPONSORED_ADS_ENABLED`, `SPONSORED_ADS_MODERATOR_CHAT_ID`, `SPONSORED_ADS_SALES_CONTACT` | |
-| `MCP_ENABLED`, `MCP_PATH`, `MCP_PORT`, `MCP_INITIATOR_ID` | |
-| `WEBUI_PORT` | Loopback-only host port for the edge proxy |
+| `ADMIN_REPORT_CHAT_ID` | Defaults to the first super admin |
+| `MODERATION_ENABLED` | Requires `OPENROUTER_API_KEY` |
+| `WEBAPI_PUBLIC_URL` | Also becomes the allowed CORS origin |
+| `SPONSORED_ADS_MODERATOR_CHAT_ID` | Unset disables the funnel |
+| `SPONSORED_ADS_SALES_CONTACT` | |
+| `MCP_INITIATOR_ID` | The admin the control-plane token acts as |
+
+## Features switch themselves on
+
+There is one enable-flag, `MODERATION_ENABLED`, and it exists because an LLM
+acting in your chats is the thing you may need to stop in a hurry — and because
+it has no credential of its own to infer from.
+
+Everything else is on when it is configured and off otherwise:
+
+| Feature | On when |
+| --- | --- |
+| Telethon userbot | `TELETHON_API_ID` and `TELETHON_API_HASH` are both set |
+| MCP control plane | `MCP_TOKEN` is set |
+| Sponsored ads | `SPONSORED_ADS_MODERATOR_CHAT_ID` is set |
+
+A separate flag could disagree with the configuration it gates, and only ever in
+the direction that fails quietly: `TELETHON_ENABLED=true` with no credentials
+produced a userbot that started, failed, and said nothing.
+
+Some values are fixed in `docker-compose.yaml` rather than configured, because
+they cannot differ without breaking something. The MCP port and path are pinned
+to the container port mapping; the Telethon session name is pinned to the volume
+mount, and a mismatch there makes Telethon start an unauthorised session instead
+of failing.
 
 Anything absent falls back to the default in `app/core/config.py`. The list is
 deliberately not a second copy of every setting — models, thresholds and
@@ -63,9 +84,10 @@ Before anything reaches the VPS the workflow fails on:
 - any of `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `MODERATOR_BOT_TOKEN`,
   `ADMIN_SUPER_ADMINS` being empty — these have no defaults, and containers
   crash on boot without them;
-- `MCP_ENABLED=true` without `MCP_TOKEN`, or with `MCP_INITIATOR_ID` unset — the
-  plane would fail closed, which looks like a dead endpoint rather than a
-  misconfiguration;
+- `MCP_TOKEN` set with `MCP_INITIATOR_ID` unset — the proposal tools would
+  refuse, which looks like a broken plane rather than a missing setting;
+- one half of the Telethon credential pair without the other, which activates
+  nothing and looks like a working deploy with a userbot that never connects;
 - `MODERATION_ENABLED` or `CHANNEL_ENABLED` without `OPENROUTER_API_KEY`.
 
 A test pins the forwarded list against `docker-compose.yaml`, so a setting added

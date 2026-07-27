@@ -203,7 +203,7 @@ def _init_channel_orchestrator(
 
 def _init_telethon() -> TelethonClient | None:
     """Initialize Telethon client if configured."""
-    if not settings.telethon.enabled:
+    if not settings.telethon.active:
         return None
     from app.telethon.telethon_client import TelethonClient
 

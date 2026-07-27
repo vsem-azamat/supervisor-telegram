@@ -69,7 +69,6 @@ def test_build_alert_keyboard_has_three_actions() -> None:
 
 
 async def test_notify_moderators_sends_alert(session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(settings.sponsored_ads, "enabled", True)
     monkeypatch.setattr(settings.sponsored_ads, "moderator_chat_id", -100999)
     session.add(Message(chat_id=-1001, user_id=777, message_id=11, message="buy now"))
     await session.commit()
@@ -82,7 +81,8 @@ async def test_notify_moderators_sends_alert(session: AsyncSession, monkeypatch:
 
 
 async def test_notify_moderators_disabled_is_noop(session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(settings.sponsored_ads, "enabled", False)
+    # No moderator chat is what "off" means now — there is nowhere to alert.
+    monkeypatch.setattr(settings.sponsored_ads, "moderator_chat_id", 0)
     bot = _StubBot()
     await review.notify_moderators(bot, session, _message())
     assert bot.messages == []

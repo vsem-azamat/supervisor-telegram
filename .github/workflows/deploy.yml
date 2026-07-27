@@ -66,32 +66,38 @@ jobs:
       # boot; the rest would come up quietly wrong instead, which is worse.
       - name: Check required configuration is present
         env:
-          DB_USER: ${{ vars.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          DB_NAME: ${{ vars.DB_NAME }}
           MODERATOR_BOT_TOKEN: ${{ secrets.MODERATOR_BOT_TOKEN }}
           ADMIN_SUPER_ADMINS: ${{ vars.ADMIN_SUPER_ADMINS }}
-          MCP_ENABLED: ${{ vars.MCP_ENABLED }}
           MCP_TOKEN: ${{ secrets.MCP_TOKEN }}
           MCP_INITIATOR_ID: ${{ vars.MCP_INITIATOR_ID }}
           MODERATION_ENABLED: ${{ vars.MODERATION_ENABLED }}
-          CHANNEL_ENABLED: ${{ vars.CHANNEL_ENABLED }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          TELETHON_API_ID: ${{ secrets.TELETHON_API_ID }}
+          TELETHON_API_HASH: ${{ secrets.TELETHON_API_HASH }}
         run: |
           missing=""
-          for name in DB_USER DB_PASSWORD DB_NAME MODERATOR_BOT_TOKEN ADMIN_SUPER_ADMINS; do
+
+          # No defaults: without these the containers crash on boot.
+          for name in DB_PASSWORD MODERATOR_BOT_TOKEN ADMIN_SUPER_ADMINS; do
             [ -n "$(printenv "$name")" ] || missing="$missing $name"
           done
 
-          # The control plane fails closed without either half, which reads as a
-          # dead endpoint rather than an open one — quiet, and easy to miss.
-          if [ "$MCP_ENABLED" = "true" ]; then
-            [ -n "$MCP_TOKEN" ] || missing="$missing MCP_TOKEN"
+          # A ban is attributable, so a plane that can propose one needs to know
+          # which admin it acts as — and that admin is where the button goes.
+          if [ -n "$MCP_TOKEN" ]; then
             case "$MCP_INITIATOR_ID" in ""|0) missing="$missing MCP_INITIATOR_ID" ;; esac
           fi
 
-          if [ "$MODERATION_ENABLED" = "true" ] || [ "$CHANNEL_ENABLED" = "true" ]; then
-            [ -n "$OPENROUTER_API_KEY" ] || missing="$missing OPENROUTER_API_KEY"
+          if [ "$MODERATION_ENABLED" = "true" ] && [ -z "$OPENROUTER_API_KEY" ]; then
+            missing="$missing OPENROUTER_API_KEY"
+          fi
+
+          # Half a credential pair activates nothing, which looks like a working
+          # deploy with a userbot that never connects.
+          if [ -n "$TELETHON_API_ID$TELETHON_API_HASH" ]; then
+            [ -n "$TELETHON_API_ID" ] || missing="$missing TELETHON_API_ID"
+            [ -n "$TELETHON_API_HASH" ] || missing="$missing TELETHON_API_HASH"
           fi
 
           if [ -n "$missing" ]; then
@@ -119,42 +125,26 @@ jobs:
         uses: appleboy/ssh-action@v1.2.5
         env:
           IMAGE_TAG: ${{ github.sha }}
-          WEBUI_PORT: ${{ vars.WEBUI_PORT }}
-          APP_ENVIRONMENT: ${{ vars.APP_ENVIRONMENT }}
-          LOG_LEVEL: ${{ vars.LOG_LEVEL }}
-          DB_USER: ${{ vars.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           DB_HOST: ${{ vars.DB_HOST }}
-          DB_PORT: ${{ vars.DB_PORT }}
-          DB_NAME: ${{ vars.DB_NAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           MODERATOR_BOT_TOKEN: ${{ secrets.MODERATOR_BOT_TOKEN }}
           ADMIN_SUPER_ADMINS: ${{ vars.ADMIN_SUPER_ADMINS }}
           ADMIN_REPORT_CHAT_ID: ${{ vars.ADMIN_REPORT_CHAT_ID }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}
           MODERATION_ENABLED: ${{ vars.MODERATION_ENABLED }}
-          CHANNEL_ENABLED: ${{ vars.CHANNEL_ENABLED }}
-          TELETHON_ENABLED: ${{ vars.TELETHON_ENABLED }}
-          TELETHON_API_ID: ${{ vars.TELETHON_API_ID }}
+          TELETHON_API_ID: ${{ secrets.TELETHON_API_ID }}
           TELETHON_API_HASH: ${{ secrets.TELETHON_API_HASH }}
-          TELETHON_SESSION_NAME: ${{ vars.TELETHON_SESSION_NAME }}
-          WEBAPI_AUTH_MODE: ${{ vars.WEBAPI_AUTH_MODE }}
           WEBAPI_PUBLIC_URL: ${{ vars.WEBAPI_PUBLIC_URL }}
-          WEBAPI_ALLOWED_ORIGINS: ${{ vars.WEBAPI_ALLOWED_ORIGINS }}
-          WEBAPI_SESSION_COOKIE_SECURE: ${{ vars.WEBAPI_SESSION_COOKIE_SECURE }}
-          SPONSORED_ADS_ENABLED: ${{ vars.SPONSORED_ADS_ENABLED }}
           SPONSORED_ADS_MODERATOR_CHAT_ID: ${{ vars.SPONSORED_ADS_MODERATOR_CHAT_ID }}
           SPONSORED_ADS_SALES_CONTACT: ${{ vars.SPONSORED_ADS_SALES_CONTACT }}
-          MCP_ENABLED: ${{ vars.MCP_ENABLED }}
           MCP_TOKEN: ${{ secrets.MCP_TOKEN }}
-          MCP_PATH: ${{ vars.MCP_PATH }}
-          MCP_PORT: ${{ vars.MCP_PORT }}
           MCP_INITIATOR_ID: ${{ vars.MCP_INITIATOR_ID }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: IMAGE_TAG,WEBUI_PORT,APP_ENVIRONMENT,LOG_LEVEL,DB_USER,DB_PASSWORD,DB_HOST,DB_PORT,DB_NAME,MODERATOR_BOT_TOKEN,ADMIN_SUPER_ADMINS,ADMIN_REPORT_CHAT_ID,OPENROUTER_API_KEY,BRAVE_API_KEY,MODERATION_ENABLED,CHANNEL_ENABLED,TELETHON_ENABLED,TELETHON_API_ID,TELETHON_API_HASH,TELETHON_SESSION_NAME,WEBAPI_AUTH_MODE,WEBAPI_PUBLIC_URL,WEBAPI_ALLOWED_ORIGINS,WEBAPI_SESSION_COOKIE_SECURE,SPONSORED_ADS_ENABLED,SPONSORED_ADS_MODERATOR_CHAT_ID,SPONSORED_ADS_SALES_CONTACT,MCP_ENABLED,MCP_TOKEN,MCP_PATH,MCP_PORT,MCP_INITIATOR_ID
+          envs: IMAGE_TAG,DB_HOST,DB_PASSWORD,MODERATOR_BOT_TOKEN,ADMIN_SUPER_ADMINS,ADMIN_REPORT_CHAT_ID,OPENROUTER_API_KEY,BRAVE_API_KEY,MODERATION_ENABLED,TELETHON_API_ID,TELETHON_API_HASH,WEBAPI_PUBLIC_URL,SPONSORED_ADS_MODERATOR_CHAT_ID,SPONSORED_ADS_SALES_CONTACT,MCP_TOKEN,MCP_INITIATOR_ID
           script: |
             set -e
             cd ~/deploy/supervisor-telegram

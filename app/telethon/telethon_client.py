@@ -112,7 +112,7 @@ class TelethonClient:
     @property
     def is_available(self) -> bool:
         """Check if the client is enabled and connected."""
-        return self.settings.enabled and self._connected
+        return self.settings.active and self._connected
 
     async def start(self) -> None:
         """Connect and start the Telethon client.
@@ -121,7 +121,7 @@ class TelethonClient:
         For first-time auth, settings.phone must be provided
         and interactive terminal access is required.
         """
-        if not self.settings.enabled:
+        if not self.settings.active:
             logger.info("Telethon client disabled, skipping start")
             return
 

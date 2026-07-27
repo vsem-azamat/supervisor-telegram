@@ -123,7 +123,7 @@ async def test_revoke_other_users_session_403(client_factory, db_session_maker) 
 
 
 async def test_get_system_status(client_factory) -> None:
-    settings.webapi.allowed_origins = ["http://localhost:5173"]
+    settings.webapi.public_url = "http://localhost:5173"
     settings.webapi.session_ttl_days = 30
     async with client_factory() as client:
         resp = await client.get("/api/admin/system")

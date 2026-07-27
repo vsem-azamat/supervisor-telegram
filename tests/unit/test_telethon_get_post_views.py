@@ -12,7 +12,7 @@ pytestmark = pytest.mark.asyncio
 
 
 async def test_returns_empty_when_disabled() -> None:
-    settings = TelethonSettings(enabled=False, api_id=1, api_hash="x", session_name="s", phone=None)
+    settings = TelethonSettings(api_id=0, api_hash="", phone=None)
     client = TelethonClient(settings=settings)
 
     result = await client.get_post_views(-100, [1, 2, 3])
@@ -21,7 +21,7 @@ async def test_returns_empty_when_disabled() -> None:
 
 
 async def test_returns_view_map_when_connected() -> None:
-    settings = TelethonSettings(enabled=True, api_id=1, api_hash="x", session_name="s", phone=None)
+    settings = TelethonSettings(api_id=1, api_hash="x", phone=None)
     client = TelethonClient(settings=settings)
     client._connected = True  # pretend connected
     fake_client = MagicMock()

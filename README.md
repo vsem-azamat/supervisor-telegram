@@ -194,7 +194,7 @@ reach outside the chats and channels this deployment manages, writes are
 reversible or self-expiring, and generation can only reach a review chat — never
 publish. Removing a person is never carried out by a tool call at all; a ban is
 *proposed*, and a super admin confirms it in the moderator bot or it expires
-having done nothing. The plane stays closed unless `MCP_ENABLED` is true and
+having done nothing. The plane stays closed unless
 `MCP_TOKEN` is set. The rules it rests on are in
 [`docs/invariants.md`](docs/invariants.md).
 

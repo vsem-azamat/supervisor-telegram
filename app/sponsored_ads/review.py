@@ -87,11 +87,11 @@ def build_alert_keyboard(*, chat_id: int, message_id: int, user_id: int) -> Inli
 async def notify_moderators(bot: Bot, db: AsyncSession, message: types.Message) -> None:
     """Send a moderator alert for a freshly-detected ad message.
 
-    No-op when the feature is disabled, no moderator chat is configured, the
-    message has no author, or this blast was already alerted.
+    No-op when no moderator chat is configured — there is nowhere to alert —
+    or the message has no author, or this blast was already alerted.
     """
     cfg = settings.sponsored_ads
-    if not cfg.enabled or not cfg.moderator_chat_id:
+    if not cfg.active:
         return
     user = message.from_user
     if user is None:
