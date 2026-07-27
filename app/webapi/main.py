@@ -21,6 +21,7 @@ from app.webapi.routes import (
     chats,
     costs,
     health,
+    join_check,
     posts,
     public,
     spam,
@@ -93,6 +94,7 @@ def create_app() -> FastAPI:
     app.include_router(health.router, prefix="/api")
     app.include_router(posts.router, prefix="/api")
     app.include_router(public.router, prefix="/api")
+    app.include_router(join_check.router, prefix="/api")
     app.include_router(channels.router, prefix="/api")
     app.include_router(chats.router, prefix="/api")
     app.include_router(costs.router, prefix="/api")

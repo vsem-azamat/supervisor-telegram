@@ -44,6 +44,22 @@ or the production database.** Two pollers on one token make Telegram split
 updates between them non-deterministically, and the development bot then
 moderates real chats. No test can catch this.
 
+## Mini App
+
+**`initData` and the Login Widget are different algorithms.** The widget derives
+its secret as `sha256(bot_token)`; a Mini App as
+`hmac(key="WebAppData", msg=bot_token)`. Reusing one helper for the other fails
+every signature, and "fixing" that by relaxing the check is how a Mini App ends
+up trusting whatever the caller claims. An empty bot token must refuse rather
+than derive a secret from nothing.
+
+**A join check belongs to one applicant, and that binding is stored.** Holding
+the query id is not the same as being the person it was issued to. Carrying the
+applicant in the Mini App's URL would let anyone with the link pass the check
+on someone else's behalf — precisely the bot farm a check exists to stop. The
+request also arrives in the bot process while the check is answered by the web
+API, so the two halves have nowhere else to meet.
+
 ## Approval
 
 **A chat is approved or it is not — that is a property of the chat, not of an

@@ -687,6 +687,32 @@ class PendingAction(Base):
         self.reason = reason
 
 
+class JoinCheck(Base):
+    """A join request waiting for its applicant to pass the Mini App check.
+
+    Stored rather than carried in the Mini App's URL because the two halves run
+    in different processes: the request arrives in the bot, the check is
+    answered by the web API. It also binds the query to one applicant — without
+    that, anyone holding a query id could pass the check on someone else's
+    behalf, which is exactly the bot-farm case a check exists to stop.
+    """
+
+    __tablename__ = "join_checks"
+
+    query_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    chat_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    passed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    expires_at: Mapped[datetime.datetime] = mapped_column(DateTime, index=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
+
+    def __init__(self, query_id: str, chat_id: int, user_id: int, expires_at: datetime.datetime) -> None:
+        self.query_id = query_id
+        self.chat_id = chat_id
+        self.user_id = user_id
+        self.expires_at = expires_at
+
+
 class ChatMemberSnapshot(Base):
     """Periodic member-count observations for managed chats.
 
