@@ -217,16 +217,17 @@ having done nothing. The plane stays closed unless `MCP_ENABLED` is true and
 
 ## Quick Start
 
+Production is configured through GitHub secrets and variables and keeps no
+`.env` — see [production credentials](docs/deployment/production-credentials.md).
+The file below is for working locally.
+
 ```bash
 # Clone and configure
 git clone https://github.com/vsem-azamat/supervisor-telegram.git
 cd supervisor-telegram
-cp .env.example .env  # fill in MODERATOR_BOT_TOKEN, DB_*, OPENROUTER_API_KEY
+cp .env.example .env  # fill in MODERATOR_BOT_TOKEN, DB_*, ADMIN_SUPER_ADMINS
 
-# Docker (production)
-docker compose up -d
-
-# Or local development
+# Local development
 uv sync --dev
 uv run alembic upgrade head
 uv run -m app.presentation.telegram
