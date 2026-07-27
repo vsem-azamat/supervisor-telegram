@@ -9,6 +9,17 @@ class BlacklistConfirm(CallbackData, prefix="blconfirm"):
     mark_spam: int = 0
 
 
+class PendingActionDecision(CallbackData, prefix="pact"):
+    """Confirm or drop a destructive action proposed from outside.
+
+    Typed rather than a hand-built string like the `esc:` escalation callbacks,
+    so aiogram validates the 64-byte limit instead of leaving it to arithmetic.
+    """
+
+    pending_id: int
+    confirm: int
+
+
 class UnblockUser(CallbackData, prefix="unblock"):
     user_id: int
 

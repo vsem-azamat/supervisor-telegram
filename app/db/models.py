@@ -6,7 +6,7 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy import JSON, BigInteger, Boolean, DateTime, Float, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.enums import EscalationStatus, PostStatus
+from app.core.enums import EscalationStatus, PendingActionStatus, PostStatus
 from app.core.time import utc_now
 from app.db.base import Base
 
@@ -632,6 +632,59 @@ class AgentEscalation(Base):
         self.message_text = message_text
         self.admin_message_id = admin_message_id
         self.admin_chat_id = admin_chat_id
+
+
+class PendingAction(Base):
+    """A destructive action proposed from outside, awaiting an admin's press.
+
+    ``origin`` and ``initiator_id`` exist because a ban is an attributable act.
+    The MCP token identifies a runtime rather than a person, so the admin it
+    maps to is recorded here and carried into the decision log — otherwise the
+    audit trail says only that "the agent" banned someone.
+
+    ``params`` holds the arguments the action needs on execution (mute
+    duration, whether to revoke messages), which have nowhere to live between
+    proposal and confirmation otherwise.
+    """
+
+    __tablename__ = "pending_actions"
+    __table_args__ = (Index("ix_pending_actions_status_expires_at", "status", "expires_at"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    origin: Mapped[str] = mapped_column(String(16))
+    initiator_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    action: Mapped[str] = mapped_column(String(32))
+    chat_id: Mapped[int | None] = mapped_column(BigInteger, index=True, nullable=True)
+    target_user_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    params: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    reason: Mapped[str | None] = mapped_column(String, nullable=True)
+    admin_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    admin_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    status: Mapped[str] = mapped_column(String(16), default=PendingActionStatus.PENDING)
+    resolved_by: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    resolved_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    expires_at: Mapped[datetime.datetime] = mapped_column(DateTime)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
+
+    def __init__(
+        self,
+        origin: str,
+        initiator_id: int,
+        action: str,
+        target_user_id: int,
+        expires_at: datetime.datetime,
+        chat_id: int | None = None,
+        params: dict[str, Any] | None = None,
+        reason: str | None = None,
+    ) -> None:
+        self.origin = origin
+        self.initiator_id = initiator_id
+        self.action = action
+        self.target_user_id = target_user_id
+        self.expires_at = expires_at
+        self.chat_id = chat_id
+        self.params = params or {}
+        self.reason = reason
 
 
 class ChatMemberSnapshot(Base):

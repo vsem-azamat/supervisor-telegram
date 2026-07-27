@@ -329,8 +329,10 @@ async def main() -> None:
     # Telethon session and the escalation timers, and both belong to this
     # process. Returns immediately when MCP is inactive.
     from app.mcp.runner import run_mcp_server
+    from app.moderation.pending_actions import run_expiry_sweep
 
     polling_tasks.append(run_mcp_server())
+    polling_tasks.append(run_expiry_sweep(session_maker))
 
     if assistant_bot and assistant_dp:
         polling_tasks.append(
