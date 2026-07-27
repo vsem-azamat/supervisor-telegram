@@ -1,7 +1,5 @@
 """Cached wrapper around TelethonClient for webapi endpoints.
 
-Spec: docs/superpowers/specs/2026-04-21-web-ui-scope-design.md — Tech layer.
-
 Degrades gracefully when telethon is None or not connected: member count
 becomes None, post-views becomes an empty dict. Callers treat missing data
 as "zero", so the UI still renders without errors.

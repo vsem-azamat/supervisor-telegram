@@ -95,5 +95,3 @@ Simple, clean, distinctive. The `——` (em-dash pair) is our separator — dif
 ## Related Documents
 - `docs/konnekt-strategy.md` — Full content strategy (6-month plan, quick wins, automation)
 - `docs/cvut-chat-deep-analysis.md` — Deep analysis of 45K ČVUT chat messages (3.5 years)
-- `docs/reviews/` — Code/architecture/security reviews
-- `docs/archive/` — Historical research, raw data, superseded reports
