@@ -175,9 +175,11 @@ moderator_userbot.session
 moderator_userbot.session-journal
 PROJECT_TRACKING.md
 logs/
+# Deliberate allowlist: scratch scripts stay local, real ones are named. A new
+# script added here is silently ignored by `git add -A` until it is listed.
 scripts/*
 !scripts/wait_for_postgres.sh
 !scripts/entrypoint.sh
 !scripts/backfill_embeddings.py
-docs/archive/
+!scripts/env_to_github.sh
 .claude/
