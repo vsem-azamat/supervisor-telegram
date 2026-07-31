@@ -9,6 +9,17 @@ class BlacklistConfirm(CallbackData, prefix="blconfirm"):
     mark_spam: int = 0
 
 
+class PendingActionDecision(CallbackData, prefix="pact"):
+    """Confirm or drop a destructive action proposed from outside.
+
+    Typed rather than hand-built from an f-string, so aiogram validates the
+    64-byte limit instead of leaving it to arithmetic.
+    """
+
+    pending_id: int
+    confirm: int
+
+
 class UnblockUser(CallbackData, prefix="unblock"):
     user_id: int
 
@@ -16,45 +27,3 @@ class UnblockUser(CallbackData, prefix="unblock"):
 class BlacklistPagination(CallbackData, prefix="blpage"):
     page: int
     query: str = ""
-
-
-# ── Channel post review callbacks ──
-
-
-class ReviewAction(CallbackData, prefix="rv"):
-    """Single-field callback for simple review actions (approve, reject, delete, etc.)."""
-
-    action: str  # approve, reject, delete, regen, shorter, longer, translate, schedule, back
-    post_id: int
-
-
-class SchedulePick(CallbackData, prefix="rvsp"):
-    """Schedule a post at a specific time."""
-
-    post_id: int
-    ts: int  # unix timestamp
-
-
-class PublishNow(CallbackData, prefix="rvpub"):
-    """Publish a scheduled post immediately."""
-
-    post_id: int
-
-
-class SchedulePreset(CallbackData, prefix="rvsch"):
-    """Schedule a post with a time offset preset."""
-
-    post_id: int
-    minutes: int  # offset from now in minutes
-
-
-# ── Sponsored-ads moderator review ──
-
-
-class AdReviewAction(CallbackData, prefix="adrv"):
-    """A moderator's decision on a flagged ad message."""
-
-    action: str  # skip, delete, ban
-    chat_id: int
-    message_id: int
-    user_id: int

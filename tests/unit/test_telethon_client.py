@@ -17,26 +17,14 @@ from app.telethon.telethon_client import (
 
 @pytest.fixture
 def disabled_settings():
-    """TelethonSettings with enabled=False."""
-    return TelethonSettings(
-        api_id=12345,
-        api_hash="test_hash",
-        session_name="test_session",
-        enabled=False,
-        phone=None,
-    )
+    """No credentials, so the client is inactive — there is no separate flag."""
+    return TelethonSettings(api_id=0, api_hash="", phone=None)
 
 
 @pytest.fixture
 def enabled_settings():
-    """TelethonSettings with enabled=True."""
-    return TelethonSettings(
-        api_id=12345,
-        api_hash="test_hash",
-        session_name="test_session",
-        enabled=True,
-        phone="+1234567890",
-    )
+    """Credentials present, so the client is active."""
+    return TelethonSettings(api_id=12345, api_hash="test_hash", phone="+1234567890")
 
 
 @pytest.fixture

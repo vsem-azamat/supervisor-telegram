@@ -15,10 +15,14 @@
 		void auth.refresh();
 	});
 
+	// Rendered without the admin chrome and never bounced to /login: the join
+	// check is opened inside Telegram by an applicant who has no session and is
+	// not supposed to get one.
+	const standalone = $derived(page.url.pathname === '/login' || page.url.pathname === '/join');
 	const publicPath = $derived(page.url.pathname === '/catalog');
 
 	$effect(() => {
-		if (!auth.initialized || auth.me || page.url.pathname === '/login') return;
+		if (!auth.initialized || auth.me || standalone) return;
 		if (page.url.pathname === '/') {
 			void goto('/catalog');
 			return;
@@ -36,7 +40,7 @@
 
 <Toaster richColors />
 
-{#if page.url.pathname === '/login'}
+{#if standalone}
 	{@render children()}
 {:else if publicPath && !auth.me}
 	<div class="min-h-screen bg-zinc-50 text-zinc-900">

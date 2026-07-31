@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.repositories import (
     get_admin_repository,
-    get_chat_link_repository,
     get_chat_repository,
     get_message_repository,
     get_user_repository,
@@ -37,7 +36,6 @@ class DependenciesMiddleware(BaseMiddleware):
             data["admin_repo"] = get_admin_repository(session)
             data["user_repo"] = get_user_repository(session)
             data["chat_repo"] = get_chat_repository(session)
-            data["chat_link_repo"] = get_chat_link_repository(session)
             data["message_repo"] = get_message_repository(session)
             data["user_service"] = UserService(get_user_repository(session))
             return await handler(event, data)

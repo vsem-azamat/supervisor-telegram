@@ -6,11 +6,12 @@ from aiogram.filters import Command
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.enums import ModerationEventAction, ModerationEventSource
 from app.core.logging import get_logger
 from app.core.text import escape_html
 from app.db.repositories import MessageRepository
+from app.moderation import audit, spam_service
 from app.moderation import blacklist as moderation_services
-from app.moderation import spam_service
 from app.moderation.user_service import UserService
 from app.presentation.telegram.handlers.moderation._common import (
     is_user_check_error,
@@ -143,6 +144,16 @@ async def process_blacklist_confirm(
         member = await bot.get_chat_member(callback.message.chat.id, user_id)
         mention = other.get_user_mention(member.user)
         await moderation_services.add_to_blacklist(db, bot, user_id, revoke_messages=revoke)
+        # No chat: the entry holds everywhere, and the ban just carried out in
+        # this one is a consequence of it rather than a separate decision.
+        await audit.record(
+            db,
+            action=ModerationEventAction.BLACKLIST,
+            source=ModerationEventSource.COMMAND,
+            actor_id=callback.from_user.id,
+            target_user_id=user_id,
+            detail="спам" if mark_spam else None,
+        )
         from app.presentation.telegram.middlewares.black_list import invalidate_blacklist_cache
 
         invalidate_blacklist_cache()
@@ -241,6 +252,13 @@ async def unblock_user_callback(
 ) -> None:
     user_id = callback_data.user_id
     await moderation_services.remove_from_blacklist(db, bot, user_id)
+    await audit.record(
+        db,
+        action=ModerationEventAction.UNBLACKLIST,
+        source=ModerationEventSource.COMMAND,
+        actor_id=callback.from_user.id,
+        target_user_id=user_id,
+    )
     from app.presentation.telegram.middlewares.black_list import invalidate_blacklist_cache
 
     invalidate_blacklist_cache()

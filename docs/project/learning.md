@@ -18,7 +18,8 @@ entities.
 ### Development and production can accidentally target the same live resources
 
 **Cause:** Bot tokens, Telethon credentials, and database settings can be copied
-between local and deployed `.env` files.
+into a local `.env` from production. Production itself no longer keeps one — its
+values live in GitHub — but the copy direction that caused this still works.
 
 **Fix:** Treat bot credentials, userbot sessions, and databases as environment
 boundaries. Do not run a development instance against production identities and

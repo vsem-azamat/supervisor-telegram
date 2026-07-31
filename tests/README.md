@@ -1,27 +1,7 @@
 # Testing Guide
 
-This file contains practical testing examples and fixture notes. The canonical
-test strategy lives in [`docs/testing/README.md`](../docs/testing/README.md).
-
-## Testing Strategy
-
-### Test Pyramid
-
-Our testing approach follows the test pyramid with:
-
-- **Unit Tests (70%)** - Fast, isolated tests for individual components
-- **Integration Tests (20%)** - Test interactions between components
-- **End-to-End Tests (10%)** - Full workflow tests with FakeTelegramServer
-
-### Test Categories
-
-- **Unit Tests** (`tests/unit/`) - Test individual functions, classes, and methods
-- **Integration Tests** (`tests/integration/`) - Test database operations and service integrations
-- **End-to-End Tests** (`tests/e2e/`) - Test complete Telegram workflows with FakeTelegramServer
-- **Handler Tests** (`tests/handlers/`) - Test Telegram handler functions with mocked dependencies
-- **Middleware Tests** (`tests/middleware/`) - Test aiogram middleware behavior
-- **Utility Tests** (`tests/utils/`) - Test shared utilities
-- **Performance Tests** (`tests/performance/`) - Test performance and scalability
+Practical fixture and factory notes. The contract lives in
+[`AGENTS.md`](../AGENTS.md); what the lanes contain is `ls tests/`.
 
 ## Quick Start
 
@@ -56,70 +36,7 @@ uv run -m pytest -m e2e            # End-to-end tests
 uv run -m pytest -m "not slow"     # Exclude slow tests
 ```
 
-## Test Structure
-
-### Directory Layout
-
-```
-tests/
-├── conftest.py                        # Shared fixtures (db_engine, session, session_maker, repos)
-├── factories.py                       # Test data factories (UserFactory, ChatFactory, etc.)
-├── fake_telegram.py                   # FakeTelegramServer (aiohttp Bot API simulator)
-├── telegram_helpers.py                # TelegramObjectFactory, MockBot, utility functions
-├── unit/                              # Unit tests
-│   ├── test_admin_middleware.py
-│   ├── test_assistant.py
-│   ├── test_buttons.py
-│   ├── test_channel_agent.py
-│   ├── test_channel_model.py
-│   ├── test_channel_workflow.py
-│   ├── test_config.py
-│   ├── test_cost_tracker.py
-│   ├── test_enums.py
-│   ├── test_escalation_service.py
-│   ├── test_exceptions.py
-│   ├── test_filters.py
-│   ├── test_generator.py
-│   ├── test_images.py
-│   ├── test_markdown.py
-│   ├── test_middlewares.py
-│   ├── test_orchestrator.py
-│   ├── test_publisher.py
-│   ├── test_report.py
-│   ├── test_review_agent.py
-│   ├── test_review_service_helpers.py
-│   ├── test_schedule_manager.py
-│   ├── test_spam_service.py
-│   ├── test_ssrf.py
-│   ├── test_telethon_client.py
-│   ├── test_tool_trace.py
-│   ├── test_topic_splitter.py
-│   └── test_user_service.py
-├── integration/                       # Integration tests (DB + services)
-│   ├── conftest.py                    # PostgreSQL testcontainers fixtures
-│   ├── test_user_repository.py
-│   ├── test_chat_repository.py
-│   ├── test_pg_repository.py
-│   ├── test_user_service_integration.py
-│   └── test_assistant_conversation.py
-├── e2e/                               # End-to-end tests (FakeTelegramServer)
-│   ├── conftest.py                    # Shared e2e fixtures (fake_tg)
-│   ├── test_agent_moderation.py
-│   └── test_channel_review.py
-├── handlers/                          # Handler unit tests
-│   ├── test_moderation_handlers.py
-│   ├── test_admin_handlers.py
-│   ├── test_blacklist_handlers.py
-│   └── test_dependency_injection.py
-├── middleware/                         # Middleware tests
-│   └── test_blacklist_middleware.py
-├── utils/                             # Utility tests
-│   └── test_blacklist_utils.py
-└── performance/                       # Performance tests
-    └── test_repository_performance.py
-```
-
-### Key Fixtures
+## Fixtures
 
 Available in all tests (from root `conftest.py`):
 

@@ -6,4 +6,5 @@ canonical domain behavior.
 - [Learning Log](learning.md) - recurring issues, root causes, and fixes worth
   remembering.
 
-Use `docs/domain/` for behavior that code and tests must enforce.
+Rules that code cannot state for itself live in `../invariants.md`;
+behaviour is pinned by tests.

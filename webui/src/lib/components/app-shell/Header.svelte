@@ -11,11 +11,7 @@
 			'/': 'Dashboard',
 			'/catalog': 'Catalog',
 			'/catalog/hierarchy': 'Hierarchy',
-			'/posts': 'Posts',
-			'/channels': 'Channels',
 			'/chats': 'Chats',
-			'/costs': 'Costs',
-			'/agent': 'Agent',
 			'/settings': 'Settings'
 		};
 		if (map[pathname]) return map[pathname];

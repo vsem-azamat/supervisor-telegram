@@ -1,4 +1,4 @@
-"""End-to-end tests for moderation: /report, /spam (mechanical), escalation callbacks.
+"""End-to-end tests for moderation: /report and /spam, and the approval gate.
 
 Uses:
 - FakeTelegramServer to simulate Telegram Bot API
@@ -11,7 +11,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
-from unittest.mock import AsyncMock, patch
 
 import pytest
 import pytest_asyncio
@@ -19,7 +18,6 @@ from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.types import (
-    CallbackQuery,
     Chat,
     Message,
     MessageEntity,
@@ -27,7 +25,6 @@ from aiogram.types import (
     User,
 )
 from aiogram.utils.callback_answer import CallbackAnswerMiddleware
-from app.db.models import AgentEscalation
 from app.db.models import Chat as DbChat
 from app.db.models import Message as DbMessage
 from app.presentation.telegram.middlewares import (
@@ -345,246 +342,6 @@ class TestReportCommand:
         )
         assert admin_msg is not None
         assert "SPAM" in admin_msg.params.get("text", "")
-
-
-@pytest.mark.e2e
-class TestEscalationCallback:
-    """Tests for escalation inline button callbacks."""
-
-    async def test_escalation_resolve_records_in_db(
-        self,
-        dispatcher: Dispatcher,
-        bot: Bot,
-        db_session_maker: async_sessionmaker[AsyncSession],
-        fake_tg: FakeTelegramServer,
-    ):
-        """Admin clicking escalation button should resolve in DB and execute action."""
-        from datetime import timedelta
-
-        # Seed escalation using the shared session maker (same pool as handler)
-        async with db_session_maker() as seed_session:
-            escalation = AgentEscalation(
-                chat_id=CHAT_ID,
-                target_user_id=TARGET_USER_ID,
-                suggested_action="mute",
-                reason="Suspicious message",
-                timeout_at=datetime.now(UTC) + timedelta(minutes=30),
-                message_text="Buy cheap diploma!!!",
-                admin_message_id=999,
-                admin_chat_id=SUPER_ADMIN_ID,
-            )
-            seed_session.add(escalation)
-            await seed_session.commit()
-            await seed_session.refresh(escalation)
-            esc_id = escalation.id
-
-        # Simulate admin clicking "ban" button
-        escalation_msg = Message(
-            message_id=999,
-            date=datetime.now(UTC),
-            chat=Chat(id=SUPER_ADMIN_ID, type="private"),
-            from_user=User(id=5145935834, is_bot=True, first_name="Bot"),
-            text="Escalation details here",
-        )
-
-        update = Update(
-            update_id=10,
-            callback_query=CallbackQuery(
-                id="cb_1",
-                from_user=User(id=SUPER_ADMIN_ID, is_bot=False, first_name="Admin", username="super_admin"),
-                chat_instance="12345",
-                data=f"esc:{esc_id}:ban",
-                message=escalation_msg,
-            ),
-        )
-
-        # Mock AgentCore.execute_action to avoid real Telegram API calls
-        with patch("app.moderation.agent.AgentCore") as MockAgentCore:
-            mock_instance = MockAgentCore.return_value
-            mock_instance.execute_action = AsyncMock()
-            await dispatcher.feed_update(bot, update)
-
-            # Verify action was executed
-            mock_instance.execute_action.assert_called_once()
-            call_args = mock_instance.execute_action.call_args
-            assert call_args[0][0] == "ban"  # action
-
-        # Verify DB was updated (fresh session to see committed data)
-        async with db_session_maker() as verify_session:
-            stmt = select(AgentEscalation).where(AgentEscalation.id == esc_id)
-            result = await verify_session.execute(stmt)
-            resolved = result.scalar_one_or_none()
-
-            assert resolved is not None
-            assert resolved.status == "resolved"
-            assert resolved.resolved_action == "ban"
-            assert resolved.resolved_by == SUPER_ADMIN_ID
-
-    async def test_non_admin_cannot_resolve_escalation(
-        self,
-        dispatcher: Dispatcher,
-        bot: Bot,
-        db_session_maker: async_sessionmaker[AsyncSession],
-        fake_tg: FakeTelegramServer,
-    ):
-        """Non-super-admin clicking button should be rejected."""
-        from datetime import timedelta
-
-        async with db_session_maker() as seed_session:
-            escalation = AgentEscalation(
-                chat_id=CHAT_ID,
-                target_user_id=TARGET_USER_ID,
-                suggested_action="mute",
-                reason="Suspicious",
-                timeout_at=datetime.now(UTC) + timedelta(minutes=30),
-            )
-            seed_session.add(escalation)
-            await seed_session.commit()
-            await seed_session.refresh(escalation)
-            esc_id = escalation.id
-
-        NON_ADMIN_ID = 999999999
-
-        update = Update(
-            update_id=11,
-            callback_query=CallbackQuery(
-                id="cb_2",
-                from_user=User(id=NON_ADMIN_ID, is_bot=False, first_name="Random"),
-                chat_instance="12345",
-                data=f"esc:{esc_id}:ban",
-                message=Message(
-                    message_id=999,
-                    date=datetime.now(UTC),
-                    chat=Chat(id=NON_ADMIN_ID, type="private"),
-                    from_user=User(id=5145935834, is_bot=True, first_name="Bot"),
-                    text="Escalation",
-                ),
-            ),
-        )
-
-        await dispatcher.feed_update(bot, update)
-
-        # Should NOT be resolved
-        async with db_session_maker() as verify_session:
-            stmt = select(AgentEscalation).where(AgentEscalation.id == esc_id)
-            result = await verify_session.execute(stmt)
-            esc = result.scalar_one()
-            assert esc.status == "pending"
-
-        # Should have answered with rejection
-        answer_calls = fake_tg.get_calls("answerCallbackQuery")
-        assert len(answer_calls) >= 1
-        # Verify the answer contains a rejection message about admin-only access
-        answer_text = answer_calls[0].params.get("text", "")
-        assert "супер-админов" in answer_text or "admin" in answer_text.lower()
-        assert answer_calls[0].params.get("show_alert") in (True, "true", "True")
-
-    async def test_escalation_ignore_does_not_execute_action(
-        self,
-        dispatcher: Dispatcher,
-        bot: Bot,
-        db_session_maker: async_sessionmaker[AsyncSession],
-        fake_tg: FakeTelegramServer,
-    ):
-        """Choosing 'ignore' should resolve but not execute any action."""
-        from datetime import timedelta
-
-        async with db_session_maker() as seed_session:
-            escalation = AgentEscalation(
-                chat_id=CHAT_ID,
-                target_user_id=TARGET_USER_ID,
-                suggested_action="mute",
-                reason="Maybe spam",
-                timeout_at=datetime.now(UTC) + timedelta(minutes=30),
-            )
-            seed_session.add(escalation)
-            await seed_session.commit()
-            await seed_session.refresh(escalation)
-            esc_id = escalation.id
-
-        update = Update(
-            update_id=12,
-            callback_query=CallbackQuery(
-                id="cb_3",
-                from_user=User(id=SUPER_ADMIN_ID, is_bot=False, first_name="Admin", username="admin"),
-                chat_instance="12345",
-                data=f"esc:{esc_id}:ignore",
-                message=Message(
-                    message_id=999,
-                    date=datetime.now(UTC),
-                    chat=Chat(id=SUPER_ADMIN_ID, type="private"),
-                    from_user=User(id=5145935834, is_bot=True, first_name="Bot"),
-                    text="Escalation",
-                ),
-            ),
-        )
-
-        # Mock AgentCore to verify it's NOT called for ignore
-        with patch("app.moderation.agent.AgentCore") as MockAgentCore:
-            mock_instance = MockAgentCore.return_value
-            mock_instance.execute_action = AsyncMock()
-            await dispatcher.feed_update(bot, update)
-
-            # execute_action should NOT have been called for ignore
-            mock_instance.execute_action.assert_not_called()
-
-        # Should be resolved
-        async with db_session_maker() as verify_session:
-            stmt = select(AgentEscalation).where(AgentEscalation.id == esc_id)
-            result = await verify_session.execute(stmt)
-            esc = result.scalar_one()
-            assert esc.status == "resolved"
-            assert esc.resolved_action == "ignore"
-
-    async def test_already_resolved_escalation_shows_error(
-        self,
-        dispatcher: Dispatcher,
-        bot: Bot,
-        db_session_maker: async_sessionmaker[AsyncSession],
-        fake_tg: FakeTelegramServer,
-    ):
-        """Clicking a button on already-resolved escalation should notify user."""
-        from datetime import timedelta
-
-        async with db_session_maker() as seed_session:
-            escalation = AgentEscalation(
-                chat_id=CHAT_ID,
-                target_user_id=TARGET_USER_ID,
-                suggested_action="mute",
-                reason="Old escalation",
-                timeout_at=datetime.now(UTC) + timedelta(minutes=30),
-            )
-            escalation.status = "resolved"
-            escalation.resolved_action = "ban"
-            escalation.resolved_by = SUPER_ADMIN_ID
-            seed_session.add(escalation)
-            await seed_session.commit()
-            await seed_session.refresh(escalation)
-
-        update = Update(
-            update_id=13,
-            callback_query=CallbackQuery(
-                id="cb_4",
-                from_user=User(id=SUPER_ADMIN_ID, is_bot=False, first_name="Admin", username="admin"),
-                chat_instance="12345",
-                data=f"esc:{escalation.id}:mute",
-                message=Message(
-                    message_id=999,
-                    date=datetime.now(UTC),
-                    chat=Chat(id=SUPER_ADMIN_ID, type="private"),
-                    from_user=User(id=5145935834, is_bot=True, first_name="Bot"),
-                    text="Escalation",
-                ),
-            ),
-        )
-
-        await dispatcher.feed_update(bot, update)
-
-        answer_calls = fake_tg.get_calls("answerCallbackQuery")
-        assert len(answer_calls) >= 1
-        # Verify the answer contains an error message about already-resolved escalation
-        answer_text = answer_calls[0].params.get("text", "")
-        assert "уже обработана" in answer_text or "already" in answer_text.lower()
 
 
 @pytest.mark.e2e

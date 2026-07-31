@@ -95,6 +95,19 @@ async def admin_repository(session: AsyncSession) -> AdminRepository:
 
 
 @pytest.fixture
+def audit_db():
+    """A stand-in session that keeps the moderation events written through it.
+
+    Handler tests drive the handlers directly, with no database behind them, but
+    every moderation command now writes one row. This lets them assert on the
+    row itself instead of mocking a session and checking that something happened.
+    """
+    from tests.telegram_helpers import RecordingSession
+
+    return RecordingSession()
+
+
+@pytest.fixture
 def sample_user_data() -> dict[str, Any]:
     """Sample user data for tests."""
     return {

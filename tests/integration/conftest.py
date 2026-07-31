@@ -34,7 +34,7 @@ def pg_container():
     """Start a PostgreSQL container for the test session."""
     from testcontainers.postgres import PostgresContainer
 
-    with PostgresContainer("pgvector/pgvector:0.8.2-pg18-trixie", driver="asyncpg") as pg:
+    with PostgresContainer("postgres:18-trixie", driver="asyncpg") as pg:
         yield pg
 
 
@@ -56,7 +56,6 @@ async def pg_engine(pg_url: str):
     loop (asyncpg connections are tied to the loop that created them)."""
     engine = create_async_engine(pg_url, echo=False)
     async with engine.begin() as conn:
-        await conn.execute(sa_text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.run_sync(Base.metadata.create_all)
     yield engine
     async with engine.begin() as conn:

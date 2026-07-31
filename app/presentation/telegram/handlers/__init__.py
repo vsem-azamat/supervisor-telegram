@@ -7,7 +7,7 @@ from app.presentation.telegram.middlewares import (
     chat_type as chat_type_middlewares,
 )
 
-from . import ad_review, admin, agent_handler, events, groups, moderation, service, start
+from . import admin, agent_handler, events, groups, moderation, pending_actions, service, start
 
 router = Router()
 
@@ -22,11 +22,11 @@ agent_handler.agent_router.message.middleware(chat_type_middlewares.ChatTypeMidd
 # Agent router first — /report and /spam go through LLM agent
 router.include_router(agent_handler.agent_router)
 router.include_router(moderation.moderation_router)
-router.include_router(ad_review.ad_review_router)
+router.include_router(pending_actions.pending_actions_router)
 router.include_router(start.router)
 router.include_router(admin.admin_router)
 router.include_router(groups.groups_router)
 router.include_router(service.router)
-# channel_review_router is NOT included here — bot.py decides
-# whether it goes on the main dispatcher or the assistant dispatcher
+# channel_review_router is NOT included here — bot.py adds it, so that the
+# identity sending review messages is the one holding their callbacks
 router.include_router(events.router)

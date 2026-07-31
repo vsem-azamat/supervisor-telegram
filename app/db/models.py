@@ -2,13 +2,17 @@ import datetime
 from typing import Any
 
 import sqlalchemy as sa
-from pgvector.sqlalchemy import Vector
-from sqlalchemy import JSON, BigInteger, Boolean, DateTime, Float, ForeignKey, Index, Integer, String
+from sqlalchemy import JSON, BigInteger, Boolean, DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.core.enums import EscalationStatus, PostStatus
+from app.core.enums import PendingActionStatus
 from app.core.time import utc_now
 from app.db.base import Base
+
+# A generated primary key that is bigint on PostgreSQL. SQLite only auto-fills a
+# primary key when its declared type is exactly INTEGER, so the variant keeps the
+# test database working while production gets the wider column.
+_AUTO_BIGINT = BigInteger().with_variant(Integer, "sqlite")
 
 
 class Admin(Base):
@@ -227,7 +231,7 @@ class User(Base):
 class ChatLink(Base):
     __tablename__ = "chat_links"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(_AUTO_BIGINT, primary_key=True)
     text: Mapped[str] = mapped_column(String, unique=True)
     link: Mapped[str] = mapped_column(String, unique=True)
     priority: Mapped[int] = mapped_column(Integer, default=0)
@@ -253,7 +257,9 @@ class ChatLink(Base):
 class Message(Base):
     __tablename__ = "messages"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    # Wider than a plain serial: this table grows with every message the bot
+    # sees, and the production database has held it as a bigint all along.
+    id: Mapped[int] = mapped_column(_AUTO_BIGINT, primary_key=True)
     chat_id: Mapped[int] = mapped_column(BigInteger, index=True)
     user_id: Mapped[int] = mapped_column(BigInteger, index=True)
     message_id: Mapped[int] = mapped_column(BigInteger)
@@ -292,346 +298,89 @@ class Message(Base):
         return self.spam
 
 
-class Channel(Base):
-    """A managed Telegram channel with its content pipeline configuration."""
+class PendingAction(Base):
+    """A destructive action proposed from outside, awaiting an admin's press.
 
-    __tablename__ = "channels"
+    ``origin`` and ``initiator_id`` exist because a ban is an attributable act.
+    The MCP token identifies a runtime rather than a person, so the admin it
+    maps to is recorded here and carried into the decision log — otherwise the
+    audit trail says only that "the agent" banned someone.
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True, nullable=True)
-    username: Mapped[str | None] = mapped_column(String, nullable=True)
-    name: Mapped[str] = mapped_column(String)
-    description: Mapped[str] = mapped_column(String, default="")
-    language: Mapped[str] = mapped_column(String(8), default="ru")
-    review_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    max_posts_per_day: Mapped[int] = mapped_column(Integer, default=3)
-    posting_schedule: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
-    publish_schedule: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
-    discovery_query: Mapped[str] = mapped_column(String, default="")
-    source_discovery_query: Mapped[str] = mapped_column(String, default="")
-    daily_posts_count: Mapped[int] = mapped_column(Integer, default=0)
-    daily_count_date: Mapped[str | None] = mapped_column(String(10), nullable=True)
-    last_source_discovery_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
-    footer_template: Mapped[str | None] = mapped_column(String, nullable=True)
-    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
-    critic_enabled: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
-    modified_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
+    ``params`` holds the arguments the action needs on execution (mute
+    duration, whether to revoke messages), which have nowhere to live between
+    proposal and confirmation otherwise.
+    """
 
-    _DEFAULT_FOOTER = "——\n🔗 **{name}** | @{username}"
-
-    def __init__(
-        self,
-        telegram_id: int,
-        name: str,
-        description: str = "",
-        language: str = "ru",
-        review_chat_id: int | None = None,
-        max_posts_per_day: int = 3,
-        posting_schedule: list[str] | None = None,
-        discovery_query: str = "",
-        source_discovery_query: str = "",
-        username: str | None = None,
-        footer_template: str | None = None,
-        enabled: bool = True,
-        critic_enabled: bool | None = None,
-    ) -> None:
-        self.telegram_id = telegram_id
-        self.name = name
-        self.description = description
-        self.language = language
-        self.review_chat_id = review_chat_id
-        self.max_posts_per_day = max_posts_per_day
-        self.posting_schedule = posting_schedule
-        self.discovery_query = discovery_query
-        self.source_discovery_query = source_discovery_query
-        self.username = username
-        self.footer_template = footer_template
-        self.enabled = enabled
-        self.critic_enabled = critic_enabled
-
-    @property
-    def footer(self) -> str:
-        """Resolved footer text. Uses template if set, otherwise builds from name/username."""
-        if self.footer_template:
-            return self.footer_template
-        if self.username:
-            username = self.username.lstrip("@")
-            return self._DEFAULT_FOOTER.format(name=self.name, username=username)
-        # No username — numeric ID only, skip the @ mention
-        return f"——\n🔗 **{self.name}**"
-
-    def reset_daily_count(self, today: str) -> None:
-        """Reset daily post counter if date has changed."""
-        if self.daily_count_date != today:
-            self.daily_posts_count = 0
-            self.daily_count_date = today
-
-    def increment_daily_count(self) -> int:
-        """Increment and return the daily post count."""
-        self.daily_posts_count += 1
-        return self.daily_posts_count
-
-    @property
-    def can_post_today(self) -> bool:
-        return self.daily_posts_count < self.max_posts_per_day
-
-
-class ChannelSource(Base):
-    __tablename__ = "channel_sources"
-    __table_args__ = (sa.UniqueConstraint("channel_id", "url", name="uq_channel_source_channel_url"),)
+    __tablename__ = "pending_actions"
+    __table_args__ = (
+        Index("ix_pending_actions_status_expires_at", "status", "expires_at"),
+        # The columns are text, so the enums are re-stated here: this is where a
+        # value that skipped the type system would otherwise land.
+        sa.CheckConstraint("action IN ('ban', 'blacklist')", name="ck_pending_actions_action"),
+        sa.CheckConstraint("origin IN ('mcp')", name="ck_pending_actions_origin"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    channel_id: Mapped[int] = mapped_column(BigInteger, index=True)
-    url: Mapped[str] = mapped_column(String, index=True)
-    source_type: Mapped[str] = mapped_column(String(16), default="rss")
-    title: Mapped[str | None] = mapped_column(String, nullable=True)
-    language: Mapped[str | None] = mapped_column(String(8), nullable=True)
-    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
-    relevance_score: Mapped[float] = mapped_column(Float, default=1.0)
-    error_count: Mapped[int] = mapped_column(Integer, default=0)
-    last_fetched_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
-    last_error: Mapped[str | None] = mapped_column(String, nullable=True)
-    added_by: Mapped[str] = mapped_column(String(16), default="agent")
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
-
-    def __init__(
-        self,
-        channel_id: int,
-        url: str,
-        source_type: str = "rss",
-        title: str | None = None,
-        language: str | None = None,
-        added_by: str = "agent",
-    ) -> None:
-        self.channel_id = channel_id
-        self.url = url
-        self.source_type = source_type
-        self.title = title
-        self.language = language
-        self.added_by = added_by
-
-    def record_success(self) -> None:
-        self.error_count = 0
-        self.last_error = None
-        self.last_fetched_at = utc_now()
-
-    def record_error(self, error: str) -> None:
-        self.error_count += 1
-        self.last_error = error
-        if self.error_count >= 5:
-            self.enabled = False
-
-    def boost_relevance(self) -> None:
-        """Increase relevance score by 0.1, capped at 2.0."""
-        self.relevance_score = min(self.relevance_score + 0.1, 2.0)
-
-    def penalize_relevance(self) -> None:
-        """Decrease relevance score by 0.2, floored at 0.0. Auto-disables below 0.3."""
-        self.relevance_score = max(self.relevance_score - 0.2, 0.0)
-        if self.relevance_score < 0.3:
-            self.enabled = False
-
-    def disable(self) -> None:
-        self.enabled = False
-
-    def enable(self) -> None:
-        self.enabled = True
-        self.error_count = 0
-
-
-class ChannelPost(Base):
-    __tablename__ = "channel_posts"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    channel_id: Mapped[int] = mapped_column(BigInteger, index=True)
-    external_id: Mapped[str] = mapped_column(String, index=True)
-    source_url: Mapped[str | None] = mapped_column(String, nullable=True)
-    title: Mapped[str] = mapped_column(String)
-    post_text: Mapped[str] = mapped_column(String)
-    source_items: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
-    telegram_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    review_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    review_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    image_url: Mapped[str | None] = mapped_column(String, nullable=True)
-    image_urls: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
-    image_candidates: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, nullable=True)
-    image_phashes: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
-    status: Mapped[str] = mapped_column(String(16), default=PostStatus.DRAFT, index=True)
-    admin_feedback: Mapped[str | None] = mapped_column(String, nullable=True)
-    pre_critic_text: Mapped[str | None] = mapped_column(String, nullable=True)
-    scheduled_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
-    scheduled_telegram_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    published_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
-    reply_chain_message_ids: Mapped[list[int] | None] = mapped_column(JSON, nullable=True)
-    review_album_message_ids: Mapped[list[int] | None] = mapped_column(JSON, nullable=True)
-    embedding: Mapped[Any | None] = mapped_column(Vector(768), nullable=True)
-    embedding_model: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
-
-    def __init__(
-        self,
-        channel_id: int,
-        external_id: str,
-        title: str,
-        post_text: str,
-        source_url: str | None = None,
-        source_items: list[dict[str, Any]] | None = None,
-        telegram_message_id: int | None = None,
-        review_message_id: int | None = None,
-        review_chat_id: int | None = None,
-        review_album_message_ids: list[int] | None = None,
-        image_url: str | None = None,
-        image_urls: list[str] | None = None,
-        image_candidates: list[dict[str, Any]] | None = None,
-        image_phashes: list[str] | None = None,
-        status: str = PostStatus.DRAFT,
-        embedding: Any | None = None,
-        embedding_model: str | None = None,
-        pre_critic_text: str | None = None,
-    ) -> None:
-        self.channel_id = channel_id
-        self.external_id = external_id
-        self.title = title
-        self.post_text = post_text
-        self.source_url = source_url
-        self.source_items = source_items
-        self.telegram_message_id = telegram_message_id
-        self.review_message_id = review_message_id
-        self.review_chat_id = review_chat_id
-        self.image_url = image_url
-        self.image_urls = image_urls
-        self.image_candidates = image_candidates
-        self.image_phashes = image_phashes
-        self.status = status
-        self.reply_chain_message_ids: list[int] | None = None
-        self.review_album_message_ids = review_album_message_ids
-        self.embedding = embedding
-        self.embedding_model = embedding_model
-        self.pre_critic_text = pre_critic_text
-
-    def approve(self, message_id: int) -> None:
-        self.status = PostStatus.APPROVED
-        self.telegram_message_id = message_id
-        self.published_at = utc_now()
-
-    def schedule(self, scheduled_at: datetime.datetime, telegram_scheduled_id: int) -> None:
-        self.status = PostStatus.SCHEDULED
-        self.scheduled_at = scheduled_at
-        self.scheduled_telegram_id = telegram_scheduled_id
-
-    def confirm_published(self, message_id: int) -> None:
-        """Transition from SCHEDULED to APPROVED once Telegram delivers the message."""
-        self.status = PostStatus.APPROVED
-        self.telegram_message_id = message_id
-        self.published_at = utc_now()
-
-    def reschedule(self, new_time: datetime.datetime, new_telegram_id: int) -> None:
-        self.scheduled_at = new_time
-        self.scheduled_telegram_id = new_telegram_id
-
-    def unschedule(self) -> None:
-        """Revert a scheduled post back to draft."""
-        self.status = PostStatus.DRAFT
-        self.scheduled_at = None
-        self.scheduled_telegram_id = None
-
-    def reject(self, feedback: str | None = None) -> None:
-        self.status = PostStatus.REJECTED
-        if feedback:
-            self.admin_feedback = feedback
-
-    def skip(self) -> None:
-        """Mark post as skipped — keeps it in DB for dedup but removes from review."""
-        self.status = PostStatus.SKIPPED
-
-    def update_text(self, new_text: str) -> None:
-        self.post_text = new_text
-        if self.status != PostStatus.SCHEDULED:
-            self.status = PostStatus.DRAFT
-
-
-class AgentDecision(Base):
-    __tablename__ = "agent_decisions"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    event_type: Mapped[str] = mapped_column(String(32))
-    chat_id: Mapped[int] = mapped_column(BigInteger, index=True)
-    message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    target_user_id: Mapped[int] = mapped_column(BigInteger, index=True)
-    reporter_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    message_text: Mapped[str | None] = mapped_column(String, nullable=True)
+    origin: Mapped[str] = mapped_column(String(16))
+    initiator_id: Mapped[int] = mapped_column(BigInteger, index=True)
     action: Mapped[str] = mapped_column(String(32))
-    reason: Mapped[str] = mapped_column(String)
-    confidence: Mapped[float | None] = mapped_column(default=None)
-    admin_override: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
-
-    def __init__(
-        self,
-        event_type: str,
-        chat_id: int,
-        target_user_id: int,
-        action: str,
-        reason: str,
-        message_id: int | None = None,
-        reporter_id: int | None = None,
-        message_text: str | None = None,
-        confidence: float | None = None,
-        admin_override: str | None = None,
-    ) -> None:
-        self.event_type = event_type
-        self.chat_id = chat_id
-        self.target_user_id = target_user_id
-        self.action = action
-        self.reason = reason
-        self.message_id = message_id
-        self.reporter_id = reporter_id
-        self.message_text = message_text
-        self.confidence = confidence
-        self.admin_override = admin_override
-
-
-class AgentEscalation(Base):
-    __tablename__ = "agent_escalations"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    decision_id: Mapped[int | None] = mapped_column(Integer, index=True, nullable=True)
-    chat_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    chat_id: Mapped[int | None] = mapped_column(BigInteger, index=True, nullable=True)
     target_user_id: Mapped[int] = mapped_column(BigInteger, index=True)
-    message_text: Mapped[str | None] = mapped_column(String, nullable=True)
-    suggested_action: Mapped[str] = mapped_column(String(32))
-    reason: Mapped[str] = mapped_column(String)
-    admin_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    params: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    reason: Mapped[str | None] = mapped_column(String, nullable=True)
     admin_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    status: Mapped[str] = mapped_column(String(16), default=EscalationStatus.PENDING)
-    resolved_action: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    admin_message_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    status: Mapped[str] = mapped_column(String(16), default=PendingActionStatus.PENDING)
     resolved_by: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     resolved_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
-    timeout_at: Mapped[datetime.datetime] = mapped_column(DateTime)
+    expires_at: Mapped[datetime.datetime] = mapped_column(DateTime)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
 
     def __init__(
         self,
-        chat_id: int,
+        origin: str,
+        initiator_id: int,
+        action: str,
         target_user_id: int,
-        suggested_action: str,
-        reason: str,
-        timeout_at: datetime.datetime,
-        decision_id: int | None = None,
-        message_text: str | None = None,
-        admin_message_id: int | None = None,
-        admin_chat_id: int | None = None,
+        expires_at: datetime.datetime,
+        chat_id: int | None = None,
+        params: dict[str, Any] | None = None,
+        reason: str | None = None,
     ) -> None:
-        self.chat_id = chat_id
+        self.origin = origin
+        self.initiator_id = initiator_id
+        self.action = action
         self.target_user_id = target_user_id
-        self.suggested_action = suggested_action
+        self.expires_at = expires_at
+        self.chat_id = chat_id
+        self.params = params or {}
         self.reason = reason
-        self.timeout_at = timeout_at
-        self.decision_id = decision_id
-        self.message_text = message_text
-        self.admin_message_id = admin_message_id
-        self.admin_chat_id = admin_chat_id
+
+
+class JoinCheck(Base):
+    """A join request waiting for its applicant to pass the Mini App check.
+
+    Stored rather than carried in the Mini App's URL because the two halves run
+    in different processes: the request arrives in the bot, the check is
+    answered by the web API. It also binds the query to one applicant — without
+    that, anyone holding a query id could pass the check on someone else's
+    behalf, which is exactly the bot-farm case a check exists to stop.
+    """
+
+    __tablename__ = "join_checks"
+
+    query_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    chat_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    passed_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
+    expires_at: Mapped[datetime.datetime] = mapped_column(DateTime, index=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
+
+    def __init__(self, query_id: str, chat_id: int, user_id: int, expires_at: datetime.datetime) -> None:
+        self.query_id = query_id
+        self.chat_id = chat_id
+        self.user_id = user_id
+        self.expires_at = expires_at
 
 
 class ChatMemberSnapshot(Base):
@@ -655,41 +404,6 @@ class ChatMemberSnapshot(Base):
         self.member_count = member_count
         if captured_at is not None:
             self.captured_at = captured_at
-
-
-class AgentConversation(Base):
-    """Persistent chat history for the /agent web UI, keyed by admin user_id.
-
-    Single-row-per-user blob: `messages` holds
-    `ModelMessagesTypeAdapter.dump_python(..., mode='json')` so PydanticAI
-    can resume the conversation byte-for-byte on the next turn.
-    `last_active_at` powers idle eviction; webapi prunes rows older than
-    the configured idle TTL on each turn.
-    """
-
-    __tablename__ = "agent_conversations"
-
-    user_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
-    messages: Mapped[list[Any]] = mapped_column(JSON)
-    message_count: Mapped[int] = mapped_column(Integer, default=0)
-    last_active_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now, index=True)
-    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
-
-    def __init__(
-        self,
-        user_id: int,
-        messages: list[Any] | None = None,
-        message_count: int = 0,
-        last_active_at: datetime.datetime | None = None,
-        created_at: datetime.datetime | None = None,
-    ) -> None:
-        self.user_id = user_id
-        self.messages = messages if messages is not None else []
-        self.message_count = message_count
-        if last_active_at is not None:
-            self.last_active_at = last_active_at
-        if created_at is not None:
-            self.created_at = created_at
 
 
 class SpamPing(Base):
@@ -736,43 +450,56 @@ class SpamPing(Base):
             self.detected_at = detected_at
 
 
-class AdLead(Base):
-    """A would-be advertiser redirected to the paid-placement rate card.
+class ModerationEvent(Base):
+    """One thing a moderator did to one member.
 
-    Created when a moderator removes a flagged ad via the `Удалить` action.
-    Tracks how the advertiser was reached and whether they opened the
-    rate-card smart link.
+    The bot used to keep no record of its own commands: a ``/ban`` typed in a
+    chat left a Telegram-side restriction and nothing else, so "what has this
+    user been through here" could only be answered from what the *user* did.
+    A row goes in after the action succeeds, never before — a refused ban is
+    not a ban.
+
+    ``actor_id`` is a person even when the request came from elsewhere; see
+    :class:`~app.core.enums.ModerationEventSource`. ``chat_id`` is null for the
+    blacklist, which spans every chat rather than naming one.
     """
 
-    __tablename__ = "ad_leads"
-    __table_args__ = (Index("ix_ad_leads_created_at", "created_at"),)
+    __tablename__ = "moderation_events"
+    __table_args__ = (
+        Index("ix_moderation_events_target_user_id_created_at", "target_user_id", "created_at"),
+        # Text columns, so the enums are restated where a value that skipped the
+        # type system would land — the same guard pending_actions carries.
+        sa.CheckConstraint(
+            "action IN ('ban', 'unban', 'kick', 'mute', 'unmute', 'blacklist', 'unblacklist')",
+            name="ck_moderation_events_action",
+        ),
+        sa.CheckConstraint("source IN ('command', 'mcp')", name="ck_moderation_events_source"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    chat_id: Mapped[int] = mapped_column(BigInteger)
-    user_id: Mapped[int] = mapped_column(BigInteger)
-    snippet: Mapped[str | None] = mapped_column(String, nullable=True)
-    reached_via: Mapped[str] = mapped_column(String(8), default="failed")
-    ping_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
-    ping_message_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    action: Mapped[str] = mapped_column(String(16))
+    source: Mapped[str] = mapped_column(String(16))
+    actor_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    target_user_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    chat_id: Mapped[int | None] = mapped_column(BigInteger, index=True, nullable=True)
+    detail: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
-    link_clicked_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
 
     def __init__(
         self,
-        *,
-        chat_id: int,
-        user_id: int,
-        snippet: str | None = None,
-        reached_via: str = "failed",
-        ping_chat_id: int | None = None,
-        ping_message_id: int | None = None,
+        action: str,
+        source: str,
+        actor_id: int,
+        target_user_id: int,
+        chat_id: int | None = None,
+        detail: str | None = None,
     ) -> None:
+        self.action = action
+        self.source = source
+        self.actor_id = actor_id
+        self.target_user_id = target_user_id
         self.chat_id = chat_id
-        self.user_id = user_id
-        self.snippet = snippet
-        self.reached_via = reached_via
-        self.ping_chat_id = ping_chat_id
-        self.ping_message_id = ping_message_id
+        self.detail = detail
 
 
 class AdminSession(Base):
@@ -829,53 +556,3 @@ class AdminMagicLink(Base):
         self.created_at = created_at
         self.expires_at = expires_at
         self.used_at = used_at
-
-
-class CostEvent(Base):
-    """Persistent record of one LLM API call.
-
-    Written by :func:`app.channel.cost_tracker.log_usage` when persistence is
-    enabled. Aggregated per-day by ``GET /api/costs/history``.
-    """
-
-    __tablename__ = "cost_events"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    occurred_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now, index=True)
-    model: Mapped[str] = mapped_column(String(128))
-    operation: Mapped[str] = mapped_column(String(64), index=True)
-    prompt_tokens: Mapped[int] = mapped_column(Integer, default=0)
-    completion_tokens: Mapped[int] = mapped_column(Integer, default=0)
-    total_tokens: Mapped[int] = mapped_column(Integer, default=0)
-    cache_read_tokens: Mapped[int] = mapped_column(Integer, default=0)
-    cache_write_tokens: Mapped[int] = mapped_column(Integer, default=0)
-    cost_usd: Mapped[float] = mapped_column(Float, default=0.0)
-    cache_savings_usd: Mapped[float] = mapped_column(Float, default=0.0)
-    channel_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
-
-    def __init__(
-        self,
-        *,
-        model: str,
-        operation: str,
-        occurred_at: datetime.datetime | None = None,
-        prompt_tokens: int = 0,
-        completion_tokens: int = 0,
-        total_tokens: int = 0,
-        cache_read_tokens: int = 0,
-        cache_write_tokens: int = 0,
-        cost_usd: float = 0.0,
-        cache_savings_usd: float = 0.0,
-        channel_id: str | None = None,
-    ) -> None:
-        self.occurred_at = occurred_at or utc_now()
-        self.model = model
-        self.operation = operation
-        self.prompt_tokens = prompt_tokens
-        self.completion_tokens = completion_tokens
-        self.total_tokens = total_tokens
-        self.cache_read_tokens = cache_read_tokens
-        self.cache_write_tokens = cache_write_tokens
-        self.cost_usd = cost_usd
-        self.cache_savings_usd = cache_savings_usd
-        self.channel_id = channel_id

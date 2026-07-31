@@ -1,11 +1,56 @@
+# Configuration comes from the deploying shell, not from a file on the host.
+# `deploy.yml` forwards GitHub secrets and variables over SSH, so the VPS holds
+# no copy of anything sensitive and GitHub is the single source of truth.
+#
+# Bare names below mean "pass through from the environment". Anything absent
+# here falls back to the default in `app/core/config.py` — so this list is only
+# for values that genuinely differ between environments, not a second copy of
+# every setting.
+#
+# There are no enable-flags here at all. A feature is on when it is configured:
+# Telethon needs credentials, the control plane needs a token. A flag that could
+# disagree with the configuration it gates can only ever be wrong in one
+# direction, and it is the direction that fails silently.
+#
+# Consequence worth knowing: `docker compose up` run by hand on the host, with
+# none of this exported, recreates the containers without their configuration.
+# DB_PASSWORD, MODERATOR_BOT_TOKEN and ADMIN_SUPER_ADMINS have no defaults and
+# fail loudly at startup; the rest simply come up switched off. Redeploy through
+# the workflow.
+x-runtime-env: &runtime-env
+  # The database is not part of this stack. It is a PostgreSQL that already runs
+  # beside it and holds the production data, so where it lives is deployment
+  # configuration rather than something this file can state.
+  DB_HOST:
+  DB_PORT:
+  DB_USER:
+  DB_NAME:
+  DB_PASSWORD:
+  MODERATOR_BOT_TOKEN:
+  ADMIN_SUPER_ADMINS:
+  ADMIN_REPORT_CHAT_ID:
+  TELETHON_API_ID:
+  TELETHON_API_HASH:
+  WEBAPI_PUBLIC_URL:
+  MCP_TOKEN:
+  # Fixed here rather than passed in: they do not differ between deployments,
+  # and one of them is what "production" means.
+  APP_ENVIRONMENT: production
+  LOG_LEVEL: INFO
+
 services:
   bot:
     image: ghcr.io/vsem-azamat/supervisor-telegram:${IMAGE_TAG:?Set IMAGE_TAG to a published image tag}
     container_name: supervisor-telegram-bot
     command: ["bot"]
-    env_file: .env
     environment:
-      PYTHONUNBUFFERED: "1"
+      <<: *runtime-env
+      LOG_FILE_PATH: logs/bot.log
+    # The MCP control plane is served here rather than by webapi: its tools need
+    # the Telethon session and the bot that answers confirmations.
+    # Loopback only — it is not published to the internet.
+    ports:
+      - "127.0.0.1:8788:8788"
     volumes:
       - ./moderator_userbot.session:/app/moderator_userbot.session
       - bot-logs:/app/logs
@@ -15,9 +60,9 @@ services:
     image: ghcr.io/vsem-azamat/supervisor-telegram:${IMAGE_TAG:?Set IMAGE_TAG to a published image tag}
     container_name: supervisor-telegram-webapi
     command: ["webapi"]
-    env_file: .env
     environment:
-      PYTHONUNBUFFERED: "1"
+      <<: *runtime-env
+      # Separate file so the two processes do not interleave in one log.
       LOG_FILE_PATH: logs/webapi.log
     volumes:
       - bot-logs:/app/logs
@@ -27,7 +72,7 @@ services:
     image: ghcr.io/vsem-azamat/supervisor-telegram-webui:${IMAGE_TAG:?Set IMAGE_TAG to a published image tag}
     container_name: supervisor-telegram-webui
     ports:
-      - "127.0.0.1:${WEBUI_PORT:-18083}:80"
+      - "127.0.0.1:18083:80"
     depends_on:
       - webapi
     restart: unless-stopped

@@ -61,6 +61,43 @@ jobs:
     steps:
       - uses: actions/checkout@v6.0.2
 
+      # Fails before anything reaches the VPS. The five settings below have no
+      # defaults, so a deploy missing one starts containers that crash on
+      # boot; the rest would come up quietly wrong instead, which is worse.
+      - name: Check required configuration is present
+        env:
+          DB_HOST: ${{ vars.DB_HOST }}
+          DB_USER: ${{ vars.DB_USER }}
+          DB_NAME: ${{ vars.DB_NAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          MODERATOR_BOT_TOKEN: ${{ secrets.MODERATOR_BOT_TOKEN }}
+          ADMIN_SUPER_ADMINS: ${{ vars.ADMIN_SUPER_ADMINS }}
+          TELETHON_API_ID: ${{ secrets.TELETHON_API_ID }}
+          TELETHON_API_HASH: ${{ secrets.TELETHON_API_HASH }}
+        run: |
+          missing=""
+
+          # No defaults worth having: the database is not part of this stack, so
+          # a missing host silently means localhost, and the containers come up
+          # pointing at nothing.
+          for name in DB_HOST DB_USER DB_NAME DB_PASSWORD MODERATOR_BOT_TOKEN ADMIN_SUPER_ADMINS; do
+            [ -n "$(printenv "$name")" ] || missing="$missing $name"
+          done
+
+          # Half a credential pair activates nothing, which looks like a working
+          # deploy with a userbot that never connects.
+          if [ -n "$TELETHON_API_ID$TELETHON_API_HASH" ]; then
+            [ -n "$TELETHON_API_ID" ] || missing="$missing TELETHON_API_ID"
+            [ -n "$TELETHON_API_HASH" ] || missing="$missing TELETHON_API_HASH"
+          fi
+
+          if [ -n "$missing" ]; then
+            echo "Missing required configuration:$missing" >&2
+            echo "Set them as repository secrets or variables." >&2
+            exit 1
+          fi
+          echo "Required configuration present."
+
       - name: Copy docker-compose to VPS
         uses: appleboy/scp-action@v1.0.0
         with:
@@ -70,19 +107,35 @@ jobs:
           source: docker-compose.yaml
           target: ~/deploy/supervisor-telegram/
 
+      # Configuration travels with the command and is never written to the host.
+      # Secrets hold credentials; variables hold everything else that differs
+      # between environments. Anything not listed falls back to the default in
+      # app/core/config.py — the list is not a second copy of every setting, and
+      # a test pins it against docker-compose.yaml so the two cannot drift.
       - name: Deploy on VPS
         uses: appleboy/ssh-action@v1.2.5
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+          DB_HOST: ${{ vars.DB_HOST }}
+          DB_PORT: ${{ vars.DB_PORT }}
+          DB_USER: ${{ vars.DB_USER }}
+          DB_NAME: ${{ vars.DB_NAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          MODERATOR_BOT_TOKEN: ${{ secrets.MODERATOR_BOT_TOKEN }}
+          ADMIN_SUPER_ADMINS: ${{ vars.ADMIN_SUPER_ADMINS }}
+          ADMIN_REPORT_CHAT_ID: ${{ vars.ADMIN_REPORT_CHAT_ID }}
+          TELETHON_API_ID: ${{ secrets.TELETHON_API_ID }}
+          TELETHON_API_HASH: ${{ secrets.TELETHON_API_HASH }}
+          WEBAPI_PUBLIC_URL: ${{ vars.WEBAPI_PUBLIC_URL }}
+          MCP_TOKEN: ${{ secrets.MCP_TOKEN }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          envs: IMAGE_TAG,DB_HOST,DB_PORT,DB_USER,DB_NAME,DB_PASSWORD,MODERATOR_BOT_TOKEN,ADMIN_SUPER_ADMINS,ADMIN_REPORT_CHAT_ID,TELETHON_API_ID,TELETHON_API_HASH,WEBAPI_PUBLIC_URL,MCP_TOKEN
           script: |
+            set -e
             cd ~/deploy/supervisor-telegram
-            if grep -q '^IMAGE_TAG=' .env; then
-              sed -i 's|^IMAGE_TAG=.*|IMAGE_TAG=${{ github.sha }}|' .env
-            else
-              printf '\nIMAGE_TAG=${{ github.sha }}\n' >> .env
-            fi
             docker compose pull
             docker compose up -d --remove-orphans
             echo "--- Container status ---"

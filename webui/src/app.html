@@ -4,6 +4,10 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="text-scale" content="scale" />
+		<!-- Telegram injects window.Telegram.WebApp from here. Loaded
+		     synchronously so /join can read initData on mount rather than
+		     racing the script. -->
+		<script src="https://telegram.org/js/telegram-web-app.js"></script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

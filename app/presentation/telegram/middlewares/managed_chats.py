@@ -12,12 +12,24 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 
 
-def _group_message(event: TelegramObject) -> types.Message | None:
-    if not isinstance(event, types.Update) or not isinstance(event.message, types.Message):
+def _group_chat(event: TelegramObject) -> types.Chat | None:
+    """The group or supergroup this update concerns, if any.
+
+    Covers messages, membership changes and join requests alike: approval is a
+    property of the chat, not of an update type. Banning someone at the door or
+    turning away an applicant is as public an action as answering a command,
+    and each arrives on a different carrier.
+    """
+    if not isinstance(event, types.Update):
         return None
-    if event.message.chat.type not in ["group", "supergroup"]:
+    carrier: types.Message | types.ChatMemberUpdated | types.ChatJoinRequest | None = (
+        event.message or event.chat_member or event.chat_join_request
+    )
+    if carrier is None:
         return None
-    return event.message
+    if carrier.chat.type not in ["group", "supergroup"]:
+        return None
+    return carrier.chat
 
 
 class ManagedChatsMiddleware(BaseMiddleware):
@@ -31,10 +43,10 @@ class ManagedChatsMiddleware(BaseMiddleware):
         data: dict[str, Any],
     ) -> Any:
         db: AsyncSession = data["db"]
-        message = _group_message(event)
-        if message is not None:
-            await history_service.merge_chat(db, message.chat)
-            status = await db.scalar(select(Chat.resource_status).where(Chat.id == message.chat.id))
+        chat = _group_chat(event)
+        if chat is not None:
+            await history_service.merge_chat(db, chat)
+            status = await db.scalar(select(Chat.resource_status).where(Chat.id == chat.id))
             data["chat_resource_status"] = status or Chat.STATUS_DISCOVERED
             data["chat_is_approved"] = status == Chat.STATUS_APPROVED
 
@@ -57,6 +69,6 @@ class ApprovedChatGateMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
-        if _group_message(event) is not None and not data.get("chat_is_approved", False):
+        if _group_chat(event) is not None and not data.get("chat_is_approved", False):
             return None
         return await handler(event, data)

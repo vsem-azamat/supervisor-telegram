@@ -3,6 +3,7 @@ from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
 from aiogram import BaseMiddleware, Bot, types
+from aiogram.enums import ChatMemberStatus
 from aiogram.types import TelegramObject
 
 from app.core.logging import get_logger
@@ -15,6 +16,10 @@ logger = get_logger("middleware.blacklist")
 # TTL cache for blocked user IDs (same pattern as ManagedChatsMiddleware)
 _blacklist_cache: tuple[set[int], float] | None = None
 _CACHE_TTL = 300  # 5 minutes
+
+# Statuses that put the user back in the room. Banning is itself a chat_member
+# update (-> KICKED), so reacting only to these keeps the ban from feeding back.
+_PRESENT_STATUSES = frozenset({ChatMemberStatus.MEMBER, ChatMemberStatus.RESTRICTED})
 
 
 def invalidate_blacklist_cache() -> None:
@@ -53,5 +58,14 @@ class BlacklistMiddleware(BaseMiddleware):
             except Exception as e:
                 logger.error("ban_or_delete_failed", user_id=event.from_user.id, error=str(e))
             return None  # Stop further handler processing for blacklisted user
+
+        if isinstance(event, types.ChatMemberUpdated):
+            joining = event.new_chat_member.user
+            if event.new_chat_member.status in _PRESENT_STATUSES and joining.id in blacklisted_ids:
+                try:
+                    await bot.ban_chat_member(event.chat.id, joining.id)
+                except Exception as e:
+                    logger.error("ban_on_join_failed", user_id=joining.id, chat_id=event.chat.id, error=str(e))
+                return None
 
         return await handler(event, data)

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 from app.core.config import settings
-from app.db.models import Channel, ChatLink
+from app.db.models import ChatLink
 from app.webapi.main import app
 from httpx import ASGITransport, AsyncClient
 
@@ -43,8 +43,6 @@ def client_factory(db_session_maker: async_sessionmaker[AsyncSession]):
 async def test_public_catalog_is_readable_without_session(client_factory, db_session_maker) -> None:
     async with db_session_maker() as session:
         session.add(ChatLink(text="Public Chat", link="t.me/public_chat"))
-        session.add(Channel(telegram_id=-2001, name="Enabled Channel", username="enabled", enabled=True))
-        session.add(Channel(telegram_id=-2002, name="Disabled Channel", username="disabled", enabled=False))
         await session.commit()
 
     async with client_factory() as client:
@@ -52,7 +50,6 @@ async def test_public_catalog_is_readable_without_session(client_factory, db_ses
 
     assert resp.status_code == 200
     assert resp.json() == [
-        {"resource_type": "channel", "id": 1, "title": "Enabled Channel", "subtitle": "@enabled"},
         {"resource_type": "chat", "id": 1, "title": "Public Chat", "subtitle": "t.me/public_chat"},
     ]
 
@@ -61,8 +58,8 @@ async def test_public_catalog_does_not_open_admin_routes(client_factory) -> None
     async with client_factory() as client:
         catalog = await client.get("/api/public/catalog")
         me = await client.get("/api/auth/me")
-        admin_channels = await client.get("/api/channels")
+        admin_chats = await client.get("/api/chats")
 
     assert catalog.status_code == 200
     assert me.status_code == 401
-    assert admin_channels.status_code == 401
+    assert admin_chats.status_code == 401

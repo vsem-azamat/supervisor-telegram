@@ -123,7 +123,7 @@ async def test_revoke_other_users_session_403(client_factory, db_session_maker) 
 
 
 async def test_get_system_status(client_factory) -> None:
-    settings.webapi.allowed_origins = ["http://localhost:5173"]
+    settings.webapi.public_url = "http://localhost:5173"
     settings.webapi.session_ttl_days = 30
     async with client_factory() as client:
         resp = await client.get("/api/admin/system")
@@ -134,7 +134,5 @@ async def test_get_system_status(client_factory) -> None:
     flag_names = {f["name"] for f in body["feature_flags"]}
     assert flag_names == {
         "auth_mode_telegram",
-        "moderation_enabled",
         "ad_detector_enabled",
-        "assistant_bot_enabled",
     }
