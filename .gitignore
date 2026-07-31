@@ -183,3 +183,6 @@ scripts/*
 !scripts/env_to_github.sh
 !scripts/import_legacy_db.py
 .claude/
+
+# Local credential drops — never tracked.
+.creds/
