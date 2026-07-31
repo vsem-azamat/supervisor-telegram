@@ -9,6 +9,11 @@ from app.core.enums import PendingActionStatus
 from app.core.time import utc_now
 from app.db.base import Base
 
+# A generated primary key that is bigint on PostgreSQL. SQLite only auto-fills a
+# primary key when its declared type is exactly INTEGER, so the variant keeps the
+# test database working while production gets the wider column.
+_AUTO_BIGINT = BigInteger().with_variant(Integer, "sqlite")
+
 
 class Admin(Base):
     __tablename__ = "admins"
@@ -226,7 +231,7 @@ class User(Base):
 class ChatLink(Base):
     __tablename__ = "chat_links"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    id: Mapped[int] = mapped_column(_AUTO_BIGINT, primary_key=True)
     text: Mapped[str] = mapped_column(String, unique=True)
     link: Mapped[str] = mapped_column(String, unique=True)
     priority: Mapped[int] = mapped_column(Integer, default=0)
@@ -252,7 +257,9 @@ class ChatLink(Base):
 class Message(Base):
     __tablename__ = "messages"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    # Wider than a plain serial: this table grows with every message the bot
+    # sees, and the production database has held it as a bigint all along.
+    id: Mapped[int] = mapped_column(_AUTO_BIGINT, primary_key=True)
     chat_id: Mapped[int] = mapped_column(BigInteger, index=True)
     user_id: Mapped[int] = mapped_column(BigInteger, index=True)
     message_id: Mapped[int] = mapped_column(BigInteger)

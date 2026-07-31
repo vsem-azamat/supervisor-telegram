@@ -181,7 +181,7 @@ scripts/*
 !scripts/wait_for_postgres.sh
 !scripts/entrypoint.sh
 !scripts/env_to_github.sh
-!scripts/import_legacy_db.py
+!scripts/adopt_existing_db.py
 .claude/
 
 # Local credential drops — never tracked.

@@ -4,16 +4,39 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class DatabaseSettings(BaseSettings):
+class Settings(BaseSettings):
+    """Base for every settings group: an empty variable means "not set".
+
+    Configuration travels to the host as environment variables, and a GitHub
+    variable or secret that has never been given a value arrives as an empty
+    string rather than not arriving at all. Without this, an unset
+    ADMIN_REPORT_CHAT_ID does not fall back to its default — it fails to parse
+    as an integer and takes the process down on boot, which is a long way from
+    what "optional" is supposed to mean.
+    """
+
+    @model_validator(mode="before")
+    @classmethod
+    def _drop_empty(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        return {key: value for key, value in data.items() if value != ""}
+
+
+class DatabaseSettings(Settings):
     """Database configuration."""
 
     user: str = Field(..., description="Database user")
     password: str = Field(..., description="Database password")
-    host: str = Field(default="db", description="Database host")
+    # "db" was the compose service name back when the database was part of the
+    # stack. It is not, so the only useful default is the one a developer running
+    # this on their own machine wants; production names the host explicitly and
+    # the deploy refuses without it.
+    host: str = Field(default="localhost", description="Database host")
     port: int = Field(default=5432, description="Database port")
     name: str = Field(..., description="Database name")
 
@@ -54,7 +77,7 @@ class DatabaseSettings(BaseSettings):
         ).render_as_string(hide_password=False)
 
 
-class TelegramSettings(BaseSettings):
+class TelegramSettings(Settings):
     """Moderator bot configuration."""
 
     token: str = Field(..., description="Moderator bot token from BotFather")
@@ -68,7 +91,7 @@ class TelegramSettings(BaseSettings):
     )
 
 
-class AdminSettings(BaseSettings):
+class AdminSettings(Settings):
     """Admin configuration."""
 
     super_admins: list[int] = Field(..., description="List of super admin user IDs")
@@ -100,7 +123,7 @@ class AdminSettings(BaseSettings):
         return self.report_chat_id or self.super_admins[0]
 
 
-class WebApiSettings(BaseSettings):
+class WebApiSettings(Settings):
     """Admin web UI / HTTP API configuration."""
 
     auth_mode: Literal["telegram", "magic_link"] = Field(
@@ -155,7 +178,7 @@ class WebApiSettings(BaseSettings):
         return [self.public_url.rstrip("/")] if self.public_url else []
 
 
-class LoggingSettings(BaseSettings):
+class LoggingSettings(Settings):
     """Logging configuration."""
 
     level: str = Field(default="INFO", description="Log level")
@@ -173,7 +196,7 @@ class LoggingSettings(BaseSettings):
     )
 
 
-class ModerationSettings(BaseSettings):
+class ModerationSettings(Settings):
     """Heuristic moderation configuration.
 
     What remains after the LLM agent: the ad detector, which matches t.me links
@@ -203,7 +226,7 @@ class ModerationSettings(BaseSettings):
     )
 
 
-class TelethonSettings(BaseSettings):
+class TelethonSettings(Settings):
     """Telethon (Telegram Client API) configuration for userbot features."""
 
     api_id: int = Field(default=0, description="API ID from https://my.telegram.org")
@@ -233,7 +256,7 @@ class TelethonSettings(BaseSettings):
         return bool(self.api_id and self.api_hash)
 
 
-class McpSettings(BaseSettings):
+class McpSettings(Settings):
     """MCP server served by the bot process for external agent clients.
 
     The MCP endpoint is a second admin control plane alongside the cookie-authed
@@ -282,7 +305,7 @@ class McpSettings(BaseSettings):
     )
 
 
-class AppSettings(BaseSettings):
+class AppSettings(Settings):
     """Main application settings."""
 
     debug: bool = Field(default=False, description="Debug mode")

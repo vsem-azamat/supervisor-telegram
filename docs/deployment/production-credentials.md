@@ -15,7 +15,7 @@ recover.
 
 | Secret | What it is |
 | --- | --- |
-| `DB_PASSWORD` | PostgreSQL password. The database is a service in this stack, so this is whatever you choose — nothing else knows it. |
+| `DB_PASSWORD` | PostgreSQL password. The database runs beside this stack rather than in it, so this is the password that database already has — see [The Database](database.md). |
 | `MODERATOR_BOT_TOKEN` | Bot token from BotFather |
 | `TELETHON_API_ID`, `TELETHON_API_HASH` | The userbot's API credentials. Together they reach a real account, so both are secrets — half a pair in `vars` protects nothing. |
 | `MCP_TOKEN` | Bearer token for the control plane |
