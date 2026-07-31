@@ -15,6 +15,9 @@ Usage::
     uv run python scripts/import_legacy_db.py --source postgresql://user:pass@host:5432/db
     uv run python scripts/import_legacy_db.py --source ... --apply
 
+``LEGACY_DB_URL`` is read when ``--source`` is absent, which is how it runs
+unattended: a DSN passed as an argument is visible in the host's process list.
+
 Without ``--apply`` nothing is written: it reads both schemas, counts the rows
 and prints what a run would do. Safe to repeat — rows already present are left
 alone rather than duplicated, so an interrupted import can simply be run again.
@@ -27,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import sys
 from typing import TYPE_CHECKING, Any
 
@@ -166,9 +170,16 @@ async def run(source_url: str, *, apply: bool) -> int:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--source", required=True, help="DSN of the old database, e.g. postgresql://user:pass@host/db")
+    parser.add_argument(
+        "--source",
+        default=os.environ.get("LEGACY_DB_URL", ""),
+        help="DSN of the old database; defaults to LEGACY_DB_URL, which keeps it out of the process list",
+    )
     parser.add_argument("--apply", action="store_true", help="actually write; without it nothing is changed")
     args = parser.parse_args()
+
+    if not args.source:
+        parser.error("pass --source or set LEGACY_DB_URL")
 
     return asyncio.run(run(args.source, apply=args.apply))
 
