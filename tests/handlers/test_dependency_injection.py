@@ -42,13 +42,14 @@ class TestDependencyInjection:
 
         middleware = DependenciesMiddleware(mock_session_maker, mock_bot)
 
+        # Exactly these, no more: every entry is built on every update, so one
+        # nobody asks for is work done for nothing on each message the bot sees.
         expected_keys = {
             "bot",
             "db",
             "admin_repo",
             "user_repo",
             "chat_repo",
-            "chat_link_repo",
             "message_repo",
             "user_service",
         }
@@ -62,8 +63,7 @@ class TestDependencyInjection:
         mock_event = AsyncMock()
         await middleware(mock_handler, mock_event, {})
 
-        for key in expected_keys:
-            assert key in captured_data, f"Dependency '{key}' not found in middleware data"
+        assert set(captured_data) == expected_keys
 
     def test_user_service_properly_constructed(self):
         """Test that UserService is properly constructed with UserRepository."""
