@@ -332,7 +332,38 @@ def create_test_chat(id: int = -1001234567890) -> Chat:
     return TelegramObjectFactory.create_chat(id=id, title="Test Supergroup", type="supergroup")
 
 
+class RecordingSession:
+    """Stands in for AsyncSession where a handler only writes the audit row.
+
+    Keeps what was added so a test can assert on the record itself rather than
+    on the fact that some database call happened.
+    """
+
+    def __init__(self) -> None:
+        self.added: list = []
+        self.commits = 0
+
+    def add(self, obj) -> None:
+        self.added.append(obj)
+
+    async def commit(self) -> None:
+        self.commits += 1
+
+    async def rollback(self) -> None:  # pragma: no cover - only on a failed write
+        pass
+
+    @property
+    def recorded_actions(self) -> list[str]:
+        return [obj.action for obj in self.added]
+
+
 # Pytest fixtures for easy use
+
+
+@pytest.fixture
+def audit_db() -> RecordingSession:
+    """A session that captures moderation events instead of storing them."""
+    return RecordingSession()
 
 
 @pytest.fixture

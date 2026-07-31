@@ -2,10 +2,13 @@
 
 from aiogram import Bot, Router, types
 from aiogram.filters import Command
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.enums import ModerationEventAction
 from app.core.logging import get_logger
 from app.presentation.telegram.handlers.moderation._common import (
     is_user_check_error,
+    record_reply_target,
     reply_required_error,
 )
 from app.presentation.telegram.utils import other
@@ -15,7 +18,7 @@ router = Router()
 
 
 @router.message(Command("mute", prefix="!/"))
-async def mute_user(message: types.Message, bot: Bot) -> None:
+async def mute_user(message: types.Message, bot: Bot, db: AsyncSession) -> None:
     if not message.reply_to_message:
         await message.answer(reply_required_error("замутить"))
         await message.delete()
@@ -59,6 +62,12 @@ async def mute_user(message: types.Message, bot: Bot) -> None:
             permissions=read_only_permissions,
             until_date=mute_duration.until_date,
         )
+        await record_reply_target(
+            message,
+            db,
+            ModerationEventAction.MUTE,
+            detail=f"{mute_duration.time} {mute_duration.unit}",
+        )
         mention = other.get_user_mention(message.reply_to_message.from_user)
         text_mute = (
             f"{mention} в муте на {mute_duration.time} {mute_duration.unit}!\n\n"
@@ -77,7 +86,7 @@ async def mute_user(message: types.Message, bot: Bot) -> None:
 
 
 @router.message(Command("unmute", prefix="!/"))
-async def unmute_user(message: types.Message) -> None:
+async def unmute_user(message: types.Message, db: AsyncSession) -> None:
     if not message.reply_to_message:
         await message.answer(reply_required_error("размутить"))
         await message.delete()
@@ -98,6 +107,7 @@ async def unmute_user(message: types.Message) -> None:
             permissions=default_permissions,
             until_date=0,
         )
+        await record_reply_target(message, db, ModerationEventAction.UNMUTE)
         mention = other.get_user_mention(message.reply_to_message.from_user)
         await message.answer(f"Пользователь {mention} размучен!")
     except Exception as err:

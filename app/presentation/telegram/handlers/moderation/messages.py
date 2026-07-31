@@ -11,11 +11,13 @@ from aiogram.filters import Command
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.enums import ModerationEventAction
 from app.core.logging import get_logger
 from app.core.text import escape_html
 from app.db.models import User
 from app.presentation.telegram.handlers.moderation._common import (
     is_user_check_error,
+    record_reply_target,
     reply_required_error,
 )
 from app.presentation.telegram.utils import other
@@ -29,7 +31,7 @@ MAX_PURGE = 100
 
 
 @router.message(Command("kick", prefix="!/"))
-async def kick_user(message: types.Message, bot: Bot) -> None:
+async def kick_user(message: types.Message, bot: Bot, db: AsyncSession) -> None:
     """Remove a member without a lasting ban.
 
     Telegram has no kick: banning and immediately unbanning removes the person
@@ -48,6 +50,7 @@ async def kick_user(message: types.Message, bot: Bot) -> None:
     try:
         await bot.ban_chat_member(message.chat.id, target.id)
         await bot.unban_chat_member(message.chat.id, target.id, only_if_banned=True)
+        await record_reply_target(message, db, ModerationEventAction.KICK)
         await message.answer(f"Пользователь {other.get_user_mention(target)} удалён из чата")
     except Exception as err:
         logger.error("kick_failed", error=str(err), user_id=target.id, chat_id=message.chat.id)

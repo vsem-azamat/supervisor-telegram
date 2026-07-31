@@ -9,7 +9,7 @@ from aiogram import Bot
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.session import create_session_maker
+from app.db.session import get_session_maker
 
 if TYPE_CHECKING:
     from app.telethon.telethon_client import TelethonClient
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
-    session_maker = create_session_maker()
+    session_maker = get_session_maker()
     async with session_maker() as session:
         yield session
 

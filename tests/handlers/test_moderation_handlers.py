@@ -28,7 +28,9 @@ def mock_bot():
 class TestModerationHandlers:
     """Test cases for moderation handlers."""
 
-    async def test_mute_user_default_duration(self, telegram_factory: TelegramObjectFactory, mock_bot: MockBot):
+    async def test_mute_user_default_duration(
+        self, telegram_factory: TelegramObjectFactory, mock_bot: MockBot, audit_db
+    ):
         """Test muting user with default duration (5 minutes)."""
         # Arrange
         admin_user = create_admin_user()
@@ -59,7 +61,7 @@ class TestModerationHandlers:
             mock_mention.return_value = "@spammer"
 
             # Act
-            await mute_user(command_message, mock_bot.mock)
+            await mute_user(command_message, mock_bot.mock, audit_db)
 
         # Assert
         mock_bot.mock.restrict_chat_member.assert_called_once()
@@ -72,7 +74,9 @@ class TestModerationHandlers:
         reply_message.reply.assert_called_once()
         command_message.delete.assert_called_once()
 
-    async def test_mute_user_custom_duration(self, telegram_factory: TelegramObjectFactory, mock_bot: MockBot):
+    async def test_mute_user_custom_duration(
+        self, telegram_factory: TelegramObjectFactory, mock_bot: MockBot, audit_db
+    ):
         """Test muting user with custom duration."""
         # Arrange
         admin_user = create_admin_user()
@@ -106,13 +110,15 @@ class TestModerationHandlers:
             mock_mention.return_value = "@user"
 
             # Act
-            await mute_user(command_message, mock_bot.mock)
+            await mute_user(command_message, mock_bot.mock, audit_db)
 
         # Assert
         mock_bot.mock.restrict_chat_member.assert_called_once()
         mock_calc.assert_called_once_with(command_message.text)
 
-    async def test_mute_user_invalid_duration(self, telegram_factory: TelegramObjectFactory, mock_bot: MockBot):
+    async def test_mute_user_invalid_duration(
+        self, telegram_factory: TelegramObjectFactory, mock_bot: MockBot, audit_db
+    ):
         """Test mute command with invalid duration argument."""
         # Arrange
         admin_user = create_admin_user()
@@ -137,14 +143,14 @@ class TestModerationHandlers:
             mock_sleep.return_value = None
 
             # Act
-            await mute_user(command_message, mock_bot.mock)
+            await mute_user(command_message, mock_bot.mock, audit_db)
 
         # Assert - should handle error gracefully
         command_message.answer.assert_called_once()
         command_message.delete.assert_called_once()
         mock_sleep.assert_called_once()
 
-    async def test_mute_user_telegram_error(self, telegram_factory: TelegramObjectFactory, mock_bot: MockBot):
+    async def test_mute_user_telegram_error(self, telegram_factory: TelegramObjectFactory, mock_bot: MockBot, audit_db):
         """Test mute command when Telegram API fails."""
         # Arrange
         admin_user = create_admin_user()
@@ -166,7 +172,7 @@ class TestModerationHandlers:
             mock_calc.return_value = mock_duration
 
             # Act
-            await mute_user(command_message, mock_bot.mock)
+            await mute_user(command_message, mock_bot.mock, audit_db)
 
         # Assert - should handle error gracefully
         command_message.answer.assert_called_once()
@@ -179,7 +185,7 @@ class TestModerationHandlers:
         # This test is skipped due to pydantic frozen model restrictions
         pass
 
-    async def test_ban_user_success(self, telegram_factory: TelegramObjectFactory, mock_bot: MockBot):
+    async def test_ban_user_success(self, telegram_factory: TelegramObjectFactory, mock_bot: MockBot, audit_db):
         """Test successful user ban."""
         # Arrange
         admin_user = create_admin_user()
@@ -199,14 +205,14 @@ class TestModerationHandlers:
             mock_mention.return_value = "@user"
 
             # Act
-            await ban_user(command_message, mock_bot.mock)
+            await ban_user(command_message, mock_bot.mock, audit_db)
 
         # Assert
         mock_bot.mock.ban_chat_member.assert_called_once_with(chat.id, target_user.id)
         command_message.answer.assert_called_once()
         command_message.delete.assert_called_once()
 
-    async def test_unban_user_success(self, telegram_factory: TelegramObjectFactory, mock_bot: MockBot):
+    async def test_unban_user_success(self, telegram_factory: TelegramObjectFactory, mock_bot: MockBot, audit_db):
         """Test successful user unban."""
         # Arrange
         admin_user = create_admin_user()
@@ -226,7 +232,7 @@ class TestModerationHandlers:
             mock_mention.return_value = "@user"
 
             # Act
-            await unban_user(command_message, mock_bot.mock)
+            await unban_user(command_message, mock_bot.mock, audit_db)
 
         # Assert
         mock_bot.mock.unban_chat_member.assert_called_once_with(chat.id, target_user.id)
@@ -238,7 +244,9 @@ class TestModerationHandlers:
 class TestModerationHandlerEdgeCases:
     """Test edge cases for moderation handlers."""
 
-    async def test_moderation_command_no_reply(self, telegram_factory: TelegramObjectFactory, mock_bot: MockBot):
+    async def test_moderation_command_no_reply(
+        self, telegram_factory: TelegramObjectFactory, mock_bot: MockBot, audit_db
+    ):
         """Test moderation commands without reply message."""
         # Arrange
         admin_user = create_admin_user()
@@ -251,7 +259,7 @@ class TestModerationHandlerEdgeCases:
         )
 
         # Act
-        await mute_user(command_message, mock_bot.mock)
+        await mute_user(command_message, mock_bot.mock, audit_db)
 
         # Assert
         command_message.answer.assert_called_once()
@@ -259,7 +267,9 @@ class TestModerationHandlerEdgeCases:
         answer_text = command_message.answer.call_args[0][0]
         assert "ответом" in answer_text.lower()
 
-    async def test_moderation_permission_error(self, telegram_factory: TelegramObjectFactory, mock_bot: MockBot):
+    async def test_moderation_permission_error(
+        self, telegram_factory: TelegramObjectFactory, mock_bot: MockBot, audit_db
+    ):
         """Test moderation when bot lacks permissions."""
         # Arrange
         admin_user = create_admin_user()
@@ -279,7 +289,7 @@ class TestModerationHandlerEdgeCases:
             mock_sleep.return_value = None
 
             # Act
-            await ban_user(command_message, mock_bot.mock)
+            await ban_user(command_message, mock_bot.mock, audit_db)
 
         # Assert
         command_message.answer.assert_called_once()

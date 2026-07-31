@@ -56,22 +56,33 @@ def _pair(factory: TelegramObjectFactory, command: str, *, reply: bool = True, t
 
 
 class TestKick:
-    async def test_kick_removes_without_a_lasting_ban(self, telegram_factory, mock_bot) -> None:
+    async def test_kick_removes_without_a_lasting_ban(self, telegram_factory, mock_bot, audit_db) -> None:
         """Ban then immediately lift it: gone, but free to come back."""
         cmd, _replied, chat, target = _pair(telegram_factory, "kick")
 
-        await kick_user(cmd, mock_bot.mock)
+        await kick_user(cmd, mock_bot.mock, audit_db)
 
         mock_bot.mock.ban_chat_member.assert_awaited_once_with(chat.id, target.id)
         mock_bot.mock.unban_chat_member.assert_awaited_once_with(chat.id, target.id, only_if_banned=True)
 
-    async def test_kick_without_a_reply_explains_itself(self, telegram_factory, mock_bot) -> None:
+    async def test_kick_is_recorded_against_the_admin_who_asked(self, telegram_factory, mock_bot, audit_db) -> None:
+        cmd, _replied, chat, target = _pair(telegram_factory, "kick")
+
+        await kick_user(cmd, mock_bot.mock, audit_db)
+
+        (event,) = audit_db.added
+        assert (event.action, event.source) == ("kick", "command")
+        assert event.actor_id == cmd.from_user.id
+        assert (event.target_user_id, event.chat_id) == (target.id, chat.id)
+
+    async def test_kick_without_a_reply_explains_itself(self, telegram_factory, mock_bot, audit_db) -> None:
         cmd, *_ = _pair(telegram_factory, "kick", reply=False)
 
-        await kick_user(cmd, mock_bot.mock)
+        await kick_user(cmd, mock_bot.mock, audit_db)
 
         cmd.answer.assert_awaited_once()
         mock_bot.mock.ban_chat_member.assert_not_awaited()
+        assert audit_db.added == []
 
 
 class TestDelete:

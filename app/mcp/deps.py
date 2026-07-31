@@ -46,9 +46,9 @@ class ToolError(Exception):
 
 
 def session_maker() -> async_sessionmaker[AsyncSession]:
-    from app.db.session import create_session_maker
+    from app.db.session import get_session_maker
 
-    return create_session_maker()
+    return get_session_maker()
 
 
 def moderator_bot() -> Bot:

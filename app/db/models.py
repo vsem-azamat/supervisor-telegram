@@ -443,6 +443,58 @@ class SpamPing(Base):
             self.detected_at = detected_at
 
 
+class ModerationEvent(Base):
+    """One thing a moderator did to one member.
+
+    The bot used to keep no record of its own commands: a ``/ban`` typed in a
+    chat left a Telegram-side restriction and nothing else, so "what has this
+    user been through here" could only be answered from what the *user* did.
+    A row goes in after the action succeeds, never before — a refused ban is
+    not a ban.
+
+    ``actor_id`` is a person even when the request came from elsewhere; see
+    :class:`~app.core.enums.ModerationEventSource`. ``chat_id`` is null for the
+    blacklist, which spans every chat rather than naming one.
+    """
+
+    __tablename__ = "moderation_events"
+    __table_args__ = (
+        Index("ix_moderation_events_target_user_id_created_at", "target_user_id", "created_at"),
+        # Text columns, so the enums are restated where a value that skipped the
+        # type system would land — the same guard pending_actions carries.
+        sa.CheckConstraint(
+            "action IN ('ban', 'unban', 'kick', 'mute', 'unmute', 'blacklist', 'unblacklist')",
+            name="ck_moderation_events_action",
+        ),
+        sa.CheckConstraint("source IN ('command', 'mcp')", name="ck_moderation_events_source"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    action: Mapped[str] = mapped_column(String(16))
+    source: Mapped[str] = mapped_column(String(16))
+    actor_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    target_user_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    chat_id: Mapped[int | None] = mapped_column(BigInteger, index=True, nullable=True)
+    detail: Mapped[str | None] = mapped_column(String, nullable=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
+
+    def __init__(
+        self,
+        action: str,
+        source: str,
+        actor_id: int,
+        target_user_id: int,
+        chat_id: int | None = None,
+        detail: str | None = None,
+    ) -> None:
+        self.action = action
+        self.source = source
+        self.actor_id = actor_id
+        self.target_user_id = target_user_id
+        self.chat_id = chat_id
+        self.detail = detail
+
+
 class AdminSession(Base):
     __tablename__ = "admin_sessions"
 

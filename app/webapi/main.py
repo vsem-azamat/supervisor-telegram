@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.logging import get_logger
-from app.db.session import create_session_maker
+from app.db.session import get_session_maker
 from app.webapi.routes import (
     admin,
     auth,
@@ -38,7 +38,7 @@ async def _lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     from app.core.container import container
     from app.webapi.services.publish_bot import build_publish_bot, close_publish_bot
 
-    session_maker = create_session_maker()
+    session_maker = get_session_maker()
     telethon = container.get_telethon_client()
     _app.state.telethon_stats = TelethonStatsService(telethon=telethon)
     _app.state.publish_bot = build_publish_bot()

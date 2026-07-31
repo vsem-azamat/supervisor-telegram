@@ -288,17 +288,17 @@ def register_read_tools(mcp: FastMCP[None]) -> None:
         """What this deployment has on record about a user's behaviour.
 
         Use it before proposing an action, to tell a first-time report from a
-        repeat offender. Built from what the bot actually writes down: messages
-        it saw, the ones an admin marked as spam, hits from the ad detector, and
-        removals proposed through this plane.
+        repeat offender. Two halves: what the user did — messages seen, ones an
+        admin marked as spam, hits from the ad detector — and what was done to
+        them, every mute, kick, ban and blacklist entry with the admin behind it,
+        however it was asked for.
 
-        Note what is *not* here: a ban issued with /ban in a chat leaves no row
-        anywhere, so a quiet record does not prove a clean history. limit caps
-        the recent proposals returned (1-50), newest first.
+        The record starts where the deployment does: actions taken before it
+        existed left no row. limit caps both lists (1-50), newest first.
         """
         from sqlalchemy import func, select
 
-        from app.db.models import Message, PendingAction, SpamPing, User
+        from app.db.models import Message, ModerationEvent, PendingAction, SpamPing, User
 
         limit = clamp(limit, 1, 50)
         async with session_maker()() as session:
@@ -324,6 +324,18 @@ def register_read_tools(mcp: FastMCP[None]) -> None:
                 .scalars()
                 .all()
             )
+            events = (
+                (
+                    await session.execute(
+                        select(ModerationEvent)
+                        .where(ModerationEvent.target_user_id == user_id)
+                        .order_by(ModerationEvent.created_at.desc())
+                        .limit(limit)
+                    )
+                )
+                .scalars()
+                .all()
+            )
 
         return {
             "user_id": user_id,
@@ -333,6 +345,17 @@ def register_read_tools(mcp: FastMCP[None]) -> None:
             "chats_seen_in": seen[1],
             "messages_marked_spam": flagged,
             "ad_detector_hits": ad_hits,
+            "actions_taken": [
+                {
+                    "action": row.action,
+                    "source": row.source,
+                    "actor_id": row.actor_id,
+                    "chat_id": row.chat_id,
+                    "detail": row.detail or "",
+                    "created_at": _iso(row.created_at),
+                }
+                for row in events
+            ],
             "proposals": [
                 {
                     "action": row.action,

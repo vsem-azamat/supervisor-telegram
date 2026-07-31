@@ -90,6 +90,33 @@ class TestConfirm:
         assert resolved.resolved_by == ADMIN_ID
         executor.assert_awaited_once()
 
+    async def test_confirmation_is_recorded_against_the_admin_who_pressed(self, session, bot) -> None:
+        """The proposal came from a token; the record has to name a person."""
+        from app.db.models import ModerationEvent
+        from sqlalchemy import select
+
+        pending = await _propose(session, bot)
+        service = PendingActionService(bot=bot, db=session, executor=AsyncMock())
+
+        await service.confirm(pending.id, admin_id=ADMIN_ID)
+
+        event = (await session.execute(select(ModerationEvent))).scalar_one()
+        assert (event.action, event.source) == ("ban", "mcp")
+        assert event.actor_id == ADMIN_ID
+        assert (event.target_user_id, event.chat_id) == (TARGET_ID, CHAT_ID)
+        assert event.detail == "proposed in a test"
+
+    async def test_a_rejected_proposal_leaves_no_record(self, session, bot) -> None:
+        from app.db.models import ModerationEvent
+        from sqlalchemy import select
+
+        pending = await _propose(session, bot)
+        service = PendingActionService(bot=bot, db=session, executor=AsyncMock())
+
+        await service.reject(pending.id, admin_id=ADMIN_ID)
+
+        assert (await session.execute(select(ModerationEvent))).scalars().all() == []
+
     async def test_second_press_does_nothing(self, session, bot) -> None:
         executor = AsyncMock()
         pending = await _propose(session, bot)

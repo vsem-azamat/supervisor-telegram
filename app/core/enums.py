@@ -15,6 +15,35 @@ class ModerationAction(StrEnum):
     BLACKLIST = "blacklist"
 
 
+class ModerationEventAction(StrEnum):
+    """An action worth a line in the record.
+
+    Wider than :class:`ModerationAction`, which lists only what a proposal may
+    ask for. Everything a moderator can do to a member appears here, including
+    the reversals: "unbanned an hour later" is the half of the story that says
+    whether the ban stuck.
+    """
+
+    BAN = "ban"
+    UNBAN = "unban"
+    KICK = "kick"
+    MUTE = "mute"
+    UNMUTE = "unmute"
+    BLACKLIST = "blacklist"
+    UNBLACKLIST = "unblacklist"
+
+
+class ModerationEventSource(StrEnum):
+    """How the action was asked for.
+
+    Separate from the actor, who is always a person: a confirmed proposal is
+    recorded as ``MCP`` with the admin who pressed confirm as its actor.
+    """
+
+    COMMAND = "command"
+    MCP = "mcp"
+
+
 class PendingActionOrigin(StrEnum):
     """Where a proposal came from. Recorded so a ban stays attributable."""
 

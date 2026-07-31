@@ -2,10 +2,13 @@
 
 from aiogram import Bot, Router, types
 from aiogram.filters import Command
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.enums import ModerationEventAction
 from app.core.logging import get_logger
 from app.presentation.telegram.handlers.moderation._common import (
     is_user_check_error,
+    record_reply_target,
     reply_required_error,
 )
 from app.presentation.telegram.utils import other
@@ -15,7 +18,7 @@ router = Router()
 
 
 @router.message(Command("ban", prefix="!/"))
-async def ban_user(message: types.Message, bot: Bot) -> None:
+async def ban_user(message: types.Message, bot: Bot, db: AsyncSession) -> None:
     if not message.reply_to_message:
         await message.answer(reply_required_error("забанить"))
         return
@@ -26,6 +29,7 @@ async def ban_user(message: types.Message, bot: Bot) -> None:
 
     try:
         await bot.ban_chat_member(message.chat.id, message.reply_to_message.from_user.id)
+        await record_reply_target(message, db, ModerationEventAction.BAN)
         mention = other.get_user_mention(message.reply_to_message.from_user)
         await message.answer(f"Пользователь {mention} забанен")
     except Exception as err:
@@ -42,7 +46,7 @@ async def ban_user(message: types.Message, bot: Bot) -> None:
 
 
 @router.message(Command("unban", prefix="!/"))
-async def unban_user(message: types.Message, bot: Bot) -> None:
+async def unban_user(message: types.Message, bot: Bot, db: AsyncSession) -> None:
     if not message.reply_to_message:
         await message.answer(reply_required_error("разбанить"))
         return
@@ -53,6 +57,7 @@ async def unban_user(message: types.Message, bot: Bot) -> None:
 
     try:
         await bot.unban_chat_member(message.chat.id, message.reply_to_message.from_user.id)
+        await record_reply_target(message, db, ModerationEventAction.UNBAN)
         mention = other.get_user_mention(message.reply_to_message.from_user)
         await message.answer(f"Пользователь {mention} разбанен")
     except Exception as err:

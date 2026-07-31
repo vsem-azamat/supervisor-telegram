@@ -38,7 +38,7 @@ def wired(db_session_maker, monkeypatch, bot):
     from app.core import container as container_module
     from app.db import session as session_module
 
-    monkeypatch.setattr(session_module, "create_session_maker", lambda: db_session_maker)
+    monkeypatch.setattr(session_module, "get_session_maker", lambda: db_session_maker)
     monkeypatch.setattr(container_module.container, "try_get_bot", lambda: bot)
     monkeypatch.setattr(settings.admin, "super_admins", [ADMIN_ID])
     return db_session_maker

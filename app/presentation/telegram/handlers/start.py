@@ -8,7 +8,7 @@ from app.core.config import settings
 from app.core.logging import get_logger
 from app.db import magic_link_store
 from app.db.repositories import AdminRepository
-from app.db.session import create_session_maker
+from app.db.session import get_session_maker
 from app.presentation.telegram.utils import buttons as buttons_service
 from app.presentation.telegram.utils import other
 
@@ -79,7 +79,7 @@ async def generate_admin_magic_link(message: types.Message) -> None:
         await message.answer("WEBAPI_AUTH_MODE=magic_link не включен.")
         return
 
-    session_maker = create_session_maker()
+    session_maker = get_session_maker()
     async with session_maker() as session:
         token, _ = await magic_link_store.create_magic_link(
             session,

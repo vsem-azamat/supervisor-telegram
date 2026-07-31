@@ -26,6 +26,7 @@ pytestmark = pytest.mark.asyncio
 MANAGED_CHAT_ID = -1001234567890
 FOREIGN_CHAT_ID = -1009999999999
 USER_ID = 555000111
+ADMIN_ID = 888000222
 PHONE = "+79990001122"
 
 
@@ -34,7 +35,7 @@ def mcp_session(db_session_maker, monkeypatch):
     """Point the MCP tools at the in-memory test database."""
     from app.db import session as session_module
 
-    monkeypatch.setattr(session_module, "create_session_maker", lambda: db_session_maker)
+    monkeypatch.setattr(session_module, "get_session_maker", lambda: db_session_maker)
     return db_session_maker
 
 
@@ -277,6 +278,31 @@ async def test_moderation_history_counts_what_the_bot_recorded(mcp_session) -> N
     assert data["chats_seen_in"] == 1
     assert [p["action"] for p in data["proposals"]] == ["ban"]
     assert data["proposals"][0]["status"] == "pending"
+
+
+async def test_moderation_history_shows_what_was_done_to_the_user(mcp_session) -> None:
+    """The half that used to be missing: a command typed in a chat left no row."""
+    from app.db.models import ModerationEvent
+
+    async with mcp_session() as session:
+        session.add(
+            ModerationEvent(
+                action="mute",
+                source="command",
+                actor_id=ADMIN_ID,
+                target_user_id=USER_ID,
+                chat_id=MANAGED_CHAT_ID,
+                detail="5 минут",
+            )
+        )
+        await session.commit()
+
+    data = await _call("get_moderation_history", {"user_id": USER_ID})
+
+    (event,) = data["actions_taken"]
+    assert (event["action"], event["source"]) == ("mute", "command")
+    assert event["actor_id"] == ADMIN_ID
+    assert event["detail"] == "5 минут"
 
 
 async def test_moderation_history_is_empty_for_a_clean_user(mcp_session) -> None:

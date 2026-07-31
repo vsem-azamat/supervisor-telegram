@@ -16,7 +16,12 @@ from __future__ import annotations
 import datetime
 from typing import TYPE_CHECKING, Any
 
-from app.core.enums import ModerationAction, PendingActionOrigin
+from app.core.enums import (
+    ModerationAction,
+    ModerationEventAction,
+    ModerationEventSource,
+    PendingActionOrigin,
+)
 from app.core.logging import get_logger
 from app.mcp.deps import ToolError, approved_chat_id, clamp, initiator_id, moderator_bot, session_maker
 
@@ -26,6 +31,39 @@ if TYPE_CHECKING:
 logger = get_logger("mcp.tools.moderate")
 
 MAX_MUTE_MINUTES = 43200
+
+
+async def _record(
+    action: ModerationEventAction,
+    *,
+    target_user_id: int,
+    chat_id: int | None = None,
+    detail: str | None = None,
+) -> None:
+    """Record an action this plane carried out on its own.
+
+    Runs after the action, so it never turns a completed one into a failure:
+    an unattributable event is logged and dropped rather than raised. The
+    missing-admin case belongs to propose time, where nothing has happened yet.
+    """
+    from app.moderation import audit
+
+    try:
+        actor_id = initiator_id()
+    except ToolError:
+        logger.warning("mcp_event_unattributed", action=action, user_id=target_user_id)
+        return
+
+    async with session_maker()() as session:
+        await audit.record(
+            session,
+            action=action,
+            source=ModerationEventSource.MCP,
+            actor_id=actor_id,
+            target_user_id=target_user_id,
+            chat_id=chat_id,
+            detail=detail,
+        )
 
 
 def register_moderation_tools(mcp: FastMCP[None]) -> None:
@@ -65,6 +103,12 @@ def register_moderation_tools(mcp: FastMCP[None]) -> None:
         except ToolError as err:
             return err.payload()
 
+        await _record(
+            ModerationEventAction.MUTE,
+            target_user_id=user_id,
+            chat_id=chat_id,
+            detail=f"{minutes} мин.",
+        )
         logger.info("mcp_mute", chat_id=chat_id, user_id=user_id, minutes=minutes)
         return {"status": "muted", "chat_id": chat_id, "user_id": user_id, "minutes": minutes}
 
@@ -93,6 +137,7 @@ def register_moderation_tools(mcp: FastMCP[None]) -> None:
         except ToolError as err:
             return err.payload()
 
+        await _record(ModerationEventAction.UNMUTE, target_user_id=user_id, chat_id=chat_id)
         logger.info("mcp_unmute", chat_id=chat_id, user_id=user_id)
         return {"status": "unmuted", "chat_id": chat_id, "user_id": user_id}
 
@@ -111,6 +156,7 @@ def register_moderation_tools(mcp: FastMCP[None]) -> None:
         except ToolError as err:
             return err.payload()
 
+        await _record(ModerationEventAction.UNBAN, target_user_id=user_id, chat_id=chat_id)
         logger.info("mcp_unban", chat_id=chat_id, user_id=user_id)
         return {"status": "unbanned", "chat_id": chat_id, "user_id": user_id}
 
@@ -133,6 +179,7 @@ def register_moderation_tools(mcp: FastMCP[None]) -> None:
         except ToolError as err:
             return err.payload()
 
+        await _record(ModerationEventAction.UNBLACKLIST, target_user_id=user_id)
         logger.info("mcp_unblacklist", user_id=user_id)
         return {"status": "unblacklisted", "user_id": user_id}
 

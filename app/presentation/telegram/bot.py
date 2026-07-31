@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
     from app.telethon.telethon_client import TelethonClient
-from app.db.session import close_db, create_session_maker, insert_chat_link
+from app.db.session import close_db, get_session_maker, insert_chat_link
 from app.presentation.telegram.handlers import router
 from app.presentation.telegram.middlewares import (
     ApprovedChatGateMiddleware,
@@ -135,7 +135,7 @@ async def main() -> None:
     """Application entry point."""
     logger.info("starting", environment=settings.environment)
 
-    session_maker = create_session_maker()
+    session_maker = get_session_maker()
 
     # Registers itself in the container; nothing here needs the handle.
     _init_telethon()
