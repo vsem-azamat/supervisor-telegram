@@ -66,6 +66,23 @@ gate has to learn about it, or the action escapes approval.
 stops passive recording for chats awaiting approval, which is exactly the data
 an operator needs in order to decide on approval.
 
+## The moderation record
+
+**A moderator's action is written down after it succeeds, never before.** The
+row is the claim that something happened, so an attempt that Telegram refused
+must not leave one — and a proposal a human rejected leaves nothing at all.
+
+**Failing to write the row never fails the action.** By the time the record is
+written the person is already banned; an error surfacing to the admin at that
+point would report the opposite of what happened. The write is logged and
+swallowed, which is the one place in this codebase where losing data is
+preferable to raising.
+
+**The actor is always a person.** The source says how the action was asked for —
+a command in a chat, or the control plane — but a token can never be the answer
+to "who banned this person", so a confirmed proposal is recorded against the
+admin who pressed confirm.
+
 ## MCP control plane
 
 **The boundary is what a leaked token can do, not which tools exist.** The
