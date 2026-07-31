@@ -5,6 +5,8 @@ write one never becomes the caller's problem — by the time the record is
 written the ban has already happened.
 """
 
+from typing import TYPE_CHECKING, cast
+
 import pytest
 from app.core.enums import (
     ModerationEventAction,
@@ -14,6 +16,9 @@ from app.core.enums import (
 from app.db.models import ModerationEvent
 from app.moderation import audit
 from sqlalchemy import select
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 
 pytestmark = pytest.mark.unit
 
@@ -69,7 +74,7 @@ async def test_a_failed_write_does_not_reach_the_caller() -> None:
     broken = BrokenSession()
 
     await audit.record(
-        broken,  # type: ignore[arg-type]
+        cast("AsyncSession", broken),
         action=ModerationEventAction.KICK,
         source=ModerationEventSource.COMMAND,
         actor_id=42,

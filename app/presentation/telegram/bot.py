@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
     from app.telethon.telethon_client import TelethonClient
-from app.db.session import close_db, get_session_maker, insert_chat_link
+from app.db.session import close_db, get_session_maker
 from app.presentation.telegram.handlers import router
 from app.presentation.telegram.middlewares import (
     ApprovedChatGateMiddleware,
@@ -42,10 +42,9 @@ logger = get_logger("bot")
 
 
 async def on_startup(bot: Bot) -> None:
-    """Main bot startup: webhook cleanup, chat links, Telethon."""
+    """Main bot startup: webhook cleanup and Telethon."""
     try:
         await bot.delete_webhook()
-        await insert_chat_link()
 
         telethon_client = container.get_telethon_client()
         if telethon_client:

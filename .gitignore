@@ -180,6 +180,6 @@ logs/
 scripts/*
 !scripts/wait_for_postgres.sh
 !scripts/entrypoint.sh
-!scripts/backfill_embeddings.py
 !scripts/env_to_github.sh
+!scripts/import_legacy_db.py
 .claude/
