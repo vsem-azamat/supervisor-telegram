@@ -43,6 +43,10 @@ services:
     environment:
       POSTGRES_USER: konnekt
       POSTGRES_DB: konnekt
+      # No message after `:?` on purpose. A secret scanner reads the whole text
+      # of a PASSWORD: line as its value, so a spelled-out "variable missing"
+      # message here gets reported as a hardcoded credential. Compose names the
+      # variable in its own error, which is the better message anyway.
       POSTGRES_PASSWORD: ${DB_PASSWORD:?}
     volumes:
       - pgdata:/var/lib/postgresql/data
