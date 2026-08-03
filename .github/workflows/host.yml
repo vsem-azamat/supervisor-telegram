@@ -1,0 +1,96 @@
+# Looking at the production host without handing anybody a shell.
+#
+# The deploy workflow already holds the only SSH credentials there are, so
+# asking it a question is cheaper than provisioning a key for every person who
+# needs to know why the site is down. What it must not become is a way to run
+# arbitrary commands as the deploy user: `workflow_dispatch` is available to
+# anyone with write access, and a free-text `command:` input would turn a push
+# to a branch into remote code execution on the server.
+#
+# So the tasks are fixed in this file and chosen by name. Adding one is a pull
+# request, which is exactly the review that a command on production deserves.
+name: Host
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: What to do on the host
+        required: true
+        default: diagnose
+        type: choice
+        options:
+          - diagnose
+          - edge-tls
+
+concurrency:
+  group: host-${{ inputs.task }}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ${{ inputs.task }}
+        uses: appleboy/ssh-action@v1.2.5
+        env:
+          TASK: ${{ inputs.task }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: TASK
+          # Every task reads. Nothing here restarts, rewrites or removes
+          # anything — a fix belongs in a deploy, where it is version
+          # controlled, not in a button somebody can press twice.
+          script: |
+            section() { echo; echo "───── $* ─────"; }
+
+            case "$TASK" in
+              diagnose)
+                section "who and where"
+                whoami; hostname; uptime
+
+                section "containers"
+                docker ps --format '{{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}' || true
+
+                section "listening sockets"
+                ss -tln || true
+
+                section "what answers on 443"
+                curl -sS -o /dev/null -w 'localhost:443  %{http_code}  %{errormsg}\n' \
+                  -m 10 -k https://127.0.0.1 -H 'Host: moderator.azamat.io' || true
+                curl -sS -o /dev/null -w 'webui:18083    %{http_code}\n' \
+                  -m 10 http://127.0.0.1:18083/ || true
+
+                section "edge proxy"
+                systemctl is-active caddy 2>/dev/null || echo "no caddy service"
+                systemctl is-active nginx 2>/dev/null || echo "no nginx service"
+                docker ps --filter name=caddy --format '{{.Names}}\t{{.Status}}' || true
+                ;;
+
+              edge-tls)
+                section "caddy config, wherever it lives"
+                for f in /etc/caddy/Caddyfile ~/caddy/Caddyfile ~/deploy/Caddyfile ~/Caddyfile; do
+                  [ -f "$f" ] && { echo "── $f"; cat "$f"; }
+                done
+                docker ps --filter name=caddy --format '{{.Names}}' | while read -r name; do
+                  [ -n "$name" ] || continue
+                  echo "── $name:/etc/caddy/Caddyfile"
+                  docker exec "$name" cat /etc/caddy/Caddyfile 2>/dev/null || echo "(not readable)"
+                done
+
+                section "certificates on disk"
+                find /var/lib/caddy ~/.local/share/caddy -name '*.crt' 2>/dev/null | head -20 || true
+                docker ps --filter name=caddy --format '{{.Names}}' | while read -r name; do
+                  [ -n "$name" ] || continue
+                  docker exec "$name" find /data/caddy/certificates -name '*.crt' 2>/dev/null | head -20
+                done
+
+                section "recent proxy log"
+                journalctl -u caddy --no-pager -n 40 2>/dev/null \
+                  || docker ps --filter name=caddy --format '{{.Names}}' \
+                     | while read -r name; do [ -n "$name" ] && docker logs --tail 40 "$name" 2>&1; done \
+                  || echo "(no log reachable)"
+                ;;
+            esac
