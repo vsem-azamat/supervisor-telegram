@@ -66,6 +66,28 @@ gate has to learn about it, or the action escapes approval.
 stops passive recording for chats awaiting approval, which is exactly the data
 an operator needs in order to decide on approval.
 
+## The two halves of the web
+
+**The public half calls nothing but `/api/public/*`.** Those endpoints return
+explicit safe projections, so what a stranger may see is decided once, at the
+boundary, rather than by a conditional on a page that somebody can delete. A
+public page reaching a protected endpoint is the bug; the 401 it earns is only
+the symptom.
+
+**Authorisation is a layout, not a per-page check.** Everything under
+`(admin)/` is guarded by where it sits, so a new screen cannot forget to ask.
+The root layout guards nothing, because it covers both halves and anything it
+decides is decided for both.
+
+**The browser's guard is the second lock, never the only one.** The API refuses
+without a valid super-admin cookie whatever the client believes. What the
+front-end guard buys is honesty — a sign-in page instead of a console full of
+failed requests.
+
+**`/join` and `/login` stay outside both groups.** The join check is opened
+inside Telegram by an applicant who has no session and must not be sent to get
+one; the sign-in page is the seam between the halves and belongs to neither.
+
 ## Who may moderate
 
 **Being an administrator of a Telegram chat grants nothing.** That crown is

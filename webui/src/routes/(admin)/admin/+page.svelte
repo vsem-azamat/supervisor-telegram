@@ -61,21 +61,21 @@
 				caption="Ad detector hits across all chats"
 				icon={ShieldAlert}
 				tone={spamCount24h > 0 ? 'warning' : 'default'}
-				href="/chats"
+				href="/admin/chats"
 			/>
 			<ActionTile
 				title="Spam pings (7d)"
 				value={spamCount7d}
 				caption="Rolling weekly total"
 				icon={ShieldAlert}
-				href="/chats"
+				href="/admin/chats"
 			/>
 			<ActionTile
 				title="Messages (7d)"
 				value={messages7d.toLocaleString()}
 				caption={`${trackedChats} chats with member snapshots`}
 				icon={MessageSquare}
-				href="/catalog"
+				href="/admin/catalog"
 			/>
 		</div>
 	</section>
@@ -145,7 +145,7 @@
 						{/each}
 					</ul>
 					<a
-						href="/catalog/hierarchy"
+						href="/admin/catalog/hierarchy"
 						class="mt-2 inline-block text-xs text-zinc-500 hover:underline"
 					>
 						View full tree →

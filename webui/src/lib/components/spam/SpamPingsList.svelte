@@ -42,7 +42,7 @@
 					<span class="shrink-0 text-zinc-400">{fmtRelative(ping.detected_at)}</span>
 				</div>
 				{#if showChat && ping.chat_title}
-					<a href="/chats/{ping.chat_id}" class="block text-xs text-zinc-500 hover:underline">
+					<a href="/admin/chats/{ping.chat_id}" class="block text-xs text-zinc-500 hover:underline">
 						{ping.chat_title}
 					</a>
 				{/if}

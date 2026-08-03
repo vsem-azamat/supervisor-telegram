@@ -154,7 +154,7 @@
 				</Table.Header>
 				<Table.Body>
 					{#each filtered as chat (chat.id)}
-						<Table.Row class="cursor-pointer hover:bg-zinc-50" onclick={() => goto(`/chats/${chat.id}`)}>
+						<Table.Row class="cursor-pointer hover:bg-zinc-50" onclick={() => goto(`/admin/chats/${chat.id}`)}>
 							<Table.Cell>
 								<div class="flex min-w-0 items-center gap-2">
 									<ChatAvatar chatId={chat.id} title={chat.title} hasPhoto={chat.has_photo} size="sm" />
