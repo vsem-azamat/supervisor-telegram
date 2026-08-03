@@ -185,6 +185,7 @@ scripts/*
 !scripts/tg_accounts.py
 !scripts/tg_chats.py
 !scripts/tg_promote.py
+!scripts/tg_add_bot.py
 .claude/
 
 # Local credential drops — never tracked.
