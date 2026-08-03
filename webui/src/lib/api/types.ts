@@ -98,7 +98,12 @@ export interface paths {
         };
         /**
          * Get Public Catalog
-         * @description Return only the fields that are safe to show without admin auth.
+         * @description Every chat a stranger may join, under the university above it.
+         *
+         *     A chat is here when it is approved *and* has a public link. The link is the
+         *     decision — there is no separate flag that could disagree with it — so a
+         *     private faculty group without one cannot appear by accident, and taking a
+         *     chat down means clearing one column.
          */
         get: operations["get_public_catalog_api_public_catalog_get"];
         put?: never;
@@ -467,6 +472,8 @@ export interface components {
             parent_chat_id?: number | null;
             /** Relation Notes */
             relation_notes?: string | null;
+            /** Public Link */
+            public_link?: string | null;
             /** Member Count */
             member_count?: number | null;
             /**
@@ -580,6 +587,8 @@ export interface components {
             parent_chat_id?: number | null;
             /** Relation Notes */
             relation_notes?: string | null;
+            /** Public Link */
+            public_link?: string | null;
             /** Member Count */
             member_count?: number | null;
             /**
@@ -642,6 +651,8 @@ export interface components {
             parent_chat_id?: number | null;
             /** Relation Notes */
             relation_notes?: string | null;
+            /** Public Link */
+            public_link?: string | null;
         };
         /**
          * FeatureFlagRead
@@ -761,20 +772,28 @@ export interface components {
         };
         /**
          * PublicCatalogItem
-         * @description Safe public projection for the chat catalog.
+         * @description What a stranger may know about a chat.
+         *
+         *     Four fields, and the shape is the safety rather than any check downstream:
+         *     there is no Telegram id here, no member count, no moderation state, nothing
+         *     about who is in the room. A public page cannot leak a field this model does
+         *     not carry, however carelessly it is written.
+         *
+         *     ``group`` is the parent chat's title — "ČVUT" above "ČVUT FIT" — so the
+         *     catalogue can be read by university rather than as forty-five rows.
          */
         PublicCatalogItem: {
-            /**
-             * Resource Type
-             * @constant
-             */
-            resource_type: "chat";
-            /** Id */
-            id: number;
             /** Title */
             title: string;
-            /** Subtitle */
-            subtitle?: string | null;
+            /** Link */
+            link: string;
+            /** Group */
+            group?: string | null;
+            /**
+             * Activity
+             * @enum {string}
+             */
+            activity: "quiet" | "active" | "busy";
         };
         /**
          * SpamPingRead

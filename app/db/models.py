@@ -109,6 +109,14 @@ class Chat(Base):
         index=True,
     )
     relation_notes: Mapped[str | None] = mapped_column(String, nullable=True)
+    # Where a stranger can join, and by its presence the decision to let them.
+    #
+    # There is no accompanying `is_listed` flag on purpose. A flag beside a link
+    # can disagree with it, and the disagreement is only ever discovered the way
+    # all such disagreements are: a chat that was meant to be private turns out
+    # to have been on a public page for a month. A chat is in the catalogue when
+    # it is approved and this is set; taking it down means clearing it.
+    public_link: Mapped[str | None] = mapped_column(String(128), nullable=True)
     photo_file_id: Mapped[str | None] = mapped_column(String, nullable=True)
     last_synced_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)

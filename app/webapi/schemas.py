@@ -11,12 +11,21 @@ ChatResourceStatus = Literal["discovered", "approved", "disabled"]
 
 
 class PublicCatalogItem(BaseModel):
-    """Safe public projection for the chat catalog."""
+    """What a stranger may know about a chat.
 
-    resource_type: Literal["chat"]
-    id: int
+    Four fields, and the shape is the safety rather than any check downstream:
+    there is no Telegram id here, no member count, no moderation state, nothing
+    about who is in the room. A public page cannot leak a field this model does
+    not carry, however carelessly it is written.
+
+    ``group`` is the parent chat's title — "ČVUT" above "ČVUT FIT" — so the
+    catalogue can be read by university rather than as forty-five rows.
+    """
+
     title: str
-    subtitle: str | None = None
+    link: str
+    group: str | None = None
+    activity: Literal["quiet", "active", "busy"]
 
 
 class ChatRead(BaseModel):
@@ -33,6 +42,10 @@ class ChatRead(BaseModel):
     is_service_cleanup_enabled: bool = True
     parent_chat_id: int | None = None
     relation_notes: str | None = None
+    # Set means the chat is in the public catalogue. Shown here so the console
+    # can say which chats are not, rather than leaving it to be discovered by
+    # looking at the public page and counting.
+    public_link: str | None = None
     member_count: int | None = None  # enriched from Telethon, None when unavailable
     has_photo: bool = False
     last_synced_at: datetime.datetime | None = None
@@ -52,6 +65,9 @@ class ChatUpdate(BaseModel):
     time_delete: int | None = None
     parent_chat_id: int | None = None
     relation_notes: str | None = None
+    # Setting this publishes the chat; clearing it takes it down. Nothing else
+    # does either, which is why it is one field and not a field plus a switch.
+    public_link: str | None = None
 
 
 class ChatNode(BaseModel):
