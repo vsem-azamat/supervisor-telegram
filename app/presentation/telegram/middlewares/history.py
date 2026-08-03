@@ -53,7 +53,12 @@ class HistoryMiddleware(BaseMiddleware):
                     logger.error("ad_detector_failed", error=str(err))
 
             if await spam_service.detect_spam(db, message):
-                answer = await event.message.answer("🚧 Is spam message?🤔")
+                # Addressed to whoever is in the room, not to the author: the
+                # bot only suspects, and the suspicion is that a first-ever
+                # message matches something a moderator already called spam.
+                answer = await event.message.answer(
+                    "⚠️ Похоже на спам: первое сообщение участника совпадает с ранее помеченным. Модераторы, проверьте."
+                )
                 other.sleep_and_delete(answer, 15)
 
         return await handler(event, data)

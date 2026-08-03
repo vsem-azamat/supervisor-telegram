@@ -16,10 +16,27 @@ _AUTO_BIGINT = BigInteger().with_variant(Integer, "sqlite")
 
 
 class Admin(Base):
+    """Somebody trusted to moderate, in the chats named by ``admin_chats``.
+
+    Being an administrator of a Telegram chat has nothing to do with this. That
+    crown gets handed out so a name shows up in the member list; it is not a
+    statement about who may ban people, and the bot has never treated it as one.
+
+    Super administrators are not here. They live in ``ADMIN_SUPER_ADMINS``, in
+    configuration, so that the set of people who can grant power cannot itself be
+    changed by writing to the database.
+    """
+
     __tablename__ = "admins"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
     state: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    chats: Mapped[list["AdminChat"]] = relationship(
+        back_populates="admin",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
 
     def __init__(self, id: int, state: bool = True) -> None:
         self.id = id
@@ -37,6 +54,33 @@ class Admin(Base):
     def is_active(self) -> bool:
         """Check if admin is active"""
         return self.state
+
+
+class AdminChat(Base):
+    """Which chats one administrator may act in.
+
+    The scope is the whole point of the table. A flat list of administrators
+    means whoever is trusted to keep order in one faculty chat can ban people in
+    the other forty-four, which is not what anybody agreed to when they took the
+    job.
+    """
+
+    __tablename__ = "admin_chats"
+
+    admin_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("admins.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    chat_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("chats.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    granted_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), default=utc_now)
+    granted_by: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
+    admin: Mapped["Admin"] = relationship(back_populates="chats")
 
 
 class Chat(Base):

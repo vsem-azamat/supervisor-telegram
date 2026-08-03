@@ -31,29 +31,35 @@ async def start_private(message: types.Message, admin_repo: AdminRepository) -> 
         "• /report - пожаловаться (нужно переслать сообщение)\n"
     )
 
-    is_admin = message.from_user.id in settings.admin.super_admins or await admin_repo.is_admin(message.from_user.id)
-    if is_admin:
+    is_super_admin = message.from_user.id in settings.admin.super_admins
+    if is_super_admin or await admin_repo.is_admin(message.from_user.id):
+        chats = await admin_repo.chats_for(message.from_user.id)
+        where = "во всех чатах" if is_super_admin else f"в ваших чатах ({len(chats)})"
         text += (
-            "\n\n<b>👮 Команды для админов:</b>\n"
+            f"\n\n<b>👮 Команды модератора</b> — {where}:\n"
             "• /mute - замутить пользователя\n"
             "• /unmute - размутить пользователя\n"
             "• /kick - удалить из чата (сможет вернуться)\n"
-            "• /ban - бан и добавить в ЧС\n"
-            "• /unban - убрать из ЧС\n"
+            "• /ban - забанить в этом чате\n"
+            "• /unban - разбанить в этом чате\n"
             "• /info - что известно о пользователе\n"
             "• /del - удалить сообщение (ответом)\n"
             "• /purge - удалить пачку до этого сообщения\n"
             "• /pin, /unpin - закрепить и открепить\n"
+            "• /welcome &lt;text&gt; - изменить приветствие\n"
+        )
+
+    if is_super_admin:
+        text += (
+            "\n<b>🔑 Команды главного администратора</b> — действуют на все чаты:\n"
             "• /black - занести в ЧС всех чатов\n"
             "• /blacklist - посмотреть ЧС (с пагинацией)\n"
             "• /blacklist @username - найти пользователя в ЧС\n"
-            "• /welcome &lt;text&gt; - изменить приветствие\n"
-            "• /admin - добавить админа (ответом)\n"
-            "• /unadmin - убрать админа (ответом)\n"
+            "• /admin - назначить модератора этого чата (ответом)\n"
+            "• /unadmin - снять модератора этого чата (ответом)\n"
             "• /json - получить JSON сообщения\n"
+            "• /adminlink - одноразовая ссылка в web-админку\n"
         )
-        if settings.admin.super_admins and message.from_user.id == settings.admin.super_admins[0]:
-            text += "• /adminlink - одноразовая ссылка в web-админку\n"
 
     builder = await buttons_service.get_contacts_buttons()
     bot_message = await message.answer(
@@ -72,8 +78,10 @@ async def generate_admin_magic_link(message: types.Message) -> None:
     if message.chat.type != "private":
         await message.answer("Команда доступна только в личке с ботом.")
         return
-    if not settings.admin.super_admins or message.from_user.id != settings.admin.super_admins[0]:
-        await message.answer("Команда доступна только главному администратору.")
+    # Every super administrator, not just the first one listed: the web console
+    # admits all of them, and a link one of them cannot ask for is a lockout.
+    if message.from_user.id not in settings.admin.super_admins:
+        await message.answer("Команда доступна только главным администраторам.")
         return
     if settings.webapi.auth_mode != "magic_link":
         await message.answer("WEBAPI_AUTH_MODE=magic_link не включен.")

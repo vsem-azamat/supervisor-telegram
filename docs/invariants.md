@@ -66,6 +66,36 @@ gate has to learn about it, or the action escapes approval.
 stops passive recording for chats awaiting approval, which is exactly the data
 an operator needs in order to decide on approval.
 
+## Who may moderate
+
+**Being an administrator of a Telegram chat grants nothing.** That crown is
+handed out so a name shows up in the member list; it is not a statement about
+who may ban people. The bot answers the question from its own tables and has
+never done otherwise — a filter that consulted `get_chat_member` would quietly
+hand forty-five chats to whoever asked a friend for a title.
+
+**An administrator's rights stop at the chats named in `admin_chats`.** A flat
+list of administrators means trusting somebody with one faculty chat trusts them
+with the other forty-four, which is not what anybody agreed to when they took
+the job. Every guard asks "may this person act *here*", never "is this person an
+administrator".
+
+**Super administrators live in configuration, not in the database.** They are
+the only people who can grant moderator rights, so the set of them must not be
+changeable by writing a row — an attacker with one `INSERT` would otherwise
+promote themselves. `ADMIN_SUPER_ADMINS` is also the only thing the web console
+admits.
+
+**Commands are split by how far a mistake travels.** A ban, mute, kick, pin or
+deletion spoils one chat, so a moderator of that chat may run it. The blacklist
+reaches every chat at once and `!spam` teaches the shared spam corpus, so both
+stay with the super administrators. A new command belongs on the global side
+unless its blast radius is provably one chat.
+
+**The answer is read fresh on every command.** Scoped rights were cached for
+five minutes when they were the same everywhere; per-chat they must not be, or a
+moderator removed from a chat keeps it until the cache expires.
+
 ## The moderation record
 
 **A moderator's action is written down after it succeeds, never before.** The

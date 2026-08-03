@@ -11,12 +11,13 @@ from . import admin, agent_handler, events, groups, moderation, pending_actions,
 
 router = Router()
 
-moderation.moderation_router.message.middleware(admin_middlewares.AdminMiddleware())
-moderation.moderation_router.callback_query.middleware(admin_middlewares.AdminMiddleware())
+# The moderation routers carry their own guards — see that package's docstring,
+# where the split between chat-scoped and global commands is explained.
 admin.admin_router.message.middleware(chat_type_middlewares.ChatTypeMiddleware(["group", "supergroup"]))
 admin.admin_router.message.middleware(admin_middlewares.SuperAdminMiddleware())
 groups.groups_router.message.middleware(chat_type_middlewares.ChatTypeMiddleware(["group", "supergroup"]))
-service.router.message.middleware(admin_middlewares.AdminMiddleware())
+# `!json` dumps a message's internals, which is a debugging tool, not moderation.
+service.router.message.middleware(admin_middlewares.SuperAdminMiddleware())
 agent_handler.agent_router.message.middleware(chat_type_middlewares.ChatTypeMiddleware(["group", "supergroup"]))
 
 # Agent router first — /report and /spam go through LLM agent
