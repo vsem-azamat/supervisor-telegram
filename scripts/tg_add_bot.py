@@ -95,6 +95,7 @@ def announces(message: Any, watched: set[int]) -> bool:
     from telethon.tl.types import (
         MessageActionChatAddUser,
         MessageActionChatJoinedByLink,
+        MessageActionChatJoinedByRequest,
         MessageService,
     )
 
@@ -103,7 +104,7 @@ def announces(message: Any, watched: set[int]) -> bool:
     action = message.action
     if isinstance(action, MessageActionChatAddUser):
         return any(int(user) in watched for user in action.users)
-    if isinstance(action, MessageActionChatJoinedByLink):
+    if isinstance(action, MessageActionChatJoinedByLink | MessageActionChatJoinedByRequest):
         sender = message.from_id
         return bool(sender and int(getattr(sender, "user_id", 0)) in watched)
     return False
