@@ -26,17 +26,19 @@ class TestBlacklistUtils:
         """Test building blacklist text with pagination info."""
         text = build_blacklist_text(total_count=15, current_page=0, total_pages=2, page_size=10)
 
-        assert "Blacklist (15 users)" in text
-        assert "Showing 1-10 of 15" in text
-        assert "Page 1 of 2" in text
+        assert "Чёрный список" in text
+        assert "15 человек" in text
+        assert "Показаны 1–10 из 15" in text
+        assert "Страница 1 из 2" in text
 
     def test_build_blacklist_text_single_page(self, sample_users):
         """Test building blacklist text for single page."""
         text = build_blacklist_text(total_count=5, current_page=0, total_pages=1, page_size=10)
 
-        assert "Blacklist (5 users)" in text
-        assert "Showing" not in text
-        assert "Page" not in text
+        assert "Чёрный список" in text
+        assert "5 человек" in text
+        assert "Показаны" not in text
+        assert "Страница" not in text
 
     def test_build_blacklist_keyboard_single_page(self, sample_users):
         """Test building keyboard for single page."""
@@ -68,7 +70,7 @@ class TestBlacklistUtils:
         # Check pagination row (last row) - should only have Prev and Page indicator for last page
         pagination_row = buttons[-1]
         assert len(pagination_row) == 2  # Prev, Page indicator (no Next for last page)
-        assert "\u25c0\ufe0f Prev" in pagination_row[0].text
+        assert "◀️ Назад" in pagination_row[0].text
         assert "2/2" in pagination_row[1].text
 
     def test_build_blacklist_keyboard_first_page_pagination(self, sample_users):
@@ -88,7 +90,7 @@ class TestBlacklistUtils:
         pagination_row = buttons[-1]
         assert len(pagination_row) == 2  # Page indicator, Next (no Prev for first page)
         assert "1/2" in pagination_row[0].text
-        assert "Next \u25b6\ufe0f" in pagination_row[1].text
+        assert "Вперёд ▶️" in pagination_row[1].text
 
     def test_build_blacklist_keyboard_middle_page_pagination(self, sample_users):
         """Test building keyboard for middle page with both Prev and Next buttons."""
@@ -105,16 +107,16 @@ class TestBlacklistUtils:
         # Check pagination row (last row) - should have Prev, Page indicator, and Next
         pagination_row = buttons[-1]
         assert len(pagination_row) == 3  # Prev, Page indicator, Next
-        assert "\u25c0\ufe0f Prev" in pagination_row[0].text
+        assert "◀️ Назад" in pagination_row[0].text
         assert "2/3" in pagination_row[1].text
-        assert "Next \u25b6\ufe0f" in pagination_row[2].text
+        assert "Вперёд ▶️" in pagination_row[2].text
 
     def test_build_user_details_text(self, sample_users):
         """Test building user details text."""
         user = sample_users[0]  # Test User
         text = build_user_details_text(user)
 
-        assert "Found in blacklist" in text
+        assert "Найден в чёрном списке" in text
         assert "Test User" in text
         assert "123" in text
         assert "@testuser" in text
@@ -124,7 +126,7 @@ class TestBlacklistUtils:
         user = sample_users[2]  # User without username
         text = build_user_details_text(user)
 
-        assert "Found in blacklist" in text
+        assert "Найден в чёрном списке" in text
         assert "User 789" in text
         assert "789" in text
         assert "@" not in text  # No username section
@@ -136,7 +138,7 @@ class TestBlacklistUtils:
 
         buttons = keyboard.as_markup().inline_keyboard
         assert len(buttons) == 1
-        assert "Unblock User" in buttons[0][0].text
+        assert "Разблокировать" in buttons[0][0].text
 
     def test_long_display_name_truncation(self):
         """Test that long display names are properly truncated."""

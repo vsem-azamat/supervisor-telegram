@@ -3,9 +3,9 @@
 The composition is where the permission rule lives, because the rule is about
 which group a command belongs to rather than what the command does. Mute, ban,
 kick, pin, delete and the welcome text stop at the edge of one chat, so a
-moderator of that chat may use them. The blacklist does not: it bans somebody
-across all forty-five at once, and `!spam` teaches the shared spam corpus, so
-both stay with the super administrators.
+moderator of that chat may use them. The blacklist does not: `/banall` bans
+somebody across all forty-five at once and can wipe what they wrote, teaching
+the shared spam corpus on the way, so it stays with the super administrators.
 """
 
 from aiogram import Router
@@ -13,9 +13,9 @@ from aiogram import Router
 from app.presentation.telegram.handlers.moderation.ban import ban_user, unban_user
 from app.presentation.telegram.handlers.moderation.ban import router as _ban_router
 from app.presentation.telegram.handlers.moderation.blacklist import (
-    full_ban,
+    ban_everywhere,
     handle_blacklist_pagination,
-    label_spam,
+    moved_to_banall,
     process_blacklist_cancel,
     process_blacklist_confirm,
     show_blacklist,
@@ -57,10 +57,10 @@ moderation_router.include_router(_messages_router)
 __all__ = [
     "ban_user",
     "delete_message",
-    "full_ban",
+    "ban_everywhere",
     "handle_blacklist_pagination",
     "kick_user",
-    "label_spam",
+    "moved_to_banall",
     "moderation_router",
     "mute_user",
     "pin_message",
