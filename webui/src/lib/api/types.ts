@@ -793,7 +793,7 @@ export interface components {
              * Activity
              * @enum {string}
              */
-            activity: "quiet" | "active" | "busy";
+            activity: "unknown" | "quiet" | "active" | "busy";
         };
         /**
          * SpamPingRead

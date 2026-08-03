@@ -25,7 +25,10 @@ class PublicCatalogItem(BaseModel):
     title: str
     link: str
     group: str | None = None
-    activity: Literal["quiet", "active", "busy"]
+    # "unknown" is a real answer, not a missing one: it says the recording
+    # behind the other three values is too short to stand on. A page shows
+    # nothing for it rather than guessing.
+    activity: Literal["unknown", "quiet", "active", "busy"]
 
 
 class ChatRead(BaseModel):

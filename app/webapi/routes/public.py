@@ -29,19 +29,48 @@ ACTIVITY_WINDOW = datetime.timedelta(days=30)
 # Messages in that window. The bands are coarse deliberately: the reader is
 # deciding whether a chat is worth joining, not comparing two of them.
 BUSY_FROM = 100
-ACTIVE_FROM = 1
+ACTIVE_FROM = 10
+
+# Days within the window on which anything at all was recorded, below which the
+# window is not evidence about anybody.
+#
+# The bot was out of these chats between 22 May and 3 August, so on the day it
+# returned a thirty-day count held one day of traffic. Every chat that had seen
+# a single message read "active", including the one with seven thousand messages
+# to its name and the one with two. The count was correct and the claim was
+# false, which is the worst combination to ship: nothing looks broken.
+#
+# So the claim is withheld until there is a fortnight behind it, and it comes
+# back on its own. This is a property of the recording, not of any one chat —
+# a gap affects all of them at once.
+MIN_OBSERVED_DAYS = 14
 
 # Sorts after every real title, so ungrouped chats land at the end rather than
 # at the top where an empty string would put them.
 _UNGROUPED = "￿"
 
 
-def _activity(messages: int) -> Literal["quiet", "active", "busy"]:
+def _activity(messages: int, *, grounded: bool) -> Literal["unknown", "quiet", "active", "busy"]:
+    if not grounded:
+        return "unknown"
     if messages >= BUSY_FROM:
         return "busy"
     if messages >= ACTIVE_FROM:
         return "active"
     return "quiet"
+
+
+async def _observed_days(session: AsyncSession, since: datetime.datetime) -> int:
+    """Days in the window on which the bot recorded anything, anywhere.
+
+    Counted across the whole network rather than per chat: a quiet chat with no
+    messages is a fact about the chat, while a quiet *database* is a fact about
+    whether the bot was there to listen.
+    """
+    result = await session.execute(
+        select(func.count(func.distinct(func.date(Message.timestamp)))).where(Message.timestamp >= since)
+    )
+    return result.scalar() or 0
 
 
 @router.get("/catalog", response_model=list[PublicCatalogItem])
@@ -57,6 +86,7 @@ async def get_public_catalog(
     """
     parent = aliased(Chat)
     since = utc_now() - ACTIVITY_WINDOW
+    grounded = await _observed_days(session, since) >= MIN_OBSERVED_DAYS
 
     recent_messages = (
         select(Message.chat_id, func.count().label("messages"))
@@ -85,7 +115,7 @@ async def get_public_catalog(
             title=row.title,
             link=row.public_link,
             group=row.group_title,
-            activity=_activity(row.messages),
+            activity=_activity(row.messages, grounded=grounded),
         )
         for row in rows
         if row.title and row.public_link
