@@ -44,6 +44,12 @@
 	// so the member total can cover part of the catalogue. Saying "≈18 400"
 	// without saying that would be a number somebody pays against.
 	const partial = $derived(!!reach && reach.measured_chats < reach.chats);
+
+	// Nothing measured at all is not "zero people". It is "we have not counted",
+	// and the honest rendering of that is to say nothing — the same choice the
+	// catalogue makes for a chat whose activity it cannot ground. A tile reading
+	// "≈0 участников" is worse than an absent one: it is read, and believed.
+	const counted = $derived(!!reach && reach.measured_chats > 0);
 </script>
 
 <svelte:head><title>Реклама в студенческих чатах — Konnekt</title></svelte:head>
@@ -71,14 +77,16 @@
 					{plural(reach.chats, 'чат', 'чата', 'чатов')}
 				</div>
 			</div>
-			<div>
-				<div class="font-mono text-3xl font-semibold tabular-nums tracking-tight text-zinc-900">
-					{partial ? '≈' : ''}{num(reach.members)}
+			{#if counted}
+				<div>
+					<div class="font-mono text-3xl font-semibold tabular-nums tracking-tight text-zinc-900">
+						{partial ? '≈' : ''}{num(reach.members)}
+					</div>
+					<div class="mt-1 text-[10px] font-semibold tracking-wider text-zinc-500 uppercase">
+						{plural(reach.members, 'участник', 'участника', 'участников')}
+					</div>
 				</div>
-				<div class="mt-1 text-[10px] font-semibold tracking-wider text-zinc-500 uppercase">
-					{plural(reach.members, 'участник', 'участника', 'участников')}
-				</div>
-			</div>
+			{/if}
 			<div>
 				<div class="font-mono text-3xl font-semibold tabular-nums tracking-tight text-zinc-900">
 					{num(reach.groups.length)}
@@ -89,11 +97,15 @@
 			</div>
 		</div>
 
-		{#if partial}
+		{#if counted && partial}
 			<p class="-mt-6 max-w-xl text-xs text-zinc-500">
 				Участники посчитаны по {reach.measured_chats} из {reach.chats}
 				{plural(reach.chats, 'чата', 'чатов', 'чатов')} — Telegram отвечает не по всем. Настоящая
 				цифра выше этой, но обещать мы можем только измеренное.
+			</p>
+		{:else if !counted}
+			<p class="-mt-6 max-w-xl text-xs text-zinc-500">
+				Число участников сейчас не показываем — напишите, назовём его в ответе.
 			</p>
 		{/if}
 
@@ -114,11 +126,13 @@
 								>
 									Чатов
 								</th>
-								<th
-									class="pb-2 text-right text-[10px] font-semibold tracking-wider text-zinc-500 uppercase"
-								>
-									Участников
-								</th>
+								{#if counted}
+									<th
+										class="pb-2 text-right text-[10px] font-semibold tracking-wider text-zinc-500 uppercase"
+									>
+										Участников
+									</th>
+								{/if}
 							</tr>
 						</thead>
 						<tbody>
@@ -128,9 +142,11 @@
 									<td class="py-2 text-right font-mono tabular-nums text-zinc-600">
 										{num(group.chats)}
 									</td>
-									<td class="py-2 text-right font-mono tabular-nums text-zinc-600">
-										{group.members > 0 ? num(group.members) : '—'}
-									</td>
+									{#if counted}
+										<td class="py-2 text-right font-mono tabular-nums text-zinc-600">
+											{group.members > 0 ? num(group.members) : '—'}
+										</td>
+									{/if}
 								</tr>
 							{/each}
 						</tbody>
