@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from app.core.time import utc_now
 from app.db.models import Chat, ChatMemberSnapshot
-from app.webapi.snapshot_loop import METADATA_STALENESS_HOURS, snapshot_once
+from app.telethon.snapshots import METADATA_STALENESS_HOURS, snapshot_once
 from sqlalchemy import select
 
 if TYPE_CHECKING:

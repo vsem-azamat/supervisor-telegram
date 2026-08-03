@@ -28,6 +28,15 @@ HTML, and that default silently overrides explicit `entities` /
 `caption_entities`. The formatting is simply lost; nothing raises. Applies to
 every send and edit call, of which there are more than a dozen.
 
+**Whatever reads through Telethon runs in the bot process.** The client is held
+by a per-process singleton wired at the bot's startup, and the session file is
+mounted into that container alone — so the same code started from the web API
+finds `None`, logs that it is unavailable, and does nothing, which is
+indistinguishable from working. The member-count snapshot loop lived there and
+wrote not one row for its entire life; everything downstream read zero and
+rendered a dash. Mounting the session into a second container is not the fix
+either: two clients on one session file is the account-level risk below.
+
 **The Telethon session is the whole account.** A bot token grants one bot; this
 grants every private conversation the account can see. Treat writes, scheduled
 messages and account-level side effects as higher-risk than any Bot API call,

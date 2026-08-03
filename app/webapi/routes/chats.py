@@ -1,15 +1,17 @@
 """Chats — list + detail endpoints.
 
-Heatmap is built from the `messages` table (populated by moderator handlers),
-not from Telethon. That's intentional: it's fast, always-fresh for moderated
-chats, and doesn't burn Telethon rate limits. Telethon only enriches
-member_count. For chats the bot hasn't seen, counts will simply be zero —
-we do not paper over that with Telethon history fetches in Phase 2.
+Nothing here asks Telegram anything. The heatmap is built from the `messages`
+table the moderator handlers populate, and member counts are read from the
+snapshots the bot process records hourly — this process holds no Telethon
+session, so a live read here has never returned anything but None.
+
+A chat the bot has never seen has no rows and no snapshot, and says so by
+carrying `None` rather than a zero: not measured and empty are different
+claims.
 """
 
 from __future__ import annotations
 
-import asyncio
 import datetime
 import io
 from typing import Annotated, cast
@@ -29,7 +31,6 @@ from app.webapi.deps import (
     get_publish_bot,
     get_session,
     get_telethon,
-    get_telethon_stats,
     require_super_admin,
 )
 from app.webapi.schemas import (
@@ -43,8 +44,8 @@ from app.webapi.schemas import (
     MemberSnapshotPoint,
     SpamPingRead,
 )
+from app.webapi.services import member_counts
 from app.webapi.services.chat_sync import fetch_chat_photo_file_id
-from app.webapi.services.telethon_stats import TelethonStatsService
 
 logger = get_logger("webapi.routes.chats")
 
@@ -73,11 +74,10 @@ def _build_heatmap(timestamps: list[datetime.datetime]) -> list[HeatmapCell]:
 @router.get("", response_model=list[ChatRead])
 async def list_chats(
     session: Annotated[AsyncSession, Depends(get_session)],
-    stats: Annotated[TelethonStatsService, Depends(get_telethon_stats)],
     _admin_id: Annotated[int, Depends(require_super_admin)],
 ) -> list[ChatRead]:
     chats = (await session.execute(select(Chat).order_by(Chat.title))).scalars().all()
-    member_counts = await asyncio.gather(*[stats.get_member_count(c.id) for c in chats])
+    counts = await member_counts.latest_for(session, [chat.id for chat in chats])
     return [
         ChatRead(
             id=chat.id,
@@ -90,12 +90,12 @@ async def list_chats(
             parent_chat_id=chat.parent_chat_id,
             relation_notes=chat.relation_notes,
             public_link=chat.public_link,
-            member_count=member_count,
+            member_count=counts.get(chat.id),
             has_photo=chat.photo_file_id is not None,
             last_synced_at=chat.last_synced_at,
             created_at=chat.created_at,
         )
-        for chat, member_count in zip(chats, member_counts, strict=True)
+        for chat in chats
     ]
 
 
@@ -151,7 +151,6 @@ async def get_chat_graph(
 async def get_chat(
     chat_id: int,
     session: Annotated[AsyncSession, Depends(get_session)],
-    stats: Annotated[TelethonStatsService, Depends(get_telethon_stats)],
     _admin_id: Annotated[int, Depends(require_super_admin)],
 ) -> ChatDetail:
     chat = (await session.execute(select(Chat).where(Chat.id == chat_id))).scalar_one_or_none()
@@ -183,7 +182,7 @@ async def get_chat(
     )
     snapshots_ascending = list(reversed(snapshot_rows))
 
-    member_count = await stats.get_member_count(chat.id)
+    member_count = await member_counts.latest(session, chat.id)
 
     children_rows = (
         (await session.execute(select(Chat).where(Chat.parent_chat_id == chat_id).order_by(Chat.title))).scalars().all()
@@ -292,7 +291,6 @@ async def update_chat(
     chat_id: int,
     payload: ChatUpdate,
     session: Annotated[AsyncSession, Depends(get_session)],
-    stats: Annotated[TelethonStatsService, Depends(get_telethon_stats)],
     _admin_id: Annotated[int, Depends(require_super_admin)],
 ) -> ChatRead:
     chat = (await session.execute(select(Chat).where(Chat.id == chat_id))).scalar_one_or_none()
@@ -333,7 +331,7 @@ async def update_chat(
     await session.commit()
     await session.refresh(chat)
 
-    member_count = await stats.get_member_count(chat.id)
+    member_count = await member_counts.latest(session, chat.id)
     return ChatRead(
         id=chat.id,
         title=chat.title,
@@ -402,7 +400,6 @@ async def refresh_chat_from_telegram(
     chat_id: int,
     session: Annotated[AsyncSession, Depends(get_session)],
     bot: Annotated[Bot, Depends(get_publish_bot)],
-    stats: Annotated[TelethonStatsService, Depends(get_telethon_stats)],
     telethon: Annotated[TelethonClient | None, Depends(get_telethon)],
     _admin_id: Annotated[int, Depends(require_super_admin)],
 ) -> ChatRead:
@@ -410,12 +407,14 @@ async def refresh_chat_from_telegram(
 
     Manual counterpart to the hourly snapshot loop. Updates ``title`` (only
     if upstream gave us a non-empty string), ``photo_file_id``, and bumps
-    ``last_synced_at`` to now. Member count is not refreshed here because
-    it's served live by the TelethonStatsService cache (60–300s TTL) — a
-    separate refresh would burn a Telethon RPC for marginal recency gain.
+    ``last_synced_at`` to now. The member count in the response is the last
+    one recorded rather than a fresh read — this button does not write a
+    snapshot.
 
-    Telethon is optional; missing it just means we skip the title-sync leg
-    and the response carries whatever title was already in the DB.
+    Known gap: the title leg needs Telethon, and this process has none. It is
+    skipped in production, so today the button refreshes the photo and the
+    timestamp and leaves the title alone. Doing it over the Bot API instead is
+    the fix, and it is not in this change.
     """
     chat = (await session.execute(select(Chat).where(Chat.id == chat_id))).scalar_one_or_none()
     if chat is None:
@@ -439,7 +438,7 @@ async def refresh_chat_from_telegram(
     await session.commit()
     await session.refresh(chat)
 
-    member_count = await stats.get_member_count(chat.id)
+    member_count = await member_counts.latest(session, chat.id)
     return ChatRead(
         id=chat.id,
         title=chat.title,

@@ -13,7 +13,6 @@ from app.db.session import get_session_maker
 
 if TYPE_CHECKING:
     from app.telethon.telethon_client import TelethonClient
-    from app.webapi.services.telethon_stats import TelethonStatsService
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
@@ -59,15 +58,6 @@ async def get_telethon() -> TelethonClient | None:
     from app.core.container import container
 
     return container.get_telethon_client()
-
-
-async def get_telethon_stats(request: Request) -> TelethonStatsService:
-    """Return the process-wide TelethonStatsService singleton from app.state.
-
-    Constructed once in _lifespan (or as a no-op default in create_app for
-    tests) so the TTLCache persists across requests.
-    """
-    return request.app.state.telethon_stats
 
 
 async def get_publish_bot(request: Request) -> Bot:
