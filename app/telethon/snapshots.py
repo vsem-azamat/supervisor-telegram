@@ -1,9 +1,15 @@
 """Periodic member-count snapshot collector.
 
-Runs as a single background asyncio task for the lifetime of the webapi
-process. Intentionally simple: one query per chat per tick, no concurrency,
-no deduplication. If the process dies, we lose the in-flight tick; no
-state is corrupted because each snapshot is an independent row.
+Runs as a single background asyncio task in the **bot** process, beside the
+Telethon client it reads through. It used to be started from the web API's
+lifespan, where the container holding that client is a different, empty
+singleton and the session file is not mounted — so it logged "telethon
+unavailable" once per restart and wrote nothing at all, for as long as it
+existed. Everything downstream of these rows read zero and rendered a dash.
+
+Intentionally simple: one query per chat per tick, no concurrency, no
+deduplication. If the process dies, we lose the in-flight tick; no state is
+corrupted because each snapshot is an independent row.
 
 Each tick also opportunistically refreshes Chat.title from Telegram for
 rows whose ``last_synced_at`` is older than ``METADATA_STALENESS_HOURS``.

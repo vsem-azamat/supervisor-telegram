@@ -136,8 +136,7 @@ async def main() -> None:
 
     session_maker = get_session_maker()
 
-    # Registers itself in the container; nothing here needs the handle.
-    _init_telethon()
+    telethon = _init_telethon()
 
     main_bot, main_dp = _setup_main_bot(session_maker)
     setup_container(session_maker, main_bot)
@@ -160,6 +159,15 @@ async def main() -> None:
 
     tasks.append(run_mcp_server())
     tasks.append(run_expiry_sweep(session_maker))
+
+    # Member counts are recorded here for the same reason the control plane is:
+    # this is the process holding the Telethon session. The loop was started
+    # from the web API's lifespan until it turned out that process has neither
+    # the client nor the session file, and had therefore never written a row.
+    if telethon is not None:
+        from app.telethon.snapshots import run_snapshot_loop
+
+        tasks.append(run_snapshot_loop(session_maker=session_maker, telethon=telethon, bot=main_bot))
 
     try:
         await asyncio.gather(*tasks)
