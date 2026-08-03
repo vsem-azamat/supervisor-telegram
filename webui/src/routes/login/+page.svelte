@@ -27,7 +27,7 @@
 			return;
 		}
 		await auth.refresh();
-		await goto('/');
+		await goto('/admin');
 	}
 
 	async function handleMagicLink(token: string): Promise<void> {
@@ -43,7 +43,7 @@
 				return;
 			}
 			await auth.refresh();
-			await goto('/');
+			await goto('/admin');
 		} finally {
 			magicBusy = false;
 		}

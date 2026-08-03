@@ -8,15 +8,18 @@
 
 	function currentTitle(pathname: string): string {
 		const map: Record<string, string> = {
-			'/': 'Dashboard',
-			'/catalog': 'Catalog',
-			'/catalog/hierarchy': 'Hierarchy',
-			'/chats': 'Chats',
-			'/settings': 'Settings'
+			'/admin': 'Dashboard',
+			'/admin/catalog': 'Catalog',
+			'/admin/catalog/hierarchy': 'Hierarchy',
+			'/admin/chats': 'Chats',
+			'/admin/settings': 'Settings'
 		};
 		if (map[pathname]) return map[pathname];
+		// Fall back to the segment after /admin, so /admin/chats/-100… reads
+		// "Chats" rather than "Admin".
 		const segments = pathname.split('/').filter(Boolean);
-		if (segments[0]) return segments[0].charAt(0).toUpperCase() + segments[0].slice(1);
+		const named = segments[0] === 'admin' ? segments[1] : segments[0];
+		if (named) return named.charAt(0).toUpperCase() + named.slice(1);
 		return '—';
 	}
 </script>

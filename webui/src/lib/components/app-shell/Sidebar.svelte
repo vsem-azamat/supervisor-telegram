@@ -6,25 +6,31 @@
 	type NavItem = { href: string; label: string; icon: Component };
 	type NavGroup = { label: string; items: NavItem[] };
 
+	// Everything the console reaches lives under /admin. The public site sits at
+	// the root and is not navigable from here on purpose — it is a different
+	// audience, not a different tab.
 	const groups: NavGroup[] = [
 		{
 			label: 'Overview',
-			items: [{ href: '/', label: 'Dashboard', icon: LayoutDashboard }]
+			items: [{ href: '/admin', label: 'Dashboard', icon: LayoutDashboard }]
 		},
 		{
 			label: 'Resources',
-			items: [{ href: '/catalog', label: 'Catalog', icon: MessageSquare }]
+			items: [{ href: '/admin/catalog', label: 'Catalog', icon: MessageSquare }]
 		},
 		{
 			label: 'System',
-			items: [{ href: '/settings', label: 'Settings', icon: Settings }]
+			items: [{ href: '/admin/settings', label: 'Settings', icon: Settings }]
 		}
 	];
 
 	function isActive(href: string): boolean {
-		if (href === '/') return page.url.pathname === '/';
-		if (href === '/catalog') {
-			return page.url.pathname === '/catalog' || page.url.pathname.startsWith('/chats');
+		if (href === '/admin') return page.url.pathname === '/admin';
+		if (href === '/admin/catalog') {
+			return (
+				page.url.pathname.startsWith('/admin/catalog') ||
+				page.url.pathname.startsWith('/admin/chats')
+			);
 		}
 		return page.url.pathname === href || page.url.pathname.startsWith(href + '/');
 	}

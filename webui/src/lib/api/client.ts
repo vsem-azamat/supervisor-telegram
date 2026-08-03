@@ -20,9 +20,15 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<Api
 			headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) }
 		});
 		if (!res.ok) {
-			// 401 on any protected endpoint → bounce to /login. Auth endpoints
-			// are allowed to return 401 silently (e.g. /me on boot).
-			if (res.status === 401 && !path.startsWith('/api/auth')) {
+			// 401 on a protected endpoint → bounce to /login. Two families are
+			// exempt. `/api/auth` returns 401 as a normal answer (`/me` on boot
+			// says "nobody is signed in"). `/api/public` is read by people who
+			// have no session and are not meant to get one — a student on the
+			// catalog, or an applicant opening the join check inside Telegram —
+			// and sending them to a sign-in page would be answering a question
+			// they did not ask.
+			const exempt = path.startsWith('/api/auth') || path.startsWith('/api/public');
+			if (res.status === 401 && !exempt) {
 				const { goto } = await import('$app/navigation');
 				void goto('/login');
 			}

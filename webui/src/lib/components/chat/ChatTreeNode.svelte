@@ -85,7 +85,7 @@
 		<button
 			type="button"
 			class="min-w-0 flex-1 truncate text-left font-medium text-zinc-800 hover:text-zinc-950 hover:underline"
-			onclick={() => goto(`/chats/${node.id}`)}
+			onclick={() => goto(`/admin/chats/${node.id}`)}
 			title={label}
 		>
 			{#each labelSegments as seg}

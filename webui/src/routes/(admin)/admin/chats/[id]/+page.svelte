@@ -311,7 +311,7 @@
 					{#if detail.data.parent_chat_id !== null}
 						<div class="flex items-baseline gap-2">
 							<span class="text-zinc-500">Parent:</span>
-							<a href="/chats/{detail.data.parent_chat_id}" class="text-zinc-800 hover:underline">
+							<a href="/admin/chats/{detail.data.parent_chat_id}" class="text-zinc-800 hover:underline">
 								#{detail.data.parent_chat_id}
 							</a>
 							{#if detail.data.relation_notes}
@@ -325,7 +325,7 @@
 							<ul class="ml-4 list-disc space-y-0.5">
 								{#each detail.data.children as c (c.id)}
 									<li>
-										<a href="/chats/{c.id}" class="text-zinc-800 hover:underline">
+										<a href="/admin/chats/{c.id}" class="text-zinc-800 hover:underline">
 											{c.title ?? `#${c.id}`}
 										</a>
 										{#if c.relation_notes}
