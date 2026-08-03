@@ -133,3 +133,28 @@ class TestPacing:
     def test_there_is_always_a_pause_between_writes(self) -> None:
         assert tg_add_bot.MIN_DELAY > 0
         assert tg_add_bot.MAX_DELAY > tg_add_bot.MIN_DELAY
+
+
+class TestApprovedJoinRequests:
+    """The notice a chat with join approval produces, and the easy one to miss.
+
+    Most of these chats vet applicants, so an approved join is recorded as
+    `JoinedByRequest` rather than as an addition. A filter without it clears a
+    handful of notices and leaves the actual pile in place.
+    """
+
+    def test_an_approved_join_by_the_bot_is_a_notice(self) -> None:
+        from telethon.tl.types import MessageActionChatJoinedByRequest
+
+        message = _service(MessageActionChatJoinedByRequest())
+        message.from_id = SimpleNamespace(user_id=BOT)
+
+        assert tg_add_bot.announces(message, {BOT, WORK}) is True
+
+    def test_a_student_approved_into_the_chat_is_left_alone(self) -> None:
+        from telethon.tl.types import MessageActionChatJoinedByRequest
+
+        message = _service(MessageActionChatJoinedByRequest())
+        message.from_id = SimpleNamespace(user_id=STRANGER)
+
+        assert tg_add_bot.announces(message, {BOT, WORK}) is False

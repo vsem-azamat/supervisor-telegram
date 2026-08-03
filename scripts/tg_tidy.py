@@ -58,14 +58,26 @@ DEFAULT_LOOKBACK = 3000
 
 
 def membership_actions() -> tuple[type, ...]:
-    """Notices about who is in the chat."""
+    """Notices about who is in the chat.
+
+    ``JoinedByRequest`` is the one that matters most here and the easiest to
+    miss. A chat with join approval turned on — which is most of these — records
+    every approved applicant that way rather than as an addition, so leaving it
+    out would clear a handful of notices and leave the actual pile untouched.
+    """
     from telethon.tl.types import (
         MessageActionChatAddUser,
         MessageActionChatDeleteUser,
         MessageActionChatJoinedByLink,
+        MessageActionChatJoinedByRequest,
     )
 
-    return (MessageActionChatAddUser, MessageActionChatDeleteUser, MessageActionChatJoinedByLink)
+    return (
+        MessageActionChatAddUser,
+        MessageActionChatDeleteUser,
+        MessageActionChatJoinedByLink,
+        MessageActionChatJoinedByRequest,
+    )
 
 
 def chat_change_actions() -> tuple[type, ...]:
