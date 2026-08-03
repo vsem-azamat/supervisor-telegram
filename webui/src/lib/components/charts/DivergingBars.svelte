@@ -1,7 +1,7 @@
 <script lang="ts">
 	type Item = { label: string; value: number | null; secondary?: string; href?: string };
 	type Props = { items: Item[]; empty?: string };
-	let { items, empty = 'No data' }: Props = $props();
+	let { items, empty = 'Нет данных' }: Props = $props();
 
 	const max = $derived(
 		Math.max(1, ...items.map((i) => Math.abs(i.value ?? 0)))

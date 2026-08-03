@@ -1,22 +1,16 @@
 <script lang="ts">
+	import { relativeTime } from '$lib/format';
 	import type { components } from '$lib/api/types';
 
 	type Ping = components['schemas']['SpamPingRead'];
 	type Props = { items: Ping[]; empty?: string; showChat?: boolean };
-	let { items, empty = 'No pings recorded.', showChat = false }: Props = $props();
+	let { items, empty = 'Срабатываний не записано.', showChat = false }: Props = $props();
 
-	function fmtRelative(iso: string): string {
-		const now = Date.now();
-		const then = new Date(iso).getTime();
-		const diff = Math.max(0, now - then);
-		const m = Math.floor(diff / 60_000);
-		if (m < 1) return 'just now';
-		if (m < 60) return `${m}m ago`;
-		const h = Math.floor(m / 60);
-		if (h < 24) return `${h}h ago`;
-		const d = Math.floor(h / 24);
-		return `${d}d ago`;
-	}
+	// What the detector caught, in the words a moderator would use for it.
+	const KIND: Record<string, string> = {
+		mention: 'упоминание',
+		link: 'ссылка'
+	};
 </script>
 
 {#if items.length === 0}
@@ -33,13 +27,13 @@
 								? 'bg-amber-100 text-amber-700'
 								: 'bg-rose-100 text-rose-700'}"
 						>
-							{ping.kind}
+							{KIND[ping.kind] ?? ping.kind}
 						</span>
 						{#each ping.matches as match (match)}
 							<code class="truncate rounded bg-zinc-100 px-1 py-0.5 text-[11px] text-zinc-700">{match}</code>
 						{/each}
 					</span>
-					<span class="shrink-0 text-zinc-400">{fmtRelative(ping.detected_at)}</span>
+					<span class="shrink-0 text-zinc-400">{relativeTime(ping.detected_at)}</span>
 				</div>
 				{#if showChat && ping.chat_title}
 					<a href="/admin/chats/{ping.chat_id}" class="block text-xs text-zinc-500 hover:underline">

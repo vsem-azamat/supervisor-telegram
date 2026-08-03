@@ -6,7 +6,7 @@
 		format?: (n: number) => string;
 		max?: number;
 	};
-	let { items, empty = 'No data', format = (n) => n.toLocaleString(), max }: Props = $props();
+	let { items, empty = 'Нет данных', format = (n) => n.toLocaleString(), max }: Props = $props();
 
 	const computedMax = $derived(max ?? Math.max(1, ...items.map((i) => i.value)));
 </script>

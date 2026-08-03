@@ -110,12 +110,12 @@
 
 	async function saveHierarchy(): Promise<void> {
 		if (!selectedChat) {
-			toast.error('Select a chat first');
+			toast.error('Сначала выберите чат');
 			return;
 		}
 		const parent = parentChatId ? Number(parentChatId) : null;
 		if (parent !== null && (!Number.isFinite(parent) || parent === selectedChat.id || descendantIds.has(parent))) {
-			toast.error('Choose a valid parent chat');
+			toast.error('Такой родитель не подходит');
 			return;
 		}
 
@@ -133,7 +133,7 @@
 			toast.error(res.error.message);
 			return;
 		}
-		toast.success('Hierarchy updated');
+		toast.success('Связь сохранена');
 		await Promise.all([chats.refresh(), tree.refresh()]);
 	}
 </script>
@@ -141,16 +141,16 @@
 <div class="mx-auto max-w-6xl space-y-4 px-6 py-6">
 	<header class="flex items-baseline justify-between">
 		<div>
-			<h2 class="text-lg font-semibold tracking-tight">Hierarchy</h2>
-			<p class="mt-0.5 text-xs text-zinc-500">Managed chat relationships.</p>
+			<h2 class="text-lg font-semibold tracking-tight">Иерархия</h2>
+			<p class="mt-0.5 text-xs text-zinc-500">Какой чат под каким. Отсюда берётся группировка на публичном сайте.</p>
 		</div>
 		<div class="flex items-center gap-3 text-xs text-zinc-500">
 			{#if tree.lastUpdatedAt}
-				<span>Updated {tree.lastUpdatedAt.toLocaleTimeString()}</span>
+				<span>Обновлено {tree.lastUpdatedAt.toLocaleTimeString('ru-RU')}</span>
 			{/if}
 			<Button variant="outline" size="xs" onclick={() => Promise.all([chats.refresh(), tree.refresh()])}>
 				<RefreshCw class="h-3 w-3" />
-				Refresh
+				Обновить
 			</Button>
 		</div>
 	</header>
@@ -159,20 +159,20 @@
 		<div class="flex items-center gap-3 rounded-md border border-zinc-200 bg-white px-3 py-2.5">
 			<Network class="h-4 w-4 text-zinc-500" />
 			<div class="min-w-0">
-				<div class="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Chats</div>
+				<div class="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Чатов</div>
 				<div class="text-lg font-semibold tracking-tight text-zinc-900">{stats.total}</div>
 			</div>
 		</div>
 		<div class="rounded-md border border-zinc-200 bg-white px-3 py-2.5">
-			<div class="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Networks</div>
+			<div class="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Деревьев</div>
 			<div class="text-lg font-semibold tracking-tight text-zinc-900">{stats.rootCount}</div>
 		</div>
 		<div class="rounded-md border border-zinc-200 bg-white px-3 py-2.5">
-			<div class="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Levels</div>
+			<div class="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Уровней</div>
 			<div class="text-lg font-semibold tracking-tight text-zinc-900">{enrichedRoots.length === 0 ? '-' : stats.maxDepth + 1}</div>
 		</div>
 		<div class="rounded-md border border-zinc-200 bg-white px-3 py-2.5">
-			<div class="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Largest</div>
+			<div class="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Самое большое</div>
 			<div class="text-lg font-semibold tracking-tight text-zinc-900">{stats.biggestNetwork || '-'}</div>
 		</div>
 	</div>
@@ -182,26 +182,26 @@
 			<div class="flex items-center justify-between gap-3 border-b border-zinc-200 bg-zinc-50/80 p-2">
 				<div class="relative min-w-0 flex-1">
 					<Search class="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
-					<Input bind:value={query} placeholder="Filter chats..." class="h-7 pl-8" />
+					<Input bind:value={query} placeholder="Фильтр по названию…" class="h-7 pl-8" />
 				</div>
 				<div class="flex items-center gap-1">
-					<Button variant="ghost" size="icon-xs" disabled={enrichedRoots.length === 0} onclick={expandAll} title="Expand all">
+					<Button variant="ghost" size="icon-xs" disabled={enrichedRoots.length === 0} onclick={expandAll} title="Раскрыть всё">
 						<ChevronsUpDown class="h-3 w-3" />
 					</Button>
-					<Button variant="ghost" size="icon-xs" disabled={enrichedRoots.length === 0} onclick={collapseAll} title="Collapse all">
+					<Button variant="ghost" size="icon-xs" disabled={enrichedRoots.length === 0} onclick={collapseAll} title="Свернуть всё">
 						<ChevronsDownUp class="h-3 w-3" />
 					</Button>
 				</div>
 			</div>
 			<div class="p-3">
 				{#if tree.loading && !tree.data}
-					<p class="text-sm text-zinc-500">Loading...</p>
+					<p class="text-sm text-zinc-500">Загружаем…</p>
 				{:else if tree.error && !tree.data}
-					<p class="text-sm text-red-600">Error: {tree.error}</p>
+					<p class="text-sm text-red-600">Ошибка: {tree.error}</p>
 				{:else if enrichedRoots.length === 0}
-					<p class="text-sm text-zinc-500">No chats registered yet.</p>
+					<p class="text-sm text-zinc-500">Чатов пока нет.</p>
 				{:else if filteredRoots.length === 0}
-					<p class="text-sm text-zinc-500">No matches for "{query}".</p>
+					<p class="text-sm text-zinc-500">По запросу «{query}» ничего не нашлось.</p>
 				{:else}
 					<ul class="space-y-0.5">
 						{#each filteredRoots as root (root.id)}
@@ -215,40 +215,40 @@
 		<div class="h-fit space-y-3 rounded-md border border-zinc-200 bg-white p-3">
 			<div class="flex items-center gap-2 text-sm font-medium text-zinc-900">
 				<Network class="h-4 w-4 text-zinc-500" />
-				Parent link
+				Родительский чат
 			</div>
 			<label class="space-y-1 text-xs">
-				<span class="text-zinc-600">Chat</span>
+				<span class="text-zinc-600">Чат</span>
 				<select
 					bind:value={selectedChatId}
 					class="h-8 w-full rounded-md border border-zinc-200 bg-white px-2 text-sm"
 				>
-					<option value="">Select chat</option>
+					<option value="">Выберите чат</option>
 					{#each chats.data ?? [] as chat (chat.id)}
 						<option value={String(chat.id)}>{chat.title ?? `#${chat.id}`}</option>
 					{/each}
 				</select>
 			</label>
 			<label class="space-y-1 text-xs">
-				<span class="text-zinc-600">Parent</span>
+				<span class="text-zinc-600">Родитель</span>
 				<select
 					bind:value={parentChatId}
 					disabled={!selectedChat}
 					class="h-8 w-full rounded-md border border-zinc-200 bg-white px-2 text-sm disabled:opacity-50"
 				>
-					<option value="">No parent</option>
+					<option value="">Без родителя</option>
 					{#each parentOptions as chat (chat.id)}
 						<option value={String(chat.id)}>{chat.title ?? `#${chat.id}`}</option>
 					{/each}
 				</select>
 			</label>
 			<label class="space-y-1 text-xs">
-				<span class="text-zinc-600">Notes</span>
-				<Input bind:value={relationNotes} disabled={!selectedChat} placeholder="main, region, topic" />
+				<span class="text-zinc-600">Пометка</span>
+				<Input bind:value={relationNotes} disabled={!selectedChat} placeholder="общий, факультет, общежитие" />
 			</label>
 			<Button size="sm" class="w-full" disabled={!selectedChat || saving} onclick={saveHierarchy}>
 				<Save class="h-3.5 w-3.5" />
-				{saving ? 'Saving...' : 'Save'}
+				{saving ? 'Сохраняем…' : 'Сохранить'}
 			</Button>
 		</div>
 	</div>

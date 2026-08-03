@@ -17,7 +17,7 @@
 		value,
 		caption,
 		href,
-		cta = 'Open',
+		cta = 'Открыть',
 		icon: Icon,
 		tone = 'default',
 		children

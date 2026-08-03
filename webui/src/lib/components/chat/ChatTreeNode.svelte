@@ -113,7 +113,7 @@
 		{#if hasChildren}
 			<span
 				class="ml-auto rounded-full bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500 group-hover:bg-zinc-200"
-				title="{node.subtreeSize} chats including this root"
+				title="{node.subtreeSize} чатов вместе с этим"
 			>
 				{node.subtreeSize}
 			</span>

@@ -4,6 +4,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { apiFetch } from '$lib/api/client';
 	import { auth } from '$lib/stores/auth.svelte';
+	import { plural, relativeTime } from '$lib/format';
 	import { toast } from 'svelte-sonner';
 	import type { components } from '$lib/api/types';
 
@@ -34,27 +35,15 @@
 	});
 
 	async function revokeSession(id: string): Promise<void> {
-		if (!confirm('Revoke this session? The other browser will be signed out.')) return;
+		if (!confirm('Закрыть эту сессию? В том браузере придётся войти заново.')) return;
 		revoking = id;
 		const res = await apiFetch(`/api/admin/sessions/${id}`, { method: 'DELETE' });
 		revoking = null;
 		if (res.error) toast.error(res.error.message);
 		else {
-			toast.success('Session revoked');
+			toast.success('Сессия закрыта');
 			await load();
 		}
-	}
-
-	function formatRelative(iso: string): string {
-		const d = new Date(iso);
-		const diffMs = Date.now() - d.getTime();
-		const diffMin = Math.round(diffMs / 60_000);
-		if (diffMin < 1) return 'just now';
-		if (diffMin < 60) return `${diffMin}m ago`;
-		const diffH = Math.round(diffMin / 60);
-		if (diffH < 24) return `${diffH}h ago`;
-		const diffD = Math.round(diffH / 24);
-		return `${diffD}d ago`;
 	}
 
 	function shortenAgent(ua: string | null): string {
@@ -69,20 +58,20 @@
 
 <div class="mx-auto max-w-4xl space-y-4 px-6 py-6">
 	<header>
-		<h2 class="text-lg font-semibold tracking-tight">Settings</h2>
-		<p class="mt-1 text-sm text-zinc-500">Operational status and active session management.</p>
+		<h2 class="text-lg font-semibold tracking-tight">Настройки</h2>
+		<p class="mt-1 text-sm text-zinc-500">Состояние системы и открытые сессии.</p>
 	</header>
 
 	{#if loading}
-		<p class="text-sm text-zinc-500">Loading…</p>
+		<p class="text-sm text-zinc-500">Загружаем…</p>
 	{:else if error}
-		<p class="text-sm text-red-600">Error: {error}</p>
+		<p class="text-sm text-red-600">Ошибка: {error}</p>
 	{:else}
 		<Card.Root>
-			<Card.Header><Card.Title class="text-sm">Identity</Card.Title></Card.Header>
+			<Card.Header><Card.Title class="text-sm">Кто вошёл</Card.Title></Card.Header>
 			<Card.Content class="text-sm">
 				{#if auth.me}
-					Signed in as user <span class="font-mono">#{auth.me.user_id}</span>
+					Вы вошли как <span class="font-mono">#{auth.me.user_id}</span>
 				{/if}
 			</Card.Content>
 		</Card.Root>
@@ -90,7 +79,7 @@
 		<Card.Root>
 			<Card.Header>
 				<Card.Title class="text-sm">
-					Active sessions
+					Открытые сессии
 					{#if sessions}
 						<span class="ml-1 text-xs font-normal text-zinc-500">({sessions.length})</span>
 					{/if}
@@ -98,7 +87,7 @@
 			</Card.Header>
 			<Card.Content>
 				{#if !sessions || sessions.length === 0}
-					<p class="text-xs text-zinc-500">No active sessions.</p>
+					<p class="text-xs text-zinc-500">Открытых сессий нет.</p>
 				{:else}
 					<ul class="divide-y divide-zinc-100 text-sm">
 						{#each sessions as s (s.session_id)}
@@ -106,11 +95,11 @@
 								<div class="flex min-w-0 flex-col">
 									<div class="flex items-baseline gap-2">
 										<span class="text-zinc-800">{shortenAgent(s.user_agent)}</span>
-										{#if s.is_current}<Badge class="text-[10px]">this session</Badge>{/if}
+										{#if s.is_current}<Badge class="text-[10px]">эта сессия</Badge>{/if}
 									</div>
 									<div class="text-xs text-zinc-500">
-										{s.ip ?? '—'} · last seen {formatRelative(s.last_seen_at)} · expires
-										{new Date(s.expires_at).toLocaleDateString()}
+										{s.ip ?? '—'} · был {relativeTime(s.last_seen_at)} · истекает
+										{new Date(s.expires_at).toLocaleDateString('ru-RU')}
 									</div>
 								</div>
 								{#if !s.is_current}
@@ -121,7 +110,7 @@
 										onclick={() => revokeSession(s.session_id)}
 										disabled={revoking === s.session_id}
 									>
-										{revoking === s.session_id ? '…' : 'Revoke'}
+										{revoking === s.session_id ? '…' : 'Закрыть'}
 									</Button>
 								{/if}
 							</li>
@@ -133,42 +122,45 @@
 
 		{#if system}
 			<Card.Root>
-				<Card.Header><Card.Title class="text-sm">System</Card.Title></Card.Header>
+				<Card.Header><Card.Title class="text-sm">Система</Card.Title></Card.Header>
 				<Card.Content class="grid grid-cols-2 gap-2 text-sm">
 					<div>
-						Telethon: {#if system.telethon_connected}<Badge>connected</Badge>{:else}
-							<Badge variant="secondary">not configured</Badge>{/if}
+						Telethon: {#if system.telethon_connected}<Badge>на связи</Badge>{:else}
+							<Badge variant="secondary">не настроен</Badge>{/if}
 					</div>
 					<div>
-						Publish bot: {#if system.publish_bot_ready}<Badge>ready</Badge>{:else}
-							<Badge variant="secondary">not started</Badge>{/if}
+						Бот публикаций: {#if system.publish_bot_ready}<Badge>готов</Badge>{:else}
+							<Badge variant="secondary">не запущен</Badge>{/if}
 					</div>
 					<div>
-						Super admins: <span class="font-mono text-xs">{system.super_admin_ids.join(', ')}</span>
+						Главные админы: <span class="font-mono text-xs">{system.super_admin_ids.join(', ')}</span>
 					</div>
-					<div>Session TTL: {system.session_ttl_days} days</div>
+					<div>
+						Сессия живёт: {system.session_ttl_days}
+						{plural(system.session_ttl_days, 'день', 'дня', 'дней')}
+					</div>
 					<div class="col-span-2">
-						Allowed origins:
+						Разрешённые источники:
 						<span class="font-mono text-xs">
-							{system.allowed_origins.length > 0 ? system.allowed_origins.join(', ') : 'http://localhost:5173 (default)'}
+							{system.allowed_origins.length > 0 ? system.allowed_origins.join(', ') : 'http://localhost:5173 (по умолчанию)'}
 						</span>
 					</div>
 				</Card.Content>
 			</Card.Root>
 
 			<Card.Root>
-				<Card.Header><Card.Title class="text-sm">Feature flags</Card.Title></Card.Header>
+				<Card.Header><Card.Title class="text-sm">Флаги возможностей</Card.Title></Card.Header>
 				<Card.Content>
 					<ul class="grid grid-cols-1 gap-1 text-sm md:grid-cols-2">
 						{#each system.feature_flags as f (f.name)}
 							<li class="flex items-center justify-between border-b border-zinc-100 py-1 last:border-0">
 								<span class="font-mono text-xs text-zinc-600">{f.name}</span>
-								{#if f.enabled}<Badge>on</Badge>{:else}<Badge variant="secondary">off</Badge>{/if}
+								{#if f.enabled}<Badge>вкл</Badge>{:else}<Badge variant="secondary">выкл</Badge>{/if}
 							</li>
 						{/each}
 					</ul>
 					<p class="mt-3 text-xs text-zinc-500">
-						These flags are read from environment / .env at process start. To change, redeploy.
+						Флаги читаются из окружения при старте процесса. Чтобы изменить — нужен передеплой.
 					</p>
 				</Card.Content>
 			</Card.Root>

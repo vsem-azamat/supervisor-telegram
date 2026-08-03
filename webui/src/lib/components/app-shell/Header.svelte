@@ -8,20 +8,27 @@
 
 	function currentTitle(pathname: string): string {
 		const map: Record<string, string> = {
-			'/admin': 'Dashboard',
-			'/admin/catalog': 'Catalog',
-			'/admin/catalog/hierarchy': 'Hierarchy',
-			'/admin/chats': 'Chats',
-			'/admin/settings': 'Settings'
+			'/admin': 'Сводка',
+			'/admin/catalog': 'Чаты',
+			'/admin/hierarchy': 'Иерархия',
+			'/admin/chats': 'Чаты',
+			'/admin/settings': 'Настройки'
 		};
 		if (map[pathname]) return map[pathname];
-		// Fall back to the segment after /admin, so /admin/chats/-100… reads
-		// "Chats" rather than "Admin".
-		const segments = pathname.split('/').filter(Boolean);
-		const named = segments[0] === 'admin' ? segments[1] : segments[0];
-		if (named) return named.charAt(0).toUpperCase() + named.slice(1);
-		return '—';
+		// A chat's own page: /admin/chats/-100… is still the Чаты section.
+		if (pathname.startsWith('/admin/chats/')) return 'Чат';
+		return 'Консоль';
 	}
+
+	// Which deployment this browser is actually looking at, read off the address
+	// bar rather than baked in. The badge used to say "dev" on every screen
+	// including production — a label that is wrong in the one place it matters
+	// is worse than no label, because it is read and believed.
+	const environment = $derived.by(() => {
+		const host = page.url.hostname;
+		if (host === 'localhost' || host === '127.0.0.1' || host.startsWith('dev.')) return 'dev';
+		return 'prod';
+	});
 </script>
 
 <header
@@ -29,7 +36,13 @@
 >
 	<h1 class="text-base font-medium text-zinc-900">{currentTitle(page.url.pathname)}</h1>
 	<div class="flex items-center gap-2 text-xs text-zinc-500">
-		<span class="rounded-full bg-emerald-50 px-2.5 py-1 font-medium text-emerald-700">dev</span>
+		<span
+			class="rounded-full px-2.5 py-1 font-medium {environment === 'prod'
+				? 'bg-emerald-50 text-emerald-700'
+				: 'bg-zinc-100 text-zinc-600'}"
+		>
+			{environment}
+		</span>
 		{#if auth.me}
 			<div class="flex items-center gap-1.5 rounded-md px-2 py-1">
 				<User class="h-3.5 w-3.5" />
@@ -41,10 +54,8 @@
 				onclick={() => onLogout?.()}
 			>
 				<LogOut class="h-3.5 w-3.5" />
-				<span>Logout</span>
+				<span>Выйти</span>
 			</button>
-		{:else}
-			<span>admin</span>
 		{/if}
 	</div>
 </header>
