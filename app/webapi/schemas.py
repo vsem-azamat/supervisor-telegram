@@ -3,11 +3,24 @@
 from __future__ import annotations
 
 import datetime
+import re
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 ChatResourceStatus = Literal["discovered", "approved", "disabled"]
+
+# What may be stored as a chat's public link.
+#
+# Whatever goes in this column is rendered as an `href` on a page anybody can
+# open, so the shape is checked at the boundary rather than trusted because an
+# admin typed it. Telegram has three forms — a public username, a modern invite
+# hash, and the older joinchat one — and anything else is not a chat link. A
+# `javascript:` URL is the reason this is a whitelist and not a "does it look
+# like a URL" check.
+PUBLIC_LINK = re.compile(
+    r"^https://t\.me/(?:\+[\w-]{10,}|joinchat/[\w-]{10,}|[A-Za-z][\w]{3,31})$",
+)
 
 
 class PublicCatalogItem(BaseModel):
@@ -71,6 +84,25 @@ class ChatUpdate(BaseModel):
     # Setting this publishes the chat; clearing it takes it down. Nothing else
     # does either, which is why it is one field and not a field plus a switch.
     public_link: str | None = None
+
+    @field_validator("public_link")
+    @classmethod
+    def _check_public_link(cls, value: str | None) -> str | None:
+        """Reject anything that is not a Telegram chat link.
+
+        A cleared field arrives from a form as an empty string, which must mean
+        "take it down" rather than "publish with no link" — the catalogue keys
+        off the column being set, so an empty string would list a chat whose
+        card leads nowhere.
+        """
+        if value is None:
+            return None
+        link = value.strip()
+        if not link:
+            return None
+        if not PUBLIC_LINK.match(link):
+            raise ValueError("Public link must be a Telegram chat link, e.g. https://t.me/cvut_fit")
+        return link
 
 
 class ChatNode(BaseModel):

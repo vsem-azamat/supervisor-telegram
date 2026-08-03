@@ -84,6 +84,19 @@ without a valid super-admin cookie whatever the client believes. What the
 front-end guard buys is honesty — a sign-in page instead of a console full of
 failed requests.
 
+**A public link is checked for shape before it is stored.** Its value is
+rendered as an `href` on a page anybody can open, which makes it the one
+admin-supplied field that leaves the console — so it must be a Telegram chat
+link and nothing else, refused at the schema rather than at the point of
+rendering. A cleared field means "take it down": an empty string would list a
+chat whose card leads nowhere, because the catalogue keys off the column being
+set.
+
+**Every way to publish goes through the console.** A script may fill the
+catalogue in bulk, but it must never be the only way to change it — a feature
+whose switch lives in a maintainer's terminal is a feature the operator cannot
+undo.
+
 **`/join` and `/login` stay outside both groups.** The join check is opened
 inside Telegram by an applicant who has no session and must not be sent to get
 one; the sign-in page is the seam between the halves and belongs to neither.

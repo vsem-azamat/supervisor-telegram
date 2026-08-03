@@ -7,7 +7,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import { useLivePoll } from '$lib/hooks/useLivePoll.svelte';
-	import { CheckCircle2, CircleDashed, RefreshCw, Search, Shield, XCircle } from '@lucide/svelte';
+	import { CheckCircle2, CircleDashed, Globe, RefreshCw, Search, Shield, XCircle } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import type { components } from '$lib/api/types';
 
@@ -39,7 +39,11 @@
 			all: rows.length,
 			discovered: rows.filter((chat) => chat.resource_status === 'discovered').length,
 			approved: rows.filter((chat) => chat.resource_status === 'approved').length,
-			disabled: rows.filter((chat) => chat.resource_status === 'disabled').length
+			disabled: rows.filter((chat) => chat.resource_status === 'disabled').length,
+			// Counted the way the public endpoint counts: approved *and* carrying a
+			// link. A chat with a link but no approval is not on the site, and this
+			// number would be a small lie if it said otherwise.
+			listed: rows.filter((chat) => chat.resource_status === 'approved' && chat.public_link).length
 		};
 	});
 
@@ -95,7 +99,7 @@
 		</div>
 	</header>
 
-	<div class="grid grid-cols-2 gap-3 md:grid-cols-4">
+	<div class="grid grid-cols-2 gap-3 md:grid-cols-5">
 		<div class="rounded-md border border-zinc-200 bg-white px-3 py-2.5">
 			<div class="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Total</div>
 			<div class="text-lg font-semibold tracking-tight text-zinc-900">{counts.all}</div>
@@ -111,6 +115,10 @@
 		<div class="rounded-md border border-zinc-200 bg-white px-3 py-2.5">
 			<div class="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">Disabled</div>
 			<div class="text-lg font-semibold tracking-tight text-zinc-900">{counts.disabled}</div>
+		</div>
+		<div class="rounded-md border border-zinc-200 bg-white px-3 py-2.5">
+			<div class="text-[10px] font-medium tracking-wider text-zinc-500 uppercase">On the site</div>
+			<div class="text-lg font-semibold tracking-tight text-zinc-900">{counts.listed}</div>
 		</div>
 	</div>
 
@@ -159,7 +167,12 @@
 								<div class="flex min-w-0 items-center gap-2">
 									<ChatAvatar chatId={chat.id} title={chat.title} hasPhoto={chat.has_photo} size="sm" />
 									<div class="min-w-0">
-										<div class="truncate font-medium text-zinc-900">{chat.title ?? `#${chat.id}`}</div>
+										<div class="flex items-center gap-1.5">
+											<span class="truncate font-medium text-zinc-900">{chat.title ?? `#${chat.id}`}</span>
+											{#if chat.public_link && chat.resource_status === 'approved'}
+												<Globe class="h-3 w-3 shrink-0 text-zinc-400" aria-label="On the public site" />
+											{/if}
+										</div>
 										<div class="truncate font-mono text-xs text-zinc-500">{chat.id}</div>
 									</div>
 								</div>

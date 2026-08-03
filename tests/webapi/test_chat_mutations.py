@@ -112,6 +112,98 @@ async def test_update_chat_parent_cycle_422(client_factory, db_session_maker) ->
     assert resp.status_code == 422
 
 
+class TestPublishingAChat:
+    """Setting the public link is what puts a chat on the public page.
+
+    It is the only field on this endpoint whose value is rendered to strangers
+    rather than shown back to the admin who typed it, so it is the only one with
+    a shape.
+    """
+
+    async def test_a_telegram_link_publishes(self, client_factory, db_session_maker) -> None:
+        async with db_session_maker() as s:
+            s.add(Chat(id=-2101, title="ČVUT FIT"))
+            await s.commit()
+
+        async with client_factory() as client:
+            resp = await client.patch("/api/chats/-2101", json={"public_link": "https://t.me/cvut_fit"})
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["public_link"] == "https://t.me/cvut_fit"
+
+    @pytest.mark.parametrize(
+        "link",
+        [
+            "https://t.me/+AAAAAAAAAAAAAAAA",
+            "https://t.me/joinchat/AAAAAAAAAAAAAAAA",
+        ],
+    )
+    async def test_an_invite_link_publishes(self, client_factory, db_session_maker, link: str) -> None:
+        """Closed chats have no username, so an invite hash is the only way in."""
+        async with db_session_maker() as s:
+            s.add(Chat(id=-2102, title="closed"))
+            await s.commit()
+
+        async with client_factory() as client:
+            resp = await client.patch("/api/chats/-2102", json={"public_link": link})
+
+        assert resp.status_code == 200, resp.text
+
+    @pytest.mark.parametrize(
+        "link",
+        [
+            "javascript:alert(1)",
+            "http://t.me/cvut_fit",
+            "https://evil.example/t.me/cvut_fit",
+            "https://t.me.evil.example/cvut_fit",
+            "не ссылка",
+        ],
+    )
+    async def test_anything_that_is_not_a_chat_link_is_refused(
+        self, client_factory, db_session_maker, link: str
+    ) -> None:
+        """This value ends up in an href on a page anybody can open."""
+        async with db_session_maker() as s:
+            s.add(Chat(id=-2103, title="x"))
+            await s.commit()
+
+        async with client_factory() as client:
+            resp = await client.patch("/api/chats/-2103", json={"public_link": link})
+
+        assert resp.status_code == 422
+        async with db_session_maker() as s:
+            ch = (await s.execute(select(Chat).where(Chat.id == -2103))).scalar_one()
+            assert ch.public_link is None
+
+    async def test_clearing_the_field_takes_the_chat_down(self, client_factory, db_session_maker) -> None:
+        """A form sends an empty string for a cleared input, and it must mean
+        "take it down" — not "publish with a link that goes nowhere"."""
+        async with db_session_maker() as s:
+            s.add(Chat(id=-2104, title="listed", public_link="https://t.me/listed_chat"))
+            await s.commit()
+
+        async with client_factory() as client:
+            resp = await client.patch("/api/chats/-2104", json={"public_link": "   "})
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["public_link"] is None
+        async with db_session_maker() as s:
+            ch = (await s.execute(select(Chat).where(Chat.id == -2104))).scalar_one()
+            assert ch.public_link is None
+
+    async def test_a_patch_that_says_nothing_about_it_leaves_it_alone(self, client_factory, db_session_maker) -> None:
+        """Renaming a chat must not quietly unpublish it."""
+        async with db_session_maker() as s:
+            s.add(Chat(id=-2105, title="listed", public_link="https://t.me/listed_chat"))
+            await s.commit()
+
+        async with client_factory() as client:
+            resp = await client.patch("/api/chats/-2105", json={"title": "renamed"})
+
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["public_link"] == "https://t.me/listed_chat"
+
+
 async def test_update_chat_partial_keeps_other_fields(client_factory, db_session_maker) -> None:
     async with db_session_maker() as s:
         s.add(Chat(id=-2004, title="orig", welcome_message="orig-welcome"))
