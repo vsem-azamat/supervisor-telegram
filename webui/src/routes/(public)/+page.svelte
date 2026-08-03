@@ -9,6 +9,7 @@
 	// boundary, rather than by a conditional on this page that somebody can
 	// delete.
 	import { apiFetch } from '$lib/api/client';
+	import { plural } from '$lib/format';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { ExternalLink, Search } from '@lucide/svelte';
 	import type { components } from '$lib/api/types';
@@ -117,7 +118,7 @@
 					<h2 class="text-sm font-semibold tracking-tight text-zinc-900">{section.name}</h2>
 					<span class="font-mono text-xs text-zinc-400">
 						{section.chats.length}
-						{section.chats.length === 1 ? 'чат' : 'чата'}
+						{plural(section.chats.length, 'чат', 'чата', 'чатов')}
 					</span>
 				</div>
 

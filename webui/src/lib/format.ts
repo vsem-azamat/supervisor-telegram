@@ -1,5 +1,5 @@
 /**
- * Wording shared by every screen in the console.
+ * Wording shared by every screen, console and catalogue alike.
  *
  * Relative time was written three times — on the chat page, in settings and in
  * the spam list — and each copy spelled it slightly differently. In English
