@@ -78,6 +78,22 @@ async def _messages(session_maker, chat_id: int, count: int, *, days_ago: int = 
         await session.commit()
 
 
+async def _recorded_for_days(session_maker, days: int, *, chat_id: int = CVUT) -> None:
+    """One message on each of the last `days` days, so the window has ground.
+
+    Every activity assertion needs this. Without it the endpoint answers
+    "unknown" for everybody, which is the whole point of the rule and would
+    otherwise make each band test pass or fail for the wrong reason.
+    """
+    async with session_maker() as session:
+        session.add(Chat(id=chat_id, title="ground", resource_status=Chat.STATUS_APPROVED))
+        for day in range(days):
+            message = Message(chat_id=chat_id, user_id=7, message_id=900_000 + day, message="ground")
+            message.timestamp = utc_now() - datetime.timedelta(days=day)
+            session.add(message)
+        await session.commit()
+
+
 class TestWhatGetsIn:
     async def test_an_approved_chat_with_a_link_is_listed(self, client_factory, db_session_maker) -> None:
         await _seed(db_session_maker, _chat(FIT, "ČVUT FIT", public_link="https://t.me/cvut_fit"))
@@ -146,43 +162,96 @@ class TestWhatComesBack:
         assert [row["title"] for row in rows] == ["ČVUT FIT", "ČVUT | ЧВУТ"]
 
 
-class TestActivity:
-    async def test_a_silent_chat_says_so(self, client_factory, db_session_maker) -> None:
-        """Joining a room where nobody has spoken since March should be a choice."""
-        await _seed(db_session_maker, _chat(FIT, "ČVUT FIT", public_link="https://t.me/cvut_fit"))
+class TestActivityIsWithheldUntilItMeansSomething:
+    async def test_a_fresh_database_claims_nothing(self, client_factory, db_session_maker) -> None:
+        """The failure this rule exists for.
 
-        async with client_factory() as client:
-            rows = (await client.get("/api/public/catalog")).json()
-
-        assert rows[0]["activity"] == "quiet"
-
-    async def test_a_handful_of_messages_reads_as_active(self, client_factory, db_session_maker) -> None:
+        When the bot returned after ten weeks away, a thirty-day count held one
+        day of traffic, and every chat that had seen a single message read
+        "active" — including the busiest in the network and one with two
+        messages to its name. The number was right and the claim was false.
+        """
         await _seed(db_session_maker, _chat(FIT, "ČVUT FIT", public_link="https://t.me/cvut_fit"))
         await _messages(db_session_maker, FIT, 5)
 
         async with client_factory() as client:
             rows = (await client.get("/api/public/catalog")).json()
 
-        assert rows[0]["activity"] == "active"
+        assert rows[0]["activity"] == "unknown"
+
+    async def test_a_fortnight_of_recording_is_enough_to_speak(self, client_factory, db_session_maker) -> None:
+        await _recorded_for_days(db_session_maker, 14)
+        await _seed(db_session_maker, _chat(FIT, "ČVUT FIT", public_link="https://t.me/cvut_fit"))
+
+        async with client_factory() as client:
+            rows = (await client.get("/api/public/catalog")).json()
+
+        assert {row["activity"] for row in rows} != {"unknown"}
+
+    async def test_the_gap_is_judged_across_the_network_not_per_chat(self, client_factory, db_session_maker) -> None:
+        """A silent chat is a fact about the chat. A silent database is not."""
+        await _recorded_for_days(db_session_maker, 14)
+        await _seed(db_session_maker, _chat(FIT, "ČVUT FIT", public_link="https://t.me/cvut_fit"))
+
+        async with client_factory() as client:
+            rows = (await client.get("/api/public/catalog")).json()
+
+        by_title = {row["title"]: row for row in rows}
+        assert by_title["ČVUT FIT"]["activity"] == "quiet"
+
+
+class TestTheBands:
+    async def test_a_silent_chat_says_so(self, client_factory, db_session_maker) -> None:
+        """Joining a room where nobody has spoken since March should be a choice."""
+        await _recorded_for_days(db_session_maker, 20)
+        await _seed(db_session_maker, _chat(FIT, "ČVUT FIT", public_link="https://t.me/cvut_fit"))
+
+        async with client_factory() as client:
+            rows = (await client.get("/api/public/catalog")).json()
+
+        assert next(r for r in rows if r["title"] == "ČVUT FIT")["activity"] == "quiet"
+
+    async def test_a_message_a_month_is_not_activity(self, client_factory, db_session_maker) -> None:
+        """One message in thirty days used to read "active". It is nearly dead."""
+        await _recorded_for_days(db_session_maker, 20)
+        await _seed(db_session_maker, _chat(FIT, "ČVUT FIT", public_link="https://t.me/cvut_fit"))
+        await _messages(db_session_maker, FIT, 1)
+
+        async with client_factory() as client:
+            rows = (await client.get("/api/public/catalog")).json()
+
+        assert next(r for r in rows if r["title"] == "ČVUT FIT")["activity"] == "quiet"
+
+    async def test_a_dozen_messages_reads_as_active(self, client_factory, db_session_maker) -> None:
+        await _recorded_for_days(db_session_maker, 20)
+        await _seed(db_session_maker, _chat(FIT, "ČVUT FIT", public_link="https://t.me/cvut_fit"))
+        await _messages(db_session_maker, FIT, 12)
+
+        async with client_factory() as client:
+            rows = (await client.get("/api/public/catalog")).json()
+
+        assert next(r for r in rows if r["title"] == "ČVUT FIT")["activity"] == "active"
 
     async def test_a_hundred_messages_reads_as_busy(self, client_factory, db_session_maker) -> None:
+        await _recorded_for_days(db_session_maker, 20)
         await _seed(db_session_maker, _chat(FIT, "ČVUT FIT", public_link="https://t.me/cvut_fit"))
         await _messages(db_session_maker, FIT, 100)
 
         async with client_factory() as client:
             rows = (await client.get("/api/public/catalog")).json()
 
-        assert rows[0]["activity"] == "busy"
+        assert next(r for r in rows if r["title"] == "ČVUT FIT")["activity"] == "busy"
 
     async def test_old_traffic_does_not_keep_a_dead_chat_alive(self, client_factory, db_session_maker) -> None:
         """A chat busy last spring and silent since is silent."""
+        await _recorded_for_days(db_session_maker, 20)
         await _seed(db_session_maker, _chat(FIT, "ČVUT FIT", public_link="https://t.me/cvut_fit"))
         await _messages(db_session_maker, FIT, 200, days_ago=90)
 
         async with client_factory() as client:
             rows = (await client.get("/api/public/catalog")).json()
 
-        assert rows[0]["activity"] == "quiet"
+        assert next(r for r in rows if r["title"] == "ČVUT FIT")["activity"] == "quiet"
 
 
 async def test_public_catalog_does_not_open_admin_routes(client_factory) -> None:

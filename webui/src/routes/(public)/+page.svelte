@@ -15,9 +15,14 @@
 
 	type CatalogItem = components['schemas']['PublicCatalogItem'];
 
-	// Said plainly, because a badge that reads "quiet" is only useful if it
-	// stops somebody joining a room where nobody has spoken since March.
-	const ACTIVITY: Record<CatalogItem['activity'], { label: string; class: string }> = {
+	// Said plainly, because a badge that reads "тихий" is only useful if it stops
+	// somebody joining a room where nobody has spoken since March.
+	//
+	// `unknown` has no entry and renders nothing. The API says it when the
+	// recording behind the number is too short to stand on, and an empty space
+	// is the honest rendering of "we do not know yet" — a grey "тихий" would be
+	// a claim.
+	const ACTIVITY: Record<string, { label: string; class: string }> = {
 		busy: { label: 'оживлённый', class: 'bg-emerald-50 text-emerald-700' },
 		active: { label: 'активный', class: 'bg-zinc-100 text-zinc-600' },
 		quiet: { label: 'тихий', class: 'bg-zinc-100 text-zinc-500' }
@@ -131,13 +136,15 @@
 							</div>
 							<div class="min-w-0 flex-1">
 								<div class="truncate text-sm font-medium text-zinc-900">{chat.title}</div>
-								<span
-									class="mt-0.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-medium {ACTIVITY[
-										chat.activity
-									].class}"
-								>
-									{ACTIVITY[chat.activity].label}
-								</span>
+								{#if ACTIVITY[chat.activity]}
+									<span
+										class="mt-0.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-medium {ACTIVITY[
+											chat.activity
+										].class}"
+									>
+										{ACTIVITY[chat.activity].label}
+									</span>
+								{/if}
 							</div>
 							<ExternalLink class="h-3.5 w-3.5 shrink-0 text-zinc-400 group-hover:text-zinc-600" />
 						</a>
