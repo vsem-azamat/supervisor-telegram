@@ -183,6 +183,8 @@ scripts/*
 !scripts/env_to_github.sh
 !scripts/adopt_existing_db.py
 !scripts/tg_accounts.py
+!scripts/tg_chats.py
+!scripts/tg_promote.py
 .claude/
 
 # Local credential drops — never tracked.

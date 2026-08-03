@@ -59,10 +59,39 @@ its settings — Telegram sees no difference between the file and the person.
 - The bot's own userbot session (`moderator_userbot.session`, mounted into the
   container) is a third, unrelated session. Do not point these scripts at it.
 
-## What comes next
+## Handing administration over
 
-Handing the chats over is the following step, and deliberately not part of this
-one: with both accounts signed in, `work` gets promoted to administrator
-everywhere `main` can appoint admins, and the moderator bot gets invited back to
-the chats it left in May. Only then does it make sense to take anything away
-from `main`.
+Which chats are in scope comes from the account's own Telegram folders — it has
+them sorted by university already, and that sorting describes the perimeter
+better than anything this repository could infer:
+
+```bash
+uv run python scripts/tg_chats.py folders --account main
+uv run python scripts/tg_chats.py candidates --account main --bot @konnekt_moder_bot --out chats.csv
+```
+
+Discovery reads a chat list, never a chat. Private conversations are dropped
+where the folder is parsed, and the file contains no call that returns message
+contents. The personal folder is excluded by default, and exclusion beats any
+`--folder` match.
+
+Then the promotion pass, over a scope file of chat ids:
+
+```bash
+uv run python scripts/tg_promote.py --account main --target @work --chats scope.txt            # plan
+uv run python scripts/tg_promote.py --account main --target @work --chats scope.txt --apply
+```
+
+It grants every administrator right, including `add_admins` — the second account
+has to be able to invite the bot back and to hand over in turn. It never
+transfers ownership, and it never demotes, removes or leaves anything: the
+personal account keeps what it has until a person removes it by hand.
+
+Pacing is the part that matters. Telegram reads a burst of membership changes as
+spam and limits the account doing the appointing — the one that owns the chats.
+Delays between writes are randomised, a flood wait is obeyed rather than retried
+through, and `PEER_FLOOD` stops the run. Pass `--journal` so a stopped run
+resumes instead of starting over.
+
+Only once the second account is verified to work does it make sense to take
+anything away from the first.
