@@ -23,7 +23,7 @@
 			body: JSON.stringify(user)
 		});
 		if (res.error) {
-			error = res.error.message ?? 'Login failed';
+			error = res.error.message ?? 'Войти не удалось';
 			return;
 		}
 		await auth.refresh();
@@ -39,7 +39,7 @@
 				body: JSON.stringify({ token })
 			});
 			if (res.error) {
-				error = res.error.message ?? 'Login failed';
+				error = res.error.message ?? 'Войти не удалось';
 				return;
 			}
 			await auth.refresh();
@@ -52,9 +52,9 @@
 
 <div class="flex min-h-screen items-center justify-center bg-zinc-50 px-4">
 	<div class="w-full max-w-sm space-y-4 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm">
-		<h1 class="text-lg font-semibold tracking-tight">Konnekt Admin</h1>
+		<h1 class="text-lg font-semibold tracking-tight">Konnekt · консоль</h1>
 		<p class="text-sm text-zinc-500">
-			{magicBusy ? 'Signing in…' : 'Sign in with your Telegram account to continue.'}
+			{magicBusy ? 'Входим…' : 'Войдите через Telegram, чтобы продолжить.'}
 		</p>
 		{#if !magicBusy}
 			<TelegramLoginButton botUsername={BOT_USERNAME} onAuth={handleAuth} />

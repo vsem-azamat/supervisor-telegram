@@ -92,6 +92,19 @@ rendering. A cleared field means "take it down": an empty string would list a
 chat whose card leads nowhere, because the catalogue keys off the column being
 set.
 
+**Both halves are written in Russian.** The people who read the catalogue are
+students in Czechia and the people who work the console are the two accounts in
+`ADMIN_SUPER_ADMINS` — the same language either way. A screen half in English is
+not a smaller problem than a screen entirely in it: the mixture is what makes a
+reader stop and translate. Plural endings come from `$lib/format`, never from
+string concatenation, because Russian has three of them and a hand-rolled
+"5 минуты" is the tell.
+
+**One question, one screen.** `/admin/catalog` and `/admin/chats` listed the
+same rows from the same endpoint and differed only in which four columns they
+picked; the second copy is the one nobody remembers to update. When two screens
+start converging, merge them and leave a redirect.
+
 **Every way to publish goes through the console.** A script may fill the
 catalogue in bulk, but it must never be the only way to change it — a feature
 whose switch lives in a maintainer's terminal is a feature the operator cannot

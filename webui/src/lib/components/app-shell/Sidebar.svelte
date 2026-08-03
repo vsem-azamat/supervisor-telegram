@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { Hash, LayoutDashboard, MessageSquare, Settings } from '@lucide/svelte';
+	import { Hash, LayoutDashboard, MessageSquare, Network, Settings } from '@lucide/svelte';
 	import type { Component } from 'svelte';
 
 	type NavItem = { href: string; label: string; icon: Component };
@@ -11,25 +11,29 @@
 	// audience, not a different tab.
 	const groups: NavGroup[] = [
 		{
-			label: 'Overview',
-			items: [{ href: '/admin', label: 'Dashboard', icon: LayoutDashboard }]
+			label: 'Обзор',
+			items: [{ href: '/admin', label: 'Сводка', icon: LayoutDashboard }]
 		},
 		{
-			label: 'Resources',
-			items: [{ href: '/admin/catalog', label: 'Catalog', icon: MessageSquare }]
+			label: 'Ресурсы',
+			items: [
+				{ href: '/admin/chats', label: 'Чаты', icon: MessageSquare },
+				{ href: '/admin/hierarchy', label: 'Иерархия', icon: Network }
+			]
 		},
 		{
-			label: 'System',
-			items: [{ href: '/admin/settings', label: 'Settings', icon: Settings }]
+			label: 'Система',
+			items: [{ href: '/admin/settings', label: 'Настройки', icon: Settings }]
 		}
 	];
 
 	function isActive(href: string): boolean {
 		if (href === '/admin') return page.url.pathname === '/admin';
-		if (href === '/admin/catalog') {
+		// A chat's own page belongs under Чаты, and the old /admin/catalog path
+		// still resolves here because it redirects there.
+		if (href === '/admin/chats') {
 			return (
-				page.url.pathname.startsWith('/admin/catalog') ||
-				page.url.pathname.startsWith('/admin/chats')
+				page.url.pathname.startsWith('/admin/chats') || page.url.pathname === '/admin/catalog'
 			);
 		}
 		return page.url.pathname === href || page.url.pathname.startsWith(href + '/');
@@ -41,7 +45,7 @@
 		<div class="flex h-7 w-7 items-center justify-center rounded-md bg-zinc-900 text-white">
 			<Hash class="h-4 w-4" />
 		</div>
-		<span class="text-sm font-semibold tracking-tight text-zinc-900">Konnekt admin</span>
+		<span class="text-sm font-semibold tracking-tight text-zinc-900">Konnekt · консоль</span>
 	</div>
 
 	<div class="flex flex-col gap-4 px-2 pb-4">

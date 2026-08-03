@@ -1,4 +1,6 @@
 <script lang="ts">
+	// The first screen answers one question: is anything wrong right now.
+	// Everything else on it is context for that answer.
 	import ChatTreeNode from '$lib/components/chat/ChatTreeNode.svelte';
 	import { enrichTree } from '$lib/components/chat/tree';
 	import BarChartH from '$lib/components/charts/BarChartH.svelte';
@@ -7,6 +9,7 @@
 	import Tile from '$lib/components/home/Tile.svelte';
 	import SpamPingsList from '$lib/components/spam/SpamPingsList.svelte';
 	import { useLivePoll } from '$lib/hooks/useLivePoll.svelte';
+	import { num, plural } from '$lib/format';
 	import { MessageSquare, Network, RefreshCw, ShieldAlert } from '@lucide/svelte';
 	import type { components } from '$lib/api/types';
 
@@ -29,14 +32,14 @@
 <div class="space-y-6 px-6 py-6">
 	<header class="flex items-baseline justify-between">
 		<div>
-			<h2 class="text-lg font-semibold tracking-tight">Dashboard</h2>
-			<p class="mt-0.5 text-xs text-zinc-500">Live moderation view of the Konnekt chats.</p>
+			<h2 class="text-lg font-semibold tracking-tight">Сводка</h2>
+			<p class="mt-0.5 text-xs text-zinc-500">Что происходит в чатах прямо сейчас.</p>
 		</div>
 		<div class="flex items-center gap-3 text-xs text-zinc-500">
 			{#if stats.error}
-				<span class="text-red-600">Error: {stats.error}</span>
+				<span class="text-red-600">Ошибка: {stats.error}</span>
 			{:else if stats.lastUpdatedAt}
-				<span>Updated {stats.lastUpdatedAt.toLocaleTimeString()}</span>
+				<span>Обновлено {stats.lastUpdatedAt.toLocaleTimeString('ru-RU')}</span>
 			{/if}
 			<button
 				type="button"
@@ -44,100 +47,97 @@
 				onclick={() => stats.refresh()}
 			>
 				<RefreshCw class="h-3 w-3" />
-				<span>Refresh</span>
+				<span>Обновить</span>
 			</button>
 		</div>
 	</header>
 
-	<!-- Action bar: what needs attention NOW -->
 	<section class="space-y-2">
 		<div class="text-[10px] font-semibold tracking-wider text-zinc-400 uppercase">
-			Needs your attention
+			Требует внимания
 		</div>
 		<div class="grid grid-cols-1 gap-3 md:grid-cols-3">
 			<ActionTile
-				title="Spam pings (24h)"
+				title="Реклама за сутки"
 				value={spamCount24h}
-				caption="Ad detector hits across all chats"
+				caption="Срабатываний детектора по всем чатам"
 				icon={ShieldAlert}
 				tone={spamCount24h > 0 ? 'warning' : 'default'}
 				href="/admin/chats"
 			/>
 			<ActionTile
-				title="Spam pings (7d)"
+				title="Реклама за неделю"
 				value={spamCount7d}
-				caption="Rolling weekly total"
+				caption="Скользящий недельный итог"
 				icon={ShieldAlert}
 				href="/admin/chats"
 			/>
 			<ActionTile
-				title="Messages (7d)"
-				value={messages7d.toLocaleString()}
-				caption={`${trackedChats} chats with member snapshots`}
+				title="Сообщений за неделю"
+				value={num(messages7d)}
+				caption={`${trackedChats} ${plural(trackedChats, 'чат', 'чата', 'чатов')} со снимками участников`}
 				icon={MessageSquare}
-				href="/admin/catalog"
+				href="/admin/chats"
 			/>
 		</div>
 	</section>
 
-	<!-- Chats / community -->
 	<section class="space-y-2">
-		<div class="text-[10px] font-semibold tracking-wider text-zinc-400 uppercase">Community</div>
+		<div class="text-[10px] font-semibold tracking-wider text-zinc-400 uppercase">Чаты</div>
 		<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-			<Tile title="Chats heatmap (7d total)">
+			<Tile title="Сообщений за 7 дней">
 				<BarChartH
 					items={(stats.data?.chat_heatmap ?? []).map((c) => ({
 						label: c.title ?? `#${c.chat_id}`,
 						value: c.total_messages,
-						href: `/chats/${c.chat_id}`
+						href: `/admin/chats/${c.chat_id}`
 					}))}
-					empty={stats.loading ? 'loading…' : 'No activity recorded'}
+					empty={stats.loading ? 'загружаем…' : 'Активности не записано'}
 				/>
 			</Tile>
 
-			<Tile title="Members Δ (24h)">
+			<Tile title="Участники, Δ за сутки">
 				<DivergingBars
 					items={(stats.data?.members_delta ?? []).map((m) => {
 						const d = m.delta_24h;
 						const secondary =
 							d === null || d === undefined
-								? `${m.current?.toLocaleString() ?? '—'} · no baseline`
-								: `${m.current?.toLocaleString() ?? '—'} · ${d > 0 ? '+' : ''}${d}`;
+								? `${num(m.current)} · нет базы для сравнения`
+								: `${num(m.current)} · ${d > 0 ? '+' : ''}${d}`;
 						return {
 							label: m.title ?? `#${m.chat_id}`,
 							value: d ?? null,
 							secondary,
-							href: `/chats/${m.chat_id}`
+							href: `/admin/chats/${m.chat_id}`
 						};
 					})}
-					empty={stats.loading ? 'loading…' : 'No snapshots yet'}
+					empty={stats.loading ? 'загружаем…' : 'Снимков ещё нет'}
 				/>
 			</Tile>
 		</div>
 	</section>
 
-	<!-- Side rail: spam + tree -->
 	<section class="space-y-2">
 		<div class="text-[10px] font-semibold tracking-wider text-zinc-400 uppercase">
-			Recent activity
+			Последние события
 		</div>
 		<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-			<Tile title="Recent spam pings">
+			<Tile title="Свежие срабатывания на рекламу">
 				<SpamPingsList
 					items={(stats.data?.spam_pings.recent ?? []).slice(0, 4)}
-					empty={stats.loading ? 'loading…' : 'No pings detected.'}
+					empty={stats.loading ? 'загружаем…' : 'Ничего не срабатывало.'}
 					showChat
 				/>
 			</Tile>
 
-			<Tile title="Chat graph">
+			<Tile title="Дерево чатов">
 				{#snippet action()}
 					<Network class="h-3.5 w-3.5 text-zinc-400" />
 				{/snippet}
 				{#if tree.loading}
-					<p class="text-xs text-zinc-500">loading…</p>
+					<p class="text-xs text-zinc-500">загружаем…</p>
 				{:else if enrichedTree.length === 0}
-					<p class="text-xs text-zinc-500">No chats yet.</p>
+					<p class="text-xs text-zinc-500">Чатов пока нет.</p>
 				{:else}
 					<ul class="space-y-1">
 						{#each enrichedTree.slice(0, 3) as root (root.id)}
@@ -145,10 +145,10 @@
 						{/each}
 					</ul>
 					<a
-						href="/admin/catalog/hierarchy"
+						href="/admin/hierarchy"
 						class="mt-2 inline-block text-xs text-zinc-500 hover:underline"
 					>
-						View full tree →
+						Всё дерево →
 					</a>
 				{/if}
 			</Tile>
