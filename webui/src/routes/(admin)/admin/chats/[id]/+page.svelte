@@ -10,7 +10,7 @@
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { useLivePoll } from '$lib/hooks/useLivePoll.svelte';
 	import { apiFetch } from '$lib/api/client';
-	import { RefreshCw } from '@lucide/svelte';
+	import { ExternalLink, RefreshCw } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import type { components } from '$lib/api/types';
 
@@ -115,6 +115,35 @@
 			toast.success(`Resource is ${statusLabel(status).toLowerCase()}`);
 			await detail.refresh();
 		}
+	}
+
+	// Publishing is kept apart from the moderation form on purpose: everything in
+	// that form is read back by the admin who set it, and this one field is read
+	// by everybody who opens the front page. Its own card, its own save.
+	let editingLink = $state(false);
+	let savingLink = $state(false);
+	let linkDraft = $state('');
+
+	// Same guard as the moderation form — the page polls every minute and would
+	// otherwise wipe a half-typed link out from under the person typing it.
+	$effect(() => {
+		if (detail.data && !editingLink) linkDraft = detail.data.public_link ?? '';
+	});
+
+	async function savePublicLink(): Promise<void> {
+		savingLink = true;
+		const res = await apiFetch<ChatRead>(`/api/chats/${chatId}`, {
+			method: 'PATCH',
+			body: JSON.stringify({ public_link: linkDraft.trim() || null })
+		});
+		savingLink = false;
+		if (res.error) {
+			toast.error(res.error.message);
+			return;
+		}
+		toast.success(res.data.public_link ? 'Listed on the public site' : 'Taken off the public site');
+		editingLink = false;
+		await detail.refresh();
 	}
 
 	function senderLabel(s: components['schemas']['ChatSender']): string {
@@ -276,6 +305,72 @@
 							<span class="text-zinc-400">Welcome:</span> {detail.data.welcome_message}
 						</div>
 					{/if}
+				{/if}
+			</Card.Content>
+		</Card.Root>
+
+		<Card.Root>
+			<Card.Header class="flex flex-row items-center justify-between">
+				<Card.Title class="text-sm">Public catalogue</Card.Title>
+				{#if !editingLink}
+					<Button variant="outline" size="sm" onclick={() => (editingLink = true)}>
+						{detail.data.public_link ? 'Change link' : 'Add link'}
+					</Button>
+				{/if}
+			</Card.Header>
+			<Card.Content class="space-y-3 text-sm">
+				{#if editingLink}
+					<label class="block space-y-1">
+						<span class="text-xs text-zinc-600">Public link</span>
+						<Input bind:value={linkDraft} placeholder="https://t.me/cvut_fit" />
+					</label>
+					<p class="text-xs text-zinc-500">
+						A Telegram link — a username, or an invite for a chat that has none. Clearing the
+						field takes the chat off the public site.
+					</p>
+					<div class="flex items-center justify-end gap-2">
+						<Button
+							variant="ghost"
+							size="sm"
+							disabled={savingLink}
+							onclick={() => {
+								editingLink = false;
+								linkDraft = detail.data?.public_link ?? '';
+							}}
+						>
+							Cancel
+						</Button>
+						<Button size="sm" onclick={savePublicLink} disabled={savingLink}>
+							{savingLink ? 'Saving…' : 'Save'}
+						</Button>
+					</div>
+				{:else if detail.data.public_link}
+					<div class="flex items-center gap-2">
+						<a
+							href={detail.data.public_link}
+							target="_blank"
+							rel="noopener noreferrer"
+							class="inline-flex items-center gap-1.5 font-mono text-xs text-zinc-800 hover:underline"
+						>
+							{detail.data.public_link}
+							<ExternalLink class="h-3 w-3 text-zinc-400" />
+						</a>
+					</div>
+					{#if detail.data.resource_status === 'approved'}
+						<p class="text-xs text-zinc-500">Anyone can find this chat on the front page.</p>
+					{:else}
+						<!-- The link alone does not publish: the catalogue asks for an
+						     approved resource too. Said here rather than left to be
+						     worked out by opening the public page and not finding it. -->
+						<p class="text-xs text-amber-700">
+							Not listed — the resource is {statusLabel(detail.data.resource_status).toLowerCase()}.
+							Approve it above and this chat appears.
+						</p>
+					{/if}
+				{:else}
+					<p class="text-xs text-zinc-500">
+						Not on the public site. Add a link and students can find this chat themselves.
+					</p>
 				{/if}
 			</Card.Content>
 		</Card.Root>

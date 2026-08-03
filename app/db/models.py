@@ -151,6 +151,7 @@ class Chat(Base):
         is_service_cleanup_enabled: bool = True,
         parent_chat_id: int | None = None,
         relation_notes: str | None = None,
+        public_link: str | None = None,
     ) -> None:
         self.id = id
         self.title = title
@@ -163,6 +164,7 @@ class Chat(Base):
         self.is_service_cleanup_enabled = is_service_cleanup_enabled
         self.parent_chat_id = parent_chat_id
         self.relation_notes = relation_notes
+        self.public_link = public_link
 
     def enable_welcome(self, message: str | None = None) -> None:
         """Enable welcome message for new members"""

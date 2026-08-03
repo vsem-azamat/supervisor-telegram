@@ -13,6 +13,29 @@ export type ApiError = {
 	message: string;
 };
 
+/**
+ * What to show a person when the API refuses.
+ *
+ * FastAPI answers a rejected field with a list of per-field objects rather than
+ * a sentence, and putting that straight into a toast reads as
+ * "[object Object]" — so the one message that would have told the admin what
+ * they typed wrong is the one that never arrives. Flattened here because every
+ * form in the console posts through this function.
+ */
+function messageFrom(body: unknown, fallback: string): string {
+	const detail = (body as { detail?: unknown } | null)?.detail;
+	if (typeof detail === 'string') return detail;
+	if (Array.isArray(detail)) {
+		const written = detail
+			.map((entry) => (entry as { msg?: string })?.msg)
+			.filter((msg): msg is string => typeof msg === 'string')
+			// Pydantic prefixes its own wording; the sentence after it is ours.
+			.map((msg) => msg.replace(/^Value error, /, ''));
+		if (written.length > 0) return written.join('; ');
+	}
+	return fallback;
+}
+
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<ApiResult<T>> {
 	try {
 		const res = await fetch(path, {
@@ -38,7 +61,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<Api
 				error: {
 					status: res.status,
 					code: body?.error?.code ?? `http_${res.status}`,
-					message: body?.error?.message ?? body?.detail ?? res.statusText
+					message: body?.error?.message ?? messageFrom(body, res.statusText)
 				}
 			};
 		}
