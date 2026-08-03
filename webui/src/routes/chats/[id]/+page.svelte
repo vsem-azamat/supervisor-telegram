@@ -55,6 +55,7 @@
 		welcome_message: '',
 		is_welcome_enabled: false,
 		is_captcha_enabled: false,
+		is_service_cleanup_enabled: true,
 		time_delete: 60
 	});
 
@@ -64,6 +65,7 @@
 			welcome_message: d.welcome_message ?? '',
 			is_welcome_enabled: d.is_welcome_enabled,
 			is_captcha_enabled: d.is_captcha_enabled,
+			is_service_cleanup_enabled: d.is_service_cleanup_enabled,
 			time_delete: d.time_delete
 		};
 	}
@@ -81,6 +83,7 @@
 				welcome_message: edit.welcome_message || null,
 				is_welcome_enabled: edit.is_welcome_enabled,
 				is_captcha_enabled: edit.is_captcha_enabled,
+				is_service_cleanup_enabled: edit.is_service_cleanup_enabled,
 				time_delete: edit.time_delete
 			})
 		});
@@ -220,6 +223,10 @@
 							<input type="checkbox" bind:checked={edit.is_captcha_enabled} />
 							<span>Captcha enabled</span>
 						</label>
+						<label class="flex items-center gap-2 text-xs">
+							<input type="checkbox" bind:checked={edit.is_service_cleanup_enabled} />
+							<span>Hide join / leave notices</span>
+						</label>
 					</div>
 					<label class="block space-y-1">
 						<span class="text-xs text-zinc-600">Welcome message text</span>
@@ -244,6 +251,7 @@
 						<div>Status: {statusLabel(detail.data.resource_status)}</div>
 						<div>Captcha: {detail.data.is_captcha_enabled ? 'on' : 'off'}</div>
 						<div>Welcome: {detail.data.is_welcome_enabled ? 'on' : 'off'}</div>
+						<div>Join/leave notices: {detail.data.is_service_cleanup_enabled ? 'hidden' : 'shown'}</div>
 						<div>Auto-delete: {detail.data.time_delete}s</div>
 					</div>
 					<div class="flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-3">

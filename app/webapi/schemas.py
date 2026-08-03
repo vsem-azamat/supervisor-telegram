@@ -30,6 +30,7 @@ class ChatRead(BaseModel):
     is_forum: bool
     is_welcome_enabled: bool
     is_captcha_enabled: bool
+    is_service_cleanup_enabled: bool = True
     parent_chat_id: int | None = None
     relation_notes: str | None = None
     member_count: int | None = None  # enriched from Telethon, None when unavailable
@@ -47,6 +48,7 @@ class ChatUpdate(BaseModel):
     welcome_message: str | None = None
     is_welcome_enabled: bool | None = None
     is_captcha_enabled: bool | None = None
+    is_service_cleanup_enabled: bool | None = None
     time_delete: int | None = None
     parent_chat_id: int | None = None
     relation_notes: str | None = None
