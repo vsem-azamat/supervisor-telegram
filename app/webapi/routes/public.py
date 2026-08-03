@@ -15,9 +15,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from app.core.time import utc_now
-from app.db.models import Chat, Message
+from app.db.models import Chat, ChatMemberSnapshot, Message
 from app.webapi.deps import get_session
-from app.webapi.schemas import PublicCatalogItem
+from app.webapi.schemas import PublicCatalogItem, PublicReach, PublicReachGroup
 
 router = APIRouter(prefix="/public", tags=["public"])
 
@@ -48,6 +48,10 @@ MIN_OBSERVED_DAYS = 14
 # Sorts after every real title, so ungrouped chats land at the end rather than
 # at the top where an empty string would put them.
 _UNGROUPED = "￿"
+
+# What a chat with no university above it is called on the reach table. The
+# catalogue page picks the same word for the same rows.
+UNGROUPED_LABEL = "Остальные"
 
 
 def _activity(messages: int, *, grounded: bool) -> Literal["unknown", "quiet", "active", "busy"]:
@@ -123,3 +127,73 @@ async def get_public_catalog(
     # Grouped and alphabetical, so the page renders what the server already
     # decided instead of sorting forty-five rows again in the browser.
     return sorted(items, key=lambda item: ((item.group or _UNGROUPED).lower(), item.title.lower()))
+
+
+@router.get("/reach", response_model=PublicReach)
+async def get_public_reach(
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> PublicReach:
+    """How far a post across the published catalogue would carry.
+
+    Counted over the same rows `/catalog` returns and no others. Reach summed
+    across private chats would be a claim about rooms nobody being quoted a
+    price can see, and publishing their size is not ours to do.
+
+    Member counts come from the snapshots the userbot writes, never from
+    Telethon at request time: this endpoint answers strangers, and a public URL
+    that reaches into the account behind it is a public URL somebody can point
+    at the account. The newest snapshot per chat is the answer — the loop writes
+    a row per poll, and summing all of them would count the same people once per
+    observation.
+    """
+    newest = (
+        select(
+            ChatMemberSnapshot.chat_id,
+            func.max(ChatMemberSnapshot.captured_at).label("captured_at"),
+        )
+        .group_by(ChatMemberSnapshot.chat_id)
+        .subquery()
+    )
+    latest = (
+        select(ChatMemberSnapshot.chat_id, ChatMemberSnapshot.member_count)
+        .join(
+            newest,
+            (newest.c.chat_id == ChatMemberSnapshot.chat_id) & (newest.c.captured_at == ChatMemberSnapshot.captured_at),
+        )
+        .subquery()
+    )
+
+    parent = aliased(Chat)
+    rows = (
+        await session.execute(
+            select(parent.title.label("group_title"), latest.c.member_count)
+            # Explicit, because the first column named here belongs to the
+            # aliased parent and the second to a subquery — left to infer it,
+            # SQLAlchemy starts the FROM from the wrong one and joins `chats`
+            # in twice.
+            .select_from(Chat)
+            .outerjoin(parent, parent.id == Chat.parent_chat_id)
+            .outerjoin(latest, latest.c.chat_id == Chat.id)
+            .where(Chat.resource_status == Chat.STATUS_APPROVED)
+            .where(Chat.public_link.is_not(None))
+        )
+    ).all()
+
+    groups: dict[str, PublicReachGroup] = {}
+    measured = 0
+    for row in rows:
+        name = row.group_title or UNGROUPED_LABEL
+        group = groups.setdefault(name, PublicReachGroup(name=name, chats=0, members=0))
+        group.chats += 1
+        if row.member_count is not None:
+            group.members += row.member_count
+            measured += 1
+
+    return PublicReach(
+        chats=len(rows),
+        members=sum(group.members for group in groups.values()),
+        measured_chats=measured,
+        # Largest first: the table is read as "where would this post land",
+        # and the answer starts with the biggest room.
+        groups=sorted(groups.values(), key=lambda group: (-group.members, group.name.lower())),
+    )

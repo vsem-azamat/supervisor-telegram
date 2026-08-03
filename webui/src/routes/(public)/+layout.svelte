@@ -22,13 +22,21 @@
 				</div>
 				<span class="text-sm font-semibold tracking-tight text-zinc-900">Konnekt</span>
 			</a>
-			<a
-				href="/login"
-				class="flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
-			>
-				<LogIn class="h-3.5 w-3.5" />
-				Вход для админов
-			</a>
+			<div class="flex items-center gap-2">
+				<a
+					href="/ads"
+					class="rounded-md px-3 py-1.5 text-sm font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+				>
+					Реклама
+				</a>
+				<a
+					href="/login"
+					class="flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
+				>
+					<LogIn class="h-3.5 w-3.5" />
+					Вход для админов
+				</a>
+			</div>
 		</div>
 	</header>
 

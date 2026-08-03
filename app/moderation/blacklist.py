@@ -26,24 +26,7 @@ async def add_to_blacklist(
 
     async def ban_user(chat_id: int) -> None:
         try:
-            try:
-                await bot.ban_chat_member(chat_id, id_tg, revoke_messages=revoke_messages)
-            except Exception as err:
-                logger.warning(f"Failed to ban user {id_tg} in chat {chat_id}.\nError: {err}")
-
-            if revoke_messages:
-                user_messages = await message_repo.get_user_messages(id_tg)
-                for message in user_messages:
-                    try:
-                        await bot.delete_message(
-                            chat_id=message.chat_id,
-                            message_id=message.message_id,
-                        )
-                    except Exception as err:
-                        logger.warning(
-                            f"Failed to delete message {message.message_id} in chat {chat_id}.\nError: {err}"
-                        )
-
+            await bot.ban_chat_member(chat_id, id_tg, revoke_messages=revoke_messages)
         except Exception as err:
             logger.warning(
                 f"Failed to ban user {id_tg} in chat {chat_id}.\n"
@@ -53,6 +36,23 @@ async def add_to_blacklist(
 
     tasks = [ban_user(chat.id) for chat in await chat_repo.get_chats()]
     await asyncio.gather(*tasks)
+
+    if not revoke_messages:
+        return
+
+    # Deliberately outside the fan-out above. Every recorded message names the
+    # one chat it was written in, so deleting it there is a single call — but
+    # nested inside a loop over chats it became that call once per chat, which
+    # on forty-five chats and a few hundred messages is thousands of requests,
+    # all but a fraction of them doomed, spent while an administrator waits for
+    # a spammer to disappear.
+    for message in await message_repo.get_user_messages(id_tg):
+        try:
+            await bot.delete_message(chat_id=message.chat_id, message_id=message.message_id)
+        except Exception as err:
+            # Telegram refuses routinely here — a message already gone, or older
+            # than it allows. One refusal says nothing about the next.
+            logger.warning(f"Failed to delete message {message.message_id} in chat {message.chat_id}.\nError: {err}")
 
 
 async def remove_from_blacklist(db: AsyncSession, bot: Bot, id_tg: int) -> None:

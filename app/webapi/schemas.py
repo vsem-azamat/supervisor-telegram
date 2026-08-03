@@ -44,6 +44,37 @@ class PublicCatalogItem(BaseModel):
     activity: Literal["unknown", "quiet", "active", "busy"]
 
 
+class PublicReachGroup(BaseModel):
+    """One university's worth of catalogue, as an advertiser would ask about it.
+
+    Aggregated per group and never per chat. The catalogue already says which
+    chats exist; how large each individual room is does not need to be
+    published alongside it, and a sum is what somebody buying a placement is
+    actually asking for.
+    """
+
+    name: str
+    chats: int
+    members: int
+
+
+class PublicReach(BaseModel):
+    """How far a post across the published catalogue would carry.
+
+    ``measured_chats`` is the honesty of ``members``: the counts come from
+    snapshots the userbot managed to take, and Telegram does not answer for
+    every chat every time. When it is lower than ``chats``, the total is a sum
+    over part of the catalogue and the page has to say so — a reach figure that
+    quietly covers two thirds of what it names is the kind of number somebody
+    would pay against.
+    """
+
+    chats: int
+    members: int
+    measured_chats: int
+    groups: list[PublicReachGroup]
+
+
 class ChatRead(BaseModel):
     """List-page view of a managed chat."""
 

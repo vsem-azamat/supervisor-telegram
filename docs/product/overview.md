@@ -51,6 +51,7 @@ high-impact decisions.
 | Entry control | Decide who gets in before they are in, rather than cleaning up afterwards |
 | Operator control | Let a small team run the supported workflows coherently from Telegram, a web surface, and an external agent runtime |
 | Public projection | Expose a curated read-only view of the community catalog without admin authority |
+| Enquiry intake | Let somebody who wants to reach these communities see the size of the offer and find the operator who can price it |
 
 Individual features are not listed here on purpose: the list rots, and the code
 and its tests are the answer.
@@ -79,7 +80,9 @@ These matter to delivery, but they are not product promises on their own.
 
 - General-purpose social media management outside Telegram.
 - Content generation, editorial workflows, publishing, and scheduling.
-- Advertising sales, rate cards, and any in-bot commercial funnel.
+- Automated advertising sales: rate cards, self-serve booking, payment, and
+  delivery reporting. The public surface states reach and hands the enquiry to
+  an operator; everything after that conversation happens outside the product.
 - Autonomous removal of a community member without administrator confirmation.
 - Replacing operator ownership of community policy or judgment.
 - Member-facing customer support or general chat assistance unrelated to the

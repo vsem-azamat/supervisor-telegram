@@ -42,7 +42,7 @@ class TestBlacklistImprovements:
 
         # Assert
         mock_user_service.get_blocked_users.assert_called_once()
-        message.answer.assert_called_once_with("Blacklist is empty")
+        message.answer.assert_called_once_with("Чёрный список пуст.")
         message.delete.assert_called_once()
 
     async def test_blacklist_with_users_pagination(

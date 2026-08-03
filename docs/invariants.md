@@ -92,6 +92,18 @@ rendering. A cleared field means "take it down": an empty string would list a
 chat whose card leads nowhere, because the catalogue keys off the column being
 set.
 
+**A public figure says how much of itself it measured.** Member counts come
+from snapshots the userbot may not have managed to take, so a reach total can
+cover part of the catalogue while naming all of it. The endpoint returns
+`measured_chats` beside `members` for exactly that reason, and the page has to
+show the gap — a number somebody is about to pay against must not quietly stand
+for more than it counted.
+
+**The public half never reaches Telethon at request time.** Its endpoints
+answer strangers, and a public URL that walks into the account behind it is a
+public URL somebody can point at the account. Aggregates are read from stored
+snapshots, which is also why they can be served to anybody at any rate.
+
 **Both halves are written in Russian.** The people who read the catalogue are
 students in Czechia and the people who work the console are the two accounts in
 `ADMIN_SUPER_ADMINS` — the same language either way. A screen half in English is
@@ -135,10 +147,25 @@ promote themselves. `ADMIN_SUPER_ADMINS` is also the only thing the web console
 admits.
 
 **Commands are split by how far a mistake travels.** A ban, mute, kick, pin or
-deletion spoils one chat, so a moderator of that chat may run it. The blacklist
-reaches every chat at once and `!spam` teaches the shared spam corpus, so both
-stay with the super administrators. A new command belongs on the global side
-unless its blast radius is provably one chat.
+deletion spoils one chat, so a moderator of that chat may run it. `/banall`
+reaches every chat at once and can wipe what the person wrote, teaching the
+shared spam corpus on the way, so it stays with the super administrators. A new
+command belongs on the global side unless its blast radius is provably one chat.
+
+**Two commands must not differ only by prefix or by an ending.** Both `!` and
+`/` are live, so `/spam` — a member asking moderators to look at a message —
+sat one character from `!spam`, which banned that member out of every chat and
+deleted everything they had written. `!black` and `!blacklist` were four letters
+apart and one of them was irreversible. A name that reads as a near-miss of
+another name is a name that will be typed by mistake, and no confirmation
+dialog helps when the dialog is identical either way.
+
+**A destructive choice is made on the button, not in the spelling.** `!black`
+and `!spam` differed by whether the person's messages were also wiped, and
+their confirmation dialogs were byte-identical — so the screen an administrator
+read before pressing Yes could not tell them which outcome they had asked for.
+Where one command has two endings, both belong on labelled buttons in the same
+dialog.
 
 **The answer is read fresh on every command.** Scoped rights were cached for
 five minutes when they were the same everywhere; per-chat they must not be, or a

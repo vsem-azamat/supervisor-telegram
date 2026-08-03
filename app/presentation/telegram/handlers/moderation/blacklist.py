@@ -1,4 +1,14 @@
-"""Blacklist-related commands and callbacks: !black, !spam, !blacklist + pagination + unblock."""
+"""Banning somebody out of every chat, and reading back who is out.
+
+`/banall` acts, `/blacklist` shows. They used to be `!black` and `!blacklist`,
+four letters apart, one of them irreversible across forty-five chats — and
+`!spam` was a third name for `!black` that also wiped the person's messages.
+All three sent the same confirmation dialog, so the screen in front of an
+administrator could not tell them which command they had typed.
+
+Now the choice between the two outcomes is made on a labelled button, at the
+moment of deciding, rather than in the spelling of a word a minute earlier.
+"""
 
 from aiogram import Bot, Router, types
 from aiogram.exceptions import TelegramBadRequest
@@ -31,87 +41,69 @@ router = Router()
 _BLACKLIST_PAGE_SIZE = 10
 
 
-@router.message(Command("black", prefix="!/"))
-async def full_ban(message: types.Message, message_repo: MessageRepository, db: AsyncSession) -> None:
-    if not message.reply_to_message:
-        await message.answer(reply_required_error("добавить в черный список"))
-        return
+@router.message(Command("banall", prefix="!/"))
+async def ban_everywhere(message: types.Message, message_repo: MessageRepository, db: AsyncSession) -> None:
+    """Ask before removing somebody from every chat.
 
-    if not message.reply_to_message.from_user:
-        await message.answer(is_user_check_error())
-        logger.warning("blacklist_target_not_user", chat_id=message.chat.id)
+    The dialog exists to be read, so it carries the three things that argue for
+    or against the ban — how widely the person is present, how much they have
+    written, and what the spam filter makes of the message being replied to.
+    A filter that stayed quiet is as much information as one that fired.
+    """
+    if not message.reply_to_message:
+        await message.answer(reply_required_error("забанить во всех чатах"))
         return
 
     target = message.reply_to_message
     if not target.from_user:
         await message.answer(is_user_check_error())
+        logger.warning("blacklist_target_not_user", chat_id=message.chat.id)
         return
+
     id_user = target.from_user.id
     chats_count = await message_repo.count_user_chats(id_user)
     messages_count = await message_repo.count_user_messages(id_user)
     spam_flag = await spam_service.detect_spam(db, target)
 
     info_text = (
-        "<b>Вы уверены?</b>\n\n"
-        "<b>Информация:</b>\n"
-        f"- {chats_count} чатов\n"
-        f"- {messages_count} сообщений\n"
-        f"- {'спам обнаружен' if spam_flag else 'спам не обнаружен'}"
+        "<b>Забанить во всех чатах?</b>\n"
+        f"{other.get_user_mention(target.from_user)} · <code>{id_user}</code>\n\n"
+        f"Замечен в {chats_count} чатах, {messages_count} сообщений.\n"
+        f"Спам-фильтр: <b>{'сработал' if spam_flag else 'не сработал'}</b>.\n\n"
+        "Бан снимается только вручную, через /blacklist. "
+        "Стирание сообщений заодно учит спам-фильтр."
     )
+
+    common = {"user_id": id_user, "chat_id": target.chat.id, "message_id": target.message_id}
     builder = InlineKeyboardBuilder()
+    builder.button(text="Забанить везде", callback_data=BlacklistConfirm(**common).pack())
     builder.button(
-        text="Yes",
-        callback_data=BlacklistConfirm(
-            user_id=id_user,
-            chat_id=target.chat.id,
-            message_id=target.message_id,
-        ).pack(),
+        # The count comes from our own record of what the person wrote, which is
+        # what we would try to delete. Telegram refuses some of them, so this is
+        # the size of the attempt rather than a promise.
+        text=f"Забанить и стереть сообщения ({messages_count})",
+        callback_data=BlacklistConfirm(**common, revoke=1, mark_spam=1).pack(),
     )
-    builder.button(text="No", callback_data="cancel_blacklist")
-    builder.adjust(2)
+    builder.button(text="Отмена", callback_data="cancel_blacklist")
+    builder.adjust(1)
     await message.answer(info_text, reply_markup=builder.as_markup())
     await message.delete()
 
 
-@router.message(Command("spam", prefix="!"))
-async def label_spam(message: types.Message, message_repo: MessageRepository, db: AsyncSession) -> None:
-    if not message.reply_to_message:
-        answer = await message.answer(reply_required_error("пометить как спам"))
-        await message.delete()
-        other.sleep_and_delete(answer, 10)
-        return
+@router.message(Command("black", "spam", prefix="!"))
+async def moved_to_banall(message: types.Message) -> None:
+    """The old names answer instead of acting.
 
-    target = message.reply_to_message
-    if not target.from_user:
-        await message.answer(is_user_check_error())
-        return
-    spammer_user_id = target.from_user.id
-    chats_count = await message_repo.count_user_chats(spammer_user_id)
-    messages_count = await message_repo.count_user_messages(spammer_user_id)
-    spam_flag = await spam_service.detect_spam(db, target)
-
-    info_text = (
-        "<b>Вы уверены?</b>\n\n"
-        "<b>Информация:</b>\n"
-        f"- {chats_count} чатов\n"
-        f"- {messages_count} сообщений\n"
-        f"- {'спам обнаружен' if spam_flag else 'спам не обнаружен'}"
+    Deleting the handlers outright would leave `!spam` unhandled, and an
+    unhandled command looks exactly like a command that worked — which, for the
+    one command in this bot that wipes a person's messages across every chat, is
+    the wrong thing for silence to mean.
+    """
+    answer = await message.answer(
+        "Команда переехала: теперь <b>/banall</b>.\nСтирать сообщения или нет — выбирается кнопкой в подтверждении."
     )
-    builder = InlineKeyboardBuilder()
-    builder.button(
-        text="Yes",
-        callback_data=BlacklistConfirm(
-            user_id=spammer_user_id,
-            chat_id=target.chat.id,
-            message_id=target.message_id,
-            revoke=1,
-            mark_spam=1,
-        ).pack(),
-    )
-    builder.button(text="No", callback_data="cancel_blacklist")
-    builder.adjust(2)
-    await message.answer(info_text, reply_markup=builder.as_markup())
     await message.delete()
+    other.sleep_and_delete(answer, 30)
 
 
 @router.callback_query(BlacklistConfirm.filter())
@@ -183,7 +175,7 @@ async def show_blacklist(message: types.Message, user_service: UserService) -> N
         user = await user_service.find_blocked_user(identifier)
 
         if not user:
-            await message.answer(f"User <code>{escape_html(identifier)}</code> not found in blacklist")
+            await message.answer(f"<code>{escape_html(identifier)}</code> в чёрном списке не найден.")
             await message.delete()
             return
 
@@ -204,7 +196,7 @@ async def _show_blacklist_page(
     blocked_users = await user_service.get_blocked_users()
 
     if not blocked_users:
-        await message.answer("Blacklist is empty")
+        await message.answer("Чёрный список пуст.")
         await message.delete()
         return
 
