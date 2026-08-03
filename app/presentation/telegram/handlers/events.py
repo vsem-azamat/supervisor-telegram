@@ -8,9 +8,10 @@ to re-check that.
 import datetime
 from urllib.parse import quote
 
-from aiogram import Bot, Router
+from aiogram import Bot, F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import LEFT, MEMBER, ChatMemberUpdatedFilter
-from aiogram.types import ChatJoinRequest, ChatMemberUpdated
+from aiogram.types import ChatJoinRequest, ChatMemberUpdated, Message
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -55,6 +56,30 @@ async def user_joined(event: ChatMemberUpdated, bot: Bot, db: AsyncSession) -> N
 @router.chat_member(ChatTypeFilter(["group", "supergroup"]), ChatMemberUpdatedFilter(member_status_changed=LEFT))
 async def user_left(event: ChatMemberUpdated) -> None:
     logger.info("user_left", chat_id=event.chat.id, user_id=event.new_chat_member.user.id)
+
+
+@router.message(ChatTypeFilter(["group", "supergroup"]), F.new_chat_members | F.left_chat_member)
+async def remove_membership_notice(message: Message, db: AsyncSession) -> None:
+    """Take Telegram's own "joined"/"left" notice out of the chat.
+
+    In a chat that sees a message a week these are most of what is in it, and a
+    wall of them reads as a dead room. The membership itself is not hidden —
+    the member list is still the member list, the bot still records the event,
+    and a welcome message, if the chat has one, still gets posted.
+
+    Only the notice Telegram generated is removed, never anything a person
+    wrote: this handler is reached solely for messages that *are* the notice.
+    """
+    chat = await db.scalar(select(Chat).where(Chat.id == message.chat.id))
+    if chat is None or not chat.is_service_cleanup_enabled:
+        return
+
+    try:
+        await message.delete()
+    except TelegramBadRequest as err:
+        # Missing the right, or the notice is older than Telegram lets a bot
+        # delete. Neither is worth an alert; the chat is merely noisier.
+        logger.debug("service_notice_not_removed", chat_id=message.chat.id, error=str(err))
 
 
 @router.chat_join_request()

@@ -458,6 +458,11 @@ export interface components {
             is_welcome_enabled: boolean;
             /** Is Captcha Enabled */
             is_captcha_enabled: boolean;
+            /**
+             * Is Service Cleanup Enabled
+             * @default true
+             */
+            is_service_cleanup_enabled: boolean;
             /** Parent Chat Id */
             parent_chat_id?: number | null;
             /** Relation Notes */
@@ -566,6 +571,11 @@ export interface components {
             is_welcome_enabled: boolean;
             /** Is Captcha Enabled */
             is_captcha_enabled: boolean;
+            /**
+             * Is Service Cleanup Enabled
+             * @default true
+             */
+            is_service_cleanup_enabled: boolean;
             /** Parent Chat Id */
             parent_chat_id?: number | null;
             /** Relation Notes */
@@ -624,6 +634,8 @@ export interface components {
             is_welcome_enabled?: boolean | null;
             /** Is Captcha Enabled */
             is_captcha_enabled?: boolean | null;
+            /** Is Service Cleanup Enabled */
+            is_service_cleanup_enabled?: boolean | null;
             /** Time Delete */
             time_delete?: number | null;
             /** Parent Chat Id */

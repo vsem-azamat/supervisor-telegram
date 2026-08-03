@@ -55,6 +55,9 @@ class Chat(Base):
     time_delete: Mapped[int] = mapped_column(Integer, default=60)
     is_welcome_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     is_captcha_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    # On by default: a quiet chat otherwise reads as a membership log, dozens of
+    # "joined"/"left" notices with the occasional real message lost among them.
+    is_service_cleanup_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default=sa.true())
     parent_chat_id: Mapped[int | None] = mapped_column(
         BigInteger,
         ForeignKey("chats.id", ondelete="SET NULL"),
@@ -93,6 +96,7 @@ class Chat(Base):
         time_delete: int = 60,
         is_welcome_enabled: bool = False,
         is_captcha_enabled: bool = False,
+        is_service_cleanup_enabled: bool = True,
         parent_chat_id: int | None = None,
         relation_notes: str | None = None,
     ) -> None:
@@ -104,6 +108,7 @@ class Chat(Base):
         self.time_delete = time_delete
         self.is_welcome_enabled = is_welcome_enabled
         self.is_captcha_enabled = is_captcha_enabled
+        self.is_service_cleanup_enabled = is_service_cleanup_enabled
         self.parent_chat_id = parent_chat_id
         self.relation_notes = relation_notes
 
