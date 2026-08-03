@@ -65,9 +65,7 @@ class TestTheFlagIsTheRightWayRound:
 
     def test_the_toggle_is_only_ever_called_from_reveal(self) -> None:
         reveal = next(
-            node
-            for node in ast.walk(_TREE)
-            if isinstance(node, ast.AsyncFunctionDef) and node.name == "reveal"
+            node for node in ast.walk(_TREE) if isinstance(node, ast.AsyncFunctionDef) and node.name == "reveal"
         )
         toggles = [
             node
@@ -83,7 +81,13 @@ class TestTheFlagIsTheRightWayRound:
 class TestItNeverTakesAnythingAway:
     @pytest.mark.parametrize(
         "call",
-        ["EditCreatorRequest", "EditBannedRequest", "DeleteParticipantRequest", "LeaveChannelRequest", "delete_messages"],
+        [
+            "EditCreatorRequest",
+            "EditBannedRequest",
+            "DeleteParticipantRequest",
+            "LeaveChannelRequest",
+            "delete_messages",
+        ],
     )
     def test_no_call_that_removes_anything(self, call: str) -> None:
         assert call not in _NAMES
