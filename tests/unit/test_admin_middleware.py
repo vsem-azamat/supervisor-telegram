@@ -1,163 +1,221 @@
-"""Tests for admin middlewares."""
+"""Who gets past the two guards.
+
+The interesting case is the one the old flat list could not express: a moderator
+of one chat, standing in another, being told no. Everything else here exists so
+that case cannot be made to pass by accident.
+"""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from aiogram import types
+from app.db.models import Chat
+from app.db.repositories import AdminRepository
 from app.presentation.telegram.middlewares.admin import (
     AdminMiddleware,
     SuperAdminMiddleware,
-    invalidate_admin_cache,
     you_are_not_admin,
 )
 
+pytestmark = pytest.mark.unit
 
-def _make_message(user_id: int) -> MagicMock:
+SUPER = 111
+OTHER_SUPER = 222
+MODERATOR = 555
+STRANGER = 999
+
+HOME = -1001370017010  # ČVUT FIT
+ELSEWHERE = -1001497722835  # Strahov
+
+
+def _message(user_id: int, chat_id: int | None = HOME) -> MagicMock:
     msg = MagicMock(spec=types.Message)
     msg.from_user = MagicMock(spec=types.User)
     msg.from_user.id = user_id
+    msg.chat = MagicMock(spec=types.Chat)
+    msg.chat.id = chat_id
     msg.answer = AsyncMock(return_value=MagicMock(spec=types.Message))
     msg.answer.return_value.delete = AsyncMock()
     msg.delete = AsyncMock()
     return msg
 
 
-def _make_callback(user_id: int) -> MagicMock:
+def _callback(user_id: int, chat_id: int | None = HOME) -> MagicMock:
     cb = MagicMock(spec=types.CallbackQuery)
     cb.from_user = MagicMock(spec=types.User)
     cb.from_user.id = user_id
+    cb.message = _message(user_id, chat_id) if chat_id is not None else None
     return cb
 
 
+def _supers(*ids: int):
+    """Pin the configured super administrators for one test."""
+    patched = patch("app.presentation.telegram.middlewares.admin.settings")
+    mock = patched.start()
+    mock.admin.super_admins = list(ids)
+    return patched
+
+
+async def _seed(session, *, moderates: list[int]) -> dict:
+    for chat_id in {HOME, ELSEWHERE}:
+        session.add(Chat(id=chat_id, title=str(chat_id), resource_status=Chat.STATUS_APPROVED))
+    await session.commit()
+
+    repo = AdminRepository(session)
+    for chat_id in moderates:
+        await repo.grant(MODERATOR, chat_id, granted_by=SUPER)
+    return {"admin_repo": repo, "db": session}
+
+
 class TestSuperAdminMiddleware:
-    @pytest.fixture
-    def middleware(self):
-        return SuperAdminMiddleware()
+    async def test_a_super_admin_gets_through(self) -> None:
+        handler, msg = AsyncMock(), _message(SUPER)
+        patched = _supers(SUPER, OTHER_SUPER)
+        try:
+            await SuperAdminMiddleware()(handler, msg, {})
+        finally:
+            patched.stop()
 
-    async def test_allows_super_admin(self, middleware):
-        handler = AsyncMock()
-        msg = _make_message(111)
-        with patch("app.presentation.telegram.middlewares.admin.settings") as mock_settings:
-            mock_settings.admin.super_admins = [111, 222]
-            await middleware(handler, msg, {})
-            handler.assert_called_once_with(msg, {})
+        handler.assert_awaited_once_with(msg, {})
 
-    async def test_blocks_non_super_admin(self, middleware):
-        handler = AsyncMock()
-        msg = _make_message(999)
-        with patch("app.presentation.telegram.middlewares.admin.settings") as mock_settings:
-            mock_settings.admin.super_admins = [111]
-            with patch("app.presentation.telegram.middlewares.admin.you_are_not_admin", new_callable=AsyncMock):
-                result = await middleware(handler, msg, {})
-                handler.assert_not_called()
-                assert result is None
+    async def test_both_configured_accounts_get_through(self) -> None:
+        """Two accounts, not just the first one listed."""
+        handler, msg = AsyncMock(), _message(OTHER_SUPER)
+        patched = _supers(SUPER, OTHER_SUPER)
+        try:
+            await SuperAdminMiddleware()(handler, msg, {})
+        finally:
+            patched.stop()
 
-    async def test_allows_callback_query(self, middleware):
-        handler = AsyncMock()
-        cb = _make_callback(111)
-        with patch("app.presentation.telegram.middlewares.admin.settings") as mock_settings:
-            mock_settings.admin.super_admins = [111]
-            await middleware(handler, cb, {})
-            handler.assert_called_once()
+        handler.assert_awaited_once()
+
+    async def test_a_chat_moderator_is_not_a_super_admin(self, session) -> None:
+        """The blacklist reaches every chat, so moderating one is not enough."""
+        data = await _seed(session, moderates=[HOME])
+        handler, msg = AsyncMock(), _message(MODERATOR)
+        patched = _supers(SUPER)
+        try:
+            result = await SuperAdminMiddleware()(handler, msg, data)
+        finally:
+            patched.stop()
+
+        handler.assert_not_awaited()
+        assert result is None
+
+    async def test_a_callback_is_judged_the_same_way(self) -> None:
+        handler, cb = AsyncMock(), _callback(SUPER)
+        patched = _supers(SUPER)
+        try:
+            await SuperAdminMiddleware()(handler, cb, {})
+        finally:
+            patched.stop()
+
+        handler.assert_awaited_once()
 
 
 class TestAdminMiddleware:
-    @pytest.fixture(autouse=True)
-    def _clear_cache(self):
-        """Invalidate admin cache before each test to ensure isolation."""
-        invalidate_admin_cache()
-        yield
-        invalidate_admin_cache()
+    async def test_a_moderator_acts_in_their_own_chat(self, session) -> None:
+        data = await _seed(session, moderates=[HOME])
+        handler, msg = AsyncMock(), _message(MODERATOR, HOME)
+        patched = _supers(SUPER)
+        try:
+            await AdminMiddleware()(handler, msg, data)
+        finally:
+            patched.stop()
 
-    @pytest.fixture
-    def middleware(self):
-        return AdminMiddleware()
+        handler.assert_awaited_once_with(msg, data)
 
-    @pytest.fixture
-    def admin_repo(self):
-        return AsyncMock()
+    async def test_a_moderator_is_refused_in_a_chat_they_do_not_moderate(self, session) -> None:
+        """The reason this table exists. One chat's moderator is not the other's."""
+        data = await _seed(session, moderates=[HOME])
+        handler, msg = AsyncMock(), _message(MODERATOR, ELSEWHERE)
+        patched = _supers(SUPER)
+        try:
+            result = await AdminMiddleware()(handler, msg, data)
+        finally:
+            patched.stop()
 
-    async def test_allows_super_admin(self, middleware, admin_repo):
-        handler = AsyncMock()
-        msg = _make_message(111)
-        admin_repo.get_db_admins = AsyncMock(return_value=[])
-        with patch("app.presentation.telegram.middlewares.admin.settings") as mock_settings:
-            mock_settings.admin.super_admins = [111]
-            await middleware(handler, msg, {"admin_repo": admin_repo})
-            handler.assert_called_once()
+        handler.assert_not_awaited()
+        assert result is None
 
-    async def test_allows_db_admin(self, middleware, admin_repo):
-        handler = AsyncMock()
-        msg = _make_message(333)
-        db_admin = MagicMock()
-        db_admin.id = 333
-        admin_repo.get_db_admins = AsyncMock(return_value=[db_admin])
-        with patch("app.presentation.telegram.middlewares.admin.settings") as mock_settings:
-            mock_settings.admin.super_admins = [111]
-            await middleware(handler, msg, {"admin_repo": admin_repo})
-            handler.assert_called_once()
+    async def test_a_super_admin_acts_anywhere(self, session) -> None:
+        data = await _seed(session, moderates=[])
+        handler, msg = AsyncMock(), _message(SUPER, ELSEWHERE)
+        patched = _supers(SUPER)
+        try:
+            await AdminMiddleware()(handler, msg, data)
+        finally:
+            patched.stop()
 
-    async def test_blocks_regular_user(self, middleware, admin_repo):
-        handler = AsyncMock()
-        msg = _make_message(999)
-        admin_repo.get_db_admins = AsyncMock(return_value=[])
-        with patch("app.presentation.telegram.middlewares.admin.settings") as mock_settings:
-            mock_settings.admin.super_admins = [111]
-            with patch("app.presentation.telegram.middlewares.admin.you_are_not_admin", new_callable=AsyncMock):
-                result = await middleware(handler, msg, {"admin_repo": admin_repo})
-                handler.assert_not_called()
-                assert result is None
+        handler.assert_awaited_once()
 
-    async def test_allows_callback_query(self, middleware, admin_repo):
-        """Test that AdminMiddleware allows a CallbackQuery from a DB admin."""
-        handler = AsyncMock()
-        cb = _make_callback(333)
-        db_admin = MagicMock()
-        db_admin.id = 333
-        admin_repo.get_db_admins = AsyncMock(return_value=[db_admin])
-        with patch("app.presentation.telegram.middlewares.admin.settings") as mock_settings:
-            mock_settings.admin.super_admins = [111]
-            await middleware(handler, cb, {"admin_repo": admin_repo})
-            handler.assert_called_once_with(cb, {"admin_repo": admin_repo})
+    async def test_a_stranger_is_refused(self, session) -> None:
+        data = await _seed(session, moderates=[HOME])
+        handler, msg = AsyncMock(), _message(STRANGER, HOME)
+        patched = _supers(SUPER)
+        try:
+            result = await AdminMiddleware()(handler, msg, data)
+        finally:
+            patched.stop()
 
-    async def test_cache_prevents_double_db_call(self, middleware, admin_repo):
-        """Second call within TTL should not call get_db_admins again."""
-        handler = AsyncMock()
-        db_admin = MagicMock()
-        db_admin.id = 333
-        admin_repo.get_db_admins = AsyncMock(return_value=[db_admin])
+        handler.assert_not_awaited()
+        assert result is None
 
-        with patch("app.presentation.telegram.middlewares.admin.settings") as mock_settings:
-            mock_settings.admin.super_admins = [111]
+    async def test_a_revoked_moderator_is_refused_at_once(self, session) -> None:
+        """No cache to go stale: the answer is read fresh on every command."""
+        data = await _seed(session, moderates=[HOME])
+        repo: AdminRepository = data["admin_repo"]
+        patched = _supers(SUPER)
+        try:
+            handler, msg = AsyncMock(), _message(MODERATOR, HOME)
+            await AdminMiddleware()(handler, msg, data)
+            handler.assert_awaited_once()
 
-            # First call populates cache
-            msg1 = _make_message(333)
-            await middleware(handler, msg1, {"admin_repo": admin_repo})
+            await repo.revoke(MODERATOR, HOME)
 
-            # Second call should use cache
-            msg2 = _make_message(333)
-            await middleware(handler, msg2, {"admin_repo": admin_repo})
+            handler, msg = AsyncMock(), _message(MODERATOR, HOME)
+            await AdminMiddleware()(handler, msg, data)
+        finally:
+            patched.stop()
 
-            # get_db_admins should only have been called once (cache hit on second)
-            assert admin_repo.get_db_admins.call_count == 1
+        handler.assert_not_awaited()
+
+    async def test_a_callback_is_scoped_by_its_message(self, session) -> None:
+        data = await _seed(session, moderates=[HOME])
+        handler, cb = AsyncMock(), _callback(MODERATOR, ELSEWHERE)
+        patched = _supers(SUPER)
+        try:
+            result = await AdminMiddleware()(handler, cb, data)
+        finally:
+            patched.stop()
+
+        handler.assert_not_awaited()
+        assert result is None
+
+    async def test_a_moderator_gets_nothing_where_there_is_no_chat(self, session) -> None:
+        """A scoped right cannot be exercised somewhere the scope does not reach."""
+        data = await _seed(session, moderates=[HOME])
+        handler, cb = AsyncMock(), _callback(MODERATOR, chat_id=None)
+        patched = _supers(SUPER)
+        try:
+            result = await AdminMiddleware()(handler, cb, data)
+        finally:
+            patched.stop()
+
+        handler.assert_not_awaited()
+        assert result is None
 
 
-class TestYouAreNotAdmin:
-    async def test_sends_rejection_for_message(self):
-        msg = _make_message(999)
+class TestTheRefusal:
+    async def test_it_speaks_russian_and_clears_up_after_itself(self) -> None:
+        """Both messages go: a refusal left on screen is noise plus an invitation."""
+        msg = _message(STRANGER)
+
         with patch("app.presentation.telegram.middlewares.admin.asyncio.sleep", new_callable=AsyncMock):
             await you_are_not_admin(msg)
-            msg.answer.assert_called_once_with("\U0001f6ab You are not an Admin.")
-            msg.delete.assert_called_once()
-            msg.answer.return_value.delete.assert_called_once()
 
-    async def test_custom_text(self):
-        msg = _make_message(999)
-        with patch("app.presentation.telegram.middlewares.admin.asyncio.sleep", new_callable=AsyncMock):
-            await you_are_not_admin(msg, "Custom denial")
-            msg.answer.assert_called_once_with("Custom denial")
-
-    async def test_noop_for_non_message(self):
-        event = MagicMock(spec=types.CallbackQuery)
-        # Should not raise
-        await you_are_not_admin(event)
+        said = msg.answer.await_args.args[0]
+        assert said.isascii() is False
+        assert "Admin" not in said
+        msg.delete.assert_awaited_once()
+        msg.answer.return_value.delete.assert_awaited_once()

@@ -1,6 +1,11 @@
-"""Tests for admin handlers."""
+"""Tests for !admin and !unadmin.
 
-from unittest.mock import AsyncMock, patch
+Both commands act on the chat they were sent in, and the tests care mostly about
+that: what the handler tells the repository is a chat id, and what it tells the
+room afterwards says which chat it meant.
+"""
+
+from unittest.mock import AsyncMock
 
 import pytest
 from app.db.repositories.admin import AdminRepository
@@ -21,193 +26,151 @@ def telegram_factory():
 
 @pytest.fixture
 def mock_admin_repository():
-    return AsyncMock(spec=AdminRepository)
+    repo = AsyncMock(spec=AdminRepository)
+    repo.chats_for.return_value = []
+    return repo
 
 
 @pytest.mark.handlers
-class TestAdminHandlers:
-    """Test cases for admin management handlers."""
-
-    async def test_new_admin_success(self, telegram_factory: TelegramObjectFactory, mock_admin_repository: AsyncMock):
-        """Test successfully adding a new admin."""
-        # Arrange
+class TestGrantingRights:
+    async def test_the_grant_names_the_chat_it_was_sent_in(
+        self, telegram_factory: TelegramObjectFactory, mock_admin_repository: AsyncMock
+    ):
         admin_user = create_admin_user()
         target_user = create_normal_user(id=777777777, username="new_admin")
         chat = create_test_chat()
 
-        # Create message that replies to target user
         reply_message = telegram_factory.create_message(user=target_user, chat=chat, text="I want to be admin")
-
         command_message = telegram_factory.create_command_message(
             command="admin", user=admin_user, chat=chat, reply_to_message=reply_message
         )
+        mock_admin_repository.grant.return_value = True
+        mock_admin_repository.chats_for.return_value = [chat.id]
 
-        # Mock repository responses
-        mock_admin_repository.is_admin.return_value = False
-        mock_admin_repository.insert_admin.return_value = None
+        await new_admin(command_message, mock_admin_repository)
 
-        # Act
-        with patch("app.presentation.telegram.utils.other.get_user_mention") as mock_mention:
-            mock_mention.return_value = "@new_admin"
-
-            await new_admin(command_message, mock_admin_repository)
-
-        # Assert
-        mock_admin_repository.is_admin.assert_called_once_with(target_user.id)
-        mock_admin_repository.insert_admin.assert_called_once_with(target_user.id)
+        mock_admin_repository.grant.assert_awaited_once_with(target_user.id, chat.id, granted_by=admin_user.id)
         command_message.answer.assert_called_once()
         command_message.delete.assert_called_once()
 
-        # Verify success message
-        call_args = command_message.answer.call_args[0][0]
-        assert "добавлен" in call_args
-        assert "✅" in call_args
+        said = command_message.answer.call_args[0][0]
+        assert "модератор этого чата" in said
+        assert "✅" in said
 
-    async def test_new_admin_already_exists(
+    async def test_a_second_chat_is_reported_as_a_count(
         self, telegram_factory: TelegramObjectFactory, mock_admin_repository: AsyncMock
     ):
-        """Test adding admin who is already an admin."""
-        # Arrange
-        admin_user = create_admin_user()
-        target_user = create_normal_user(id=777777777, username="existing_admin")
+        """Whoever grants it should see the reach they just widened."""
         chat = create_test_chat()
-
+        target_user = create_normal_user(id=777777777)
         reply_message = telegram_factory.create_message(user=target_user, chat=chat)
-
         command_message = telegram_factory.create_command_message(
-            command="admin", user=admin_user, chat=chat, reply_to_message=reply_message
+            command="admin", user=create_admin_user(), chat=chat, reply_to_message=reply_message
         )
+        mock_admin_repository.grant.return_value = True
+        mock_admin_repository.chats_for.return_value = [chat.id, -1001497722835]
 
-        # Mock repository - user is already admin
-        mock_admin_repository.is_admin.return_value = True
-
-        # Act
-        with patch("app.presentation.telegram.utils.other.get_user_mention") as mock_mention:
-            mock_mention.return_value = "@existing_admin"
-
-            await new_admin(command_message, mock_admin_repository)
-
-        # Assert
-        mock_admin_repository.is_admin.assert_called_once_with(target_user.id)
-        mock_admin_repository.insert_admin.assert_not_called()  # Should not try to insert
-
-        # Verify "already exists" message
-        call_args = command_message.answer.call_args[0][0]
-        assert "уже есть в базе" in call_args
-
-    async def test_new_admin_no_reply(self, telegram_factory: TelegramObjectFactory, mock_admin_repository: AsyncMock):
-        """Test admin command without replying to a message."""
-        # Arrange
-        admin_user = create_admin_user()
-        chat = create_test_chat()
-
-        command_message = telegram_factory.create_command_message(
-            command="admin",
-            user=admin_user,
-            chat=chat,
-            reply_to_message=None,  # No reply
-        )
-
-        # Act - Should handle gracefully and respond with error message
         await new_admin(command_message, mock_admin_repository)
 
-        # Assert - Should send error message and not call repository methods
+        assert "Всего чатов под модерацией: 2" in command_message.answer.call_args[0][0]
+
+    async def test_granting_twice_says_so_and_does_not_repeat_itself(
+        self, telegram_factory: TelegramObjectFactory, mock_admin_repository: AsyncMock
+    ):
+        chat = create_test_chat()
+        target_user = create_normal_user(id=777777777, username="existing_admin")
+        reply_message = telegram_factory.create_message(user=target_user, chat=chat)
+        command_message = telegram_factory.create_command_message(
+            command="admin", user=create_admin_user(), chat=chat, reply_to_message=reply_message
+        )
+        mock_admin_repository.grant.return_value = False
+
+        await new_admin(command_message, mock_admin_repository)
+
+        assert "уже модерирует" in command_message.answer.call_args[0][0]
+
+    async def test_without_a_reply_nothing_is_granted(
+        self, telegram_factory: TelegramObjectFactory, mock_admin_repository: AsyncMock
+    ):
+        command_message = telegram_factory.create_command_message(
+            command="admin",
+            user=create_admin_user(),
+            chat=create_test_chat(),
+            reply_to_message=None,
+        )
+
+        await new_admin(command_message, mock_admin_repository)
+
         command_message.answer.assert_called_once()
-        error_msg = command_message.answer.call_args[0][0]
-        assert "ответ на сообщение" in error_msg.lower()
-
-        # Repository methods should not be called
-        mock_admin_repository.is_admin.assert_not_called()
-        mock_admin_repository.insert_admin.assert_not_called()
-
-    async def test_delete_admin_success(
-        self, telegram_factory: TelegramObjectFactory, mock_admin_repository: AsyncMock
-    ):
-        """Test successfully removing an admin."""
-        # Arrange
-        admin_user = create_admin_user()
-        target_user = create_normal_user(id=777777777, username="admin_to_remove")
-        chat = create_test_chat()
-
-        reply_message = telegram_factory.create_message(user=target_user, chat=chat)
-
-        command_message = telegram_factory.create_command_message(
-            command="unadmin", user=admin_user, chat=chat, reply_to_message=reply_message
-        )
-
-        # Mock repository - user is currently admin
-        mock_admin_repository.is_admin.return_value = True
-        mock_admin_repository.delete_admin.return_value = None
-
-        # Act
-        with patch("app.presentation.telegram.utils.other.get_user_mention") as mock_mention:
-            mock_mention.return_value = "@admin_to_remove"
-
-            await delete_admin(command_message, mock_admin_repository)
-
-        # Assert
-        mock_admin_repository.is_admin.assert_called_once_with(target_user.id)
-        mock_admin_repository.delete_admin.assert_called_once_with(target_user.id)
-
-        # Verify success message
-        call_args = command_message.answer.call_args[0][0]
-        assert "удален" in call_args
-        assert "❌" in call_args
-
-    async def test_delete_admin_not_admin(
-        self, telegram_factory: TelegramObjectFactory, mock_admin_repository: AsyncMock
-    ):
-        """Test removing admin from user who is not an admin."""
-        # Arrange
-        admin_user = create_admin_user()
-        target_user = create_normal_user(id=777777777, username="not_admin")
-        chat = create_test_chat()
-
-        reply_message = telegram_factory.create_message(user=target_user, chat=chat)
-
-        command_message = telegram_factory.create_command_message(
-            command="unadmin", user=admin_user, chat=chat, reply_to_message=reply_message
-        )
-
-        # Mock repository - user is not admin
-        mock_admin_repository.is_admin.return_value = False
-
-        # Act
-        with patch("app.presentation.telegram.utils.other.get_user_mention") as mock_mention:
-            mock_mention.return_value = "@not_admin"
-
-            await delete_admin(command_message, mock_admin_repository)
-
-        # Assert
-        mock_admin_repository.is_admin.assert_called_once_with(target_user.id)
-        mock_admin_repository.delete_admin.assert_not_called()  # Should not try to delete
-
-        # Verify "not admin" message
-        call_args = command_message.answer.call_args[0][0]
-        assert "не является админом" in call_args
+        assert "ответ на сообщение" in command_message.answer.call_args[0][0].lower()
+        mock_admin_repository.grant.assert_not_called()
 
 
 @pytest.mark.handlers
-class TestAdminHandlerEdgeCases:
-    """Test edge cases and error conditions for admin handlers."""
-
-    async def test_admin_command_database_error(
+class TestRevokingRights:
+    async def test_the_revoke_names_the_chat_it_was_sent_in(
         self, telegram_factory: TelegramObjectFactory, mock_admin_repository: AsyncMock
     ):
-        """Test admin command when database operation fails."""
-        # Arrange
-        admin_user = create_admin_user()
-        target_user = create_normal_user()
         chat = create_test_chat()
-
+        target_user = create_normal_user(id=777777777, username="admin_to_remove")
         reply_message = telegram_factory.create_message(user=target_user, chat=chat)
         command_message = telegram_factory.create_command_message(
-            command="admin", user=admin_user, chat=chat, reply_to_message=reply_message
+            command="unadmin", user=create_admin_user(), chat=chat, reply_to_message=reply_message
         )
+        mock_admin_repository.revoke.return_value = True
 
-        # Mock database error
-        mock_admin_repository.is_admin.side_effect = Exception("Database connection failed")
+        await delete_admin(command_message, mock_admin_repository)
 
-        # Act & Assert
+        mock_admin_repository.revoke.assert_awaited_once_with(target_user.id, chat.id)
+        said = command_message.answer.call_args[0][0]
+        assert "больше не модерирует этот чат" in said
+        assert "❌" in said
+
+    async def test_remaining_chats_are_spelled_out(
+        self, telegram_factory: TelegramObjectFactory, mock_admin_repository: AsyncMock
+    ):
+        """Taking one chat back is not the same as taking the job away."""
+        chat = create_test_chat()
+        target_user = create_normal_user(id=777777777)
+        reply_message = telegram_factory.create_message(user=target_user, chat=chat)
+        command_message = telegram_factory.create_command_message(
+            command="unadmin", user=create_admin_user(), chat=chat, reply_to_message=reply_message
+        )
+        mock_admin_repository.revoke.return_value = True
+        mock_admin_repository.chats_for.return_value = [-1001497722835, -1001192822531]
+
+        await delete_admin(command_message, mock_admin_repository)
+
+        assert "ещё в 2 чатах" in command_message.answer.call_args[0][0]
+
+    async def test_revoking_from_somebody_who_never_had_it(
+        self, telegram_factory: TelegramObjectFactory, mock_admin_repository: AsyncMock
+    ):
+        chat = create_test_chat()
+        target_user = create_normal_user(id=777777777, username="not_admin")
+        reply_message = telegram_factory.create_message(user=target_user, chat=chat)
+        command_message = telegram_factory.create_command_message(
+            command="unadmin", user=create_admin_user(), chat=chat, reply_to_message=reply_message
+        )
+        mock_admin_repository.revoke.return_value = False
+
+        await delete_admin(command_message, mock_admin_repository)
+
+        assert "и так не модерирует" in command_message.answer.call_args[0][0]
+
+
+@pytest.mark.handlers
+class TestWhenTheDatabaseIsDown:
+    async def test_the_failure_is_not_swallowed(
+        self, telegram_factory: TelegramObjectFactory, mock_admin_repository: AsyncMock
+    ):
+        """A grant that silently did nothing would be worse than a visible error."""
+        chat = create_test_chat()
+        reply_message = telegram_factory.create_message(user=create_normal_user(), chat=chat)
+        command_message = telegram_factory.create_command_message(
+            command="admin", user=create_admin_user(), chat=chat, reply_to_message=reply_message
+        )
+        mock_admin_repository.grant.side_effect = Exception("Database connection failed")
+
         with pytest.raises(Exception, match="Database connection failed"):
             await new_admin(command_message, mock_admin_repository)

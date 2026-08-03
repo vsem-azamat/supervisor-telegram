@@ -1,25 +1,14 @@
+"""Filters used when routing an update.
+
+Permission checks are not here. They used to be — an `AdminFilter` and a
+`SuperAdminFilter` that nothing ever referenced, answering the same question as
+the middlewares in a slightly different way. A second answer to "who may do
+this" is worse than no answer, because only one of them gets updated. See
+``middlewares/admin.py``, which is the one that runs.
+"""
+
 from aiogram import types
 from aiogram.filters import BaseFilter
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.core.config import settings
-from app.db.repositories import get_admin_repository
-
-
-class SuperAdminFilter(BaseFilter):
-    async def __call__(self, msg: types.Message) -> bool:
-        if not msg.from_user:
-            return False
-        return msg.from_user.id in settings.admin.super_admins
-
-
-class AdminFilter(BaseFilter):
-    async def __call__(self, msg: types.Message, db: AsyncSession) -> bool:
-        if not msg.from_user:
-            return False
-        admin_repo = get_admin_repository(db)
-        admins_id = [admin.id for admin in await admin_repo.get_db_admins()]
-        return msg.from_user.id in admins_id
 
 
 class ChatTypeFilter(BaseFilter):

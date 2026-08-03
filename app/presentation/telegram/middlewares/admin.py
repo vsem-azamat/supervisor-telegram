@@ -1,5 +1,19 @@
+"""Two guards, told apart by how far a mistake travels.
+
+:class:`AdminMiddleware` covers commands that spoil one chat — a ban, a mute, a
+deleted message. Whoever moderates that chat may run them, and nowhere else.
+
+:class:`SuperAdminMiddleware` covers commands that spoil all forty-five at once:
+the shared blacklist, handing out moderator rights, a link into the web console.
+Those stay with the accounts named in ``ADMIN_SUPER_ADMINS``, which lives in
+configuration rather than the database, so the set of people who can grant power
+cannot be changed by writing a row.
+
+Neither guard consults Telegram's own list of chat administrators. That crown
+gets handed out so a name appears in the member list.
+"""
+
 import asyncio
-import time
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
@@ -7,28 +21,52 @@ from aiogram import BaseMiddleware, types
 from aiogram.types import TelegramObject
 
 from app.core.config import settings
+from app.core.logging import get_logger
 
 if TYPE_CHECKING:
     from app.db.repositories import AdminRepository
 
-# TTL cache for admin user IDs (same pattern as BlacklistMiddleware)
-_admin_cache: tuple[set[int], float] | None = None
-_CACHE_TTL = 300  # 5 minutes
+logger = get_logger("middleware.admin")
+
+NOT_ADMIN = "🚫 Эта команда доступна только модераторам чата."
+NOT_SUPER_ADMIN = "🚫 Эта команда доступна только главным администраторам."
 
 
-def invalidate_admin_cache() -> None:
-    """Invalidate the admin cache so next check re-fetches from DB."""
-    global _admin_cache  # noqa: PLW0603
-    _admin_cache = None
+async def you_are_not_admin(event: TelegramObject, text: str = NOT_ADMIN) -> None:
+    """Say no, then clear both messages away.
 
-
-async def you_are_not_admin(event: TelegramObject, text: str = "🚫 You are not an Admin.") -> None:
-    """Inform user that they are not an admin and remove helper messages."""
+    A refusal that stays on screen is a second piece of noise in a chat that
+    already has enough, and it invites the next person to try the same command.
+    """
     if isinstance(event, types.Message):
         answer = await event.answer(text)
         await event.delete()
         await asyncio.sleep(5)
         await answer.delete()
+
+
+def _actor(event: TelegramObject) -> types.User | None:
+    if isinstance(event, (types.Message, types.CallbackQuery)):
+        return event.from_user
+    return None
+
+
+def _chat_id(event: TelegramObject) -> int | None:
+    """The chat a command was aimed at, or None when there isn't one.
+
+    A callback carries its chat on the message it is attached to, and an
+    inaccessible message — one the bot can no longer read — still carries the
+    chat id, which is all this needs.
+    """
+    if isinstance(event, types.Message):
+        return event.chat.id
+    if isinstance(event, types.CallbackQuery) and event.message is not None:
+        return event.message.chat.id
+    return None
+
+
+def is_super_admin(user_id: int) -> bool:
+    return user_id in settings.admin.super_admins
 
 
 class SuperAdminMiddleware(BaseMiddleware):
@@ -38,41 +76,39 @@ class SuperAdminMiddleware(BaseMiddleware):
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
-        if (
-            isinstance(event, (types.Message, types.CallbackQuery))
-            and event.from_user
-            and event.from_user.id in settings.admin.super_admins
-        ):
+        actor = _actor(event)
+        if actor is not None and is_super_admin(actor.id):
             return await handler(event, data)
-        await you_are_not_admin(event, "You are not a Super Admin.")
-        return None  # Stop further handler processing if not SuperAdmin
+        await you_are_not_admin(event, NOT_SUPER_ADMIN)
+        return None
 
 
 class AdminMiddleware(BaseMiddleware):
+    """Lets a moderator act, in the chats they were given and no others."""
+
     async def __call__(
         self,
         handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
         event: TelegramObject,
         data: dict[str, Any],
     ) -> Any:
-        global _admin_cache  # noqa: PLW0603
+        actor = _actor(event)
+        if actor is None:
+            await you_are_not_admin(event)
+            return None
+
+        if is_super_admin(actor.id):
+            return await handler(event, data)
+
+        chat_id = _chat_id(event)
+        if chat_id is None:
+            await you_are_not_admin(event)
+            return None
 
         admin_repo: AdminRepository = data["admin_repo"]
-
-        now = time.monotonic()
-        if _admin_cache is not None and _admin_cache[1] > now:
-            admin_ids = _admin_cache[0]
-        else:
-            db_admins = await admin_repo.get_db_admins()
-            admin_ids = {admin.id for admin in db_admins}
-            _admin_cache = (admin_ids, now + _CACHE_TTL)
-
-        all_admins_id = admin_ids | set(settings.admin.super_admins)
-        if (
-            isinstance(event, (types.Message, types.CallbackQuery))
-            and event.from_user
-            and event.from_user.id in all_admins_id
-        ):
+        if await admin_repo.is_admin_in(actor.id, chat_id):
             return await handler(event, data)
+
+        logger.info("command_refused", user_id=actor.id, chat_id=chat_id)
         await you_are_not_admin(event)
-        return None  # Stop further handler processing if not Admin
+        return None
