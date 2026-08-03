@@ -10,3 +10,5 @@ This section covers production runtime operations and deployment contracts.
 - [The Database](database.md) - it runs beside this stack rather than in it,
   what that costs, and the one-time sequence that brought a database older than
   the migration squash under the current history.
+- [Telegram Accounts](telegram-accounts.md) - the personal and working accounts,
+  why their sessions are kept apart, and how to sign each in.

@@ -182,6 +182,7 @@ scripts/*
 !scripts/entrypoint.sh
 !scripts/env_to_github.sh
 !scripts/adopt_existing_db.py
+!scripts/tg_accounts.py
 .claude/
 
 # Local credential drops — never tracked.

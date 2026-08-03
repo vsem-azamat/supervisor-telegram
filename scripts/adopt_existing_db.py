@@ -19,11 +19,10 @@ from __future__ import annotations
 import asyncio
 import sys
 
-from sqlalchemy import inspect
-from sqlalchemy.ext.asyncio import create_async_engine
-
 from app.db import models as _models  # noqa: F401  # register the ORM models
 from app.db.base import Base
+from sqlalchemy import inspect
+from sqlalchemy.ext.asyncio import create_async_engine
 
 INITIAL_REVISION = "fbeb70328d81"
 

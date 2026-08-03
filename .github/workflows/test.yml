@@ -66,8 +66,8 @@ jobs:
 
     - name: Lint + format check (ruff)
       run: |
-        uv run ruff check app tests
-        uv run ruff format --check app tests
+        uv run ruff check app tests scripts
+        uv run ruff format --check app tests scripts
 
     - name: Type check (ty)
       run: uv run ty check app tests
