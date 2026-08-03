@@ -7,7 +7,7 @@ from app.presentation.telegram.middlewares import (
     chat_type as chat_type_middlewares,
 )
 
-from . import admin, agent_handler, events, groups, moderation, pending_actions, service, start
+from . import admin, events, groups, moderation, pending_actions, service, start
 
 router = Router()
 
@@ -18,10 +18,7 @@ admin.admin_router.message.middleware(admin_middlewares.SuperAdminMiddleware())
 groups.groups_router.message.middleware(chat_type_middlewares.ChatTypeMiddleware(["group", "supergroup"]))
 # `!json` dumps a message's internals, which is a debugging tool, not moderation.
 service.router.message.middleware(admin_middlewares.SuperAdminMiddleware())
-agent_handler.agent_router.message.middleware(chat_type_middlewares.ChatTypeMiddleware(["group", "supergroup"]))
 
-# Agent router first — /report and /spam go through LLM agent
-router.include_router(agent_handler.agent_router)
 router.include_router(moderation.moderation_router)
 router.include_router(pending_actions.pending_actions_router)
 router.include_router(start.router)

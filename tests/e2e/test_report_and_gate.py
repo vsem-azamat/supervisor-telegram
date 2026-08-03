@@ -1,10 +1,10 @@
-"""End-to-end tests for moderation: /report and /spam, and the approval gate.
+"""`/report` and the approval gate, driven through a fake Telegram.
 
-Uses:
-- FakeTelegramServer to simulate Telegram Bot API
-- SQLite in-memory for DB (fast, no docker needed)
-- /report and /spam are now mechanical (no LLM) — they forward to admin chat
-- Escalation callbacks use AgentCore.execute_action directly (no injected agent_core)
+The dispatcher is fed real `Update` objects against `FakeTelegramServer` and an
+in-memory SQLite, so what is pinned here is the routing — which handler a
+command actually reaches once every middleware has had its say. That is exactly
+the thing unit tests cannot see, and exactly where `/report` and `!report` drifted
+into two different implementations.
 """
 
 from __future__ import annotations
@@ -46,7 +46,6 @@ def _build_router() -> Any:
     from aiogram import Router
     from app.presentation.telegram.handlers import (
         admin,
-        agent_handler,
         events,
         groups,
         moderation,
@@ -58,12 +57,9 @@ def _build_router() -> Any:
     # Re-create sub-routers to avoid reuse issues
     r = Router()
 
-    # The agent_router is a module-level singleton — we can include it once per test
-    # by using a fresh parent router each time.
-    # But sub-routers (agent_router, moderation_router etc.) are singletons too.
-    # We must detach them from any previous parent first.
+    # The sub-routers are module-level singletons, so a fresh parent per test is
+    # not enough — they have to be detached from the previous one first.
     sub_routers = [
-        agent_handler.agent_router,
         moderation.moderation_router,
         start.router,
         admin.admin_router,
@@ -75,9 +71,8 @@ def _build_router() -> Any:
         sr._parent_router = None  # force detach
 
     # Re-wire middlewares on sub-routers (same as handlers/__init__.py)
-    agent_handler.agent_router.message.middleware(chat_type_mw.ChatTypeMiddleware(["group", "supergroup"]))
+    groups.groups_router.message.middleware(chat_type_mw.ChatTypeMiddleware(["group", "supergroup"]))
 
-    r.include_router(agent_handler.agent_router)
     r.include_router(moderation.moderation_router)
     r.include_router(start.router)
     r.include_router(admin.admin_router)
@@ -235,7 +230,7 @@ async def dispatcher(
 
 @pytest.mark.e2e
 class TestReportCommand:
-    """Tests for /report and /spam commands (mechanical forwarding)."""
+    """`/report` — the one command an ordinary member has."""
 
     async def test_report_without_reply_shows_hint(self, dispatcher: Dispatcher, bot: Bot, fake_tg: FakeTelegramServer):
         """Sending /report without replying to a message should show a hint."""
@@ -296,7 +291,7 @@ class TestReportCommand:
         )
         assert admin_msg is not None
         admin_text = admin_msg.params.get("text", "")
-        assert "Report" in admin_text
+        assert "Жалоба" in admin_text
         assert "Target" in admin_text or str(TARGET_USER_ID) in admin_text
         assert "t.me/" in admin_text  # chat and message links present
         assert "Перейти к сообщению" in admin_text
@@ -307,16 +302,23 @@ class TestReportCommand:
             None,
         )
         assert chat_msg is not None
-        assert "Жалоба" in chat_msg.params.get("text", "")
+        assert "Жалоба отправлена" in chat_msg.params.get("text", "")
 
-    async def test_spam_command_forwards_to_admin(self, dispatcher: Dispatcher, bot: Bot, fake_tg: FakeTelegramServer):
-        """The /spam command should also forward to admin."""
+    async def test_both_prefixes_reach_the_same_handler(
+        self, dispatcher: Dispatcher, bot: Bot, fake_tg: FakeTelegramServer
+    ):
+        """`!report` used to be a second implementation in another file.
+
+        Feeding the bang form and comparing the summary against the slash form
+        is the only way to catch them drifting apart again — the two handlers
+        each had passing unit tests the whole time they disagreed.
+        """
         target_msg = Message(
             message_id=31,
             date=datetime.now(UTC),
             chat=Chat(id=CHAT_ID, type="supergroup", title="Test Chat"),
             from_user=User(id=TARGET_USER_ID, is_bot=False, first_name="Target"),
-            text="Spam message",
+            text="Buy cheap diploma!!!",
         )
 
         update = Update(
@@ -326,22 +328,59 @@ class TestReportCommand:
                 date=datetime.now(UTC),
                 chat=Chat(id=CHAT_ID, type="supergroup", title="Test Chat"),
                 from_user=User(id=REPORTER_ID, is_bot=False, first_name="Reporter"),
-                text="/spam",
-                entities=[MessageEntity(type="bot_command", offset=0, length=5)],
+                text="!report",
+                entities=[MessageEntity(type="bot_command", offset=0, length=7)],
                 reply_to_message=target_msg,
             ),
         )
 
         await dispatcher.feed_update(bot, update)
 
-        send_calls = fake_tg.get_calls("sendMessage")
-        # Admin summary should say SPAM
         admin_msg = next(
-            (c for c in send_calls if str(c.params.get("chat_id", "")) == str(SUPER_ADMIN_ID)),
+            (c for c in fake_tg.get_calls("sendMessage") if str(c.params.get("chat_id", "")) == str(SUPER_ADMIN_ID)),
             None,
         )
         assert admin_msg is not None
-        assert "SPAM" in admin_msg.params.get("text", "")
+        admin_text = admin_msg.params.get("text", "")
+        assert "Жалоба" in admin_text
+        assert str(TARGET_USER_ID) in admin_text
+        assert "Перейти к сообщению" in admin_text
+
+    async def test_spam_is_no_longer_a_name_for_complaining(
+        self, dispatcher: Dispatcher, bot: Bot, fake_tg: FakeTelegramServer
+    ):
+        """`/spam` from an ordinary member forwards nothing.
+
+        It was a second name for `/report`, sitting one character away from
+        `!spam`, which banned the person out of every chat. A member typing it
+        now gets no report chat entry — and `!spam` answers with the move
+        notice instead of acting.
+        """
+        update = Update(
+            update_id=4,
+            message=Message(
+                message_id=52,
+                date=datetime.now(UTC),
+                chat=Chat(id=CHAT_ID, type="supergroup", title="Test Chat"),
+                from_user=User(id=REPORTER_ID, is_bot=False, first_name="Reporter"),
+                text="/spam",
+                entities=[MessageEntity(type="bot_command", offset=0, length=5)],
+                reply_to_message=Message(
+                    message_id=32,
+                    date=datetime.now(UTC),
+                    chat=Chat(id=CHAT_ID, type="supergroup", title="Test Chat"),
+                    from_user=User(id=TARGET_USER_ID, is_bot=False, first_name="Target"),
+                    text="Spam message",
+                ),
+            ),
+        )
+
+        await dispatcher.feed_update(bot, update)
+
+        forwarded = [
+            c for c in fake_tg.get_calls("sendMessage") if str(c.params.get("chat_id", "")) == str(SUPER_ADMIN_ID)
+        ]
+        assert forwarded == []
 
 
 @pytest.mark.e2e
