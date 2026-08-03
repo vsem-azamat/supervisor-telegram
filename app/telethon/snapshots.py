@@ -42,6 +42,10 @@ logger = get_logger("webapi.snapshot_loop")
 SNAPSHOT_INTERVAL_SECONDS = 3600  # 1 hour
 METADATA_STALENESS_HOURS = 24
 
+# How long to wait when the Telethon client is not connected yet. Short,
+# because the usual reason is that the process is thirty seconds old.
+RETRY_INTERVAL_SECONDS = 30
+
 
 def _refresh_stale_metadata(chat: Chat, info: Any, *, cutoff: datetime.datetime) -> bool:
     """Sync Chat.title from Telegram when the row's last_synced_at is past
@@ -127,11 +131,24 @@ async def run_snapshot_loop(
     telethon: TelethonClient | None,
     bot: Bot | None = None,
     interval_seconds: int = SNAPSHOT_INTERVAL_SECONDS,
+    retry_seconds: int = RETRY_INTERVAL_SECONDS,
 ) -> None:
-    """Forever-loop. Cancelled on app shutdown via task.cancel()."""
+    """Forever-loop. Cancelled on app shutdown via task.cancel().
+
+    Sleeps a short retry rather than the full hour whenever the client is not
+    connected. The loop is started alongside polling, and the client connects
+    from the dispatcher's startup hook — so the first tick reliably arrives
+    before Telethon is up. Sleeping an hour on that meant an empty table for an
+    hour after every deploy, which is indistinguishable from the loop being
+    broken, and was in fact how the loop being broken looked.
+    """
     while True:
-        try:
-            await snapshot_once(session_maker=session_maker, telethon=telethon, bot=bot)
-        except Exception:
-            logger.exception("snapshot_loop iteration failed")
-        await asyncio.sleep(interval_seconds)
+        connected = telethon is not None and telethon.is_available
+        if connected:
+            try:
+                await snapshot_once(session_maker=session_maker, telethon=telethon, bot=bot)
+            except Exception:
+                logger.exception("snapshot_loop iteration failed")
+        else:
+            logger.info("snapshot_loop waiting for telethon", retry_seconds=retry_seconds)
+        await asyncio.sleep(interval_seconds if connected else retry_seconds)
