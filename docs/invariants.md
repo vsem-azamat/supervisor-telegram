@@ -92,6 +92,18 @@ rendering. A cleared field means "take it down": an empty string would list a
 chat whose card leads nowhere, because the catalogue keys off the column being
 set.
 
+**A public figure says how much of itself it measured.** Member counts come
+from snapshots the userbot may not have managed to take, so a reach total can
+cover part of the catalogue while naming all of it. The endpoint returns
+`measured_chats` beside `members` for exactly that reason, and the page has to
+show the gap — a number somebody is about to pay against must not quietly stand
+for more than it counted.
+
+**The public half never reaches Telethon at request time.** Its endpoints
+answer strangers, and a public URL that walks into the account behind it is a
+public URL somebody can point at the account. Aggregates are read from stored
+snapshots, which is also why they can be served to anybody at any rate.
+
 **Both halves are written in Russian.** The people who read the catalogue are
 students in Czechia and the people who work the console are the two accounts in
 `ADMIN_SUPER_ADMINS` — the same language either way. A screen half in English is

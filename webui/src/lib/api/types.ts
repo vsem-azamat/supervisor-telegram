@@ -114,6 +114,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/public/reach": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Public Reach
+         * @description How far a post across the published catalogue would carry.
+         *
+         *     Counted over the same rows `/catalog` returns and no others. Reach summed
+         *     across private chats would be a claim about rooms nobody being quoted a
+         *     price can see, and publishing their size is not ours to do.
+         *
+         *     Member counts come from the snapshots the userbot writes, never from
+         *     Telethon at request time: this endpoint answers strangers, and a public URL
+         *     that reaches into the account behind it is a public URL somebody can point
+         *     at the account. The newest snapshot per chat is the answer — the loop writes
+         *     a row per poll, and summing all of them would count the same people once per
+         *     observation.
+         */
+        get: operations["get_public_reach_api_public_reach_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/public/join-check": {
         parameters: {
             query?: never;
@@ -796,6 +827,44 @@ export interface components {
             activity: "unknown" | "quiet" | "active" | "busy";
         };
         /**
+         * PublicReach
+         * @description How far a post across the published catalogue would carry.
+         *
+         *     ``measured_chats`` is the honesty of ``members``: the counts come from
+         *     snapshots the userbot managed to take, and Telegram does not answer for
+         *     every chat every time. When it is lower than ``chats``, the total is a sum
+         *     over part of the catalogue and the page has to say so — a reach figure that
+         *     quietly covers two thirds of what it names is the kind of number somebody
+         *     would pay against.
+         */
+        PublicReach: {
+            /** Chats */
+            chats: number;
+            /** Members */
+            members: number;
+            /** Measured Chats */
+            measured_chats: number;
+            /** Groups */
+            groups: components["schemas"]["PublicReachGroup"][];
+        };
+        /**
+         * PublicReachGroup
+         * @description One university's worth of catalogue, as an advertiser would ask about it.
+         *
+         *     Aggregated per group and never per chat. The catalogue already says which
+         *     chats exist; how large each individual room is does not need to be
+         *     published alongside it, and a sum is what somebody buying a placement is
+         *     actually asking for.
+         */
+        PublicReachGroup: {
+            /** Name */
+            name: string;
+            /** Chats */
+            chats: number;
+            /** Members */
+            members: number;
+        };
+        /**
          * SpamPingRead
          * @description One ad-detection event surfaced to the UI.
          */
@@ -1054,6 +1123,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PublicCatalogItem"][];
+                };
+            };
+        };
+    };
+    get_public_reach_api_public_reach_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicReach"];
                 };
             };
         };
