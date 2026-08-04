@@ -17,18 +17,18 @@ recover.
 | --- | --- |
 | `DB_PASSWORD` | PostgreSQL password. The database runs beside this stack rather than in it, so this is the password that database already has — see [The Database](database.md). |
 | `MODERATOR_BOT_TOKEN` | Bot token from BotFather |
-| `TELETHON_API_ID`, `TELETHON_API_HASH` | The userbot's API credentials. Together they reach a real account, so both are secrets — half a pair in `vars` protects nothing. |
 | `MCP_TOKEN` | Bearer token for the control plane |
 | `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY` | Deploy target and key |
 
 `MCP_TOKEN` is the entire protection on a plane that can mute, unmute, unban and
-read chat history through a user session. Generate with `openssl rand -hex 32`.
+read what the bot recorded. Generate with `openssl rand -hex 32`.
 
-The Telethon **session file** is not a GitHub secret — it is a file on the host,
-mounted into the bot container from
-`~/deploy/supervisor-telegram/moderator_userbot.session`. It authenticates a
-real Telegram account and grants far more than any bot token; treat it as the
-most sensitive artefact in the deployment.
+There is no Telegram **user session** in this deployment, deliberately. The
+maintenance scripts under `scripts/` use one and run from a developer's
+machine; nothing the deployed application does needs an account, and putting a
+session on the server would make the most sensitive artefact in Telegram — one
+that reads every private conversation the account can see — a deployment
+artefact.
 
 ## Variables
 
@@ -48,25 +48,20 @@ and off otherwise:
 
 | Feature | On when |
 | --- | --- |
-| Telethon userbot | `TELETHON_API_ID` and `TELETHON_API_HASH` are both set, *and* an authorised session file is mounted |
 | MCP control plane | `MCP_TOKEN` is set |
 
-The userbot is optional and production runs without it. It reads what a bot
-cannot — message history for the control plane's read tools — and nothing else
-depends on it. Chat titles, photos and member counts all come over the Bot API,
-because a client-API dependency is a dependency on a person being logged in
-somewhere, and features built on one go quiet the moment they are deployed
-without that person's session.
+Everything the application does runs on the bot token. Titles, photos and
+member counts are Bot API calls; message history and search read the rows the
+bot recorded as it moderated. There is nothing left to switch on with an
+account.
 
 A separate flag could disagree with the configuration it gates, and only ever in
-the direction that fails quietly: `TELETHON_ENABLED=true` with no credentials
-produced a userbot that started, failed, and said nothing.
+the direction that fails quietly: a flag saying a subsystem is on, over
+credentials that are absent, produces one that starts, fails, and says nothing.
 
 Some values are fixed in `docker-compose.yaml` rather than configured, because
-they cannot differ without breaking something. The MCP port and path are pinned
-to the container port mapping; the Telethon session name is pinned to the volume
-mount, and a mismatch there makes Telethon start an unauthorised session instead
-of failing.
+they cannot differ without breaking something: the MCP port and path are pinned
+to the container port mapping.
 
 Anything absent falls back to the default in `app/core/config.py`. The list is
 deliberately not a second copy of every setting — thresholds and intervals are
@@ -78,9 +73,7 @@ Before anything reaches the VPS the workflow fails on:
 
 - any of `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `MODERATOR_BOT_TOKEN`,
   `ADMIN_SUPER_ADMINS` being empty — these have no defaults, and containers
-  crash on boot without them;
-- one half of the Telethon credential pair without the other, which activates
-  nothing and looks like a working deploy with a userbot that never connects;
+  crash on boot without them.
 
 A test pins the forwarded list against `docker-compose.yaml`, so a setting added
 to one and not the other fails in CI rather than in production.
@@ -118,6 +111,3 @@ Rotating `MCP_TOKEN` also means updating whatever client holds it.
 Rotate first, investigate after. For `MCP_TOKEN`, check `pending_actions` for
 proposals nobody made — the plane cannot ban on its own, so a leak shows up as
 requests awaiting confirmation rather than as damage already done.
-
-For the Telethon session, terminate it from Telegram's own active-sessions list.
-Rotating API credentials does not invalidate an already-authorised session.

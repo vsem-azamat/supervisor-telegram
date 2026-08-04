@@ -93,7 +93,7 @@ class ChatRead(BaseModel):
     # can say which chats are not, rather than leaving it to be discovered by
     # looking at the public page and counting.
     public_link: str | None = None
-    member_count: int | None = None  # enriched from Telethon, None when unavailable
+    member_count: int | None = None  # last recorded snapshot; None when never measured
     has_photo: bool = False
     last_synced_at: datetime.datetime | None = None
     created_at: datetime.datetime
@@ -140,7 +140,7 @@ class ChatNode(BaseModel):
     """Recursive node for the /chats/graph tree response.
 
     member_count is intentionally NOT enriched here — the tree endpoint
-    skips Telethon to avoid N+1 RPCs on every poll. Drill into /chats/:id
+    skips member counts, which the tile does not show. Drill into /chats/:id
     for live counts.
     """
 
@@ -235,7 +235,6 @@ class SystemStatus(BaseModel):
     """Read-only operational status for the /settings system card."""
 
     super_admin_ids: list[int]
-    telethon_connected: bool
     publish_bot_ready: bool
     allowed_origins: list[str]
     session_ttl_days: int

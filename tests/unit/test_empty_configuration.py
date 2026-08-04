@@ -15,7 +15,7 @@ the point.
 from __future__ import annotations
 
 import pytest
-from app.core.config import AdminSettings, DatabaseSettings, McpSettings, TelethonSettings
+from app.core.config import AdminSettings, DatabaseSettings, McpSettings
 
 pytestmark = pytest.mark.unit
 
@@ -30,13 +30,11 @@ def test_an_empty_int_falls_back_to_its_default() -> None:
     database = DatabaseSettings.model_validate({"user": "u", "password": "p", "name": "n", "port": ""})
 
     assert database.port == 5432
-    assert TelethonSettings.model_validate({"api_id": ""}).api_id == 0
 
 
 def test_an_empty_credential_leaves_its_feature_switched_off() -> None:
     """The deploy forwards these names whether or not they hold anything."""
     assert McpSettings.model_validate({"token": ""}).active is False
-    assert TelethonSettings.model_validate({"api_id": "", "api_hash": ""}).active is False
 
 
 def test_a_value_that_is_present_still_wins() -> None:

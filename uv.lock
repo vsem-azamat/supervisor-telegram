@@ -1271,7 +1271,6 @@ dependencies = [
     { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "structlog" },
     { name = "telegramify-markdown" },
-    { name = "telethon" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -1285,6 +1284,7 @@ dev = [
     { name = "pytest-cov" },
     { name = "pytest-mock" },
     { name = "ruff" },
+    { name = "telethon" },
     { name = "testcontainers" },
     { name = "ty" },
     { name = "watchfiles" },
@@ -1305,7 +1305,6 @@ requires-dist = [
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0" },
     { name = "structlog", specifier = ">=23.2" },
     { name = "telegramify-markdown", specifier = ">=1.1,<2" },
-    { name = "telethon", specifier = ">=1.42.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.44.0" },
 ]
 
@@ -1319,6 +1318,7 @@ dev = [
     { name = "pytest-cov", specifier = ">=4.0" },
     { name = "pytest-mock", specifier = ">=3.12" },
     { name = "ruff", specifier = ">=0.12.4" },
+    { name = "telethon", specifier = ">=1.42.0" },
     { name = "testcontainers", extras = ["postgres"], specifier = ">=4.14.1" },
     { name = "ty", specifier = ">=0.0.23" },
     { name = "watchfiles", specifier = ">=0.21" },

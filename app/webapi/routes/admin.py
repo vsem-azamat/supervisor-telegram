@@ -73,12 +73,10 @@ async def get_system_status(
     request: Request,
     _admin_id: Annotated[int, Depends(require_super_admin)],
 ) -> SystemStatus:
-    from app.core.container import container
 
     publish_bot = getattr(request.app.state, "publish_bot", None)
     return SystemStatus(
         super_admin_ids=list(settings.admin.super_admins),
-        telethon_connected=container.get_telethon_client() is not None,
         publish_bot_ready=publish_bot is not None,
         allowed_origins=list(settings.webapi.allowed_origins),
         session_ttl_days=settings.webapi.session_ttl_days,

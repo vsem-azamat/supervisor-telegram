@@ -3,16 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated
 
 from aiogram import Bot
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_session_maker
-
-if TYPE_CHECKING:
-    from app.telethon.telethon_client import TelethonClient
 
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
@@ -47,17 +44,6 @@ async def require_super_admin(
     if row is None or row.user_id not in settings.admin.super_admins:
         raise HTTPException(status_code=401, detail="invalid session")
     return row.user_id
-
-
-async def get_telethon() -> TelethonClient | None:
-    """Return the process-wide TelethonClient if the main bot has wired one.
-
-    Returns None when running webapi without the bot (tests, standalone
-    dev), so callers must handle the no-telethon case gracefully.
-    """
-    from app.core.container import container
-
-    return container.get_telethon_client()
 
 
 async def get_publish_bot(request: Request) -> Bot:

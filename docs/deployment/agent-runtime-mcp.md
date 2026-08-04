@@ -27,11 +27,10 @@ deploy workflow.
 
 ## Which process serves it
 
-The `bot` process, not `webapi`. Moderation tools need the Telethon user
-session, whose SQLite file only one process may open, and the bot whose
-dispatcher answers confirmation buttons,
-which are asyncio tasks belonging to whichever process created them. Both are in
-`bot`.
+The `bot` process, not `webapi`. Telegram delivers a button press back to the
+identity that sent the message, so the confirmation tier only works from the
+process holding that identity — and the handlers waiting on those presses are
+asyncio tasks belonging to whichever process created them.
 
 Restarting `bot` therefore drops MCP connections along with polling, and
 `webapi` can be restarted without touching the control plane.

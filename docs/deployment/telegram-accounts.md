@@ -1,5 +1,9 @@
 # Telegram accounts
 
+These are for the maintenance scripts under `scripts/`, which run from a
+developer's machine. The deployed application has no user session and does not
+want one — see [production credentials](production-credentials.md).
+
 Two user accounts are involved in running these chats, and they are not
 interchangeable:
 
@@ -56,8 +60,8 @@ its settings — Telegram sees no difference between the file and the person.
   this machine.
 - Deleting the file only makes it unusable here. Actually revoking access means
   ending the session from Telegram's **Devices** list.
-- The bot's own userbot session (`moderator_userbot.session`, mounted into the
-  container) is a third, unrelated session. Do not point these scripts at it.
+- The deployment has no session of its own to confuse these with. It used to
+  mount one; nothing in the application needs an account any more.
 
 ## Handing administration over
 

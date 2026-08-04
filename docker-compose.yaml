@@ -8,9 +8,9 @@
 # every setting.
 #
 # There are no enable-flags here at all. A feature is on when it is configured:
-# Telethon needs credentials, the control plane needs a token. A flag that could
-# disagree with the configuration it gates can only ever be wrong in one
-# direction, and it is the direction that fails silently.
+# the control plane needs a token, and that token is also its switch. A flag
+# that could disagree with the configuration it gates can only ever be wrong in
+# one direction, and it is the direction that fails silently.
 #
 # Consequence worth knowing: `docker compose up` run by hand on the host, with
 # none of this exported, recreates the containers without their configuration.
@@ -29,8 +29,6 @@ x-runtime-env: &runtime-env
   MODERATOR_BOT_TOKEN:
   ADMIN_SUPER_ADMINS:
   ADMIN_REPORT_CHAT_ID:
-  TELETHON_API_ID:
-  TELETHON_API_HASH:
   WEBAPI_PUBLIC_URL:
   MCP_TOKEN:
   # Fixed here rather than passed in: they do not differ between deployments,
@@ -46,13 +44,12 @@ services:
     environment:
       <<: *runtime-env
       LOG_FILE_PATH: logs/bot.log
-    # The MCP control plane is served here rather than by webapi: its tools need
-    # the Telethon session and the bot that answers confirmations.
-    # Loopback only — it is not published to the internet.
+    # The MCP control plane is served here rather than by webapi: Telegram
+    # answers a confirmation button to the identity that sent it, and that
+    # identity is this process. Loopback only — not published to the internet.
     ports:
       - "127.0.0.1:8788:8788"
     volumes:
-      - ./moderator_userbot.session:/app/moderator_userbot.session
       - bot-logs:/app/logs
     restart: unless-stopped
 

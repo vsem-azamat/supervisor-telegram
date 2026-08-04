@@ -226,36 +226,6 @@ class ModerationSettings(Settings):
     )
 
 
-class TelethonSettings(Settings):
-    """Telethon (Telegram Client API) configuration for userbot features."""
-
-    api_id: int = Field(default=0, description="API ID from https://my.telegram.org")
-    api_hash: str = Field(default="", description="API hash from https://my.telegram.org")
-    phone: str | None = Field(default=None, description="Phone number for initial auth")
-
-    # Not configurable: docker-compose mounts the session file by this exact
-    # name. A setting that could disagree with the mount would make Telethon
-    # start an unauthorised session instead of failing.
-    session_name: str = "moderator_userbot"
-
-    model_config = SettingsConfigDict(
-        env_prefix="TELETHON_",
-        case_sensitive=False,
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
-
-    @property
-    def active(self) -> bool:
-        """True when there are credentials to connect with.
-
-        There is no separate enable flag: without both halves the client cannot
-        work, and with them there is nothing to gain by pretending otherwise.
-        """
-        return bool(self.api_id and self.api_hash)
-
-
 class McpSettings(Settings):
     """MCP server served by the bot process for external agent clients.
 
@@ -263,10 +233,10 @@ class McpSettings(Settings):
     web UI. The token is a shared secret presented as ``Authorization: Bearer``;
     it is not a user session, and it is also the switch — no token, no endpoint.
 
-    It runs in the bot process rather than the web API because moderation tools
-    need what only that process holds: the Telethon user session, whose SQLite
-    file a second process cannot open, and the bot whose dispatcher answers the
-    confirmation buttons it sends.
+    It runs in the bot process rather than the web API because its moderation
+    tools need the bot whose dispatcher answers the confirmation buttons they
+    send — a proposal confirmed in a chat is answered by the identity that sent
+    it, and that identity lives here.
     """
 
     token: str = Field(default="", description="Bearer token required by MCP clients; unset disables the endpoint")
@@ -317,7 +287,6 @@ class AppSettings(Settings):
     admin: AdminSettings = Field(default_factory=AdminSettings)
     logging: LoggingSettings = Field(default_factory=LoggingSettings)
     moderation: ModerationSettings = Field(default_factory=ModerationSettings)
-    telethon: TelethonSettings = Field(default_factory=TelethonSettings)
     webapi: WebApiSettings = Field(default_factory=WebApiSettings)
     mcp: McpSettings = Field(default_factory=McpSettings)
 

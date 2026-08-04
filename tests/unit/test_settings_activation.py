@@ -2,8 +2,7 @@
 
 Separate enable-flags could disagree with the configuration they gate, and only
 ever in one direction that matters: a flag saying yes over credentials that are
-absent. `TELETHON_ENABLED=true` without an api_id produced a userbot that
-started, failed, and said nothing.
+absent, which produces a subsystem that starts, fails, and says nothing.
 
 So the flags are gone and activation is derived from what is configured.
 """
@@ -11,33 +10,9 @@ So the flags are gone and activation is derived from what is configured.
 from __future__ import annotations
 
 import pytest
-from app.core.config import McpSettings, TelethonSettings, WebApiSettings
+from app.core.config import McpSettings, WebApiSettings
 
 pytestmark = pytest.mark.unit
-
-
-class TestTelethon:
-    def test_credentials_switch_it_on(self) -> None:
-        assert TelethonSettings(api_id=123, api_hash="hash").active is True
-
-    @pytest.mark.parametrize(
-        ("api_id", "api_hash", "case"),
-        [
-            (0, "hash", "no api_id"),
-            (123, "", "no api_hash"),
-            (0, "", "neither"),
-        ],
-    )
-    def test_missing_credentials_switch_it_off(self, api_id, api_hash, case) -> None:
-        assert TelethonSettings(api_id=api_id, api_hash=api_hash).active is False, case
-
-    def test_the_session_name_is_not_configurable(self) -> None:
-        """Compose mounts the session file by a fixed path.
-
-        A configurable name would let the two disagree, and Telethon answers a
-        missing session by quietly starting an unauthorised one.
-        """
-        assert not hasattr(TelethonSettings(), "session_name") or TelethonSettings().session_name == "moderator_userbot"
 
 
 class TestMcp:
