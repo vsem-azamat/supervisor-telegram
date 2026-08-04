@@ -1,13 +1,14 @@
 """Chats — list + detail endpoints.
 
-Nothing here asks Telegram anything. The heatmap is built from the `messages`
-table the moderator handlers populate, and member counts are read from the
-snapshots the bot process records hourly — this process holds no Telethon
-session, so a live read here has never returned anything but None.
+Reads, mostly from our own tables. The heatmap comes from the `messages` rows
+the moderator handlers write, and member counts from the snapshots the bot
+records hourly — asking Telegram once per chat per page load would be a
+rate-limit waiting for a second browser tab.
 
-A chat the bot has never seen has no rows and no snapshot, and says so by
-carrying `None` rather than a zero: not measured and empty are different
-claims.
+The one exception is the refresh endpoint, which exists to ask.
+
+A chat the bot has never seen carries `None` rather than a zero: not measured
+and empty are different claims.
 """
 
 from __future__ import annotations
@@ -23,14 +24,13 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.chats.metadata import fetch_member_count, fetch_metadata
 from app.core.logging import get_logger
 from app.core.time import utc_now
 from app.db.models import Chat, ChatMemberSnapshot, Message, SpamPing, User
-from app.telethon.telethon_client import TelethonClient
 from app.webapi.deps import (
     get_publish_bot,
     get_session,
-    get_telethon,
     require_super_admin,
 )
 from app.webapi.schemas import (
@@ -45,7 +45,6 @@ from app.webapi.schemas import (
     SpamPingRead,
 )
 from app.webapi.services import member_counts
-from app.webapi.services.chat_sync import fetch_chat_photo_file_id
 
 logger = get_logger("webapi.routes.chats")
 
@@ -400,45 +399,37 @@ async def refresh_chat_from_telegram(
     chat_id: int,
     session: Annotated[AsyncSession, Depends(get_session)],
     bot: Annotated[Bot, Depends(get_publish_bot)],
-    telethon: Annotated[TelethonClient | None, Depends(get_telethon)],
     _admin_id: Annotated[int, Depends(require_super_admin)],
 ) -> ChatRead:
-    """Synchronously pull latest title + photo from Telegram for one chat.
+    """Pull the title and photo from Telegram now, for one chat.
 
-    Manual counterpart to the hourly snapshot loop. Updates ``title`` (only
-    if upstream gave us a non-empty string), ``photo_file_id``, and bumps
-    ``last_synced_at`` to now. The member count in the response is the last
-    one recorded rather than a fresh read — this button does not write a
-    snapshot.
+    Manual counterpart to the hourly loop, and over the same Bot API call.
+    The title leg used to go through Telethon, which this process has never
+    had — so the button refreshed the photo, bumped the timestamp, and left
+    the title exactly as it was.
 
-    Known gap: the title leg needs Telethon, and this process has none. It is
-    skipped in production, so today the button refreshes the photo and the
-    timestamp and leaves the title alone. Doing it over the Bot API instead is
-    the fix, and it is not in this change.
+    The member count comes back fresh here, because somebody who pressed a
+    button marked "refresh" is entitled to a number that moved. The loop is
+    what writes the row; this reads past it.
     """
     chat = (await session.execute(select(Chat).where(Chat.id == chat_id))).scalar_one_or_none()
     if chat is None:
         raise HTTPException(status_code=404, detail=f"Chat {chat_id} not found")
 
-    if telethon is not None and telethon.is_available:
-        try:
-            info = await telethon.get_chat_info(chat_id)
-        except Exception as e:  # noqa: BLE001
-            logger.warning("manual refresh: get_chat_info failed", chat_id=chat_id, error=str(e))
-        else:
-            upstream_title = getattr(info, "title", None) if info is not None else None
-            if isinstance(upstream_title, str) and upstream_title and upstream_title != chat.title:
-                chat.title = upstream_title
-
-    file_id = await fetch_chat_photo_file_id(bot=bot, chat_id=chat_id)
-    if file_id and file_id != chat.photo_file_id:
-        chat.photo_file_id = file_id
+    metadata = await fetch_metadata(bot=bot, chat_id=chat_id)
+    if metadata is not None:
+        if metadata.title and metadata.title != chat.title:
+            chat.title = metadata.title
+        if metadata.photo_file_id and metadata.photo_file_id != chat.photo_file_id:
+            chat.photo_file_id = metadata.photo_file_id
 
     chat.last_synced_at = utc_now()
     await session.commit()
     await session.refresh(chat)
 
-    member_count = await member_counts.latest(session, chat.id)
+    member_count = await fetch_member_count(bot=bot, chat_id=chat.id)
+    if member_count is None:
+        member_count = await member_counts.latest(session, chat.id)
     return ChatRead(
         id=chat.id,
         title=chat.title,

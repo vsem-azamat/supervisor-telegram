@@ -1,4 +1,14 @@
-"""Test: snapshot_once reads chats, queries telethon, writes snapshots."""
+"""One tick of the member-count loop, over the Bot API.
+
+It used to read through Telethon, which meant it read through an account whose
+session lives on a developer's machine — so in production it asked nobody and
+wrote nothing. The moderator bot is an administrator in every managed chat and
+`getChatMemberCount` is a bot method; there was never a reason for the client
+API here.
+
+Counts are taken every tick because they are the point. Title and photo are
+taken once a day, because they hardly ever change and each one is another call.
+"""
 
 from __future__ import annotations
 
@@ -7,9 +17,10 @@ from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from aiogram.exceptions import TelegramBadRequest
+from app.chats.snapshots import METADATA_STALENESS_HOURS, snapshot_once
 from app.core.time import utc_now
 from app.db.models import Chat, ChatMemberSnapshot
-from app.telethon.snapshots import METADATA_STALENESS_HOURS, snapshot_once
 from sqlalchemy import select
 
 if TYPE_CHECKING:
@@ -18,212 +29,161 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.asyncio
 
 
-async def test_snapshot_once_noop_without_telethon(
-    db_session_maker: async_sessionmaker[AsyncSession],
-) -> None:
-    async with db_session_maker() as session:
-        session.add(Chat(id=-1, title="X"))
+def _bot(*, counts: dict[int, int] | None = None, title: str = "Как в Telegram", photo: str | None = None):
+    """A bot that answers about every chat unless told otherwise."""
+    bot = AsyncMock()
+    bot.get_chat_member_count = AsyncMock(side_effect=lambda chat_id: (counts or {}).get(chat_id, 42))
+
+    async def _get_chat(chat_id: int):
+        chat = MagicMock()
+        chat.title = title
+        chat.photo = MagicMock(big_file_id=photo) if photo else None
+        return chat
+
+    bot.get_chat = AsyncMock(side_effect=_get_chat)
+    return bot
+
+
+def _refused() -> TelegramBadRequest:
+    return TelegramBadRequest(method=MagicMock(), message="chat not found")
+
+
+async def _seed(session_maker, *chats: Chat) -> None:
+    async with session_maker() as session:
+        for chat in chats:
+            session.add(chat)
         await session.commit()
 
-    await snapshot_once(session_maker=db_session_maker, telethon=None)
 
-    async with db_session_maker() as session:
-        rows = (await session.execute(select(ChatMemberSnapshot))).scalars().all()
-    assert rows == []
-
-
-async def test_snapshot_once_writes_rows_for_each_chat(
-    db_session_maker: async_sessionmaker[AsyncSession],
-) -> None:
-    async with db_session_maker() as session:
-        session.add(Chat(id=-100, title="A"))
-        session.add(Chat(id=-200, title="B"))
-        await session.commit()
-
-    tc = MagicMock()
-    tc.is_available = True
-    tc.get_chat_info = AsyncMock(
-        side_effect=[
-            MagicMock(member_count=50),
-            MagicMock(member_count=80),
-        ]
-    )
-
-    await snapshot_once(session_maker=db_session_maker, telethon=tc)
-
-    async with db_session_maker() as session:
+async def _snapshots(session_maker) -> list[tuple[int, int]]:
+    async with session_maker() as session:
         rows = (await session.execute(select(ChatMemberSnapshot).order_by(ChatMemberSnapshot.chat_id))).scalars().all()
-    assert [(r.chat_id, r.member_count) for r in rows] == [(-200, 80), (-100, 50)]
+    return [(row.chat_id, row.member_count) for row in rows]
 
 
-async def test_snapshot_once_refreshes_stale_chat_title(
-    db_session_maker: async_sessionmaker[AsyncSession],
-) -> None:
-    """A chat last synced >24h ago (or never) picks up its current Telegram title."""
-    old = utc_now() - datetime.timedelta(hours=METADATA_STALENESS_HOURS + 1)
-    async with db_session_maker() as session:
-        stale = Chat(id=-300, title="Old Name")
-        stale.last_synced_at = old
-        session.add(stale)
-        await session.commit()
-
-    tc = MagicMock()
-    tc.is_available = True
-    tc.get_chat_info = AsyncMock(return_value=MagicMock(member_count=10, title="Renamed Upstream"))
-
-    await snapshot_once(session_maker=db_session_maker, telethon=tc)
-
-    async with db_session_maker() as session:
-        chat = (await session.execute(select(Chat).where(Chat.id == -300))).scalar_one()
-    assert chat.title == "Renamed Upstream"
-    # Sync timestamp must now be recent, so the next tick won't re-refresh.
-    assert chat.last_synced_at is not None
-    assert chat.last_synced_at > utc_now() - datetime.timedelta(minutes=1)
+async def _chat(session_maker, chat_id: int) -> Chat:
+    async with session_maker() as session:
+        return (await session.execute(select(Chat).where(Chat.id == chat_id))).scalar_one()
 
 
-async def test_snapshot_once_skips_recently_synced_chat(
-    db_session_maker: async_sessionmaker[AsyncSession],
-) -> None:
-    """Title sync was performed <24h ago — Telethon is queried for member
-    counts but title is NOT overwritten."""
-    fresh = utc_now() - datetime.timedelta(hours=1)
-    async with db_session_maker() as session:
-        chat = Chat(id=-400, title="Cached Title")
-        chat.last_synced_at = fresh
-        session.add(chat)
-        await session.commit()
+class TestCounting:
+    async def test_a_row_per_chat(self, db_session_maker: async_sessionmaker[AsyncSession]) -> None:
+        await _seed(db_session_maker, Chat(id=-100, title="A"), Chat(id=-200, title="B"))
 
-    tc = MagicMock()
-    tc.is_available = True
-    tc.get_chat_info = AsyncMock(return_value=MagicMock(member_count=5, title="Telegram Default"))
+        written = await snapshot_once(session_maker=db_session_maker, bot=_bot(counts={-100: 50, -200: 80}))
 
-    await snapshot_once(session_maker=db_session_maker, telethon=tc)
+        assert written == 2
+        assert await _snapshots(db_session_maker) == [(-200, 80), (-100, 50)]
 
-    async with db_session_maker() as session:
-        chat = (await session.execute(select(Chat).where(Chat.id == -400))).scalar_one()
-    assert chat.title == "Cached Title"
+    async def test_a_chat_telegram_will_not_answer_about_is_skipped(
+        self, db_session_maker: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """Not written as zero. Zero is a claim that the room is empty."""
+        await _seed(db_session_maker, Chat(id=-100, title="A"))
+        bot = _bot()
+        bot.get_chat_member_count = AsyncMock(side_effect=_refused())
 
+        written = await snapshot_once(session_maker=db_session_maker, bot=bot)
 
-async def test_snapshot_once_admin_edit_does_not_block_title_sync(
-    db_session_maker: async_sessionmaker[AsyncSession],
-) -> None:
-    """Admin edited the row from the web UI 5 minutes ago. last_synced_at
-    is stale, so Telethon's title should still win — admin edits no longer
-    suppress upstream syncs (unlike the previous modified_at-based check)."""
-    stale_sync = utc_now() - datetime.timedelta(hours=METADATA_STALENESS_HOURS + 1)
-    fresh_admin_edit = utc_now() - datetime.timedelta(minutes=5)
-    async with db_session_maker() as session:
-        chat = Chat(id=-450, title="Old DB Title")
-        chat.last_synced_at = stale_sync
-        chat.modified_at = fresh_admin_edit
-        session.add(chat)
-        await session.commit()
+        assert written == 0
+        assert await _snapshots(db_session_maker) == []
 
-    tc = MagicMock()
-    tc.is_available = True
-    tc.get_chat_info = AsyncMock(return_value=MagicMock(member_count=12, title="Live Telegram"))
+    async def test_one_silent_chat_does_not_stop_the_rest(
+        self, db_session_maker: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """On forty-five chats, one having removed the bot is an ordinary Tuesday."""
+        await _seed(db_session_maker, Chat(id=-100, title="A"), Chat(id=-200, title="B"))
+        bot = _bot()
 
-    await snapshot_once(session_maker=db_session_maker, telethon=tc)
+        async def _count(chat_id: int) -> int:
+            if chat_id == -100:
+                raise _refused()
+            return 80
 
-    async with db_session_maker() as session:
-        chat = (await session.execute(select(Chat).where(Chat.id == -450))).scalar_one()
-    assert chat.title == "Live Telegram"
+        bot.get_chat_member_count = AsyncMock(side_effect=_count)
 
+        await snapshot_once(session_maker=db_session_maker, bot=bot)
 
-async def test_snapshot_once_first_sync_for_brand_new_chat(
-    db_session_maker: async_sessionmaker[AsyncSession],
-) -> None:
-    """A chat with last_synced_at=NULL must be treated as stale (never synced)
-    and pick up the upstream title on the first tick."""
-    async with db_session_maker() as session:
-        chat = Chat(id=-460, title="Placeholder")
-        # last_synced_at left as NULL (default) — simulates a chat that's
-        # been added to the DB by some pathway other than the snapshot loop.
-        session.add(chat)
-        await session.commit()
+        assert await _snapshots(db_session_maker) == [(-200, 80)]
 
-    tc = MagicMock()
-    tc.is_available = True
-    tc.get_chat_info = AsyncMock(return_value=MagicMock(member_count=3, title="Real Name"))
+    async def test_counts_are_taken_even_for_a_freshly_synced_chat(
+        self, db_session_maker: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """The staleness gate is about titles. The count is the reason for the tick."""
+        chat = Chat(id=-100, title="A")
+        chat.last_synced_at = utc_now()
+        await _seed(db_session_maker, chat)
 
-    await snapshot_once(session_maker=db_session_maker, telethon=tc)
+        await snapshot_once(session_maker=db_session_maker, bot=_bot(counts={-100: 50}))
 
-    async with db_session_maker() as session:
-        chat = (await session.execute(select(Chat).where(Chat.id == -460))).scalar_one()
-    assert chat.title == "Real Name"
-    assert chat.last_synced_at is not None
+        assert await _snapshots(db_session_maker) == [(-100, 50)]
 
 
-async def test_snapshot_once_caches_photo_file_id_via_bot(
-    db_session_maker: async_sessionmaker[AsyncSession],
-) -> None:
-    """When a bot is supplied, snapshot_once also pulls and caches the
-    chat photo's big_file_id from Bot API getChat."""
-    async with db_session_maker() as session:
-        session.add(Chat(id=-600, title="Cap"))
-        await session.commit()
+class TestMetadata:
+    async def test_a_stale_title_is_refreshed(self, db_session_maker: async_sessionmaker[AsyncSession]) -> None:
+        chat = Chat(id=-100, title="Старое имя")
+        chat.last_synced_at = utc_now() - datetime.timedelta(hours=METADATA_STALENESS_HOURS + 1)
+        await _seed(db_session_maker, chat)
 
-    tc = MagicMock()
-    tc.is_available = True
-    tc.get_chat_info = AsyncMock(return_value=MagicMock(member_count=8, title="Cap"))
+        await snapshot_once(session_maker=db_session_maker, bot=_bot(title="Новое имя"))
 
-    bot = MagicMock()
-    bot.get_chat = AsyncMock(return_value=MagicMock(photo=MagicMock(big_file_id="bot-photo-1", small_file_id="s")))
+        assert (await _chat(db_session_maker, -100)).title == "Новое имя"
 
-    await snapshot_once(session_maker=db_session_maker, telethon=tc, bot=bot)
+    async def test_a_brand_new_chat_is_synced_immediately(
+        self, db_session_maker: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """No last_synced_at means never, which is older than any cutoff."""
+        await _seed(db_session_maker, Chat(id=-100, title="Как записали"))
 
-    async with db_session_maker() as session:
-        chat = (await session.execute(select(Chat).where(Chat.id == -600))).scalar_one()
-    assert chat.photo_file_id == "bot-photo-1"
+        await snapshot_once(session_maker=db_session_maker, bot=_bot(title="Как в Telegram"))
 
+        refreshed = await _chat(db_session_maker, -100)
+        assert refreshed.title == "Как в Telegram"
+        assert refreshed.last_synced_at is not None
 
-async def test_snapshot_once_skips_photo_fetch_when_recently_synced(
-    db_session_maker: async_sessionmaker[AsyncSession],
-) -> None:
-    """A chat with last_synced_at <24h ago doesn't trigger a Bot API call,
-    saving rate-limit budget for chats that actually need it."""
-    fresh = utc_now() - datetime.timedelta(hours=1)
-    async with db_session_maker() as session:
-        chat = Chat(id=-610, title="Fresh")
-        chat.last_synced_at = fresh
-        session.add(chat)
-        await session.commit()
+    async def test_a_recently_synced_chat_is_not_asked_again(
+        self, db_session_maker: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """Titles change about never; the call is not free."""
+        chat = Chat(id=-100, title="Как записали")
+        chat.last_synced_at = utc_now()
+        await _seed(db_session_maker, chat)
+        bot = _bot(title="Как в Telegram")
 
-    tc = MagicMock()
-    tc.is_available = True
-    tc.get_chat_info = AsyncMock(return_value=MagicMock(member_count=3, title="Fresh"))
+        await snapshot_once(session_maker=db_session_maker, bot=bot)
 
-    bot = MagicMock()
-    bot.get_chat = AsyncMock()
+        bot.get_chat.assert_not_awaited()
+        assert (await _chat(db_session_maker, -100)).title == "Как записали"
 
-    await snapshot_once(session_maker=db_session_maker, telethon=tc, bot=bot)
+    async def test_an_admin_edit_does_not_hold_off_a_sync(
+        self, db_session_maker: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """The gate reads last_synced_at, never modified_at — otherwise editing
+        the welcome text in the console would freeze the title."""
+        chat = Chat(id=-100, title="Старое имя")
+        chat.last_synced_at = utc_now() - datetime.timedelta(hours=METADATA_STALENESS_HOURS + 1)
+        chat.modified_at = utc_now()
+        await _seed(db_session_maker, chat)
 
-    bot.get_chat.assert_not_called()
+        await snapshot_once(session_maker=db_session_maker, bot=_bot(title="Новое имя"))
 
+        assert (await _chat(db_session_maker, -100)).title == "Новое имя"
 
-async def test_snapshot_once_skips_unchanged_title(
-    db_session_maker: async_sessionmaker[AsyncSession],
-) -> None:
-    """Same title in DB and Telegram — title field is not re-assigned
-    (no UPDATE for that column), but last_synced_at is still bumped because
-    we successfully pulled fresh data from Telegram."""
-    old = utc_now() - datetime.timedelta(hours=METADATA_STALENESS_HOURS + 1)
-    async with db_session_maker() as session:
-        chat = Chat(id=-500, title="Same Name")
-        chat.last_synced_at = old
-        session.add(chat)
-        await session.commit()
+    async def test_the_photo_is_cached(self, db_session_maker: async_sessionmaker[AsyncSession]) -> None:
+        await _seed(db_session_maker, Chat(id=-100, title="A"))
 
-    tc = MagicMock()
-    tc.is_available = True
-    tc.get_chat_info = AsyncMock(return_value=MagicMock(member_count=7, title="Same Name"))
+        await snapshot_once(session_maker=db_session_maker, bot=_bot(photo="file-123"))
 
-    await snapshot_once(session_maker=db_session_maker, telethon=tc)
+        assert (await _chat(db_session_maker, -100)).photo_file_id == "file-123"
 
-    async with db_session_maker() as session:
-        chat = (await session.execute(select(Chat).where(Chat.id == -500))).scalar_one()
-    assert chat.title == "Same Name"
-    # last_synced_at must be bumped — successful query counts as a sync
-    # even if title didn't change.
-    assert chat.last_synced_at is not None
-    assert chat.last_synced_at > utc_now() - datetime.timedelta(minutes=1)
+    async def test_a_chat_with_no_photo_keeps_the_one_we_had(
+        self, db_session_maker: async_sessionmaker[AsyncSession]
+    ) -> None:
+        """A photo Telegram did not mention is not a photo that was removed."""
+        chat = Chat(id=-100, title="A")
+        chat.photo_file_id = "file-old"
+        await _seed(db_session_maker, chat)
+
+        await snapshot_once(session_maker=db_session_maker, bot=_bot(photo=None))
+
+        assert (await _chat(db_session_maker, -100)).photo_file_id == "file-old"
