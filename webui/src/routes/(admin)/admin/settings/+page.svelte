@@ -125,10 +125,6 @@
 				<Card.Header><Card.Title class="text-sm">Система</Card.Title></Card.Header>
 				<Card.Content class="grid grid-cols-2 gap-2 text-sm">
 					<div>
-						Telethon: {#if system.telethon_connected}<Badge>на связи</Badge>{:else}
-							<Badge variant="secondary">не настроен</Badge>{/if}
-					</div>
-					<div>
 						Бот публикаций: {#if system.publish_bot_ready}<Badge>готов</Badge>{:else}
 							<Badge variant="secondary">не запущен</Badge>{/if}
 					</div>

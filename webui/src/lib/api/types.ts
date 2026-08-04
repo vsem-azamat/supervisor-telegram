@@ -270,16 +270,16 @@ export interface paths {
         put?: never;
         /**
          * Refresh Chat From Telegram
-         * @description Synchronously pull latest title + photo from Telegram for one chat.
+         * @description Pull the title and photo from Telegram now, for one chat.
          *
-         *     Manual counterpart to the hourly snapshot loop. Updates ``title`` (only
-         *     if upstream gave us a non-empty string), ``photo_file_id``, and bumps
-         *     ``last_synced_at`` to now. Member count is not refreshed here because
-         *     it's served live by the TelethonStatsService cache (60–300s TTL) — a
-         *     separate refresh would burn a Telethon RPC for marginal recency gain.
+         *     Manual counterpart to the hourly loop, and over the same Bot API call.
+         *     The title leg used to go through Telethon, which this process has never
+         *     had — so the button refreshed the photo, bumped the timestamp, and left
+         *     the title exactly as it was.
          *
-         *     Telethon is optional; missing it just means we skip the title-sync leg
-         *     and the response carries whatever title was already in the DB.
+         *     The member count comes back fresh here, because somebody who pressed a
+         *     button marked "refresh" is entitled to a number that moved. The loop is
+         *     what writes the row; this reads past it.
          */
         post: operations["refresh_chat_from_telegram_api_chats__chat_id__refresh_post"];
         delete?: never;
@@ -568,7 +568,7 @@ export interface components {
          * @description Recursive node for the /chats/graph tree response.
          *
          *     member_count is intentionally NOT enriched here — the tree endpoint
-         *     skips Telethon to avoid N+1 RPCs on every poll. Drill into /chats/:id
+         *     skips member counts, which the tile does not show. Drill into /chats/:id
          *     for live counts.
          */
         ChatNode: {
@@ -913,8 +913,6 @@ export interface components {
         SystemStatus: {
             /** Super Admin Ids */
             super_admin_ids: number[];
-            /** Telethon Connected */
-            telethon_connected: boolean;
             /** Publish Bot Ready */
             publish_bot_ready: boolean;
             /** Allowed Origins */

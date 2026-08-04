@@ -8,14 +8,17 @@ was a prompt. Here the consumer is an external runtime, so every tool returns an
 explicit projection: named fields, no ORM rows, nothing that changes shape when
 a column is added.
 
-*Explicit gates.* Telethon runs on a user session that can see every chat the
-account belongs to, private conversations included. Anything that touches it
-resolves the chat through :func:`~app.mcp.deps.managed_chat_id` first, so a chat
-this deployment does not manage has no id to hand on.
+*Explicit gates.* Every tool that names a chat resolves it through
+:func:`~app.mcp.deps.managed_chat_id` first, so a chat this deployment does not
+manage has no id to hand on.
 
-*Withheld fields.* A projection is also the place to decide what never leaves:
-phone numbers from Telethon profiles, and the free-text rationale attached to
-past moderation decisions. See the individual tools.
+*Withheld fields.* A projection is also the place to decide what never leaves —
+see the free-text rationale on past moderation decisions, below.
+
+Everything here reads either our own tables or the Bot API. These tools used to
+reach through a user session that could see every chat the account belonged to,
+private conversations included; the gate above existed mostly to contain that.
+What they can see now is bounded by what the bot was in the room for.
 """
 
 from __future__ import annotations
@@ -24,14 +27,12 @@ import functools
 from typing import TYPE_CHECKING, Any
 
 from app.core.logging import get_logger
-from app.mcp.deps import ToolError, clamp, managed_chat_id, moderator_bot, session_maker, telethon
+from app.mcp.deps import ToolError, clamp, managed_chat_id, moderator_bot, session_maker
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
     from fastmcp import FastMCP
-
-    from app.telethon.telethon_client import ChatMember, MessageInfo, TelethonClient
 
 logger = get_logger("mcp.tools.read")
 
@@ -65,18 +66,6 @@ def _guarded[**P](func: Callable[P, Awaitable[dict[str, Any]]]) -> Callable[P, A
     return wrapper
 
 
-def _live_telethon() -> TelethonClient:
-    """The Telethon client, or a refusal when the session is not usable.
-
-    Without this check its methods answer an empty list, which reads as "this
-    chat is empty" rather than "nobody looked".
-    """
-    client = telethon()
-    if not client.is_available:
-        raise ToolError("telethon_unavailable", "The Telegram client session is not connected.")
-    return client
-
-
 def _chat_summary(chat: Any) -> dict[str, Any]:
     """Project a Chat row, keeping its approval state visible."""
     from app.db.models import Chat
@@ -97,7 +86,7 @@ def _chat_summary(chat: Any) -> dict[str, Any]:
 
 
 def _user_summary(user: Any) -> dict[str, Any]:
-    """Project a User row. Local DB only — no Telethon fields."""
+    """Project a User row."""
     return {
         "user_id": user.id,
         "username": user.username or "",
@@ -107,28 +96,41 @@ def _user_summary(user: Any) -> dict[str, Any]:
     }
 
 
+def _escape_like(value: str) -> str:
+    """Neutralise LIKE wildcards in a phrase somebody typed.
+
+    Without this, searching for "50%" matches every message and reads as a
+    chat where everybody is a spammer.
+    """
+    return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 def _iso(value: Any) -> str:
     return value.isoformat() if value is not None else ""
 
 
-def _message_summary(message: MessageInfo) -> dict[str, Any]:
-    text = message.text or ""
+def _message_summary(row: Any) -> dict[str, Any]:
+    """Project a recorded Message row.
+
+    `reply_to_message_id` comes out of the stored update rather than a column,
+    because that is where it was kept — absent when the message replied to
+    nothing, or when it predates the field being recorded.
+    """
+    text = row.message or ""
+    reply_to = None
+    info = row.message_info if isinstance(row.message_info, dict) else {}
+    replied = info.get("reply_to_message")
+    if isinstance(replied, dict):
+        reply_to = replied.get("message_id")
+
     return {
-        "message_id": message.message_id,
-        "sender_id": message.sender_id,
-        "date": _iso(message.date),
+        "message_id": row.message_id,
+        "sender_id": row.user_id,
+        "date": _iso(row.timestamp),
         "text": text[:_MAX_TEXT],
         "text_truncated": len(text) > _MAX_TEXT,
-        "reply_to_message_id": message.reply_to_msg_id,
-    }
-
-
-def _member_summary(member: ChatMember) -> dict[str, Any]:
-    return {
-        "user_id": member.user_id,
-        "username": member.username or "",
-        "first_name": member.first_name or "",
-        "last_name": member.last_name or "",
+        "reply_to_message_id": reply_to,
+        "flagged_spam": row.spam,
     }
 
 
@@ -213,32 +215,24 @@ def register_read_tools(mcp: FastMCP[None]) -> None:
             "username": chat.username or "",
             "member_count": member_count,
             "description": chat.description or "",
-            "linked_chat_id": None,
+            # Both of these used to be fetched a second time through a user
+            # session. `getChat` had been carrying them all along.
+            "linked_chat_id": chat.linked_chat_id,
             "resource_status": row.resource_status if row else "",
         }
-
-        # Enrichment only: the Bot API answer is the one that matters, so a
-        # failure here must not lose it.
-        try:
-            client = telethon()
-            if client.is_available:
-                full = await client.get_chat_info(chat_id)
-                if full is not None:
-                    info["description"] = info["description"] or (full.description or "")
-                    info["linked_chat_id"] = full.linked_chat_id
-        except Exception:
-            logger.debug("mcp_telethon_enrichment_failed", chat_id=chat_id, exc_info=True)
 
         return info
 
     @mcp.tool
     @_guarded
     async def get_user_info(user_id: int) -> dict[str, Any]:
-        """Get what is known about a user — names, bio, premium and blocked status.
+        """Get what this deployment has recorded about a user.
 
-        Works for users absent from the local database: known_locally tells you
-        which fields came from our records. The user's phone number is never
-        returned, whatever the Telegram profile exposes.
+        Names and blocked status, from our own tables — so it answers about
+        people the bot has seen, and `known_locally` is false for anybody else.
+        There is no live profile lookup: a bot cannot read a stranger's profile,
+        and the fields that used to come from a user session (bio, premium,
+        photo count) were never what a moderation decision turned on.
         """
         from sqlalchemy import select
 
@@ -247,40 +241,14 @@ def register_read_tools(mcp: FastMCP[None]) -> None:
         async with session_maker()() as session:
             user = (await session.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
 
-        info: dict[str, Any] = {
+        return {
             "user_id": user_id,
             "known_locally": user is not None,
             "username": user.username or "" if user else "",
             "first_name": user.first_name or "" if user else "",
             "last_name": user.last_name or "" if user else "",
             "blocked": user.blocked if user else False,
-            "bio": "",
-            "is_bot": False,
-            "is_premium": False,
-            "photo_count": 0,
-            "telethon_enriched": False,
         }
-
-        try:
-            client = telethon()
-            if client.is_available:
-                profile = await client.get_user_info(user_id)
-                if profile is not None:
-                    # Field-by-field on purpose. UserInfo carries `phone`, and
-                    # any copy of the whole object would hand a phone number to
-                    # an external runtime and from there into a chat log.
-                    info["telethon_enriched"] = True
-                    info["bio"] = profile.bio or ""
-                    info["is_bot"] = profile.is_bot
-                    info["is_premium"] = profile.is_premium
-                    info["photo_count"] = profile.photo_count
-                    info["username"] = info["username"] or (profile.username or "")
-                    info["first_name"] = info["first_name"] or (profile.first_name or "")
-                    info["last_name"] = info["last_name"] or (profile.last_name or "")
-        except Exception:
-            logger.debug("mcp_telethon_enrichment_failed", user_id=user_id, exc_info=True)
-
-        return info
 
     @mcp.tool
     @_guarded
@@ -377,56 +345,125 @@ def register_read_tools(mcp: FastMCP[None]) -> None:
         after. chat_id must come from list_chats; any other chat is refused.
         limit caps how many messages to return (1-100). Long message bodies are
         cut, flagged by text_truncated.
+
+        This is what the bot recorded, not what Telegram still holds: messages
+        from before it joined the chat are not here, and neither is anything it
+        was not present for.
         """
+        from sqlalchemy import select
+
+        from app.db.models import Message
+
         async with session_maker()() as session:
             await managed_chat_id(session, chat_id)
+            limit = clamp(limit, 1, 100)
+            rows = (
+                (
+                    await session.execute(
+                        select(Message)
+                        .where(Message.chat_id == chat_id)
+                        .order_by(Message.timestamp.desc(), Message.message_id.desc())
+                        .limit(limit)
+                    )
+                )
+                .scalars()
+                .all()
+            )
 
-        limit = clamp(limit, 1, 100)
-        messages = await _live_telethon().get_chat_history(chat_id, limit=limit)
         return {
             "chat_id": chat_id,
-            "messages": [_message_summary(message) for message in messages],
-            "returned": len(messages),
+            "messages": [_message_summary(row) for row in rows],
+            "returned": len(rows),
         }
 
     @mcp.tool
     @_guarded
     async def search_messages(chat_id: int, query: str, limit: int = 20) -> dict[str, Any]:
-        """Search a managed chat's messages by text, newest first.
+        """Search a managed chat's recorded messages by text, newest first.
 
         Use it to check whether a phrase — a spam link, a repeated insult — has
         appeared before. chat_id must come from list_chats; any other chat is
         refused. limit caps how many matches to return (1-50).
+
+        Searches what the bot recorded, so it reaches back to when it joined the
+        chat and no further. A phrase not found here is one we have no record
+        of, which is a weaker claim than one that was never said.
         """
+        from sqlalchemy import select
+
+        from app.db.models import Message
+
+        needle = query.strip()
+        if not needle:
+            raise ToolError("empty_query", "Give a phrase to search for.")
+
         async with session_maker()() as session:
             await managed_chat_id(session, chat_id)
+            limit = clamp(limit, 1, 50)
+            rows = (
+                (
+                    await session.execute(
+                        select(Message)
+                        .where(Message.chat_id == chat_id)
+                        # ilike, so a search for a name matches how people
+                        # actually type it. The escape keeps a literal % or _
+                        # in the phrase from turning into a wildcard.
+                        .where(Message.message.ilike(f"%{_escape_like(needle)}%", escape="\\"))
+                        .order_by(Message.timestamp.desc(), Message.message_id.desc())
+                        .limit(limit)
+                    )
+                )
+                .scalars()
+                .all()
+            )
 
-        limit = clamp(limit, 1, 50)
-        messages = await _live_telethon().search_messages(chat_id, query=query, limit=limit)
         return {
             "chat_id": chat_id,
             "query": query,
-            "messages": [_message_summary(message) for message in messages],
-            "returned": len(messages),
+            "messages": [_message_summary(row) for row in rows],
+            "returned": len(rows),
         }
 
     @mcp.tool
     @_guarded
-    async def get_chat_members(chat_id: int, limit: int = 50) -> dict[str, Any]:
-        """List members of a managed chat.
+    async def find_users_in_chat(chat_id: int, limit: int = 50) -> dict[str, Any]:
+        """List people the bot has seen writing in a managed chat, most recent first.
 
         Use it to resolve a display name or @username into the numeric user_id
         the moderation tools need. chat_id must come from list_chats; any other
-        chat is refused. limit caps how many members to return (1-200), so on a
-        large group this is a sample rather than the full roster.
+        chat is refused. limit caps how many people to return (1-200).
+
+        Not the membership roster: a bot cannot read one. These are the people
+        who have written since the bot joined, which is both narrower — a silent
+        member is absent — and wider, since somebody who has left still appears.
+        Check before acting on the assumption that a listed person is present.
         """
+        from sqlalchemy import func, select
+
+        from app.db.models import Message, User
+
         async with session_maker()() as session:
             await managed_chat_id(session, chat_id)
+            limit = clamp(limit, 1, 200)
+            last_seen = (
+                select(Message.user_id, func.max(Message.timestamp).label("last_seen"))
+                .where(Message.chat_id == chat_id)
+                .group_by(Message.user_id)
+                .order_by(func.max(Message.timestamp).desc())
+                .limit(limit)
+                .subquery()
+            )
+            rows = (
+                await session.execute(
+                    select(User, last_seen.c.last_seen)
+                    .select_from(last_seen)
+                    .join(User, User.id == last_seen.c.user_id)
+                    .order_by(last_seen.c.last_seen.desc())
+                )
+            ).all()
 
-        limit = clamp(limit, 1, 200)
-        members = await _live_telethon().get_chat_members(chat_id, limit=limit)
         return {
             "chat_id": chat_id,
-            "members": [_member_summary(member) for member in members],
-            "returned": len(members),
+            "users": [{**_user_summary(row[0]), "last_seen": _iso(row[1])} for row in rows],
+            "returned": len(rows),
         }

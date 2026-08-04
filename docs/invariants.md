@@ -28,26 +28,24 @@ HTML, and that default silently overrides explicit `entities` /
 `caption_entities`. The formatting is simply lost; nothing raises. Applies to
 every send and edit call, of which there are more than a dozen.
 
-**Reach for the client API only for what a bot cannot do.** Titles, photos and
-member counts are all Bot API calls, and the moderator bot is an administrator
-in every managed chat. The snapshot loop asked Telethon for them instead and
-therefore asked nobody: the account's session lives on a developer's machine,
-production has no credentials for it, and every guard along the way degraded
-quietly to `None`. It wrote not one row for its entire life while everything
+**The deployed application uses the Bot API and nothing else.** Titles, photos,
+member counts, message history — all of it either a bot call or a row we wrote
+ourselves. The Telegram client API is a maintenance tool that runs from a
+developer's machine against a session that lives there; production has no
+credentials for it and no session file, and the library is a dev dependency so
+that a runtime import fails loudly rather than a runtime feature failing quietly.
+
+That is not a preference. The snapshot loop was built on the client API and
+therefore asked nobody: every guard along the way degraded to `None` and logged
+at info level, so it wrote not one row for its entire life while every screen
 downstream rendered a dash. A client-API dependency is a dependency on a human
-being logged in somewhere.
+being logged in somewhere, and that human is not on call.
 
-**Whatever does need Telethon runs in the bot process.** The client is held by
-a per-process singleton wired at the bot's startup, and the session file — when
-there is one — is mounted into that container alone. The same code started from
-the web API finds `None` and does nothing, which is indistinguishable from
-working. Mounting the session into a second container is not the fix either:
-two clients on one session file is the account-level risk below.
-
-**The Telethon session is the whole account.** A bot token grants one bot; this
-grants every private conversation the account can see. Treat writes, scheduled
-messages and account-level side effects as higher-risk than any Bot API call,
-and never widen a tool that resolves arbitrary peers.
+**A user session is the whole account.** A bot token grants one bot; a session
+grants every private conversation the account can see. This is why the scripts
+that do use one stay off the server, why the session file is not a deployment
+artefact, and why anything reintroducing one has to justify itself against
+these two paragraphs first.
 
 **Never point a development instance at production tokens, the userbot session,
 or the production database.** Two pollers on one token make Telegram split
@@ -115,9 +113,9 @@ cover part of the catalogue while naming all of it. The endpoint returns
 show the gap — a number somebody is about to pay against must not quietly stand
 for more than it counted.
 
-**The public half never reaches Telethon at request time.** Its endpoints
-answer strangers, and a public URL that walks into the account behind it is a
-public URL somebody can point at the account. Aggregates are read from stored
+**The public half never calls Telegram at request time.** Its endpoints answer
+strangers, and a public URL that reaches Telegram on demand is a public URL
+somebody can point at our rate limit. Aggregates are read from stored
 snapshots, which is also why they can be served to anybody at any rate.
 
 **Both halves are written in Russian.** The people who read the catalogue are

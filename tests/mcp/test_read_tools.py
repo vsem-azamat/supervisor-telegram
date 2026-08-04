@@ -1,14 +1,13 @@
 """The read toolset's boundaries: what it refuses, and what it never returns.
 
-Two claims carry the weight here. Telethon runs on a user session that can read
-any chat the account is in, so every tool that touches it must refuse a chat
-absent from the `chats` table — the mock proves the call never happened, not
-merely that the answer was empty. And the projections must drop what should not
-travel: a Telegram profile's phone number, and the free-text rationale behind a
-past moderation decision.
+Two claims carry the weight. Every tool naming a chat must refuse one absent
+from the `chats` table, and the refusal has to come before the read rather than
+after it. And the projections must drop what should not travel — the free-text
+rationale behind a past moderation decision, which is written for an
+administrator and not for an external runtime.
 
-No live Telethon: the client is a stub installed on the container, which is also
-what a deployment without a session looks like from a tool's point of view.
+Everything these tools read is either our own tables or the Bot API. The one
+stub is the bot.
 """
 
 from __future__ import annotations
@@ -19,7 +18,6 @@ from unittest.mock import AsyncMock
 import pytest
 from app.db.models import Chat, Message, PendingAction, SpamPing, User
 from app.mcp.tools.read import register_read_tools
-from app.telethon.telethon_client import ChatInfo, ChatMember, MessageInfo, UserInfo
 
 pytestmark = pytest.mark.asyncio
 
@@ -40,27 +38,6 @@ def mcp_session(db_session_maker, monkeypatch):
 
 
 @pytest.fixture
-def telethon_stub(monkeypatch):
-    """Install a stand-in Telethon client on the container.
-
-    Every method is an AsyncMock, so a test can assert a call was never made —
-    the point of the managed-chat gate.
-    """
-    from app.core.container import container
-
-    client = SimpleNamespace(
-        is_available=True,
-        get_chat_history=AsyncMock(return_value=[]),
-        search_messages=AsyncMock(return_value=[]),
-        get_chat_members=AsyncMock(return_value=[]),
-        get_user_info=AsyncMock(return_value=None),
-        get_chat_info=AsyncMock(return_value=None),
-    )
-    monkeypatch.setattr(container, "_telethon_client", client)
-    return client
-
-
-@pytest.fixture
 def bot_stub(monkeypatch):
     """Install a stand-in moderator bot on the container."""
     from app.core.container import container
@@ -72,7 +49,8 @@ def bot_stub(monkeypatch):
                 title="Managed Chat",
                 type="supergroup",
                 username="managed",
-                description="",
+                description="О чате",
+                linked_chat_id=-100555,
             )
         ),
         get_chat_member_count=AsyncMock(return_value=42),
@@ -105,6 +83,15 @@ async def _seed_chats(session_maker) -> None:
         await session.commit()
 
 
+async def _seed_foreign_messages(session_maker) -> None:
+    """Rows in a chat we do not manage, so a refusal cannot be mistaken for
+    an empty answer."""
+    async with session_maker() as session:
+        session.add(User(id=USER_ID, username="stranger"))
+        session.add(Message(chat_id=FOREIGN_CHAT_ID, user_id=USER_ID, message_id=1, message="spam"))
+        await session.commit()
+
+
 async def _seed_blocked_users(session_maker, count: int) -> None:
     async with session_maker() as session:
         for index in range(count):
@@ -121,22 +108,24 @@ async def _seed_blocked_users(session_maker, count: int) -> None:
     [
         ("get_chat_history", {}),
         ("search_messages", {"query": "spam"}),
-        ("get_chat_members", {}),
+        ("find_users_in_chat", {}),
     ],
 )
-async def test_telethon_tools_refuse_a_chat_we_do_not_manage(mcp_session, telethon_stub, tool, args) -> None:
-    """A user session can read private chats; only the `chats` table opens one."""
+async def test_chat_tools_refuse_a_chat_we_do_not_manage(mcp_session, tool, args) -> None:
+    """Only the `chats` table opens a chat, and it is asked first."""
     await _seed_chats(mcp_session)
+    await _seed_foreign_messages(mcp_session)
 
     data = await _call(tool, {"chat_id": FOREIGN_CHAT_ID, **args})
 
     assert data["error"] == "unknown_chat"
-    telethon_stub.get_chat_history.assert_not_awaited()
-    telethon_stub.search_messages.assert_not_awaited()
-    telethon_stub.get_chat_members.assert_not_awaited()
+    # Seeded rows exist for that chat, so an empty answer would have passed a
+    # weaker test. The refusal has to arrive instead of the data.
+    assert "messages" not in data
+    assert "users" not in data
 
 
-async def test_get_chat_info_refuses_a_chat_we_do_not_manage(mcp_session, bot_stub, telethon_stub) -> None:
+async def test_get_chat_info_refuses_a_chat_we_do_not_manage(mcp_session, bot_stub) -> None:
     await _seed_chats(mcp_session)
 
     data = await _call("get_chat_info", {"chat_id": FOREIGN_CHAT_ID})
@@ -145,104 +134,182 @@ async def test_get_chat_info_refuses_a_chat_we_do_not_manage(mcp_session, bot_st
     bot_stub.get_chat.assert_not_awaited()
 
 
-async def test_managed_chat_history_is_returned(mcp_session, telethon_stub) -> None:
+async def test_managed_chat_history_is_returned(mcp_session) -> None:
     import datetime
 
     await _seed_chats(mcp_session)
-    telethon_stub.get_chat_history.return_value = [
-        MessageInfo(
-            message_id=7,
-            chat_id=MANAGED_CHAT_ID,
-            sender_id=USER_ID,
-            text="hello there",
-            date=datetime.datetime(2026, 1, 2, 3, 4, tzinfo=datetime.UTC),
-        )
-    ]
+    async with mcp_session() as session:
+        row = Message(chat_id=MANAGED_CHAT_ID, user_id=USER_ID, message_id=7, message="hello there")
+        row.timestamp = datetime.datetime(2026, 1, 2, 3, 4, tzinfo=datetime.UTC)
+        session.add(row)
+        await session.commit()
 
     data = await _call("get_chat_history", {"chat_id": MANAGED_CHAT_ID, "limit": 5})
 
     assert data["returned"] == 1
     message = data["messages"][0]
     assert message["message_id"] == 7
+    assert message["sender_id"] == USER_ID
     assert message["text"] == "hello there"
     assert message["text_truncated"] is False
     assert message["date"].startswith("2026-01-02")
 
 
+async def test_history_is_newest_first(mcp_session) -> None:
+    """A caller reading context wants the end of the conversation, not its start."""
+    import datetime
+
+    from app.core.time import utc_now
+
+    await _seed_chats(mcp_session)
+    async with mcp_session() as session:
+        for offset, text in ((2, "older"), (1, "newer")):
+            row = Message(chat_id=MANAGED_CHAT_ID, user_id=USER_ID, message_id=offset, message=text)
+            row.timestamp = utc_now() - datetime.timedelta(hours=offset)
+            session.add(row)
+        await session.commit()
+
+    data = await _call("get_chat_history", {"chat_id": MANAGED_CHAT_ID})
+
+    assert [m["text"] for m in data["messages"]] == ["newer", "older"]
+
+
+async def test_long_bodies_are_cut_and_say_so(mcp_session) -> None:
+    await _seed_chats(mcp_session)
+    async with mcp_session() as session:
+        session.add(Message(chat_id=MANAGED_CHAT_ID, user_id=USER_ID, message_id=1, message="я" * 2000))
+        await session.commit()
+
+    data = await _call("get_chat_history", {"chat_id": MANAGED_CHAT_ID})
+
+    assert data["messages"][0]["text_truncated"] is True
+    assert len(data["messages"][0]["text"]) == 1000
+
+
+async def test_search_finds_a_phrase_regardless_of_case(mcp_session) -> None:
+    """Latin here on purpose: these tests run on SQLite, whose case folding is
+    ASCII-only. PostgreSQL — what production runs — folds Cyrillic too, and
+    `ilike` is what asks it to."""
+    await _seed_chats(mcp_session)
+    async with mcp_session() as session:
+        session.add(Message(chat_id=MANAGED_CHAT_ID, user_id=USER_ID, message_id=1, message="Buy a DIPLOMA"))
+        session.add(Message(chat_id=MANAGED_CHAT_ID, user_id=USER_ID, message_id=2, message="привет"))
+        await session.commit()
+
+    data = await _call("search_messages", {"chat_id": MANAGED_CHAT_ID, "query": "diploma"})
+
+    assert data["returned"] == 1
+    assert data["messages"][0]["message_id"] == 1
+
+
+async def test_search_does_not_treat_a_percent_as_a_wildcard(mcp_session) -> None:
+    """Otherwise a search for "50%" matches everything and reads as a chat
+    where every single person is a spammer."""
+    await _seed_chats(mcp_session)
+    async with mcp_session() as session:
+        session.add(Message(chat_id=MANAGED_CHAT_ID, user_id=USER_ID, message_id=1, message="скидка 50% сегодня"))
+        session.add(Message(chat_id=MANAGED_CHAT_ID, user_id=USER_ID, message_id=2, message="ничего особенного"))
+        await session.commit()
+
+    data = await _call("search_messages", {"chat_id": MANAGED_CHAT_ID, "query": "50%"})
+
+    assert data["returned"] == 1
+
+
+async def test_search_refuses_an_empty_phrase(mcp_session) -> None:
+    """Which would otherwise match every message in the chat."""
+    await _seed_chats(mcp_session)
+
+    data = await _call("search_messages", {"chat_id": MANAGED_CHAT_ID, "query": "   "})
+
+    assert data["error"] == "empty_query"
+
+
+async def test_search_stays_inside_the_chat_it_was_given(mcp_session) -> None:
+    await _seed_chats(mcp_session)
+    async with mcp_session() as session:
+        session.add(Message(chat_id=MANAGED_CHAT_ID, user_id=USER_ID, message_id=1, message="диплом"))
+        session.add(Message(chat_id=-100777, user_id=USER_ID, message_id=2, message="диплом"))
+        await session.commit()
+
+    data = await _call("search_messages", {"chat_id": MANAGED_CHAT_ID, "query": "диплом"})
+
+    assert data["returned"] == 1
+
+
 @pytest.mark.parametrize(
-    ("tool", "args", "attribute", "expected"),
+    ("tool", "args", "expected"),
     [
-        ("get_chat_history", {"limit": 999}, "get_chat_history", 100),
-        ("search_messages", {"query": "x", "limit": 999}, "search_messages", 50),
-        ("get_chat_members", {"limit": 999}, "get_chat_members", 200),
+        ("get_chat_history", {"limit": 999}, 100),
+        ("search_messages", {"query": "x", "limit": 999}, 50),
+        ("find_users_in_chat", {"limit": 999}, 200),
     ],
 )
-async def test_page_sizes_are_clamped(mcp_session, telethon_stub, tool, args, attribute, expected) -> None:
+async def test_page_sizes_are_clamped(mcp_session, tool, args, expected) -> None:
     """An unbounded page would be a cheap way to pull a whole chat out."""
     await _seed_chats(mcp_session)
+    async with mcp_session() as session:
+        for index in range(expected + 5):
+            session.add(Message(chat_id=MANAGED_CHAT_ID, user_id=USER_ID + index, message_id=index + 1, message="x"))
+            session.add(User(id=USER_ID + index, username=f"u{index}"))
+        await session.commit()
 
-    await _call(tool, {"chat_id": MANAGED_CHAT_ID, **args})
+    data = await _call(tool, {"chat_id": MANAGED_CHAT_ID, **args})
 
-    assert getattr(telethon_stub, attribute).await_args.kwargs["limit"] == expected
+    assert data["returned"] == expected
 
 
-async def test_telethon_tools_refuse_when_the_session_is_down(mcp_session, telethon_stub) -> None:
-    """An empty list would read as 'this chat is quiet' rather than 'nobody looked'."""
+async def test_users_in_a_chat_are_projected(mcp_session) -> None:
     await _seed_chats(mcp_session)
-    telethon_stub.is_available = False
+    async with mcp_session() as session:
+        session.add(User(id=USER_ID, username="ada", first_name="Ada"))
+        session.add(Message(chat_id=MANAGED_CHAT_ID, user_id=USER_ID, message_id=1, message="hi"))
+        await session.commit()
 
-    data = await _call("get_chat_members", {"chat_id": MANAGED_CHAT_ID})
+    data = await _call("find_users_in_chat", {"chat_id": MANAGED_CHAT_ID})
 
-    assert data["error"] == "telethon_unavailable"
+    assert data["returned"] == 1
+    user = data["users"][0]
+    assert user["user_id"] == USER_ID
+    assert user["username"] == "ada"
+    assert user["first_name"] == "Ada"
+    assert user["last_seen"]
 
 
-async def test_chat_members_are_projected(mcp_session, telethon_stub) -> None:
+async def test_a_person_is_listed_once_however_much_they_wrote(mcp_session) -> None:
     await _seed_chats(mcp_session)
-    telethon_stub.get_chat_members.return_value = [
-        ChatMember(user_id=USER_ID, first_name="Ada", last_name=None, username="ada")
-    ]
+    async with mcp_session() as session:
+        session.add(User(id=USER_ID, username="ada"))
+        for index in range(5):
+            session.add(Message(chat_id=MANAGED_CHAT_ID, user_id=USER_ID, message_id=index + 1, message="hi"))
+        await session.commit()
 
-    data = await _call("get_chat_members", {"chat_id": MANAGED_CHAT_ID})
+    data = await _call("find_users_in_chat", {"chat_id": MANAGED_CHAT_ID})
 
-    assert data["members"] == [{"user_id": USER_ID, "username": "ada", "first_name": "Ada", "last_name": ""}]
+    assert data["returned"] == 1
 
 
 # ── withheld fields ───────────────────────────────────────────────────────
 
 
-async def test_get_user_info_never_returns_a_phone_number(mcp_session, telethon_stub) -> None:
-    """UserInfo carries `phone`; the projection must not let it through."""
+async def test_get_user_info_answers_from_our_own_records(mcp_session) -> None:
     async with mcp_session() as session:
         session.add(User(id=USER_ID, username="target", first_name="Target", blocked=True))
         await session.commit()
-    telethon_stub.get_user_info.return_value = UserInfo(
-        user_id=USER_ID,
-        first_name="Target",
-        username="target",
-        phone=PHONE,
-        bio="just a bio",
-        is_premium=True,
-        photo_count=3,
-    )
 
     data = await _call("get_user_info", {"user_id": USER_ID})
 
-    assert "phone" not in data
-    assert PHONE not in repr(data)
-    assert data["bio"] == "just a bio"
-    assert data["is_premium"] is True
-    assert data["blocked"] is True
     assert data["known_locally"] is True
+    assert data["blocked"] is True
+    assert data["username"] == "target"
 
 
-async def test_get_user_info_works_for_an_unknown_user(mcp_session, telethon_stub) -> None:
-    telethon_stub.get_user_info.return_value = UserInfo(user_id=USER_ID, first_name="Stranger", phone=PHONE)
-
+async def test_get_user_info_says_so_for_somebody_we_have_never_seen(mcp_session) -> None:
+    """It answers rather than failing, and `known_locally` carries the caveat."""
     data = await _call("get_user_info", {"user_id": USER_ID})
 
     assert data["known_locally"] is False
-    assert data["first_name"] == "Stranger"
-    assert PHONE not in repr(data)
+    assert data["username"] == ""
 
 
 async def test_moderation_history_counts_what_the_bot_recorded(mcp_session) -> None:
@@ -371,32 +438,17 @@ async def test_list_chats_respects_limit(mcp_session) -> None:
 # ── surface ───────────────────────────────────────────────────────────────
 
 
-async def test_chat_info_merges_telethon_enrichment(mcp_session, bot_stub, telethon_stub) -> None:
+async def test_chat_info_comes_from_one_bot_api_call(mcp_session, bot_stub) -> None:
+    """Description and linked_chat_id used to be fetched a second time through
+    a user session. `getChat` had been carrying them the whole time."""
     await _seed_chats(mcp_session)
-    telethon_stub.get_chat_info.return_value = ChatInfo(
-        chat_id=MANAGED_CHAT_ID,
-        title="Managed Chat",
-        description="from telethon",
-        linked_chat_id=-100555,
-    )
 
     data = await _call("get_chat_info", {"chat_id": MANAGED_CHAT_ID})
 
     assert data["member_count"] == 42
-    assert data["description"] == "from telethon"
+    assert data["description"] == "О чате"
     assert data["linked_chat_id"] == -100555
     assert data["resource_status"] == Chat.STATUS_APPROVED
-
-
-async def test_chat_info_survives_a_failing_enrichment(mcp_session, bot_stub, telethon_stub) -> None:
-    """Telethon is a bonus here; losing it must not lose the Bot API answer."""
-    await _seed_chats(mcp_session)
-    telethon_stub.get_chat_info.side_effect = RuntimeError("session dropped")
-
-    data = await _call("get_chat_info", {"chat_id": MANAGED_CHAT_ID})
-
-    assert data["title"] == "Managed Chat"
-    assert data["member_count"] == 42
 
 
 async def test_toolset_is_read_only(mcp_session) -> None:
@@ -414,5 +466,5 @@ async def test_toolset_is_read_only(mcp_session) -> None:
         "get_moderation_history",
         "get_chat_history",
         "search_messages",
-        "get_chat_members",
+        "find_users_in_chat",
     }

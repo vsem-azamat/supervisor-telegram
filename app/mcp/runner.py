@@ -1,9 +1,9 @@
 """Serve the MCP control plane from inside the bot process.
 
-The endpoint used to be mounted on the web API, which cannot reach the two
-things moderation tools depend on: the Telethon user session, whose SQLite file
-only one process may open, and the bot that sends confirmation keyboards and
-owns their callbacks. Running here removes both gaps.
+The endpoint used to be mounted on the web API, which cannot reach the thing
+the moderation tools depend on: the bot that sends confirmation keyboards and
+owns their callbacks. Telegram delivers a button press back to the identity
+that sent the message, so the confirmation tier only works from here.
 """
 
 from __future__ import annotations

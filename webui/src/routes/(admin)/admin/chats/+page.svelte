@@ -60,8 +60,9 @@
 			// link. A chat with a link but no approval is not on the site, and this
 			// number would be a small lie if it said otherwise.
 			listed: rows.filter((chat) => chat.resource_status === 'approved' && chat.public_link).length,
-			// Telethon does not answer for every chat, so this is a sum over the
-			// ones it did answer for — not a claim about the whole network.
+			// A sum over the chats that have a recorded snapshot. A chat Telegram
+			// declined to answer about carries null and contributes nothing, so
+			// this is a floor rather than a claim about the whole network.
 			members: rows.reduce((acc, chat) => acc + (chat.member_count ?? 0), 0)
 		};
 	});

@@ -6,8 +6,9 @@ A second control plane alongside the cookie-authenticated web UI, for a runtime
 The boundary is not the tool list — it is what a leaked token can do:
 
 * **Reads** answer freely, but never outside what this deployment manages —
-  see the peer resolver in ``app.mcp.deps``, which matters most for the tools
-  backed by a Telethon user session that can otherwise see a whole account.
+  see the peer resolver in ``app.mcp.deps``. They read our own tables and the
+  Bot API, so what a token can see is bounded by what the bot was in the room
+  for.
 * **Bounded writes** — mute, unmute, unban, welcome text — take effect on the
   call. Each is reversible or self-expiring.
 * **Removals** are not performed at all. ``propose_ban`` and
@@ -25,7 +26,8 @@ runtime rather than a person, and a ban is an attributable act, every proposal
 is recorded against the first super admin — overridable, but never absent.
 
 Served by the bot process (see ``app.mcp.runner``), not the web API: the
-Telethon session and the confirmation handlers both live there.
+confirmation handlers live there, and Telegram answers a button press to the
+identity that sent it.
 """
 
 from __future__ import annotations

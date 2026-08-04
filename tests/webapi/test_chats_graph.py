@@ -18,17 +18,13 @@ pytestmark = pytest.mark.asyncio
 
 @pytest.fixture
 def client_factory(db_session_maker: async_sessionmaker[AsyncSession]):
-    from app.webapi.deps import get_session, get_telethon
+    from app.webapi.deps import get_session
 
     async def _override_get_session():
         async with db_session_maker() as session:
             yield session
 
-    async def _override_get_telethon():
-        return None
-
     app.dependency_overrides[get_session] = _override_get_session
-    app.dependency_overrides[get_telethon] = _override_get_telethon
     settings.admin.super_admins = [1]
     transport = ASGITransport(app=app)
 
@@ -37,7 +33,6 @@ def client_factory(db_session_maker: async_sessionmaker[AsyncSession]):
 
     yield make
     app.dependency_overrides.pop(get_session, None)
-    app.dependency_overrides.pop(get_telethon, None)
 
 
 async def _seed(session_maker, chats: list[tuple[int, str | None, int | None]]) -> None:

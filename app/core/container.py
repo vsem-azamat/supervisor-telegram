@@ -1,8 +1,8 @@
 """Application-wide singleton holder.
 
-Three long-lived objects the bot process wires once at startup: the session
-maker, the bot, and the Telethon client. Not a DI container — the generic
-register/resolve API it once had never had a caller.
+Two long-lived objects the bot process wires once at startup: the session maker
+and the bot. Not a DI container — the generic register/resolve API it once had
+never had a caller.
 """
 
 from __future__ import annotations
@@ -13,8 +13,6 @@ if TYPE_CHECKING:
     from aiogram import Bot
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-    from app.telethon.telethon_client import TelethonClient
-
 
 class Container:
     """Holds the long-lived singletons wired at bot startup."""
@@ -22,7 +20,6 @@ class Container:
     def __init__(self) -> None:
         self._session_maker: async_sessionmaker[AsyncSession] | None = None
         self._bot: Bot | None = None
-        self._telethon_client: TelethonClient | None = None
 
     def set_session_maker(self, session_maker: async_sessionmaker[AsyncSession]) -> None:
         self._session_maker = session_maker
@@ -42,12 +39,6 @@ class Container:
 
     def try_get_bot(self) -> Bot | None:
         return self._bot
-
-    def set_telethon_client(self, client: TelethonClient) -> None:
-        self._telethon_client = client
-
-    def get_telethon_client(self) -> TelethonClient | None:
-        return self._telethon_client
 
 
 container = Container()

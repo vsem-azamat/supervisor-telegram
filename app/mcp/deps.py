@@ -3,12 +3,11 @@
 Tools take no context argument — FastMCP injects its own `Context`, not a
 dependency container — so each one reaches for what it needs through here.
 
-The peer resolver is the security-critical piece. Telethon runs on a real user
-session, which can see every chat that account is in, including private
-conversations that have nothing to do with moderation. Tools therefore resolve
-a chat through :func:`managed_chat_id`, which refuses anything absent from the
-`chats` table. The restriction is structural rather than a rule tools are asked
-to follow: a tool that forgets to call it has no chat id to pass on.
+The peer resolver is the security-critical piece. Tools resolve a chat through
+:func:`managed_chat_id`, which refuses anything absent from the `chats` table,
+so a token cannot be pointed at a conversation this deployment does not manage.
+The restriction is structural rather than a rule tools are asked to follow: a
+tool that forgets to call it has no chat id to pass on.
 """
 
 from __future__ import annotations
@@ -22,8 +21,6 @@ from app.core.config import settings
 if TYPE_CHECKING:
     from aiogram import Bot
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
-
-    from app.telethon.telethon_client import TelethonClient
 
 
 class ToolError(Exception):
@@ -64,15 +61,6 @@ def moderator_bot() -> Bot:
     if bot is None:
         raise ToolError("bot_unavailable")
     return bot
-
-
-def telethon() -> TelethonClient:
-    from app.core.container import container
-
-    client = container.get_telethon_client()
-    if client is None:
-        raise ToolError("telethon_unavailable")
-    return client
 
 
 def initiator_id() -> int:
