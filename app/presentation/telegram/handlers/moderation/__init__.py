@@ -15,7 +15,6 @@ from app.presentation.telegram.handlers.moderation.ban import router as _ban_rou
 from app.presentation.telegram.handlers.moderation.blacklist import (
     ban_everywhere,
     handle_blacklist_pagination,
-    moved_to_banall,
     process_blacklist_cancel,
     process_blacklist_confirm,
     show_blacklist,
@@ -60,7 +59,6 @@ __all__ = [
     "ban_everywhere",
     "handle_blacklist_pagination",
     "kick_user",
-    "moved_to_banall",
     "moderation_router",
     "mute_user",
     "pin_message",

@@ -136,7 +136,9 @@ async def main() -> None:
 
     session_maker = get_session_maker()
 
-    telethon = _init_telethon()
+    # Registers itself in the container; only the MCP read tools ask for it,
+    # and they say so plainly when it is absent.
+    _init_telethon()
 
     main_bot, main_dp = _setup_main_bot(session_maker)
     setup_container(session_maker, main_bot)
@@ -160,14 +162,12 @@ async def main() -> None:
     tasks.append(run_mcp_server())
     tasks.append(run_expiry_sweep(session_maker))
 
-    # Member counts are recorded here for the same reason the control plane is:
-    # this is the process holding the Telethon session. The loop was started
-    # from the web API's lifespan until it turned out that process has neither
-    # the client nor the session file, and had therefore never written a row.
-    if telethon is not None:
-        from app.telethon.snapshots import run_snapshot_loop
+    # Member counts are recorded here because this is the process holding a
+    # long-lived bot. Nothing about it is conditional any more: the loop asks
+    # Telegram over the bot token, which every deployment has by definition.
+    from app.chats.snapshots import run_snapshot_loop
 
-        tasks.append(run_snapshot_loop(session_maker=session_maker, telethon=telethon, bot=main_bot))
+    tasks.append(run_snapshot_loop(session_maker=session_maker, bot=main_bot))
 
     try:
         await asyncio.gather(*tasks)

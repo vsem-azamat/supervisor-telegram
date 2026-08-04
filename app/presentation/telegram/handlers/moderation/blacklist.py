@@ -1,13 +1,8 @@
 """Banning somebody out of every chat, and reading back who is out.
 
-`/banall` acts, `/blacklist` shows. They used to be `!black` and `!blacklist`,
-four letters apart, one of them irreversible across forty-five chats — and
-`!spam` was a third name for `!black` that also wiped the person's messages.
-All three sent the same confirmation dialog, so the screen in front of an
-administrator could not tell them which command they had typed.
-
-Now the choice between the two outcomes is made on a labelled button, at the
-moment of deciding, rather than in the spelling of a word a minute earlier.
+`/banall` acts, `/blacklist` shows. The choice between banning and also wiping
+what the person wrote is made on a labelled button, at the moment of deciding,
+rather than in the spelling of a command a minute earlier.
 """
 
 from aiogram import Bot, Router, types
@@ -88,22 +83,6 @@ async def ban_everywhere(message: types.Message, message_repo: MessageRepository
     builder.adjust(1)
     await message.answer(info_text, reply_markup=builder.as_markup())
     await message.delete()
-
-
-@router.message(Command("black", "spam", prefix="!"))
-async def moved_to_banall(message: types.Message) -> None:
-    """The old names answer instead of acting.
-
-    Deleting the handlers outright would leave `!spam` unhandled, and an
-    unhandled command looks exactly like a command that worked — which, for the
-    one command in this bot that wipes a person's messages across every chat, is
-    the wrong thing for silence to mean.
-    """
-    answer = await message.answer(
-        "Команда переехала: теперь <b>/banall</b>.\nСтирать сообщения или нет — выбирается кнопкой в подтверждении."
-    )
-    await message.delete()
-    other.sleep_and_delete(answer, 30)
 
 
 @router.callback_query(BlacklistConfirm.filter())
