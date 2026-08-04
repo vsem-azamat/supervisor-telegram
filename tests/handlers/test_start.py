@@ -49,6 +49,10 @@ def _private(factory, command: str, user):
     )
 
 
+def _in_group(factory, command: str, user):
+    return factory.create_command_message(command=command, user=user, chat=factory.create_chat())
+
+
 def _answered(message) -> tuple[str, list]:
     text = message.answer.call_args[0][0]
     markup = message.answer.call_args[1].get("reply_markup")
@@ -71,13 +75,19 @@ class TestStart:
         assert len(buttons) >= 2
 
     async def test_the_first_button_goes_to_the_catalogue(self, telegram_factory, admin_repo, site):
-        """The question people arrive with is "where is my faculty's chat"."""
+        """The question people arrive with is "where is my faculty's chat".
+
+        As a Mini App rather than a link: opened as a site, a tap on a chat
+        leaves Telegram for a browser which then reopens Telegram.
+        """
         message = _private(telegram_factory, "start", create_normal_user(id=555))
 
         await start_handlers.start_private(message, admin_repo)
 
         _, buttons = _answered(message)
-        assert buttons[0].url == SITE
+        assert buttons[0].web_app is not None
+        assert buttons[0].web_app.url == SITE
+        assert buttons[0].url is None
 
     async def test_an_advertiser_has_somewhere_to_go(self, telegram_factory, admin_repo, site):
         message = _private(telegram_factory, "start", create_normal_user(id=555))
@@ -85,7 +95,33 @@ class TestStart:
         await start_handlers.start_private(message, admin_repo)
 
         _, buttons = _answered(message)
-        assert any(b.url == f"{SITE}/ads" for b in buttons)
+        assert any(b.web_app and b.web_app.url == f"{SITE}/ads" for b in buttons)
+
+    async def test_in_a_group_the_site_stays_an_ordinary_link(self, telegram_factory, admin_repo, site):
+        """Telegram refuses a web_app button outside a private chat.
+
+        It refuses the message, not the button: `/start` in a group would answer
+        nothing at all rather than answer with one button missing.
+        """
+        message = _in_group(telegram_factory, "start", create_normal_user(id=555))
+
+        await start_handlers.start_private(message, admin_repo)
+
+        _, buttons = _answered(message)
+        assert all(b.web_app is None for b in buttons)
+        assert buttons[0].url == SITE
+
+    async def test_a_site_without_tls_stays_an_ordinary_link(self, telegram_factory, admin_repo, monkeypatch):
+        """Telegram requires https for a Mini App; local development has none."""
+        monkeypatch.setattr(start_handlers.settings.webapi, "public_url", "http://localhost:5173")
+        monkeypatch.setattr(start_handlers.settings.admin, "super_admins", [])
+        message = _private(telegram_factory, "start", create_normal_user(id=555))
+
+        await start_handlers.start_private(message, admin_repo)
+
+        _, buttons = _answered(message)
+        assert all(b.web_app is None for b in buttons)
+        assert buttons[0].url == "http://localhost:5173"
 
     async def test_the_greeting_is_not_deleted(self, telegram_factory, admin_repo, site):
         """It is the first screen of the product, not a service reply.

@@ -42,7 +42,7 @@ uv run python scripts/tg_accounts.py status
 
 ```
 main       authorised    @azamat (id 268388996)
-work       authorised    @konnekt_ops (id ...)
+work       authorised    @work_azamat (id ...)
 ```
 
 This one never prompts. It is what anything unattended runs before acting, to
@@ -82,8 +82,8 @@ contents. The personal folder is excluded by default, and exclusion beats any
 Then the promotion pass, over a scope file of chat ids:
 
 ```bash
-uv run python scripts/tg_promote.py --account main --target @work --chats scope.txt            # plan
-uv run python scripts/tg_promote.py --account main --target @work --chats scope.txt --apply
+uv run python scripts/tg_promote.py --account main --target @work_azamat --chats scope.txt        # plan
+uv run python scripts/tg_promote.py --account main --target @work_azamat --chats scope.txt --apply
 ```
 
 It grants every administrator right, including `add_admins` — the second account

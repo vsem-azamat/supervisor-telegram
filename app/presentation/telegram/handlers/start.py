@@ -32,7 +32,7 @@ logger = get_logger("handlers.start")
 
 # Where somebody who wants to place an advertisement, or to say anything else,
 # is sent. The bot answers questions about chats; a person answers the rest.
-CONTACT_USERNAME = "czech_media_admin"
+CONTACT_USERNAME = "work_azamat"
 
 
 class AdminConsole(CallbackData, prefix="console"):
@@ -46,6 +46,23 @@ class AdminConsole(CallbackData, prefix="console"):
 
 def _site() -> str:
     return settings.webapi.public_url.rstrip("/")
+
+
+def _open_button(text: str, url: str, *, private: bool) -> types.InlineKeyboardButton:
+    """Open the site inside Telegram where that is allowed, as a link where it is not.
+
+    A Mini App is the difference between reading the catalogue and using it: it
+    inherits the client's theme, and a tap on a chat opens that chat in place
+    instead of bouncing out to a browser and back.
+
+    Telegram accepts such a button only in a private chat, and only over https.
+    Both are checked rather than assumed, because a button it refuses fails the
+    whole message — `/start` in a group would answer nothing at all, and a
+    developer running against a plain-http URL would see the same.
+    """
+    if private and url.startswith("https://"):
+        return types.InlineKeyboardButton(text=text, web_app=types.WebAppInfo(url=url))
+    return types.InlineKeyboardButton(text=text, url=url)
 
 
 @router.message(Command("start", prefix="/!"))
@@ -70,13 +87,15 @@ async def start_private(message: types.Message, admin_repo: AdminRepository) -> 
     else:
         text += "Все команды — /help"
 
+    private = message.chat.type == "private"
+
     builder = InlineKeyboardBuilder()
     if is_super_admin and settings.webapi.public_url:
         builder.button(text="⚙️ Открыть консоль", callback_data=AdminConsole().pack())
     if settings.webapi.public_url:
-        builder.button(text="🔎 Найти свой чат", url=_site())
-        builder.button(text="📣 Реклама в чатах", url=f"{_site()}/ads")
-    builder.button(text="✉️ Написать нам", url=f"https://t.me/{CONTACT_USERNAME}")
+        builder.add(_open_button("🔎 Найти свой чат", _site(), private=private))
+        builder.add(_open_button("📣 Реклама в чатах", f"{_site()}/ads", private=private))
+    builder.add(types.InlineKeyboardButton(text="✉️ Написать нам", url=f"https://t.me/{CONTACT_USERNAME}"))
     builder.adjust(1)
 
     # Deliberately not scheduled for deletion. This is the message somebody
