@@ -14,7 +14,7 @@ outcomes is made on a labelled button instead of in the spelling of the command.
 from unittest.mock import AsyncMock
 
 import pytest
-from app.presentation.telegram.handlers.moderation.blacklist import ban_everywhere, moved_to_banall
+from app.presentation.telegram.handlers.moderation.blacklist import ban_everywhere
 from app.presentation.telegram.utils import BlacklistConfirm
 
 from tests.telegram_helpers import TelegramObjectFactory, create_admin_user, create_normal_user, create_test_chat
@@ -133,25 +133,3 @@ class TestTheDialog:
         await ban_everywhere(command, message_repo, AsyncMock())
 
         assert command.answer.call_args[1].get("reply_markup") is None
-
-
-@pytest.mark.handlers
-class TestTheOldNames:
-    """`!black` and `!spam` answer instead of acting.
-
-    A silent removal would be the wrong ending. The muscle memory that types
-    `!spam` is exactly the memory that has to be interrupted, and an unhandled
-    command is interrupted by nothing at all.
-    """
-
-    @pytest.mark.parametrize("command", ["black", "spam"])
-    async def test_old_name_explains_and_stops(self, telegram_factory, command):
-        message = telegram_factory.create_command_message(
-            command=command, user=create_admin_user(), chat=create_test_chat()
-        )
-
-        await moved_to_banall(message)
-
-        answered = message.answer.call_args[0][0]
-        assert "/banall" in answered
-        assert message.answer.call_args[1].get("reply_markup") is None

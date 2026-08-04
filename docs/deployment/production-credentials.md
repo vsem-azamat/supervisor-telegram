@@ -48,8 +48,15 @@ and off otherwise:
 
 | Feature | On when |
 | --- | --- |
-| Telethon userbot | `TELETHON_API_ID` and `TELETHON_API_HASH` are both set |
+| Telethon userbot | `TELETHON_API_ID` and `TELETHON_API_HASH` are both set, *and* an authorised session file is mounted |
 | MCP control plane | `MCP_TOKEN` is set |
+
+The userbot is optional and production runs without it. It reads what a bot
+cannot — message history for the control plane's read tools — and nothing else
+depends on it. Chat titles, photos and member counts all come over the Bot API,
+because a client-API dependency is a dependency on a person being logged in
+somewhere, and features built on one go quiet the moment they are deployed
+without that person's session.
 
 A separate flag could disagree with the configuration it gates, and only ever in
 the direction that fails quietly: `TELETHON_ENABLED=true` with no credentials

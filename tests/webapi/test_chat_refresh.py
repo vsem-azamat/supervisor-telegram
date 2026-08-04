@@ -1,8 +1,9 @@
-"""Tests for POST /api/chats/{id}/refresh and GET /api/chats/{id}/avatar.
+"""`POST /api/chats/{id}/refresh` and `GET /api/chats/{id}/avatar`.
 
-The refresh endpoint exercises ``fetch_chat_photo_file_id`` (Bot API
-``getChat``) and the optional Telethon title sync. The avatar endpoint
-proxies bytes via ``Bot.download``. Both rely on a publish_bot override.
+Refresh asks Telegram for a chat's title, photo and member count, all over the
+Bot API. The title used to come through Telethon, which this process has never
+had, so the button quietly refreshed everything except the one field somebody
+presses it for.
 """
 
 from __future__ import annotations
@@ -11,8 +12,9 @@ import io
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from aiogram.exceptions import TelegramBadRequest
 from app.core.config import settings
-from app.db.models import Chat
+from app.db.models import Chat, ChatMemberSnapshot
 from app.webapi.main import app
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
@@ -20,27 +22,24 @@ from sqlalchemy import select
 pytestmark = pytest.mark.asyncio
 
 
-def _bot_with_photo(file_id: str) -> MagicMock:
-    """Bot mock whose get_chat returns a chat with a photo of file_id."""
+def _bot(*, title: str = "Как в Telegram", photo: str | None = "photo-file-id-1", members: int = 42) -> MagicMock:
     bot = MagicMock()
-    bot.get_chat = AsyncMock(return_value=MagicMock(photo=MagicMock(big_file_id=file_id, small_file_id="small")))
+    bot.get_chat = AsyncMock(
+        return_value=MagicMock(
+            title=title,
+            photo=MagicMock(big_file_id=photo, small_file_id="small") if photo else None,
+        )
+    )
+    bot.get_chat_member_count = AsyncMock(return_value=members)
     bot.download = AsyncMock(return_value=io.BytesIO(b"\xff\xd8\xff\xe0jpegbytes"))
-    return bot
-
-
-def _bot_without_photo() -> MagicMock:
-    bot = MagicMock()
-    bot.get_chat = AsyncMock(return_value=MagicMock(photo=None))
-    bot.download = AsyncMock(return_value=None)
     return bot
 
 
 @pytest.fixture
 def client_factory(db_session_maker):
-    from app.webapi.deps import get_publish_bot, get_session, get_telethon
+    from app.webapi.deps import get_publish_bot, get_session
 
-    bot_holder: dict[str, MagicMock] = {"bot": _bot_with_photo("photo-file-id-1")}
-    telethon_holder: dict[str, object] = {"telethon": None}
+    bot_holder: dict[str, MagicMock] = {"bot": _bot()}
 
     async def _override_session():
         async with db_session_maker() as s:
@@ -49,26 +48,21 @@ def client_factory(db_session_maker):
     async def _override_publish_bot():
         return bot_holder["bot"]
 
-    async def _override_telethon():
-        return telethon_holder["telethon"]
-
     app.dependency_overrides[get_session] = _override_session
     app.dependency_overrides[get_publish_bot] = _override_publish_bot
-    app.dependency_overrides[get_telethon] = _override_telethon
     settings.admin.super_admins = [1]
     transport = ASGITransport(app=app)
 
     def make() -> AsyncClient:
         return AsyncClient(transport=transport, base_url="http://test")
 
-    yield make, bot_holder, telethon_holder
+    yield make, bot_holder
     app.dependency_overrides.pop(get_session, None)
     app.dependency_overrides.pop(get_publish_bot, None)
-    app.dependency_overrides.pop(get_telethon, None)
 
 
 async def test_refresh_caches_photo_file_id(client_factory, db_session_maker) -> None:
-    make, _bot_holder, _telethon_holder = client_factory
+    make, _bot_holder = client_factory
     async with db_session_maker() as s:
         s.add(Chat(id=-7001, title="A"))
         await s.commit()
@@ -87,12 +81,10 @@ async def test_refresh_caches_photo_file_id(client_factory, db_session_maker) ->
     assert chat.last_synced_at is not None
 
 
-async def test_refresh_clears_photo_when_chat_has_none(client_factory, db_session_maker) -> None:
-    """Chat had a cached photo, then was un-set upstream — refresh keeps the
-    old cache (we only overwrite on positive responses; we don't actively
-    null-out, since a transient API hiccup shouldn't blow away the icon)."""
-    make, bot_holder, _telethon_holder = client_factory
-    bot_holder["bot"] = _bot_without_photo()
+async def test_refresh_keeps_the_cached_photo_when_telegram_mentions_none(client_factory, db_session_maker) -> None:
+    """We overwrite on a positive answer only. A hiccup must not blank the icon."""
+    make, bot_holder = client_factory
+    bot_holder["bot"] = _bot(photo=None)
     async with db_session_maker() as s:
         chat = Chat(id=-7002, title="B")
         chat.photo_file_id = "stale-cached-id"
@@ -108,13 +100,10 @@ async def test_refresh_clears_photo_when_chat_has_none(client_factory, db_sessio
     assert chat.photo_file_id == "stale-cached-id"
 
 
-async def test_refresh_syncs_title_via_telethon(client_factory, db_session_maker) -> None:
-    make, _bot_holder, telethon_holder = client_factory
-    tc = MagicMock()
-    tc.is_available = True
-    tc.get_chat_info = AsyncMock(return_value=MagicMock(title="Renamed Live", member_count=42))
-    telethon_holder["telethon"] = tc
-
+async def test_refresh_syncs_the_title(client_factory, db_session_maker) -> None:
+    """The reason somebody presses the button."""
+    make, bot_holder = client_factory
+    bot_holder["bot"] = _bot(title="Renamed Live")
     async with db_session_maker() as s:
         s.add(Chat(id=-7003, title="Old DB Title"))
         await s.commit()
@@ -123,19 +112,51 @@ async def test_refresh_syncs_title_via_telethon(client_factory, db_session_maker
         resp = await client.post("/api/chats/-7003/refresh")
 
     assert resp.status_code == 200
-    body = resp.json()
-    assert body["title"] == "Renamed Live"
+    assert resp.json()["title"] == "Renamed Live"
+
+
+async def test_refresh_returns_a_fresh_member_count(client_factory, db_session_maker) -> None:
+    """Read live rather than from the hourly snapshot: a button marked refresh
+    that hands back an hour-old number has not refreshed anything."""
+    make, bot_holder = client_factory
+    bot_holder["bot"] = _bot(members=1234)
+    async with db_session_maker() as s:
+        s.add(Chat(id=-7006, title="E"))
+        s.add(ChatMemberSnapshot(chat_id=-7006, member_count=11))
+        await s.commit()
+
+    async with make() as client:
+        resp = await client.post("/api/chats/-7006/refresh")
+
+    assert resp.json()["member_count"] == 1234
+
+
+async def test_refresh_falls_back_to_the_last_snapshot(client_factory, db_session_maker) -> None:
+    """Telegram declining is not a reason to report that nobody is there."""
+    make, bot_holder = client_factory
+    bot = _bot()
+    bot.get_chat_member_count = AsyncMock(side_effect=TelegramBadRequest(method=MagicMock(), message="nope"))
+    bot_holder["bot"] = bot
+    async with db_session_maker() as s:
+        s.add(Chat(id=-7007, title="F"))
+        s.add(ChatMemberSnapshot(chat_id=-7007, member_count=11))
+        await s.commit()
+
+    async with make() as client:
+        resp = await client.post("/api/chats/-7007/refresh")
+
+    assert resp.json()["member_count"] == 11
 
 
 async def test_refresh_returns_404_for_unknown_chat(client_factory) -> None:
-    make, _bot_holder, _telethon_holder = client_factory
+    make, _bot_holder = client_factory
     async with make() as client:
         resp = await client.post("/api/chats/-9999/refresh")
     assert resp.status_code == 404
 
 
 async def test_avatar_proxies_bytes(client_factory, db_session_maker) -> None:
-    make, _bot_holder, _telethon_holder = client_factory
+    make, _bot_holder = client_factory
     async with db_session_maker() as s:
         chat = Chat(id=-7004, title="C")
         chat.photo_file_id = "photo-file-id-1"
@@ -152,7 +173,7 @@ async def test_avatar_proxies_bytes(client_factory, db_session_maker) -> None:
 
 
 async def test_avatar_returns_404_when_no_cache(client_factory, db_session_maker) -> None:
-    make, _bot_holder, _telethon_holder = client_factory
+    make, _bot_holder = client_factory
     async with db_session_maker() as s:
         s.add(Chat(id=-7005, title="D"))
         await s.commit()

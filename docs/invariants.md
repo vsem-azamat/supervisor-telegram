@@ -28,14 +28,21 @@ HTML, and that default silently overrides explicit `entities` /
 `caption_entities`. The formatting is simply lost; nothing raises. Applies to
 every send and edit call, of which there are more than a dozen.
 
-**Whatever reads through Telethon runs in the bot process.** The client is held
-by a per-process singleton wired at the bot's startup, and the session file is
-mounted into that container alone — so the same code started from the web API
-finds `None`, logs that it is unavailable, and does nothing, which is
-indistinguishable from working. The member-count snapshot loop lived there and
-wrote not one row for its entire life; everything downstream read zero and
-rendered a dash. Mounting the session into a second container is not the fix
-either: two clients on one session file is the account-level risk below.
+**Reach for the client API only for what a bot cannot do.** Titles, photos and
+member counts are all Bot API calls, and the moderator bot is an administrator
+in every managed chat. The snapshot loop asked Telethon for them instead and
+therefore asked nobody: the account's session lives on a developer's machine,
+production has no credentials for it, and every guard along the way degraded
+quietly to `None`. It wrote not one row for its entire life while everything
+downstream rendered a dash. A client-API dependency is a dependency on a human
+being logged in somewhere.
+
+**Whatever does need Telethon runs in the bot process.** The client is held by
+a per-process singleton wired at the bot's startup, and the session file — when
+there is one — is mounted into that container alone. The same code started from
+the web API finds `None` and does nothing, which is indistinguishable from
+working. Mounting the session into a second container is not the fix either:
+two clients on one session file is the account-level risk below.
 
 **The Telethon session is the whole account.** A bot token grants one bot; this
 grants every private conversation the account can see. Treat writes, scheduled
