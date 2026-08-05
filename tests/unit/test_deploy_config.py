@@ -91,3 +91,17 @@ def test_nothing_writes_configuration_to_the_host() -> None:
     script = _deploy_step()["with"]["script"]
 
     assert ".env" not in script
+
+
+def test_the_pull_does_not_depend_on_the_host_docker_login() -> None:
+    """The images are public and the host is shared with other projects.
+
+    Depending on a login nobody here maintains is how a deploy comes to fail
+    with "denied" against images anyone can read: a rejected credential does
+    not fall back to anonymous. Our own config directory has nothing in it to
+    go stale.
+    """
+    script = _deploy_step()["with"]["script"]
+
+    assert "DOCKER_CONFIG" in script
+    assert script.index("DOCKER_CONFIG") < script.index("docker compose pull")

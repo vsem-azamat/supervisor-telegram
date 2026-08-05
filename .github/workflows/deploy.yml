@@ -125,6 +125,20 @@ jobs:
           script: |
             set -e
             cd ~/deploy/supervisor-telegram
+
+            # Pull as nobody. Both images are public, so no credential is
+            # needed — and a stale one is worse than none, because the registry
+            # rejects what it is shown instead of falling back to anonymous.
+            # That is how every pull started failing with "denied" while the
+            # images were readable by anyone.
+            #
+            # The host is shared with unrelated projects, so clearing its
+            # ghcr.io login is not ours to do. A config directory of our own
+            # sidesteps whichever user or credential helper holds the bad
+            # entry, and has nothing in it that could expire later.
+            export DOCKER_CONFIG="$PWD/.docker"
+            mkdir -p "$DOCKER_CONFIG"
+
             docker compose pull
             docker compose up -d --remove-orphans
             echo "--- Container status ---"
