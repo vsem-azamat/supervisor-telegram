@@ -104,6 +104,13 @@ python-version = "3.12"
 include = ["app", "tests"]
 exclude = ["alembic/**"]
 
+# The rules below deliberately demote whole families to "warn" — mock types in
+# tests, stubs a third party never shipped. Demoting them only means anything
+# if a warning does not then fail the build, which is how ty behaved until
+# 0.0.66 started exiting non-zero on them. Errors still fail.
+[tool.ty.terminal]
+error-on-warning = false
+
 [tool.ty.rules]
 # Third-party stubs often missing or incomplete
 unresolved-import = "warn"
@@ -181,6 +188,11 @@ markers = [
     "integration: marks tests as integration tests",
     "unit: marks tests as unit tests",
     "e2e: marks tests as end-to-end tests",
+    # Used since these suites were written; pytest 9.1 is the first version to
+    # notice they were never declared here, and --strict-markers refuses to
+    # collect them.
+    "handlers: marks tests covering Telegram handlers",
+    "middleware: marks tests covering aiogram middleware",
     "performance: marks tests as performance tests",
 ]
 

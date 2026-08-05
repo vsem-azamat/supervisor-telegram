@@ -189,11 +189,15 @@ async def get_public_reach(
             group.members += row.member_count
             measured += 1
 
+    # Largest first: the table is read as "where would this post land", and the
+    # answer starts with the biggest room. Sorted into a name of its own rather
+    # than inline, because Pydantic will also accept a mapping for this field —
+    # and inline, that widens what the type checker believes `group` to be.
+    ordered = sorted(groups.values(), key=lambda group: (-group.members, group.name.lower()))
+
     return PublicReach(
         chats=len(rows),
-        members=sum(group.members for group in groups.values()),
+        members=sum(group.members for group in ordered),
         measured_chats=measured,
-        # Largest first: the table is read as "where would this post land",
-        # and the answer starts with the biggest room.
-        groups=sorted(groups.values(), key=lambda group: (-group.members, group.name.lower())),
+        groups=ordered,
     )
