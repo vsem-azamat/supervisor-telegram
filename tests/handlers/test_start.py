@@ -53,6 +53,11 @@ def _in_group(factory, command: str, user):
     return factory.create_command_message(command=command, user=user, chat=factory.create_chat())
 
 
+def _rows(message) -> list[list]:
+    markup = message.answer.call_args[1].get("reply_markup")
+    return markup.inline_keyboard if markup else []
+
+
 def _answered(message) -> tuple[str, list]:
     text = message.answer.call_args[0][0]
     markup = message.answer.call_args[1].get("reply_markup")
@@ -122,6 +127,26 @@ class TestStart:
         _, buttons = _answered(message)
         assert all(b.web_app is None for b in buttons)
         assert buttons[0].url == "http://localhost:5173"
+
+    async def test_the_two_asides_share_a_row(self, telegram_factory, admin_repo, site):
+        """Four identical full-width buttons is a wall, evenly weighted.
+
+        Finding a chat is why anybody opened this. Advertising and the contact
+        link are not, and a column gives all three the same emphasis.
+        """
+        message = _private(telegram_factory, "start", create_normal_user(id=555))
+
+        await start_handlers.start_private(message, admin_repo)
+
+        assert [len(row) for row in _rows(message)] == [1, 2]
+
+    async def test_the_console_does_not_disturb_that(self, telegram_factory, admin_repo, site):
+        """It is one button more, drawn for one person, and it keeps its row."""
+        message = _private(telegram_factory, "start", create_admin_user(id=SUPER_ADMIN_ID))
+
+        await start_handlers.start_private(message, admin_repo)
+
+        assert [len(row) for row in _rows(message)] == [1, 1, 2]
 
     async def test_the_greeting_is_not_deleted(self, telegram_factory, admin_repo, site):
         """It is the first screen of the product, not a service reply.

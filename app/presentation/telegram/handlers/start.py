@@ -88,15 +88,21 @@ async def start_private(message: types.Message, admin_repo: AdminRepository) -> 
         text += "Все команды — /help"
 
     private = message.chat.type == "private"
+    shows_console = is_super_admin and bool(settings.webapi.public_url)
 
     builder = InlineKeyboardBuilder()
-    if is_super_admin and settings.webapi.public_url:
+    if shows_console:
         builder.button(text="⚙️ Открыть консоль", callback_data=AdminConsole().pack())
     if settings.webapi.public_url:
         builder.add(_open_button("🔎 Найти свой чат", _site(), private=private))
         builder.add(_open_button("📣 Реклама в чатах", f"{_site()}/ads", private=private))
     builder.add(types.InlineKeyboardButton(text="✉️ Написать нам", url=f"https://t.me/{CONTACT_USERNAME}"))
-    builder.adjust(1)
+
+    # A column of identical full-width buttons reads as a wall, and gives the
+    # same weight to the reason somebody opened the bot and to the two things
+    # nobody did. Advertising and the contact link share the last row; the
+    # shape depends on the console, which only a super administrator is shown.
+    builder.adjust(*([1, 1, 2] if shows_console else [1, 2]))
 
     # Deliberately not scheduled for deletion. This is the message somebody
     # comes back to; the справочник below is the one that may go.
