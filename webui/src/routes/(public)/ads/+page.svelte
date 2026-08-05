@@ -15,7 +15,7 @@
 	type Reach = components['schemas']['PublicReach'];
 
 	// Who answers. The bot handles questions about chats; a person handles this.
-	const CONTACT = 'czech_media_admin';
+	const CONTACT = 'work_azamat';
 
 	let reach = $state<Reach | null>(null);
 	let loading = $state(true);
