@@ -1,3 +1,11 @@
 onlyBuiltDependencies:
   - esbuild
   - '@tailwindcss/oxide'
+
+# SvelteKit still asks for cookie ^0.6.0 — even its newest release does — and
+# 0.6 accepts characters in a cookie name that do not belong there. Nothing of
+# ours reaches that code: we build with adapter-static, so no SvelteKit server
+# runs in production. The pin is here so the advisory stops being an open
+# question, not because it was ever reachable. Drop it once upstream moves on.
+overrides:
+  cookie: ^0.7.0
