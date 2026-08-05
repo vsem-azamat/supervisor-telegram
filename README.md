@@ -83,7 +83,7 @@ and it is not published to the internet. The rules it rests on are in
 |---|---|
 | **Bot Framework** | aiogram 3.30 (Bot API), Telethon (Client API) |
 | **Database** | PostgreSQL 18, SQLAlchemy 2.x async, Alembic |
-| **Web API** | FastAPI, session cookies, Telegram login and magic links |
+| **Web API** | FastAPI, session cookies from a verified Telegram Mini App `initData` |
 | **Web UI** | SvelteKit 2, Svelte 5, Tailwind 4 |
 | **Control plane** | MCP over HTTP (FastMCP), bearer-token auth, served by the bot process |
 | **Architecture** | Feature-based modular packages, service locator DI |

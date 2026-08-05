@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-    "/api/auth/login": {
+    "/api/auth/webapp": {
         parameters: {
             query?: never;
             header?: never;
@@ -13,25 +13,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Login */
-        post: operations["login_api_auth_login_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/auth/magic-link": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Magic Link Login */
-        post: operations["magic_link_login_api_auth_magic_link_post"];
+        /**
+         * Webapp Login
+         * @description Exchange a signed `initData` payload for a session cookie.
+         */
+        post: operations["webapp_login_api_auth_webapp_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -464,11 +450,6 @@ export interface components {
             /** User Id */
             user_id: number;
             /**
-             * Auth Mode
-             * @default telegram
-             */
-            auth_mode: string;
-            /**
              * Is Authenticated
              * @default true
              */
@@ -767,11 +748,6 @@ export interface components {
             /** Status */
             status: string;
         };
-        /** MagicLinkLoginPayload */
-        MagicLinkLoginPayload: {
-            /** Token */
-            token: string;
-        };
         /** MemberSnapshotPoint */
         MemberSnapshotPoint: {
             /**
@@ -923,20 +899,6 @@ export interface components {
             feature_flags: components["schemas"]["FeatureFlagRead"][];
         };
         /**
-         * TelegramLoginPayload
-         * @description Payload POSTed by the Telegram Login Widget. Extra keys are preserved so HMAC verifies.
-         */
-        TelegramLoginPayload: {
-            /** Id */
-            id: number;
-            /** Auth Date */
-            auth_date: number;
-            /** Hash */
-            hash: string;
-        } & {
-            [key: string]: unknown;
-        };
-        /**
          * UserBlockRequest
          * @description Body for POST /api/users/{id}/block. Set ``revoke_messages`` to also
          *     delete the user's recorded messages from all known chats.
@@ -970,6 +932,17 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /**
+         * WebAppLoginPayload
+         * @description The opaque `initData` string Telegram hands the Mini App.
+         *
+         *     Passed through untouched: it is a signed query string, and any parsing on
+         *     the way in would have to be undone byte for byte to check the signature.
+         */
+        WebAppLoginPayload: {
+            /** Init Data */
+            init_data: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -979,7 +952,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    login_api_auth_login_post: {
+    webapp_login_api_auth_webapp_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -988,40 +961,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["TelegramLoginPayload"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AuthMeResponse"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    magic_link_login_api_auth_magic_link_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MagicLinkLoginPayload"];
+                "application/json": components["schemas"]["WebAppLoginPayload"];
             };
         };
         responses: {

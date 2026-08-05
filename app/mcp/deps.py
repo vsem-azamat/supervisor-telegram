@@ -67,8 +67,8 @@ def initiator_id() -> int:
     """The admin this token acts as, and where its confirmations go.
 
     Defaults to the first super admin, which is the convention the rest of the
-    codebase already follows for "the main admin" — magic links, the report
-    chat. Configuring it separately duplicated the admin list for
+    codebase already follows for "the main admin" — the report chat, the
+    escalation target. Configuring it separately duplicated the admin list for
     every deployment that has one admin, which is all of them so far.
 
     It stays overridable for the case where the token should answer to someone

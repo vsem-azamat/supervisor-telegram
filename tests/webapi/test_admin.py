@@ -133,6 +133,6 @@ async def test_get_system_status(client_factory) -> None:
     assert body["session_ttl_days"] == 30
     flag_names = {f["name"] for f in body["feature_flags"]}
     assert flag_names == {
-        "auth_mode_telegram",
+        "auth_telegram_webapp",
         "ad_detector_enabled",
     }

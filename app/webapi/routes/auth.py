@@ -1,4 +1,18 @@
-"""Authentication routes: Telegram Login Widget -> session cookie."""
+"""Authentication: a Telegram Mini App session, and nothing else.
+
+There used to be two other doors. The Login Widget asked a browser to prove an
+identity Telegram had already proven, and magic links mailed a bearer token
+through a chat — a link that signs in without a password, forwardable by
+anyone who receives it, and which in production was never once used.
+
+`initData` removes the question. Telegram signs it with the bot's own token
+before the page loads, so the caller is attested before the first request
+rather than by it, and there is no secret in flight that means anything to
+whoever else might read it.
+
+The cost, stated plainly because it is permanent: the console opens only from
+inside a Telegram client. Telegram Desktop counts, so a laptop still works.
+"""
 
 from __future__ import annotations
 
@@ -9,41 +23,38 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.logging import get_logger
-from app.db import magic_link_store
 from app.webapi.auth import session_store
-from app.webapi.auth.telegram_login import LoginWidgetError, verify_login_payload
+from app.webapi.auth.telegram_webapp import InitDataError, verify_init_data
 from app.webapi.deps import get_session, require_super_admin
-from app.webapi.schemas import AuthMeResponse, MagicLinkLoginPayload, TelegramLoginPayload
+from app.webapi.schemas import AuthMeResponse, WebAppLoginPayload
 
 logger = get_logger("webapi.auth")
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-@router.post("/login")
-async def login(
-    payload: TelegramLoginPayload,
+@router.post("/webapp")
+async def webapp_login(
+    payload: WebAppLoginPayload,
     request: Request,
     response: Response,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> AuthMeResponse:
-    if settings.webapi.auth_mode != "telegram":
-        raise HTTPException(status_code=404, detail="telegram login disabled")
-
-    # Dump dict with extras so HMAC sees the whole payload.
-    raw = {k: str(v) for k, v in payload.model_dump().items()}
+    """Exchange a signed `initData` payload for a session cookie."""
     try:
-        user_id = verify_login_payload(raw, bot_token=settings.telegram.token)
-    except LoginWidgetError as err:
-        logger.warning("login_widget_rejected", reason=str(err))
+        caller = verify_init_data(payload.init_data, bot_token=settings.telegram.token)
+    except InitDataError as err:
+        # Which check failed is useful to somebody probing this and useless to
+        # a real client, whose payload Telegram itself assembled.
+        logger.warning("webapp_login_rejected", reason=str(err))
         raise HTTPException(status_code=401, detail="login failed") from err
 
-    if user_id not in settings.admin.super_admins:
-        logger.warning("login_non_admin", user_id=user_id)
+    if caller.user_id not in settings.admin.super_admins:
+        logger.warning("webapp_login_not_authorized", user_id=caller.user_id)
         raise HTTPException(status_code=403, detail="not authorized")
 
     row = await session_store.create_session(
         session,
-        user_id=user_id,
+        user_id=caller.user_id,
         ttl_days=settings.webapi.session_ttl_days,
         user_agent=request.headers.get("user-agent"),
         ip=request.client.host if request.client else None,
@@ -57,44 +68,7 @@ async def login(
         samesite=cast("Literal['lax', 'strict', 'none']", settings.webapi.session_cookie_samesite),
         path="/",
     )
-    return AuthMeResponse(user_id=user_id, auth_mode=settings.webapi.auth_mode)
-
-
-@router.post("/magic-link")
-async def magic_link_login(
-    payload: MagicLinkLoginPayload,
-    request: Request,
-    response: Response,
-    session: Annotated[AsyncSession, Depends(get_session)],
-) -> AuthMeResponse:
-    if settings.webapi.auth_mode != "magic_link":
-        raise HTTPException(status_code=404, detail="magic link login disabled")
-    if not settings.admin.super_admins:
-        raise HTTPException(status_code=503, detail="No super_admin configured")
-
-    user_id = await magic_link_store.consume_magic_link(session, payload.token)
-    main_admin_id = settings.admin.super_admins[0]
-    if user_id is None or user_id != main_admin_id:
-        logger.warning("magic_link_rejected", ip=request.client.host if request.client else None)
-        raise HTTPException(status_code=401, detail="login failed")
-
-    row = await session_store.create_session(
-        session,
-        user_id=user_id,
-        ttl_days=settings.webapi.session_ttl_days,
-        user_agent=request.headers.get("user-agent"),
-        ip=request.client.host if request.client else None,
-    )
-    response.set_cookie(
-        key=settings.webapi.session_cookie_name,
-        value=row.session_id,
-        max_age=settings.webapi.session_ttl_days * 86400,
-        secure=settings.webapi.session_cookie_secure,
-        httponly=True,
-        samesite=cast("Literal['lax', 'strict', 'none']", settings.webapi.session_cookie_samesite),
-        path="/",
-    )
-    return AuthMeResponse(user_id=user_id, auth_mode=settings.webapi.auth_mode)
+    return AuthMeResponse(user_id=caller.user_id)
 
 
 @router.post("/logout", status_code=204)
@@ -111,4 +85,4 @@ async def logout(
 
 @router.get("/me")
 async def me(user_id: Annotated[int, Depends(require_super_admin)]) -> AuthMeResponse:
-    return AuthMeResponse(user_id=user_id, auth_mode=settings.webapi.auth_mode)
+    return AuthMeResponse(user_id=user_id)

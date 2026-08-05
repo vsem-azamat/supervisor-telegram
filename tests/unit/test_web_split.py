@@ -69,12 +69,17 @@ class TestThePublicHalfAsksNothingOfAnybody:
 
 class TestTheConsoleIsGuardedByWhereItSits:
     def test_the_group_layout_requires_a_session(self) -> None:
-        """A guard in the layout is one a new page cannot forget to add."""
+        """A guard in the layout is one a new page cannot forget to add.
+
+        It both asks whether there is a session and tries to open one from the
+        signature Telegram attached — there being no sign-in page left to send
+        anybody to.
+        """
         layout = (ADMIN / "+layout.svelte").read_text(encoding="utf-8")
 
         assert "auth.refresh()" in layout
         assert "auth.me" in layout
-        assert "'/login'" in layout
+        assert "auth.signInWithTelegram()" in layout
 
     def test_the_root_layout_guards_nothing_and_shows_nothing(self) -> None:
         """It covers both halves, so anything it decides is decided for both."""

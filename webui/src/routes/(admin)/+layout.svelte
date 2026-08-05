@@ -6,8 +6,14 @@
 	// This is a second lock, not the lock. The API refuses without a valid cookie
 	// whatever the browser believes — see `require_super_admin` in
 	// `app/webapi/deps.py`. What the guard buys is not safety but honesty: an
-	// anonymous visitor gets the sign-in page instead of a console full of
-	// failed requests.
+	// anonymous visitor gets an explanation instead of a console full of failed
+	// requests.
+	//
+	// There is no sign-in page to send them to any more. Opening the Mini App is
+	// the sign-in: Telegram signs `initData` before this code runs, so the first
+	// thing an unauthenticated console does is offer that signature. Outside
+	// Telegram there is nothing to offer, and the panel below explains that case
+	// rather than retrying it.
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import Header from '$lib/components/app-shell/Header.svelte';
@@ -20,26 +26,45 @@
 
 	let { children } = $props();
 
-	onMount(() => {
-		void auth.refresh();
-	});
+	// Separate from `auth.initialized`, which only says the session was asked
+	// about. This says the sign-in attempt that follows is over too, so the
+	// panel cannot flash in the moment between the two.
+	let settled = $state(false);
 
-	$effect(() => {
-		if (auth.initialized && !auth.me) void goto('/login');
+	onMount(async () => {
+		await auth.refresh();
+		if (!auth.me) await auth.signInWithTelegram();
+		settled = true;
 	});
 
 	async function doLogout(): Promise<void> {
 		await auth.logout();
-		await goto('/login');
+		await goto('/');
 	}
 </script>
 
 <Toaster richColors />
 
-{#if !auth.initialized}
+{#if !settled}
 	<div class="flex min-h-screen items-center justify-center text-sm text-zinc-400">Загрузка…</div>
 {:else if !auth.me}
-	<!-- The effect above has already started navigating to the sign-in page. -->
+	<div class="flex min-h-screen items-center justify-center px-4">
+		<div
+			class="w-full max-w-sm space-y-3 rounded-xl border border-zinc-200 bg-white p-6 text-center"
+		>
+			<h1 class="text-lg font-semibold tracking-tight text-zinc-900">
+				Консоль открывается из Telegram
+			</h1>
+			<p class="text-sm text-zinc-500">
+				Вход — это само открытие приложения: личность подтверждает Telegram, паролей и ссылок нет.
+				Напишите боту <span class="font-medium text-zinc-700">/start</span> и нажмите «Открыть консоль».
+			</p>
+			<p class="text-xs text-zinc-400">
+				Если вы открыли это из Telegram и всё равно видите сообщение — аккаунт не в списке главных
+				администраторов.
+			</p>
+		</div>
+	</div>
 {:else}
 	<div class="flex h-screen w-screen bg-white text-zinc-900">
 		<Sidebar />
