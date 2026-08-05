@@ -54,12 +54,23 @@ moderates real chats. No test can catch this.
 
 ## Mini App
 
-**`initData` and the Login Widget are different algorithms.** The widget derives
-its secret as `sha256(bot_token)`; a Mini App as
-`hmac(key="WebAppData", msg=bot_token)`. Reusing one helper for the other fails
-every signature, and "fixing" that by relaxing the check is how a Mini App ends
-up trusting whatever the caller claims. An empty bot token must refuse rather
-than derive a secret from nothing.
+**A Mini App secret is `hmac(key="WebAppData", msg=bot_token)`.** The other
+derivation anyone reaches for, `sha256(bot_token)`, belonged to the Login
+Widget and fails every signature here. "Fixing" that by relaxing the check is
+how a Mini App ends up trusting whatever the caller claims. An empty bot token
+must refuse rather than derive a secret from nothing.
+
+**The console has one door, and it opens from inside Telegram.** A session is
+issued for a verified `initData` payload and nothing else. What was removed
+should stay removed: the Login Widget asked a browser to re-prove an identity
+Telegram had already proven, and a magic link was a password-less bearer token
+sent through a chat, forwardable by whoever received it. Any new way in has to
+carry a signature the bot token can check, or it is not a way in.
+
+**A signature is not an authorisation.** `initData` says who is asking; the
+super-admin list says whether they may. The check against
+`settings.admin.super_admins` runs after verification, on the id Telegram
+signed rather than any id the payload volunteers elsewhere.
 
 **A join check belongs to one applicant, and that binding is stored.** Holding
 the query id is not the same as being the person it was issued to. Carrying the
@@ -136,9 +147,10 @@ catalogue in bulk, but it must never be the only way to change it — a feature
 whose switch lives in a maintainer's terminal is a feature the operator cannot
 undo.
 
-**`/join` and `/login` stay outside both groups.** The join check is opened
-inside Telegram by an applicant who has no session and must not be sent to get
-one; the sign-in page is the seam between the halves and belongs to neither.
+**`/join` stays outside both groups.** The join check is opened inside Telegram
+by an applicant who has no session and must not be sent to get one. It is the
+only page that belongs to neither half, there being no sign-in page any more —
+the console signs itself in from the signature it was opened with.
 
 ## Who may moderate
 
@@ -219,7 +231,7 @@ call, which is what the removed assistant's `analyze_message` did.
 
 **A ban is attributable, and the token is not a person.** Every proposal records
 the admin it acts for — the first super admin, the same one escalations and
-magic links answer to. With no admin configured the proposal tools refuse
+reports answer to. With no admin configured the proposal tools refuse
 rather than log an action against nobody.
 
 **Tool errors are masked because they land in an operator's chat history.** An

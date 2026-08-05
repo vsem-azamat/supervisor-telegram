@@ -3,11 +3,9 @@
 	// on these pages needs one — the only endpoint they touch is
 	// `/api/public/catalog`.
 	//
-	// The sign-in link is the one deliberate seam between the halves. It points
-	// at `/login`, which is a page and not a route group, so nothing about the
-	// console leaks into a bundle a student downloads.
-	import { LogIn } from '@lucide/svelte';
-
+	// There is no seam to the console any more, and no link to it. Signing in
+	// means opening the Mini App from the bot, so a sign-in link on a public
+	// page would point at a door that only opens from the other side.
 	let { children } = $props();
 </script>
 
@@ -22,21 +20,12 @@
 				</div>
 				<span class="text-sm font-semibold tracking-tight text-zinc-900">Konnekt</span>
 			</a>
-			<div class="flex items-center gap-2">
-				<a
-					href="/ads"
-					class="rounded-md px-3 py-1.5 text-sm font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
-				>
-					Реклама
-				</a>
-				<a
-					href="/login"
-					class="flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-100"
-				>
-					<LogIn class="h-3.5 w-3.5" />
-					Вход для админов
-				</a>
-			</div>
+			<a
+				href="/ads"
+				class="rounded-md px-3 py-1.5 text-sm font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+			>
+				Реклама
+			</a>
 		</div>
 	</header>
 

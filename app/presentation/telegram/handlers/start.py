@@ -10,20 +10,15 @@ stays on screen; `/help` answers "what can I type" and still grows with the
 role of whoever asked.
 """
 
-from urllib.parse import quote
-
 from aiogram import Router, types
 from aiogram.filters import Command
-from aiogram.filters.callback_data import CallbackData
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.core.text import plural
-from app.db import magic_link_store
 from app.db.repositories import AdminRepository
-from app.db.session import get_session_maker
 from app.presentation.telegram.utils import buttons as buttons_service
 from app.presentation.telegram.utils import other
 
@@ -35,17 +30,18 @@ logger = get_logger("handlers.start")
 CONTACT_USERNAME = "work_azamat"
 
 
-class AdminConsole(CallbackData, prefix="console"):
-    """Press to be issued a one-time sign-in link.
-
-    A URL button would have to carry a token minted when the menu was drawn,
-    which starts expiring while the person is still reading the message it sits
-    under. A callback mints it at the moment somebody actually wants it.
-    """
-
-
 def _site() -> str:
     return settings.webapi.public_url.rstrip("/")
+
+
+def _mini_app_possible(*, private: bool) -> bool:
+    """Whether Telegram will accept a Mini App button here at all.
+
+    It wants a private chat and an https address, and it refuses the whole
+    message rather than the offending button — so `/start` in a group would
+    answer nothing, and so would a developer pointed at plain http.
+    """
+    return private and settings.webapi.public_url.startswith("https://")
 
 
 def _open_button(text: str, url: str, *, private: bool) -> types.InlineKeyboardButton:
@@ -54,13 +50,8 @@ def _open_button(text: str, url: str, *, private: bool) -> types.InlineKeyboardB
     A Mini App is the difference between reading the catalogue and using it: it
     inherits the client's theme, and a tap on a chat opens that chat in place
     instead of bouncing out to a browser and back.
-
-    Telegram accepts such a button only in a private chat, and only over https.
-    Both are checked rather than assumed, because a button it refuses fails the
-    whole message — `/start` in a group would answer nothing at all, and a
-    developer running against a plain-http URL would see the same.
     """
-    if private and url.startswith("https://"):
+    if _mini_app_possible(private=private):
         return types.InlineKeyboardButton(text=text, web_app=types.WebAppInfo(url=url))
     return types.InlineKeyboardButton(text=text, url=url)
 
@@ -88,11 +79,16 @@ async def start_private(message: types.Message, admin_repo: AdminRepository) -> 
         text += "Все команды — /help"
 
     private = message.chat.type == "private"
-    shows_console = is_super_admin and bool(settings.webapi.public_url)
+
+    # The console is a Mini App and only a Mini App: signing in means handing
+    # over the `initData` Telegram signed, which a browser opened from a group
+    # would not have. Offering the button where it cannot work would send the
+    # one person who has it to a page that can only turn them away.
+    shows_console = is_super_admin and _mini_app_possible(private=private)
 
     builder = InlineKeyboardBuilder()
     if shows_console:
-        builder.button(text="⚙️ Открыть консоль", callback_data=AdminConsole().pack())
+        builder.add(_open_button("⚙️ Открыть консоль", f"{_site()}/admin", private=private))
     if settings.webapi.public_url:
         builder.add(_open_button("🔎 Найти свой чат", _site(), private=private))
         builder.add(_open_button("📣 Реклама в чатах", f"{_site()}/ads", private=private))
@@ -157,55 +153,6 @@ async def help_command(message: types.Message, admin_repo: AdminRepository) -> N
     bot_message = await message.answer(text, disable_web_page_preview=True)
     await message.delete()
     other.sleep_and_delete(bot_message)
-
-
-async def _mint_magic_link(user_id: int) -> str:
-    session_maker = get_session_maker()
-    async with session_maker() as session:
-        token, _ = await magic_link_store.create_magic_link(
-            session,
-            user_id=user_id,
-            ttl_minutes=settings.webapi.magic_link_ttl_minutes,
-        )
-    return token
-
-
-@router.callback_query(AdminConsole.filter())
-async def open_console(callback: types.CallbackQuery) -> None:
-    """Issue a one-time sign-in link to whoever pressed.
-
-    Checked here rather than trusted from the keyboard: the button is only
-    drawn for super administrators, but the callback data is short, guessable,
-    and arrives without the message that decided to draw it.
-    """
-    if callback.from_user.id not in settings.admin.super_admins:
-        await callback.answer("Только для главных администраторов.", show_alert=True)
-        return
-
-    if not callback.message or not isinstance(callback.message, types.Message):
-        await callback.answer()
-        return
-
-    if settings.webapi.auth_mode != "magic_link":
-        await callback.message.answer("Вход по ссылке выключен: WEBAPI_AUTH_MODE=magic_link не задан.")
-        await callback.answer()
-        return
-
-    token = await _mint_magic_link(callback.from_user.id)
-    minutes = settings.webapi.magic_link_ttl_minutes
-
-    if settings.webapi.public_url:
-        await callback.message.answer(
-            f"Одноразовая ссылка, действует {minutes} мин:\n"
-            f"{_site()}/login#token={quote(token)}\n\n"
-            "Не пересылайте — она входит без пароля.",
-            disable_web_page_preview=True,
-        )
-    else:
-        await callback.message.answer(
-            f"WEBAPI_PUBLIC_URL не настроен. Токен для /login#token=:\n<code>{token}</code>\n\nДействует {minutes} мин."
-        )
-    await callback.answer()
 
 
 @router.message(Command("chats", prefix="/!"))

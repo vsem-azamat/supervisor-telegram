@@ -1,11 +1,19 @@
-"""Auth route coverage."""
+"""The console has one door: a signed Mini App payload.
+
+The Login Widget and the magic link are gone, so what is pinned here is that
+nothing else opens it. A forged signature, a stale one, and a real signature
+from somebody who is not a super administrator all fail — and they fail
+differently in the log and identically to the caller.
+"""
 
 from __future__ import annotations
 
 import datetime
 import hashlib
 import hmac
+import json
 from typing import TYPE_CHECKING
+from urllib.parse import urlencode
 
 import pytest
 from app.core.config import settings
@@ -17,16 +25,32 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.asyncio
 
+BOT_TOKEN = "test:bot:token"  # noqa: S105
+SUPER_ADMIN_ID = 268388996
 
-def _sign(payload: dict[str, str], token: str) -> str:
-    data_check = "\n".join(f"{k}={payload[k]}" for k in sorted(payload))
-    secret = hashlib.sha256(token.encode()).digest()
-    return hmac.new(secret, data_check.encode(), hashlib.sha256).hexdigest()
+
+def _init_data(*, user_id: int, token: str = BOT_TOKEN, age_seconds: int = 0) -> str:
+    """Build an initData string the way Telegram would.
+
+    Note the secret: HMAC over the literal b"WebAppData", not sha256 of the
+    token. The Login Widget used the other one, and signing this payload that
+    way is exactly the forgery the endpoint has to refuse.
+    """
+    issued = int(datetime.datetime.now(tz=datetime.UTC).timestamp()) - age_seconds
+    fields = {
+        "auth_date": str(issued),
+        "query_id": "AAF",
+        "user": json.dumps({"id": user_id, "first_name": "A"}, separators=(",", ":")),
+    }
+    data_check = "\n".join(f"{k}={fields[k]}" for k in sorted(fields))
+    secret = hmac.new(b"WebAppData", token.encode(), hashlib.sha256).digest()
+    fields["hash"] = hmac.new(secret, data_check.encode(), hashlib.sha256).hexdigest()
+    return urlencode(fields)
 
 
 @pytest.fixture
 def client_factory(db_session_maker: async_sessionmaker[AsyncSession]):
-    from app.webapi.deps import get_session
+    from app.webapi.deps import get_session, require_super_admin
 
     async def _override_session():
         async with db_session_maker() as s:
@@ -35,13 +59,10 @@ def client_factory(db_session_maker: async_sessionmaker[AsyncSession]):
     app.dependency_overrides[get_session] = _override_session
     orig_admins = list(settings.admin.super_admins)
     orig_token = settings.telegram.token
-    orig_auth_mode = settings.webapi.auth_mode
     orig_secure = settings.webapi.session_cookie_secure
-    settings.admin.super_admins = [268388996]
-    settings.telegram.token = "test:bot:token"  # noqa: S105
-    settings.webapi.auth_mode = "telegram"
+    settings.admin.super_admins = [SUPER_ADMIN_ID]
+    settings.telegram.token = BOT_TOKEN
     settings.webapi.session_cookie_secure = False
-    from app.webapi.deps import require_super_admin
 
     app.dependency_overrides.pop(require_super_admin, None)
     transport = ASGITransport(app=app)
@@ -53,7 +74,6 @@ def client_factory(db_session_maker: async_sessionmaker[AsyncSession]):
     app.dependency_overrides.pop(get_session, None)
     settings.admin.super_admins = orig_admins
     settings.telegram.token = orig_token
-    settings.webapi.auth_mode = orig_auth_mode
     settings.webapi.session_cookie_secure = orig_secure
 
 
@@ -63,56 +83,67 @@ async def test_me_unauthenticated_returns_401(client_factory) -> None:
     assert resp.status_code == 401
 
 
-async def test_full_login_flow(client_factory) -> None:
-    now_s = int(datetime.datetime.now(tz=datetime.UTC).timestamp())
-    str_payload = {"id": "268388996", "auth_date": str(now_s), "first_name": "A"}
-    str_payload["hash"] = _sign(str_payload, "test:bot:token")
-    json_payload = {"id": 268388996, "auth_date": now_s, "first_name": "A", "hash": str_payload["hash"]}
-
+async def test_a_signed_payload_opens_a_session(client_factory) -> None:
     async with client_factory() as client:
-        resp = await client.post("/api/auth/login", json=json_payload)
+        resp = await client.post("/api/auth/webapp", json={"init_data": _init_data(user_id=SUPER_ADMIN_ID)})
         assert resp.status_code == 200, resp.text
         assert resp.cookies.get(settings.webapi.session_cookie_name)
 
         me = await client.get("/api/auth/me")
         assert me.status_code == 200
-        assert me.json()["user_id"] == 268388996
-        assert me.json()["auth_mode"] == "telegram"
+        assert me.json()["user_id"] == SUPER_ADMIN_ID
 
         out = await client.post("/api/auth/logout")
         assert out.status_code == 204
 
+        after = await client.get("/api/auth/me")
+        assert after.status_code == 401
 
-async def test_non_admin_rejected(client_factory) -> None:
-    now_s = int(datetime.datetime.now(tz=datetime.UTC).timestamp())
-    str_payload = {"id": "99999", "auth_date": str(now_s)}
-    str_payload["hash"] = _sign(str_payload, "test:bot:token")
-    json_payload = {"id": 99999, "auth_date": now_s, "hash": str_payload["hash"]}
+
+async def test_a_payload_signed_with_another_token_is_refused(client_factory) -> None:
+    """Which is what a Mini App belonging to a different bot would send."""
+    forged = _init_data(user_id=SUPER_ADMIN_ID, token="someone:elses:token")  # noqa: S106
+
     async with client_factory() as client:
-        resp = await client.post("/api/auth/login", json=json_payload)
+        resp = await client.post("/api/auth/webapp", json={"init_data": forged})
+
+    assert resp.status_code == 401
+    assert not resp.cookies.get(settings.webapi.session_cookie_name)
+
+
+async def test_a_stale_payload_is_refused(client_factory) -> None:
+    """A signature stays valid forever; replaying one must not."""
+    async with client_factory() as client:
+        resp = await client.post(
+            "/api/auth/webapp",
+            json={"init_data": _init_data(user_id=SUPER_ADMIN_ID, age_seconds=90_000)},
+        )
+
+    assert resp.status_code == 401
+
+
+async def test_a_genuine_stranger_is_refused(client_factory) -> None:
+    """Telegram vouches for who they are, not for what they may do."""
+    async with client_factory() as client:
+        resp = await client.post("/api/auth/webapp", json={"init_data": _init_data(user_id=99999)})
+
     assert resp.status_code == 403
+    assert not resp.cookies.get(settings.webapi.session_cookie_name)
 
 
-async def test_magic_link_flow(client_factory, db_session_maker: async_sessionmaker[AsyncSession]) -> None:
-    from app.db.magic_link_store import create_magic_link
-
-    settings.webapi.auth_mode = "magic_link"
-
-    async with db_session_maker() as session:
-        token, _ = await create_magic_link(session, user_id=268388996, ttl_minutes=15)
-
+async def test_an_empty_payload_is_refused(client_factory) -> None:
+    """The case a browser outside Telegram would produce."""
     async with client_factory() as client:
-        bad = await client.post("/api/auth/magic-link", json={"token": "wrong"})
-        assert bad.status_code == 401
+        resp = await client.post("/api/auth/webapp", json={"init_data": ""})
 
-        resp = await client.post("/api/auth/magic-link", json={"token": token})
-        assert resp.status_code == 200, resp.text
-        assert resp.cookies.get(settings.webapi.session_cookie_name)
-        assert resp.json()["auth_mode"] == "magic_link"
+    assert resp.status_code == 401
 
-        reused = await client.post("/api/auth/magic-link", json={"token": token})
-        assert reused.status_code == 401
 
-        me = await client.get("/api/auth/me")
-        assert me.status_code == 200
-        assert me.json()["user_id"] == 268388996
+async def test_the_old_doors_are_gone(client_factory) -> None:
+    """Deleting a login route is only true if nothing still answers on it."""
+    async with client_factory() as client:
+        widget = await client.post("/api/auth/login", json={"id": SUPER_ADMIN_ID, "auth_date": 0, "hash": "x"})
+        magic = await client.post("/api/auth/magic-link", json={"token": "x"})
+
+    assert widget.status_code == 404
+    assert magic.status_code == 404

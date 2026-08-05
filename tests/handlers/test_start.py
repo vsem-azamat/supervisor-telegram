@@ -39,7 +39,6 @@ def admin_repo():
 def site(monkeypatch):
     """A configured public URL, so the web buttons have somewhere to point."""
     monkeypatch.setattr(start_handlers.settings.webapi, "public_url", SITE)
-    monkeypatch.setattr(start_handlers.settings.webapi, "auth_mode", "magic_link")
     monkeypatch.setattr(start_handlers.settings.admin, "super_admins", [SUPER_ADMIN_ID])
 
 
@@ -178,10 +177,24 @@ class TestStart:
         _, buttons = _answered(message)
         console = [b for b in buttons if "онсол" in b.text]
         assert len(console) == 1
-        # A callback, not a URL: minting the link when the menu is drawn burns
-        # its lifetime while the person is still reading.
-        assert console[0].url is None
-        assert console[0].callback_data
+        # Straight into the console as a Mini App. It used to be a callback that
+        # minted a sign-in link; the console now reads the signature Telegram
+        # already attached, so there is no link to mint and none to leak.
+        assert console[0].web_app is not None
+        assert console[0].web_app.url == f"{SITE}/admin"
+
+    async def test_the_console_is_not_offered_where_it_cannot_open(self, telegram_factory, admin_repo, site):
+        """Signing in means handing over `initData`, which only a Mini App has.
+
+        In a group the button would have to be a plain link, and the browser it
+        opened would reach a console able to do nothing but turn them away.
+        """
+        message = _in_group(telegram_factory, "start", create_admin_user(id=SUPER_ADMIN_ID))
+
+        await start_handlers.start_private(message, admin_repo)
+
+        _, buttons = _answered(message)
+        assert not any("онсол" in b.text for b in buttons)
 
     async def test_without_a_configured_site_it_still_answers(self, telegram_factory, admin_repo, monkeypatch):
         """A missing WEBAPI_PUBLIC_URL must not produce a button to nowhere."""
@@ -240,38 +253,3 @@ class TestHelp:
         assert "/adminlink" not in text
         assert "/webadmin" not in text
         assert "/json" not in text
-
-
-@pytest.mark.handlers
-class TestTheConsoleButton:
-    async def test_a_stranger_pressing_it_gets_nothing(self, telegram_factory, site):
-        """The keyboard is only drawn for super admins, but the callback data is
-        guessable and arrives outside the layout that decided to draw it."""
-        message = telegram_factory.create_message()
-        callback = telegram_factory.create_callback_query(user=create_normal_user(id=555), message=message)
-
-        await start_handlers.open_console(callback)
-
-        message.answer.assert_not_called()
-        assert "дминистратор" in callback.answer.call_args[0][0]
-
-    async def test_a_super_admin_gets_a_one_time_link(self, telegram_factory, site):
-        message = telegram_factory.create_message()
-        callback = telegram_factory.create_callback_query(user=create_admin_user(id=SUPER_ADMIN_ID), message=message)
-
-        with patch.object(start_handlers, "_mint_magic_link", AsyncMock(return_value="tok3n")):
-            await start_handlers.open_console(callback)
-
-        answered = message.answer.call_args[0][0]
-        assert f"{SITE}/login#token=tok3n" in answered
-
-    async def test_it_says_so_when_magic_links_are_off(self, telegram_factory, monkeypatch):
-        monkeypatch.setattr(start_handlers.settings.webapi, "auth_mode", "telegram")
-        monkeypatch.setattr(start_handlers.settings.admin, "super_admins", [SUPER_ADMIN_ID])
-        message = telegram_factory.create_message()
-        callback = telegram_factory.create_callback_query(user=create_admin_user(id=SUPER_ADMIN_ID), message=message)
-
-        await start_handlers.open_console(callback)
-
-        assert message.answer.call_args[0][0]
-        assert "magic_link" in message.answer.call_args[0][0]

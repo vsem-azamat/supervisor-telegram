@@ -8,11 +8,12 @@ Contract (https://core.telegram.org/bots/webapps#validating-data-received-via-th
   3. compare HMAC_SHA256(key=secret, msg=data_check_string) against ``hash``
   4. reject a stale ``auth_date``
 
-Step 2 is the one that catches people out: the Login Widget in
-``telegram_login`` derives its secret as ``sha256(bot_token)`` instead, and the
-two are not interchangeable. ``signature`` is excluded because it is Telegram's
-Ed25519 field for third parties validating without the bot token, and it is not
-part of the HMAC input.
+Step 2 is the one that catches people out. Telegram's other browser flow, the
+Login Widget, derives its secret as ``sha256(bot_token)``; that widget is no
+longer used here, but the wrong derivation is what anybody reaching for a
+half-remembered snippet will write, and it fails every signature. ``signature``
+is excluded because it is Telegram's Ed25519 field for third parties validating
+without the bot token, and it is not part of the HMAC input.
 """
 
 from __future__ import annotations

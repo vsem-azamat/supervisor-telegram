@@ -1,10 +1,13 @@
 """Mini App initData verification.
 
-Not the same algorithm as the Login Widget next door, and the difference is one
+Not the same algorithm as Telegram's Login Widget, and the difference is one
 line: the widget derives its secret as ``sha256(bot_token)``, a Mini App as
-``hmac(key="WebAppData", msg=bot_token)``. Reusing the widget's helper here
-fails every signature, and "fixing" that by loosening the check is how a Mini
-App ends up trusting whatever the caller claims.
+``hmac(key="WebAppData", msg=bot_token)``. Signing with the widget's derivation
+fails every signature here, and "fixing" that by loosening the check is how a
+Mini App ends up trusting whatever the caller claims.
+
+This is now the only way into the console, so these are the checks the whole
+admin surface rests on.
 """
 
 from __future__ import annotations

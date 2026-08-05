@@ -43,17 +43,19 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<Api
 			headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) }
 		});
 		if (!res.ok) {
-			// 401 on a protected endpoint → bounce to /login. Two families are
-			// exempt. `/api/auth` returns 401 as a normal answer (`/me` on boot
-			// says "nobody is signed in"). `/api/public` is read by people who
-			// have no session and are not meant to get one — a student on the
-			// catalog, or an applicant opening the join check inside Telegram —
-			// and sending them to a sign-in page would be answering a question
-			// they did not ask.
+			// 401 on a protected endpoint → back to the console root, which is
+			// where signing in happens now: its layout offers Telegram's
+			// signature again, and explains itself if there is none. Two
+			// families are exempt. `/api/auth` returns 401 as a normal answer
+			// (`/me` on boot says "nobody is signed in"). `/api/public` is read
+			// by people who have no session and are not meant to get one — a
+			// student on the catalog, or an applicant opening the join check
+			// inside Telegram — and bouncing them would answer a question they
+			// did not ask.
 			const exempt = path.startsWith('/api/auth') || path.startsWith('/api/public');
 			if (res.status === 401 && !exempt) {
 				const { goto } = await import('$app/navigation');
-				void goto('/login');
+				void goto('/admin');
 			}
 			const body = await res.json().catch(() => ({}));
 			return {

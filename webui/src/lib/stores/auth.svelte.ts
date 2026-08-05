@@ -21,6 +21,27 @@ export const auth = {
 	get initialized() {
 		return state.initialized;
 	},
+	/**
+	 * Sign in with the identity Telegram signed before this page loaded.
+	 *
+	 * `initData` is present only inside a Telegram client, which is the whole
+	 * authentication story: there is no form to fill in and no token to carry,
+	 * so a browser that has it is a browser Telegram opened.
+	 */
+	async signInWithTelegram(): Promise<boolean> {
+		const initData = (window as unknown as { Telegram?: { WebApp?: { initData?: string } } }).Telegram
+			?.WebApp?.initData;
+		if (!initData) return false;
+
+		const res = await apiFetch<Me>('/api/auth/webapp', {
+			method: 'POST',
+			body: JSON.stringify({ init_data: initData })
+		});
+		if (res.error) return false;
+
+		state.me = res.data;
+		return true;
+	},
 	async refresh(): Promise<void> {
 		state.loading = true;
 		try {

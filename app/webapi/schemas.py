@@ -306,21 +306,16 @@ class HomeStats(BaseModel):
     spam_pings: SpamPingsSummary = SpamPingsSummary(count_24h=0, count_7d=0, recent=[])
 
 
-class TelegramLoginPayload(BaseModel):
-    """Payload POSTed by the Telegram Login Widget. Extra keys are preserved so HMAC verifies."""
+class WebAppLoginPayload(BaseModel):
+    """The opaque `initData` string Telegram hands the Mini App.
 
-    model_config = ConfigDict(extra="allow")
+    Passed through untouched: it is a signed query string, and any parsing on
+    the way in would have to be undone byte for byte to check the signature.
+    """
 
-    id: int
-    auth_date: int
-    hash: str
-
-
-class MagicLinkLoginPayload(BaseModel):
-    token: str
+    init_data: str
 
 
 class AuthMeResponse(BaseModel):
     user_id: int
-    auth_mode: str = "telegram"
     is_authenticated: bool = True
