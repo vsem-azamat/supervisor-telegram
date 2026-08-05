@@ -105,3 +105,21 @@ def test_the_pull_does_not_depend_on_the_host_docker_login() -> None:
 
     assert "DOCKER_CONFIG" in script
     assert script.index("DOCKER_CONFIG") < script.index("docker compose pull")
+
+
+def test_the_image_build_gets_every_pnpm_config_the_lockfile_was_written_with() -> None:
+    """A frozen install refuses when the settings it finds are not the ones recorded.
+
+    pnpm keeps overrides and the build-script allowlist in pnpm-workspace.yaml
+    rather than package.json, and writes the overrides into the lockfile too.
+    The webui stage copies a short list of files by hand, so leaving that one
+    out fails the image build — and only the image build, since a checkout has
+    the file sitting there either way.
+    """
+    dockerfile = ROOT.joinpath("Dockerfile").read_text()
+    copied = re.search(r"^COPY (webui/\S+ .*?)\./$", dockerfile, re.M)
+    assert copied, "the webui dependency stage no longer copies files one by one"
+
+    workspace = ROOT / "webui" / "pnpm-workspace.yaml"
+    if workspace.exists():
+        assert "webui/pnpm-workspace.yaml" in copied.group(1)

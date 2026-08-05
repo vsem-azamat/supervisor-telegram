@@ -21,7 +21,11 @@ WORKDIR /app/webui
 
 RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 
-COPY webui/package.json webui/pnpm-lock.yaml ./
+# pnpm-workspace.yaml is where settings live now, not package.json — it holds
+# the dependency overrides and the allowlist of packages permitted to run build
+# scripts. Without it here a frozen install refuses outright, because the
+# overrides it finds do not match the ones recorded in the lockfile.
+COPY webui/package.json webui/pnpm-lock.yaml webui/pnpm-workspace.yaml ./
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
 
