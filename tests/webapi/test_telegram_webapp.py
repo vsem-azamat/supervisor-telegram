@@ -119,12 +119,38 @@ class TestRejects:
 
 
 class TestSignatureField:
-    def test_the_ed25519_signature_is_excluded_from_the_check_string(self) -> None:
-        """Telegram's third-party `signature` is not part of the HMAC input.
+    def test_a_payload_from_a_current_client_verifies(self) -> None:
+        """`signature` is signed like every other field, and must be checked.
 
-        Including it would break every real payload from a current client.
+        Telegram has sent it in initData since Bot API 7.10, so this is what an
+        ordinary launch looks like — there is no other kind any more. It was
+        dropped from the check string on the belief that it belonged only to
+        the third-party Ed25519 algorithm, which is a different check for
+        callers who do not hold the bot token. The digest was then computed
+        over a shorter string than Telegram had signed, and the console refused
+        every real sign-in while the bot, which does no crypto, went on calling
+        the same person an administrator.
+
+        The test that stood here signed the fields *without* `signature` and
+        appended it afterwards, so it asserted that an unsigned trailing field
+        is ignored — true under either algorithm, and green throughout the
+        outage.
         """
-        fields = _fields()
-        raw = _sign(fields) + "&signature=" + "A" * 32
+        fields = {**_fields(), "signature": "GbP3H_x9k1QwZ2r5vN8tYc0LsA4dEjMu"}
 
-        assert verify_init_data(raw, bot_token=BOT_TOKEN).user_id == USER_ID
+        assert verify_init_data(_sign(fields), bot_token=BOT_TOKEN).user_id == USER_ID
+
+    def test_a_tampered_signature_is_refused(self) -> None:
+        """Being covered by the HMAC is the point: changing it must break it."""
+        fields = {**_fields(), "signature": "GbP3H_x9k1QwZ2r5vN8tYc0LsA4dEjMu"}
+        raw = _sign(fields).replace("GbP3H", "XXXXX")
+
+        with pytest.raises(InitDataError):
+            verify_init_data(raw, bot_token=BOT_TOKEN)
+
+    def test_an_unsigned_field_appended_afterwards_is_refused(self) -> None:
+        """Nothing may ride along outside the digest."""
+        raw = _sign(_fields()) + "&signature=" + "A" * 32
+
+        with pytest.raises(InitDataError):
+            verify_init_data(raw, bot_token=BOT_TOKEN)

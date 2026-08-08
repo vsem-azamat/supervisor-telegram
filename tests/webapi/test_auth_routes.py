@@ -29,12 +29,17 @@ BOT_TOKEN = "test:bot:token"  # noqa: S105
 SUPER_ADMIN_ID = 268388996
 
 
-def _init_data(*, user_id: int, token: str = BOT_TOKEN, age_seconds: int = 0) -> str:
+def _init_data(*, user_id: int, token: str = BOT_TOKEN, age_seconds: int = 0, signature: str | None = "Xf2pQ") -> str:
     """Build an initData string the way Telegram would.
 
     Note the secret: HMAC over the literal b"WebAppData", not sha256 of the
     token. The Login Widget used the other one, and signing this payload that
     way is exactly the forgery the endpoint has to refuse.
+
+    And note `signature`, present by default because Telegram has sent it since
+    Bot API 7.10 — there is no current client that omits it. Every test here
+    once built the payload without it, so the suite stayed green through eight
+    days in which the endpoint refused every genuine sign-in.
     """
     issued = int(datetime.datetime.now(tz=datetime.UTC).timestamp()) - age_seconds
     fields = {
@@ -42,6 +47,8 @@ def _init_data(*, user_id: int, token: str = BOT_TOKEN, age_seconds: int = 0) ->
         "query_id": "AAF",
         "user": json.dumps({"id": user_id, "first_name": "A"}, separators=(",", ":")),
     }
+    if signature is not None:
+        fields["signature"] = signature
     data_check = "\n".join(f"{k}={fields[k]}" for k in sorted(fields))
     secret = hmac.new(b"WebAppData", token.encode(), hashlib.sha256).digest()
     fields["hash"] = hmac.new(secret, data_check.encode(), hashlib.sha256).hexdigest()
@@ -98,6 +105,34 @@ async def test_a_signed_payload_opens_a_session(client_factory) -> None:
 
         after = await client.get("/api/auth/me")
         assert after.status_code == 401
+
+
+async def test_a_payload_from_a_client_that_predates_the_signature_field_still_opens_a_session(
+    client_factory,
+) -> None:
+    """The field is not required — only covered by the digest when it is there."""
+    async with client_factory() as client:
+        resp = await client.post(
+            "/api/auth/webapp",
+            json={"init_data": _init_data(user_id=SUPER_ADMIN_ID, signature=None)},
+        )
+
+    assert resp.status_code == 200, resp.text
+
+
+async def test_a_refused_signature_and_a_refused_admin_are_told_apart(client_factory) -> None:
+    """401 is "Telegram did not sign this"; 403 is "signed, but not for you".
+
+    The console shows one screen for both, and it reads as the second. That is
+    how a verification bug spent eight days looking like a missing entry in the
+    super-admin list.
+    """
+    async with client_factory() as client:
+        unsigned = await client.post("/api/auth/webapp", json={"init_data": "auth_date=1&hash=deadbeef"})
+        stranger = await client.post("/api/auth/webapp", json={"init_data": _init_data(user_id=99999)})
+
+    assert unsigned.status_code == 401
+    assert stranger.status_code == 403
 
 
 async def test_a_payload_signed_with_another_token_is_refused(client_factory) -> None:
