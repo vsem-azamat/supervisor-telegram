@@ -24,6 +24,7 @@ if TYPE_CHECKING:
 pytestmark = pytest.mark.asyncio
 
 FIT = -1001370017010
+FS = -1001370017011
 CVUT = -1001405134944
 PRIVATE = -1001277626739
 
@@ -146,10 +147,16 @@ class TestWhatComesBack:
 
         by_title = {row["title"]: row for row in rows}
         assert by_title["ČVUT FIT"]["group"] == "ČVUT | ЧВУТ"
-        assert by_title["ČVUT | ЧВУТ"]["group"] is None
 
-    async def test_grouped_chats_come_before_ungrouped_ones(self, client_factory, db_session_maker) -> None:
-        """The page renders the order it is given rather than sorting again."""
+    async def test_a_university_is_filed_under_itself(self, client_factory, db_session_maker) -> None:
+        """The chat with faculties beneath it is the section, not a loose row.
+
+        Nothing sits above a university, so filing by the parent alone sent
+        ČVUT's own chat to "Остальные" while the section named after it held
+        ČVUT's faculties. In production that put eleven of nineteen published
+        chats in one bucket — five of them universities — and left the page
+        showing three sections instead of seven.
+        """
         await _seed(
             db_session_maker,
             _chat(CVUT, "ČVUT | ЧВУТ", public_link="https://t.me/cvut_chat"),
@@ -159,7 +166,69 @@ class TestWhatComesBack:
         async with client_factory() as client:
             rows = (await client.get("/api/public/catalog")).json()
 
-        assert [row["title"] for row in rows] == ["ČVUT FIT", "ČVUT | ЧВУТ"]
+        by_title = {row["title"]: row for row in rows}
+        assert by_title["ČVUT | ЧВУТ"]["group"] == "ČVUT | ЧВУТ"
+
+    async def test_a_chat_with_nothing_under_it_stays_loose(self, client_factory, db_session_maker) -> None:
+        """Only a chat that actually leads others gets a section of its own."""
+        await _seed(db_session_maker, _chat(FIT, "Kolej Hvězda", public_link="https://t.me/hvezda"))
+
+        async with client_factory() as client:
+            rows = (await client.get("/api/public/catalog")).json()
+
+        assert rows[0]["group"] is None
+
+    async def test_a_faculty_that_is_not_published_still_makes_its_university_a_section(
+        self, client_factory, db_session_maker
+    ) -> None:
+        """Leading a section is about the tree, not about who else got a link.
+
+        MUNI's ten faculty chats have no public link, so the university's own
+        chat is the only row of that university on the page. It is still MUNI's
+        row, and a reader looking for MUNI should find the heading.
+        """
+        await _seed(
+            db_session_maker,
+            _chat(CVUT, "Masarykova univerzita", public_link="https://t.me/muni"),
+            _chat(FIT, "MUNI: Fakulta informatiky", parent_chat_id=CVUT),
+        )
+
+        async with client_factory() as client:
+            rows = (await client.get("/api/public/catalog")).json()
+
+        assert [(row["title"], row["group"]) for row in rows] == [("Masarykova univerzita", "Masarykova univerzita")]
+
+    async def test_a_section_opens_with_its_own_chat(self, client_factory, db_session_maker) -> None:
+        """The general room first, then the faculties under it.
+
+        Alphabetically "ČVUT | ЧВУТ" sorts after "ČVUT FA", which would bury the
+        one chat a reader who does not know their faculty yet actually wants.
+        """
+        await _seed(
+            db_session_maker,
+            _chat(CVUT, "ČVUT | ЧВУТ", public_link="https://t.me/cvut_chat"),
+            _chat(FIT, "ČVUT FIT", public_link="https://t.me/cvut_fit", parent_chat_id=CVUT),
+            _chat(FS, "ČVUT FA", public_link="https://t.me/cvut_fa", parent_chat_id=CVUT),
+        )
+
+        async with client_factory() as client:
+            rows = (await client.get("/api/public/catalog")).json()
+
+        assert [row["title"] for row in rows] == ["ČVUT | ЧВУТ", "ČVUT FA", "ČVUT FIT"]
+
+    async def test_grouped_chats_come_before_ungrouped_ones(self, client_factory, db_session_maker) -> None:
+        """The page renders the order it is given rather than sorting again."""
+        await _seed(
+            db_session_maker,
+            _chat(CVUT, "ČVUT | ЧВУТ", public_link="https://t.me/cvut_chat"),
+            _chat(FIT, "ČVUT FIT", public_link="https://t.me/cvut_fit", parent_chat_id=CVUT),
+            _chat(FS, "Kolej Hvězda", public_link="https://t.me/hvezda"),
+        )
+
+        async with client_factory() as client:
+            rows = (await client.get("/api/public/catalog")).json()
+
+        assert [row["title"] for row in rows] == ["ČVUT | ЧВУТ", "ČVUT FIT", "Kolej Hvězda"]
 
 
 class TestActivityIsWithheldUntilItMeansSomething:

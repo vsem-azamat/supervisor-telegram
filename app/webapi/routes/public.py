@@ -10,7 +10,7 @@ import datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -52,6 +52,27 @@ _UNGROUPED = "￿"
 # What a chat with no university above it is called on the reach table. The
 # catalogue page picks the same word for the same rows.
 UNGROUPED_LABEL = "Остальные"
+
+
+def _section(parent: type[Chat]):
+    """The heading a chat is listed under.
+
+    A faculty chat belongs to its university, which is the chat above it. But a
+    university's own chat has nothing above it, and the rule "parent title, or
+    else ungrouped" therefore filed the universities themselves under
+    "Остальные" — beside a section carrying their own faculties. Of nineteen
+    published chats eleven landed in that one bucket, five of them universities,
+    and the page showed three sections where it had seven to show.
+
+    A chat that is itself the parent of others is the section, so it stands
+    under its own name. One with neither a parent nor children is genuinely
+    loose and still falls through to NULL, which the caller reads as
+    "Остальные".
+    """
+    child = aliased(Chat)
+    leads_a_section = select(1).where(child.parent_chat_id == Chat.id).exists()
+
+    return case((parent.title.is_not(None), parent.title), (leads_a_section, Chat.title)).label("group_title")
 
 
 def _activity(messages: int, *, grounded: bool) -> Literal["unknown", "quiet", "active", "busy"]:
@@ -104,7 +125,7 @@ async def get_public_catalog(
             select(
                 Chat.title,
                 Chat.public_link,
-                parent.title.label("group_title"),
+                _section(parent),
                 func.coalesce(recent_messages.c.messages, 0).label("messages"),
             )
             .outerjoin(parent, parent.id == Chat.parent_chat_id)
@@ -126,7 +147,16 @@ async def get_public_catalog(
     ]
     # Grouped and alphabetical, so the page renders what the server already
     # decided instead of sorting forty-five rows again in the browser.
-    return sorted(items, key=lambda item: ((item.group or _UNGROUPED).lower(), item.title.lower()))
+    return sorted(
+        items,
+        key=lambda item: (
+            (item.group or _UNGROUPED).lower(),
+            # A section opens with its own chat: the university's general room
+            # above its faculties, rather than alphabetised in among them.
+            item.title != item.group,
+            item.title.lower(),
+        ),
+    )
 
 
 @router.get("/reach", response_model=PublicReach)
@@ -166,7 +196,7 @@ async def get_public_reach(
     parent = aliased(Chat)
     rows = (
         await session.execute(
-            select(parent.title.label("group_title"), latest.c.member_count)
+            select(_section(parent), latest.c.member_count)
             # Explicit, because the first column named here belongs to the
             # aliased parent and the second to a subquery — left to infer it,
             # SQLAlchemy starts the FROM from the wrong one and joins `chats`
