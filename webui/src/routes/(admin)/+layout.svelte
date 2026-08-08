@@ -41,6 +41,36 @@
 		await auth.logout();
 		await goto('/');
 	}
+
+	// One panel per reason, because the reasons need different things done
+	// about them. The old screen said "your account is not on the list" for all
+	// four, which is the sentence a person forwards to the administrator who
+	// added them — while the actual fault was on this side of the wire and
+	// nobody was looking for it.
+	const PANELS = {
+		'not-in-telegram': {
+			title: 'Консоль открывается из Telegram',
+			body: 'Вход — это само открытие приложения: личность подтверждает Telegram, паролей и ссылок нет. Напишите боту /start и нажмите «Открыть консоль».',
+			aside: null
+		},
+		refused: {
+			title: 'Telegram не подтвердил вход',
+			body: 'Подпись, с которой открылось приложение, не прошла проверку на сервере. Дело не в правах — попробуйте закрыть приложение и открыть заново из бота.',
+			aside: 'Если повторяется — это ошибка на нашей стороне, напишите @work_azamat.'
+		},
+		'not-an-admin': {
+			title: 'Доступ только для главных администраторов',
+			body: 'Telegram подтвердил, кто вы. Этого аккаунта нет в списке главных администраторов, поэтому консоль не открывается.',
+			aside: 'Если считаете, что должен быть — напишите @work_azamat.'
+		},
+		unavailable: {
+			title: 'Сервер не отвечает',
+			body: 'Не удалось связаться с сервером. Попробуйте ещё раз через минуту.',
+			aside: null
+		}
+	} as const;
+
+	const panel = $derived(PANELS[auth.failure ?? 'not-in-telegram']);
 </script>
 
 <Toaster richColors />
@@ -52,17 +82,11 @@
 		<div
 			class="w-full max-w-sm space-y-3 rounded-xl border border-zinc-200 bg-white p-6 text-center"
 		>
-			<h1 class="text-lg font-semibold tracking-tight text-zinc-900">
-				Консоль открывается из Telegram
-			</h1>
-			<p class="text-sm text-zinc-500">
-				Вход — это само открытие приложения: личность подтверждает Telegram, паролей и ссылок нет.
-				Напишите боту <span class="font-medium text-zinc-700">/start</span> и нажмите «Открыть консоль».
-			</p>
-			<p class="text-xs text-zinc-400">
-				Если вы открыли это из Telegram и всё равно видите сообщение — аккаунт не в списке главных
-				администраторов.
-			</p>
+			<h1 class="text-lg font-semibold tracking-tight text-zinc-900">{panel.title}</h1>
+			<p class="text-sm text-zinc-500">{panel.body}</p>
+			{#if panel.aside}
+				<p class="text-xs text-zinc-400">{panel.aside}</p>
+			{/if}
 		</div>
 	</div>
 {:else}
