@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
 from pydantic import Field, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -94,7 +94,14 @@ class TelegramSettings(Settings):
 class AdminSettings(Settings):
     """Admin configuration."""
 
-    super_admins: list[int] = Field(..., description="List of super admin user IDs")
+    # `NoDecode` is what makes the validator below reachable. Without it
+    # pydantic-settings JSON-decodes a list field at the source, and a
+    # comma-separated `ADMIN_SUPER_ADMINS` raises at startup before anything
+    # gets a chance to split it — the same trap already documented on
+    # `allowed_origins`, which quietly cost that setting its value. Here the
+    # cost would be louder and worse: both processes refuse to boot the first
+    # time a second administrator is added.
+    super_admins: Annotated[list[int], NoDecode] = Field(..., description="List of super admin user IDs")
     report_chat_id: int | None = Field(default=None, description="Chat ID for reports")
 
     model_config = SettingsConfigDict(
@@ -108,9 +115,15 @@ class AdminSettings(Settings):
     @field_validator("super_admins", mode="before")
     @classmethod
     def parse_admin_list(cls, v: Any) -> list[int]:
-        """Parse comma-separated admin IDs."""
+        """Parse comma-separated admin IDs.
+
+        Both spellings are accepted because both are already out there: the
+        setting was documented as comma-separated and, since only JSON ever
+        parsed, whatever is deployed may well be a JSON array. Refusing either
+        one means a deploy that will not boot.
+        """
         if isinstance(v, str):
-            return [int(admin_id.strip()) for admin_id in v.split(",") if admin_id.strip()]
+            return [int(admin_id.strip()) for admin_id in v.strip().strip("[]").split(",") if admin_id.strip()]
         if isinstance(v, list):
             return [int(admin_id) for admin_id in v]
         if isinstance(v, int):
