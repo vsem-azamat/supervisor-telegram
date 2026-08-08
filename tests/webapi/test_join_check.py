@@ -34,11 +34,19 @@ def _epoch() -> int:
     return int(datetime.datetime.now(datetime.UTC).timestamp())
 
 
-def _init_data(user_id: int, *, token: str) -> str:
+def _init_data(user_id: int, *, token: str, signature: str | None = "Xf2pQ") -> str:
+    """The payload a current Telegram client sends, `signature` and all.
+
+    Built without it, this suite stayed green while the captcha refused every
+    real applicant for eight days: the field was dropped from the check string,
+    so the digest covered less than Telegram had signed.
+    """
     fields = {
         "auth_date": str(_epoch()),
         "user": json.dumps({"id": user_id, "first_name": "Applicant", "is_bot": False}),
     }
+    if signature is not None:
+        fields["signature"] = signature
     check = "\n".join(f"{k}={fields[k]}" for k in sorted(fields))
     secret = hmac.new(b"WebAppData", token.encode(), hashlib.sha256).digest()
     return urlencode({**fields, "hash": hmac.new(secret, check.encode(), hashlib.sha256).hexdigest()})
