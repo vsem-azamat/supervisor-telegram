@@ -2,18 +2,25 @@
 
 Contract (https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app):
 
-  1. data_check_string = "\\n".join(sorted(f"{k}={v}")) over every field except
-     ``hash`` and ``signature``
+  1. data_check_string = "\\n".join(sorted(f"{k}={v}")) over every received
+     field except ``hash``
   2. secret = HMAC_SHA256(key=b"WebAppData", msg=bot_token)
   3. compare HMAC_SHA256(key=secret, msg=data_check_string) against ``hash``
   4. reject a stale ``auth_date``
 
-Step 2 is the one that catches people out. Telegram's other browser flow, the
-Login Widget, derives its secret as ``sha256(bot_token)``; that widget is no
-longer used here, but the wrong derivation is what anybody reaching for a
-half-remembered snippet will write, and it fails every signature. ``signature``
-is excluded because it is Telegram's Ed25519 field for third parties validating
-without the bot token, and it is not part of the HMAC input.
+Two things catch people out here, and this module has been caught by both.
+
+Step 2: Telegram's other browser flow, the Login Widget, derives its secret as
+``sha256(bot_token)``; that widget is no longer used here, but the wrong
+derivation is what anybody reaching for a half-remembered snippet will write,
+and it fails every signature.
+
+Step 1: ``signature`` is a received field like any other and *is* covered by
+the HMAC. It is dropped only from the third-party Ed25519 check-string, which
+is a different algorithm for validating without the bot token and is not what
+this module implements. Excluding it here excluded a field every client has
+sent since Bot API 7.10 — so the digest was computed over a shorter string
+than the one Telegram signed, and every genuine launch was refused.
 """
 
 from __future__ import annotations
@@ -74,8 +81,9 @@ def verify_init_data(
     claimed_hash = fields.pop("hash", None)
     if not claimed_hash:
         raise InitDataError("missing hash")
-    fields.pop("signature", None)
 
+    # Everything that is left, `signature` included. Dropping a field here would
+    # sign less than Telegram did.
     data_check = "\n".join(f"{key}={fields[key]}" for key in sorted(fields))
     secret = hmac.new(b"WebAppData", bot_token.encode("utf-8"), hashlib.sha256).digest()
     computed = hmac.new(secret, data_check.encode("utf-8"), hashlib.sha256).hexdigest()
