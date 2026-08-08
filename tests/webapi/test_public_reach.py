@@ -185,6 +185,26 @@ class TestTheBreakdown:
 
         assert [group["name"] for group in body["groups"]] == ["VŠE", "ČVUT"]
 
+    async def test_a_university_counts_towards_its_own_row(self, client_factory, db_session_maker) -> None:
+        """The reach table and the catalogue split the rows the same way.
+
+        Filed by the parent alone, ČVUT's own chat — the largest room in the
+        network — was counted under "Остальные" while the row named after it
+        held only its faculties. The table is read as "where would this post
+        land", and it was pointing at the wrong place.
+        """
+        await _seed(
+            db_session_maker,
+            _chat(CVUT, "ČVUT", public_link="https://t.me/cvut_chat"),
+            _chat(FIT, "ČVUT FIT", public_link="https://t.me/cvut_fit", parent_chat_id=CVUT),
+        )
+        await _snapshot(db_session_maker, CVUT, 5000)
+        await _snapshot(db_session_maker, FIT, 1200)
+
+        body = await _reach(client_factory)
+
+        assert body["groups"] == [{"name": "ČVUT", "chats": 2, "members": 6200}]
+
     async def test_a_chat_with_no_parent_is_bucketed(self, client_factory, db_session_maker) -> None:
         await _seed(db_session_maker, _chat(FIT, "Чешский язык", public_link="https://t.me/czech_lang"))
         await _snapshot(db_session_maker, FIT, 400)
