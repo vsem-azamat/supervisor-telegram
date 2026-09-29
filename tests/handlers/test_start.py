@@ -253,3 +253,57 @@ class TestHelp:
         assert "/adminlink" not in text
         assert "/webadmin" not in text
         assert "/json" not in text
+
+
+HELP = "https://tutors.example"
+
+
+@pytest.fixture
+def help_catalogue(site, monkeypatch):
+    """The help catalogue configured beside the chat catalogue."""
+    monkeypatch.setattr(start_handlers.settings.webapi, "help_url", HELP)
+
+
+@pytest.mark.handlers
+class TestHelpCatalogue:
+    """The tutor catalogue shares this bot now: its token is this bot's token.
+
+    So the greeting is its door too. Second, after the chats: finding a chat is
+    why most people open this bot.
+    """
+
+    async def test_the_second_button_opens_the_help_catalogue(self, telegram_factory, admin_repo, help_catalogue):
+        message = _private(telegram_factory, "start", create_normal_user(id=555))
+
+        await start_handlers.start_private(message, admin_repo)
+
+        text, buttons = _answered(message)
+        assert buttons[0].web_app.url == SITE
+        assert buttons[1].web_app is not None
+        assert buttons[1].web_app.url == HELP
+        assert "учёб" in text, "the greeting says the help exists"
+
+    async def test_it_keeps_its_own_row(self, telegram_factory, admin_repo, help_catalogue):
+        message = _private(telegram_factory, "start", create_normal_user(id=555))
+
+        await start_handlers.start_private(message, admin_repo)
+
+        assert [len(row) for row in _rows(message)] == [1, 1, 2]
+
+    async def test_unconfigured_it_is_neither_offered_nor_mentioned(self, telegram_factory, admin_repo, site):
+        message = _private(telegram_factory, "start", create_normal_user(id=555))
+
+        await start_handlers.start_private(message, admin_repo)
+
+        text, buttons = _answered(message)
+        assert all(HELP not in (b.url or (b.web_app.url if b.web_app else "")) for b in buttons)
+        assert "учёб" not in text
+
+    async def test_in_a_group_it_is_a_link(self, telegram_factory, admin_repo, help_catalogue):
+        message = _in_group(telegram_factory, "start", create_normal_user(id=555))
+
+        await start_handlers.start_private(message, admin_repo)
+
+        _, buttons = _answered(message)
+        assert buttons[1].web_app is None
+        assert buttons[1].url == HELP
