@@ -34,6 +34,10 @@ def _site() -> str:
     return settings.webapi.public_url.rstrip("/")
 
 
+def _help() -> str:
+    return settings.webapi.help_url.rstrip("/")
+
+
 def _mini_app_possible(*, private: bool) -> bool:
     """Whether Telegram will accept a Mini App button here at all.
 
@@ -51,7 +55,7 @@ def _open_button(text: str, url: str, *, private: bool) -> types.InlineKeyboardB
     inherits the client's theme, and a tap on a chat opens that chat in place
     instead of bouncing out to a browser and back.
     """
-    if _mini_app_possible(private=private):
+    if private and url.startswith("https://"):
         return types.InlineKeyboardButton(text=text, web_app=types.WebAppInfo(url=url))
     return types.InlineKeyboardButton(text=text, url=url)
 
@@ -67,6 +71,9 @@ async def start_private(message: types.Message, admin_repo: AdminRepository) -> 
         "Каталог студенческих чатов Чехии — по университетам, факультетам "
         "и общежитиям. За ними следят модераторы, спам вычищается.\n\n"
     )
+    # Said only when its button is there: the greeting names what it offers.
+    if _help():
+        text += "А ещё здесь люди, которые помогут с учёбой: репетиторы, přijímačky, нострификация.\n\n"
 
     is_super_admin = message.from_user.id in settings.admin.super_admins
     if is_super_admin:
@@ -91,6 +98,11 @@ async def start_private(message: types.Message, admin_repo: AdminRepository) -> 
         builder.add(_open_button("⚙️ Открыть консоль", f"{_site()}/admin", private=private))
     if settings.webapi.public_url:
         builder.add(_open_button("🔎 Найти свой чат", _site(), private=private))
+    # The tutor catalogue runs on this bot's token, so this greeting is its
+    # door too. Its own row, second: finding a chat is why most people come.
+    if _help():
+        builder.add(_open_button("🎓 Помощь с учёбой", _help(), private=private))
+    if settings.webapi.public_url:
         builder.add(_open_button("📣 Реклама в чатах", f"{_site()}/ads", private=private))
     builder.add(types.InlineKeyboardButton(text="✉️ Написать нам", url=f"https://t.me/{CONTACT_USERNAME}"))
 
@@ -98,7 +110,8 @@ async def start_private(message: types.Message, admin_repo: AdminRepository) -> 
     # same weight to the reason somebody opened the bot and to the two things
     # nobody did. Advertising and the contact link share the last row; the
     # shape depends on the console, which only a super administrator is shown.
-    builder.adjust(*([1, 1, 2] if shows_console else [1, 2]))
+    lead = [1] * (int(shows_console) + int(bool(_help())))
+    builder.adjust(*(lead + [1, 2]))
 
     # Deliberately not scheduled for deletion. This is the message somebody
     # comes back to; the справочник below is the one that may go.

@@ -130,6 +130,13 @@ class WebApiSettings(Settings):
         default="",
         description="Public site URL. Also what the bot opens as a Mini App, so https or nothing.",
     )
+    help_url: str = Field(
+        default="",
+        description=(
+            "The help catalogue's Mini App (tutors and services), which runs on this bot's token. "
+            "Empty hides its button. https or nothing, like public_url."
+        ),
+    )
     session_ttl_days: int = Field(default=30, description="Admin session TTL in days")
     session_cookie_name: str = Field(default="konnekt_admin_session")
     session_cookie_secure: bool = Field(

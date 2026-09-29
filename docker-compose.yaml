@@ -30,6 +30,7 @@ x-runtime-env: &runtime-env
   ADMIN_SUPER_ADMINS:
   ADMIN_REPORT_CHAT_ID:
   WEBAPI_PUBLIC_URL:
+  WEBAPI_HELP_URL:
   MCP_TOKEN:
   # Fixed here rather than passed in: they do not differ between deployments,
   # and one of them is what "production" means.
