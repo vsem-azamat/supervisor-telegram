@@ -1,12 +1,13 @@
 # The database
 
-It is not part of this stack. A PostgreSQL runs beside it on the same host and
-holds the production data, so `docker-compose.yaml` starts no `db` service and
+It is not part of this stack. It is a database on the shared PostgreSQL
+server, another machine than the one this stack runs on, and it holds the
+production data, so `docker-compose.yaml` starts no `db` service and
 where the database lives is deployment configuration: `DB_HOST`, `DB_PORT`,
 `DB_USER`, `DB_NAME` come from GitHub variables and `DB_PASSWORD` from a secret.
 
-That was a choice, made to avoid running a second PostgreSQL on a host that
-already has one, and it costs one thing worth knowing about — see *Exposure*.
+That was a choice, made to keep one PostgreSQL server for several projects,
+and it costs one thing worth knowing about — see *Exposure*.
 
 ## The database predates the migration squash
 
@@ -47,10 +48,9 @@ own repository — and `alembic/env.py` filters them out of autogenerate, so
 
 ## Exposure
 
-The database listens on the host's public interface, and only a password stands
-in front of it. That was true before this stack existed and it is the price of
-not moving the data. Closing port 5432 to everything but the host itself is
-worth doing; nothing in this repository can do it.
+The database server listens on its public interface, behind a source allowlist
+and a password. Keeping that allowlist to the hosts that need it is the
+database server's job; nothing in this repository can do it.
 
 If it is ever moved inside the compose network, the data has to move with it —
 `git log` has the import that does this, removed once this route was chosen.
@@ -68,5 +68,7 @@ success.
 To restore, into a scratch database first:
 
 ```sh
-pg_restore --no-owner --no-privileges -d <scratch> db-backups/<file>.dump
+docker run --rm -i -e PGPASSWORD pgvector/pgvector:0.8.6-pg18-bookworm \
+  pg_restore --no-owner --no-privileges -h <scratch host> -U <user> -d <scratch> \
+  < db-backups/<file>.dump
 ```

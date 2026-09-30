@@ -18,8 +18,8 @@
 # fail loudly at startup; the rest simply come up switched off. Redeploy through
 # the workflow.
 x-runtime-env: &runtime-env
-  # The database is not part of this stack. It is a PostgreSQL that already runs
-  # beside it and holds the production data, so where it lives is deployment
+  # The database is not part of this stack. It is on the shared PostgreSQL
+  # server and holds the production data, so where it lives is deployment
   # configuration rather than something this file can state.
   DB_HOST:
   DB_PORT:
@@ -62,7 +62,7 @@ x-pg-backup-loop: &pg-backup-loop
         done
 
 # Logs rotated as the catalog's old stack rotated them.
-x-catalog-logging: &rotated-logs
+x-rotated-logs: &rotated-logs
   driver: json-file
   options: {max-size: "10m", max-file: "3"}
 

@@ -225,7 +225,17 @@ def test_the_bots_database_is_dumped_daily_off_its_server() -> None:
     backup = compose["services"]["db-backup"]
 
     assert backup["volumes"] == ["./db-backups:/backups"]
-    assert {"PGHOST", "PGPORT", "PGUSER", "PGDATABASE", "PGPASSWORD"} <= set(backup["environment"])
+    env = backup["environment"]
+    assert (env["PGHOST"], env["PGUSER"], env["PGDATABASE"], env["PGPASSWORD"]) == (
+        "${DB_HOST}",
+        "${DB_USER}",
+        "${DB_NAME}",
+        "${DB_PASSWORD}",
+    )
+    # The file names say whose dump it is; the catalog's predate this service.
+    assert env["BACKUP_PREFIX"] == "moderator"
+    assert compose["services"]["catalog-backup"]["environment"]["BACKUP_PREFIX"] == "catalog"
+    assert backup["command"] == compose["services"]["catalog-backup"]["command"]
     backups_dirs = re.search(r"install -d -m 700 ([^\n]+)", _deploy_step()["with"]["script"])
     assert backups_dirs
     assert "db-backups" in backups_dirs.group(1).split()
