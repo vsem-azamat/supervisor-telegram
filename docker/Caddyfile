@@ -25,13 +25,20 @@
 	}
 
 	# The old console's addresses, bookmarked or in old messages, lead to the
-	# console inside the Mini App. A chat's own page has no counterpart by id
-	# there, so it lands on the list.
-	@oldChats path /admin/chats /admin/chats/*
+	# console inside the Mini App: a chat's page to the same chat, the lists
+	# and the hierarchy (now the chat list grouped by parent) to the chats,
+	# settings to the system screen, anything else to the summary. Permanent,
+	# so browsers remember them: change them knowing that.
+	@oldChat path_regexp oldChat ^/admin/chats/(-?[0-9]+)/?$
+	handle @oldChat {
+		redir * /console/chats/{re.oldChat.1} permanent
+	}
+	@oldChats path /admin/chats /admin/chats/* /admin/hierarchy /admin/hierarchy/* /admin/catalog /admin/catalog/*
 	handle @oldChats {
 		redir * /console/chats permanent
 	}
-	handle /admin/settings {
+	@oldSettings path /admin/settings /admin/settings/
+	handle @oldSettings {
 		redir * /console/system permanent
 	}
 	@oldConsole path /admin /admin/*

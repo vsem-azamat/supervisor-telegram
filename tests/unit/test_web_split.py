@@ -15,6 +15,8 @@ text answers exactly.
 from __future__ import annotations
 
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -59,8 +61,17 @@ def _rel(path: Path) -> str:
 
 class TestTheHalvesExist:
     def test_there_is_no_second_web_app(self) -> None:
-        """The Svelte console was retired; a second build is a second site to keep safe."""
-        assert not (ROOT / "webui").exists()
+        """The Svelte console was retired; a second build is a second site to keep safe.
+
+        Tracked files, not the directory: a checkout from before keeps its
+        ignored node_modules there, which is nothing anybody ships.
+        """
+        git = shutil.which("git")
+        assert git, "git is needed to read what is tracked"
+        tracked = subprocess.run(
+            [git, "ls-files", "webui"], cwd=ROOT, capture_output=True, text=True, check=True
+        ).stdout
+        assert not tracked
 
     def test_the_mini_app_is_there(self) -> None:
         assert (APP / "lib" / "api.ts").is_file()

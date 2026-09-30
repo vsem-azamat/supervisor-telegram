@@ -19,9 +19,9 @@ def plural(count: int, one: str, few: str, many: str) -> str:
 
     Russian has three, and picking between two of them is the tell that nobody
     read the string out loud: eleven is "чатов" while twenty-one is "чат", and a
-    ternary gets both wrong. The web side spells the same rule in
-    `$lib/format.plural`; a bot message and a page describing the same number
-    should not disagree about how to say it.
+    ternary gets both wrong. The Mini App gets the same rule from Lingui's
+    plurals; a bot message and a screen describing the same number should not
+    disagree about how to say it.
     """
     tail_two = abs(count) % 100
     if 11 <= tail_two <= 14:

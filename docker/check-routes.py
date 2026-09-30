@@ -13,6 +13,7 @@ Usage: caddy adapt ... | python3 docker/check-routes.py <catalog host>
 
 import fnmatch
 import json
+import re
 import sys
 
 WEBAPI = "webapi:8787"
@@ -22,7 +23,7 @@ APP = "/srv/app"
 # Paths whose route falls back to the page when no file matches: a client-side
 # route reloaded must get the app, and a missing asset must get a 404, never
 # the page (which would then be cached as that asset).
-FALLS_BACK = {"/", "/chats", "/join", "/console", "/console/chats/-100123"}
+FALLS_BACK = {"/", "/chats", "/join", "/console", "/console/chats/-100123", "/administrator"}
 
 
 def expectations(catalog: str) -> dict[str, str]:
@@ -39,8 +40,15 @@ def expectations(catalog: str) -> dict[str, str]:
         "/console/chats/-100123": APP,
         "/admin": "301 /console",
         "/admin/chats": "301 /console/chats",
-        "/admin/chats/-100123": "301 /console/chats",
+        "/admin/chats/-100123": "301 /console/chats/-100123",
+        "/admin/chats/graph": "301 /console/chats",
+        "/admin/hierarchy": "301 /console/chats",
+        "/admin/catalog": "301 /console/chats",
         "/admin/settings": "301 /console/system",
+        "/admin/settings/": "301 /console/system",
+        "/admin/": "301 /console",
+        # Not the old console's, and the app's to answer.
+        "/administrator": APP,
         # The Mini App owns every other path, its client-side routes included.
         "/": APP,
         "/chats": APP,
@@ -56,11 +64,31 @@ def routes(config: dict) -> list[dict]:
 
 
 def matches(route: dict, path: str) -> bool:
-    """Whether Caddy would pick this route for `path`. No matcher matches all."""
+    """Whether Caddy would pick this route for `path`. No matcher matches all.
+
+    Path globs and path_regexp, the two kinds this Caddyfile uses; Caddy
+    compares paths case-insensitively, and so does this.
+    """
     if not route.get("match"):
         return True
-    patterns = [p for match in route["match"] for p in match.get("path", [])]
-    return any(fnmatch.fnmatchcase(path, pattern) for pattern in patterns)
+    for match in route["match"]:
+        if any(fnmatch.fnmatch(path.lower(), p.lower()) for p in match.get("path", [])):
+            return True
+        regexp = match.get("path_regexp")
+        if regexp and re.search(regexp["pattern"], path):
+            return True
+    return False
+
+
+def expand(location: str, route: dict, path: str) -> str:
+    """Fill a redirect's `{http.regexp.<name>.<n>}` from the path it matched."""
+    for match in route.get("match", []):
+        regexp = match.get("path_regexp")
+        found = regexp and re.search(regexp["pattern"], path)
+        if found:
+            for index, group in enumerate(found.groups(), start=1):
+                location = location.replace(f"{{http.regexp.{regexp['name']}.{index}}}", group)
+    return location
 
 
 def handlers(route: dict) -> list[dict]:
@@ -99,7 +127,7 @@ def problems(route: dict, path: str, expected: str) -> list[str]:
     proxy = next((h for h in found if h.get("handler") == "reverse_proxy"), None)
     redirect = next((h for h in found if h.get("handler") == "static_response"), None)
     if redirect and not proxy:
-        location = redirect.get("headers", {}).get("Location", ["?"])[0]
+        location = expand(redirect.get("headers", {}).get("Location", ["?"])[0], route, path)
         where = f"{redirect.get('status_code')} {location}"
         return [] if where == expected else [f"goes to {where}, not {expected}"]
     if proxy:

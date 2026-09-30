@@ -137,15 +137,13 @@ def test_the_image_build_gets_every_pnpm_config_the_lockfile_was_written_with() 
 
     pnpm keeps overrides and the build-script allowlist in pnpm-workspace.yaml
     rather than package.json, and writes the overrides into the lockfile too.
-    The webui stage copies a short list of files by hand, so leaving that one
+    The web stage copies a short list of files by hand, so leaving that one
     out fails the image build — and only the image build, since a checkout has
     the file sitting there either way.
     """
     dockerfile = ROOT.joinpath("Dockerfile").read_text()
-    for app in ("web",):
-        copied = re.search(rf"^COPY ({app}/\S+ .*?)\./$", dockerfile, re.M)
-        assert copied, f"the {app} dependency stage no longer copies files one by one"
+    copied = re.search(r"^COPY (web/\S+ .*?)\./$", dockerfile, re.M)
+    assert copied, "the web dependency stage no longer copies files one by one"
 
-        workspace = ROOT / app / "pnpm-workspace.yaml"
-        if workspace.exists():
-            assert f"{app}/pnpm-workspace.yaml" in copied.group(1)
+    if (ROOT / "web" / "pnpm-workspace.yaml").exists():
+        assert "web/pnpm-workspace.yaml" in copied.group(1)
