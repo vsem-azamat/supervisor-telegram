@@ -142,7 +142,7 @@ def test_the_image_build_gets_every_pnpm_config_the_lockfile_was_written_with() 
     the file sitting there either way.
     """
     dockerfile = ROOT.joinpath("Dockerfile").read_text()
-    for app in ("webui", "web"):
+    for app in ("web",):
         copied = re.search(rf"^COPY ({app}/\S+ .*?)\./$", dockerfile, re.M)
         assert copied, f"the {app} dependency stage no longer copies files one by one"
 

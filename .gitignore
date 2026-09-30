@@ -23,7 +23,6 @@ downloads/
 eggs/
 .eggs/
 lib/
-!webui/src/lib/
 !web/src/lib/
 !web/scripts/lib/
 lib64/

@@ -9,9 +9,9 @@ See [AGENTS.md](AGENTS.md) for the working contract and
 # Run bot locally (also serves the MCP control plane when MCP_TOKEN is set)
 uv run -m app.presentation.telegram
 
-# Web API and web UI
+# Web API and the Mini App (public screens and the console)
 uv run uvicorn app.webapi.main:app --host 127.0.0.1 --port 8787
-pnpm --dir webui run dev
+pnpm --dir web dev
 
 # Tests
 uv run -m pytest                                        # all
@@ -21,7 +21,7 @@ uv run -m pytest --cov=app
 # Quality
 uv run ruff check app tests && uv run ruff format app tests
 uv run ty check app tests
-pnpm --dir webui run check
+pnpm --dir web lint && pnpm --dir web typecheck && pnpm --dir web test
 
 # Migrations
 uv run alembic revision --autogenerate -m "description"

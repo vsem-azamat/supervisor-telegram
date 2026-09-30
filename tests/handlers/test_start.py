@@ -182,7 +182,7 @@ class TestStart:
         # minted a sign-in link; the console now reads the signature Telegram
         # already attached, so there is no link to mint and none to leak.
         assert console[0].web_app is not None
-        assert console[0].web_app.url == f"{SITE}/admin"
+        assert console[0].web_app.url == f"{SITE}/console"
 
     async def test_the_console_is_not_offered_where_it_cannot_open(self, telegram_factory, admin_repo, site):
         """Signing in means handing over `initData`, which only a Mini App has.

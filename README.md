@@ -43,7 +43,7 @@ graph TB
     subgraph System["Supervisor"]
         ModBot["🤖 Moderator Bot<br/><i>commands, welcomes,<br/>join checks, blacklist</i>"]
         MCP["🔌 MCP Control Plane<br/><i>served by the bot process</i><br/>reads, bounded writes, proposals"]
-        WebUI["🖥️ Admin Web UI<br/><i>authenticated</i>"]
+        WebUI["📱 Mini App<br/><i>public screens,<br/>console for super admins</i>"]
         Userbot["👤 Telethon Userbot<br/><i>Client API reads</i><br/>history, search, members"]
     end
 
@@ -53,7 +53,7 @@ graph TB
     Users -->|/report /spam| ModBot
     Users -->|join request → Mini App check| ModBot
     Admins -->|moderation commands| ModBot
-    Admins -->|browser session| WebUI
+    Admins -->|console, signed in from Telegram| WebUI
     Admins -->|via external agent runtime| MCP
     MCP -->|ban proposals await confirmation| ModBot
     MCP -->|reads chat history through| Userbot
@@ -84,7 +84,7 @@ and it is not published to the internet. The rules it rests on are in
 | **Bot Framework** | aiogram 3.30 (Bot API), Telethon (Client API) |
 | **Database** | PostgreSQL 18, SQLAlchemy 2.x async, Alembic |
 | **Web API** | FastAPI, session cookies from a verified Telegram Mini App `initData` |
-| **Web UI** | SvelteKit 2, Svelte 5, Tailwind 4 |
+| **Web UI** | One Telegram Mini App: React 19, Vite, Lingui (`web/`) |
 | **Control plane** | MCP over HTTP (FastMCP), bearer-token auth, served by the bot process |
 | **Architecture** | Feature-based modular packages, service locator DI |
 | **Quality** | ruff, ty (Astral type checker), pytest, pre-commit, structlog |
@@ -110,9 +110,9 @@ uv sync --dev
 uv run alembic upgrade head
 uv run -m app.presentation.telegram
 
-# Remote web UI development on a VPS
+# The Mini App against a local webapi (see web/README.md)
 uv run uvicorn app.webapi.main:app --host 127.0.0.1 --port 8787
-pnpm --dir webui run dev  # serves on 0.0.0.0:5174, auth still required
+pnpm --dir web dev
 ```
 
 ## Security

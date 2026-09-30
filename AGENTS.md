@@ -84,7 +84,7 @@ uv run pytest                    # everything; the lanes below are subsets
 uv run pytest tests/unit tests/handlers tests/middleware tests/utils
 uv run pytest tests/integration  # needs PostgreSQL
 uv run pytest tests/e2e tests/webapi tests/mcp
-pnpm --dir webui run check
+pnpm --dir web lint && pnpm --dir web typecheck && pnpm --dir web test
 ```
 
 `ty` currently reports a standing count of pre-existing diagnostics. Compare

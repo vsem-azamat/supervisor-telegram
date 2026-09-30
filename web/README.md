@@ -8,8 +8,9 @@ and the ads page. It talks to two APIs on its own origin, which
 - `/api/v1/*` — the catalog API, in the teachers-catalog repository;
 - the rest of `/api/*` — this repository's webapi.
 
-The moderator console under `/admin` is still the Svelte app in
-[`webui`](../webui); the same image serves both builds.
+The moderator console is `src/console/`, at `/console`, for super admins. It
+reads the catalog's `/api/v1/admin/*` and webapi's session endpoints; the
+rest of the app may do neither (`tests/unit/test_web_split.py`).
 
 The product rules the code refers to as `teachers-catalog's docs/...` live in
 that repository.

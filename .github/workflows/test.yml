@@ -101,22 +101,11 @@ jobs:
       with:
         node-version: "24.15.0"
 
+    # Corepack picks the pnpm the Mini App's package.json names (11), which is
+    # why each step below runs in web/.
     - name: Set up pnpm
-      run: |
-        corepack enable
-        corepack prepare pnpm@10.33.0 --activate
+      run: corepack enable
 
-    - name: Install webui dependencies
-      run: pnpm --dir webui install --frozen-lockfile
-
-    - name: Check webui
-      run: pnpm --dir webui run check
-
-    - name: Build webui
-      run: pnpm --dir webui run build
-
-    # The Mini App. Its own working directory, so corepack picks the pnpm its
-    # package.json names (11) rather than the webui's 10 activated above.
     - name: Install web dependencies
       working-directory: web
       run: pnpm install --frozen-lockfile

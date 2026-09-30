@@ -17,13 +17,12 @@ import sys
 
 WEBAPI = "webapi:8787"
 APP = "/srv/app"
-CONSOLE = "/srv/console"
 
 
 # Paths whose route falls back to the page when no file matches: a client-side
 # route reloaded must get the app, and a missing asset must get a 404, never
 # the page (which would then be cached as that asset).
-FALLS_BACK = {"/admin", "/admin/chats", "/", "/chats", "/join"}
+FALLS_BACK = {"/", "/chats", "/join", "/console", "/console/chats/-100123"}
 
 
 def expectations(catalog: str) -> dict[str, str]:
@@ -35,10 +34,13 @@ def expectations(catalog: str) -> dict[str, str]:
         # Everything else under /api is this repository's webapi.
         "/api/public/catalog": WEBAPI,
         "/api/auth/telegram": WEBAPI,
-        # The Svelte console, until it is rebuilt inside the app.
-        "/admin": CONSOLE,
-        "/admin/chats": CONSOLE,
-        "/_app/immutable/entry/start.js": CONSOLE,
+        # The console is the app's now; the old console's addresses lead there.
+        "/console": APP,
+        "/console/chats/-100123": APP,
+        "/admin": "301 /console",
+        "/admin/chats": "301 /console/chats",
+        "/admin/chats/-100123": "301 /console/chats",
+        "/admin/settings": "301 /console/system",
         # The Mini App owns every other path, its client-side routes included.
         "/": APP,
         "/chats": APP,
@@ -95,6 +97,11 @@ def problems(route: dict, path: str, expected: str) -> list[str]:
     """What is wrong with how `route` serves `path`, if anything."""
     found = handlers(route)
     proxy = next((h for h in found if h.get("handler") == "reverse_proxy"), None)
+    redirect = next((h for h in found if h.get("handler") == "static_response"), None)
+    if redirect and not proxy:
+        location = redirect.get("headers", {}).get("Location", ["?"])[0]
+        where = f"{redirect.get('status_code')} {location}"
+        return [] if where == expected else [f"goes to {where}, not {expected}"]
     if proxy:
         where = ",".join(u.get("dial") for u in proxy.get("upstreams", []))
     else:
