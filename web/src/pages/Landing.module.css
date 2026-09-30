@@ -34,12 +34,6 @@
   color: var(--ink);
 }
 
-/* The country half qualifies the name rather than being part of it, and at
-   full weight the two words fight each other. */
-.wordmarkTail {
-  color: var(--muted);
-}
-
 .headline {
   margin: 0;
   font-size: clamp(28px, 7.2vw, 40px);

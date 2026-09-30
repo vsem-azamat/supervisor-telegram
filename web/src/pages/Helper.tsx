@@ -291,7 +291,7 @@ export default function HelperPage() {
 function withIntro(url: string, data: HelperDetail | undefined): string {
   const subjects = String(data?.intro_context.subjects ?? '');
   const lines = [
-    'Привет! Нашёл тебя в Students CZ.',
+    'Привет! Нашёл тебя в Konnekt.',
     subjects ? `Нужна помощь: ${subjects}.` : 'Нужна помощь с учёбой.',
   ];
   return `${url}?text=${encodeURIComponent(lines.join('\n'))}`;
