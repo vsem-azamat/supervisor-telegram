@@ -93,12 +93,6 @@ async def test_a_signed_payload_opens_a_session(client_factory) -> None:
         assert me.status_code == 200
         assert me.json()["user_id"] == SUPER_ADMIN_ID
 
-        out = await client.post("/api/auth/logout")
-        assert out.status_code == 204
-
-        after = await client.get("/api/auth/me")
-        assert after.status_code == 401
-
 
 async def test_a_payload_signed_with_another_token_is_refused(client_factory) -> None:
     """Which is what a Mini App belonging to a different bot would send."""
@@ -147,3 +141,14 @@ async def test_the_old_doors_are_gone(client_factory) -> None:
 
     assert widget.status_code == 404
     assert magic.status_code == 404
+
+
+def test_routes_without_a_client_are_gone() -> None:
+    """The Svelte console's readers left with it; an unread endpoint is attack
+    surface and upkeep with nothing on the other side."""
+    paths = app.openapi()["paths"]
+
+    assert "/api/chats/graph" not in paths
+    assert "/api/chats/{chat_id}/avatar" not in paths
+    assert "get" not in paths.get("/api/users/{user_id}", {})
+    assert "/api/auth/logout" not in paths

@@ -93,19 +93,3 @@ async def unblock_user(
         target_user_id=user_id,
     )
     return UserBlockResponse(user_id=user_id, blocked=False, message="User unblocked.")
-
-
-@router.get("/{user_id}", response_model=UserBlockResponse)
-async def get_user_block_status(
-    user_id: int,
-    session: Annotated[AsyncSession, Depends(get_session)],
-    _admin_id: Annotated[int, Depends(require_super_admin)],
-) -> UserBlockResponse:
-    user = (await session.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
-    if user is None:
-        raise HTTPException(status_code=404, detail=f"User {user_id} not in DB")
-    return UserBlockResponse(
-        user_id=user_id,
-        blocked=user.blocked,
-        message="blocked" if user.blocked else "not blocked",
-    )

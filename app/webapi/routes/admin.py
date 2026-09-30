@@ -56,7 +56,7 @@ async def revoke_session(
     """Revoke one of the calling admin's sessions. Refuse to revoke the current one."""
     current_token = request.cookies.get(settings.webapi.session_cookie_name)
     if session_id == current_token:
-        raise HTTPException(status_code=400, detail="Use POST /api/auth/logout to end the current session")
+        raise HTTPException(status_code=400, detail="The current session cannot close itself")
     row = (
         await session.execute(select(AdminSession).where(AdminSession.session_id == session_id))
     ).scalar_one_or_none()

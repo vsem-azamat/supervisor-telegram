@@ -14,13 +14,10 @@ and empty are different claims.
 from __future__ import annotations
 
 import datetime
-import io
 from typing import Annotated, cast
 
 from aiogram import Bot
-from aiogram.exceptions import TelegramBadRequest
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -96,54 +93,6 @@ async def list_chats(
         )
         for chat in chats
     ]
-
-
-@router.get("/graph", response_model=list[ChatNode])
-async def get_chat_graph(
-    session: Annotated[AsyncSession, Depends(get_session)],
-    _admin_id: Annotated[int, Depends(require_super_admin)],
-) -> list[ChatNode]:
-    """Return chat tree with roots first; children nested via parent_chat_id.
-
-    Single SQL query; tree assembly is in-memory. Telethon enrichment is
-    intentionally skipped for the tree endpoint — tile renders 1+ times
-    per poll, member_count drilldown lives on /chats/:id.
-
-    Self-loops (parent_chat_id == id) and orphans (parent_chat_id points
-    to a missing/deleted chat) become roots; multi-hop cycles aren't
-    detected here — admins set parent_chat_id manually so cycles would
-    be intentional misuse, not a runtime hazard.
-    """
-    chats = (await session.execute(select(Chat))).scalars().all()
-    by_id: dict[int, ChatNode] = {
-        c.id: ChatNode(
-            id=c.id,
-            title=c.title,
-            relation_notes=c.relation_notes,
-            has_photo=c.photo_file_id is not None,
-            children=[],
-        )
-        for c in chats
-    }
-    roots: list[ChatNode] = []
-    for c in chats:
-        node = by_id[c.id]
-        parent_id = c.parent_chat_id
-        if parent_id is not None and parent_id != c.id and parent_id in by_id:
-            by_id[parent_id].children.append(node)
-        else:
-            roots.append(node)
-
-    def _key(n: ChatNode) -> tuple[str, int]:
-        return ((n.title or "").lower(), n.id)
-
-    def _sort(nodes: list[ChatNode]) -> None:
-        nodes.sort(key=_key)
-        for n in nodes:
-            _sort(n.children)
-
-    _sort(roots)
-    return roots
 
 
 @router.get("/{chat_id}", response_model=ChatDetail)
@@ -346,51 +295,6 @@ async def update_chat(
         has_photo=chat.photo_file_id is not None,
         last_synced_at=chat.last_synced_at,
         created_at=chat.created_at,
-    )
-
-
-@router.get("/{chat_id}/avatar")
-async def get_chat_avatar(
-    chat_id: int,
-    session: Annotated[AsyncSession, Depends(get_session)],
-    bot: Annotated[Bot, Depends(get_publish_bot)],
-    _admin_id: Annotated[int, Depends(require_super_admin)],
-) -> StreamingResponse:
-    """Stream the chat's avatar JPEG.
-
-    Reads the cached ``photo_file_id`` from the row, calls Bot API
-    ``getFile`` to resolve the file_path, then proxies ``download_file``
-    bytes back to the client. We proxy rather than 302-redirecting because
-    the Telegram file URL contains the bot token; redirecting would leak it.
-
-    Browsers cache the response for 1h via Cache-Control. Cached bytes
-    invalidate naturally when ``photo_file_id`` changes (the URL stays the
-    same but the bytes don't — we accept the staleness window since the
-    icon swap on rename is a low-impact event for an admin tool).
-    """
-    chat = (await session.execute(select(Chat).where(Chat.id == chat_id))).scalar_one_or_none()
-    if chat is None:
-        raise HTTPException(status_code=404, detail=f"Chat {chat_id} not found")
-    if chat.photo_file_id is None:
-        raise HTTPException(status_code=404, detail="No avatar cached")
-
-    try:
-        downloaded = await bot.download(chat.photo_file_id)
-    except TelegramBadRequest as e:
-        # File expired upstream — clear cache so next sync re-pulls.
-        logger.warning("avatar download failed", chat_id=chat_id, error=str(e))
-        chat.photo_file_id = None
-        await session.commit()
-        raise HTTPException(status_code=404, detail="Avatar unavailable") from None
-
-    if downloaded is None:
-        raise HTTPException(status_code=404, detail="Avatar unavailable")
-
-    payload = downloaded.read()
-    return StreamingResponse(
-        io.BytesIO(payload),
-        media_type="image/jpeg",
-        headers={"Cache-Control": "public, max-age=3600"},
     )
 
 
