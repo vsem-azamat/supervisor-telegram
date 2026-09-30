@@ -31,8 +31,7 @@ import type {
  * Base URL for the API.
  *
  * Empty by default, which makes every call same-origin and lets the Vite dev
- * proxy (and, in production, the FastAPI process serving the built app) handle
- * it. Since 20 July 2026 Telegram only allows Mini App API calls from the app's
+ * proxy (and, in production, the image's Caddy, docker/Caddyfile) route it. Since 20 July 2026 Telegram only allows Mini App API calls from the app's
  * own origin, so a cross-origin base is the exception, not the rule.
  */
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');

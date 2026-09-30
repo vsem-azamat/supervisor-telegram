@@ -49,8 +49,6 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
 FROM web-dependencies AS web-build
 
 COPY web/ ./
-# mkcert wants a system trust store to write into; a build does not need HTTPS.
-ENV VITE_NO_HTTPS=1
 RUN pnpm run build
 
 # Production stage

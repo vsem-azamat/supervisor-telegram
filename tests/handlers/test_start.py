@@ -82,7 +82,8 @@ class TestStart:
         """The question people arrive with is "where is my faculty's chat".
 
         As a Mini App rather than a link: opened as a site, a tap on a chat
-        leaves Telegram for a browser which then reopens Telegram.
+        leaves Telegram for a browser which then reopens Telegram. At /chats:
+        the Mini App's first screen is help with studies.
         """
         message = _private(telegram_factory, "start", create_normal_user(id=555))
 
@@ -90,7 +91,7 @@ class TestStart:
 
         _, buttons = _answered(message)
         assert buttons[0].web_app is not None
-        assert buttons[0].web_app.url == SITE
+        assert buttons[0].web_app.url == f"{SITE}/chats"
         assert buttons[0].url is None
 
     async def test_an_advertiser_has_somewhere_to_go(self, telegram_factory, admin_repo, site):
@@ -113,7 +114,7 @@ class TestStart:
 
         _, buttons = _answered(message)
         assert all(b.web_app is None for b in buttons)
-        assert buttons[0].url == SITE
+        assert buttons[0].url == f"{SITE}/chats"
 
     async def test_a_site_without_tls_stays_an_ordinary_link(self, telegram_factory, admin_repo, monkeypatch):
         """Telegram requires https for a Mini App; local development has none."""
@@ -125,7 +126,7 @@ class TestStart:
 
         _, buttons = _answered(message)
         assert all(b.web_app is None for b in buttons)
-        assert buttons[0].url == "http://localhost:5173"
+        assert buttons[0].url == "http://localhost:5173/chats"
 
     async def test_the_two_asides_share_a_row(self, telegram_factory, admin_repo, site):
         """Four identical full-width buttons is a wall, evenly weighted.
@@ -278,7 +279,7 @@ class TestHelpCatalogue:
         await start_handlers.start_private(message, admin_repo)
 
         text, buttons = _answered(message)
-        assert buttons[0].web_app.url == SITE
+        assert buttons[0].web_app.url == f"{SITE}/chats"
         assert buttons[1].web_app is not None
         assert buttons[1].web_app.url == HELP
         assert "учёб" in text, "the greeting says the help exists"

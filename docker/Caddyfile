@@ -7,10 +7,16 @@
 	# block below never sees it. The Host header is Caddy's default for an
 	# https upstream; it is written out because the upstream's edge routes on
 	# it and this must not depend on a default.
+	#
+	# Cookies stop here, both ways. The console's session cookie is valid on
+	# this whole origin, and the catalog authenticates by initData alone: it
+	# has no use for an admin session, and no business setting cookies on it.
 	@catalog path /api/v1/* /healthz
 	handle @catalog {
 		reverse_proxy {$CATALOG_ORIGIN} {
 			header_up Host {upstream_hostport}
+			header_up -Cookie
+			header_down -Set-Cookie
 		}
 	}
 
@@ -19,15 +25,22 @@
 	}
 
 	# The moderator console, still the Svelte build until it is rebuilt inside
-	# the Mini App. Its assets are under /_app and never fall back to a page.
+	# the Mini App. Its assets are under /_app and never fall back to a page;
+	# the hashed ones are cached for good, the page never.
 	handle /_app/* {
 		root * /srv/console
+		@immutable {
+			path /_app/immutable/*
+			file
+		}
+		header @immutable Cache-Control "public, max-age=31536000, immutable"
 		file_server
 	}
 
 	@console path /admin /admin/*
 	handle @console {
 		root * /srv/console
+		header Cache-Control "no-cache"
 		try_files {path} /index.html
 		file_server
 	}

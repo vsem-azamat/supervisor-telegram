@@ -97,7 +97,7 @@ async def start_private(message: types.Message, admin_repo: AdminRepository) -> 
     if shows_console:
         builder.add(_open_button("⚙️ Открыть консоль", f"{_site()}/admin", private=private))
     if settings.webapi.public_url:
-        builder.add(_open_button("🔎 Найти свой чат", _site(), private=private))
+        builder.add(_open_button("🔎 Найти свой чат", f"{_site()}/chats", private=private))
     # The tutor catalogue runs on this bot's token, so this greeting is its
     # door too. Its own row, second: finding a chat is why most people come.
     if _help():

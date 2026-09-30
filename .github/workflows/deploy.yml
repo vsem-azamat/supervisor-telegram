@@ -85,6 +85,15 @@ jobs:
             [ -n "$(printenv "$name")" ] || missing="$missing $name"
           done
 
+          # An origin and nothing else: Caddy refuses an upstream with a path,
+          # even a trailing slash, and webui then restarts in a loop, taking
+          # the console and every webapi route with it. Plain http would carry
+          # initData across the internet unencrypted.
+          if [ -n "$CATALOG_ORIGIN" ] && ! [[ "$CATALOG_ORIGIN" =~ ^https://[^/]+$ ]]; then
+            echo "CATALOG_ORIGIN must be https://host, with no path: $CATALOG_ORIGIN" >&2
+            exit 1
+          fi
+
           if [ -n "$missing" ]; then
             echo "Missing required configuration:$missing" >&2
             echo "Set them as repository secrets or variables." >&2

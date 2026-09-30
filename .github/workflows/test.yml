@@ -134,10 +134,20 @@ jobs:
       run: pnpm test
 
     # A message used in code but missing from a catalog renders as its Russian
-    # source in the other three languages, silently.
+    # source in the other three languages, silently. compile reads only the
+    # catalogs, so extract first and fail when that changes them. Never
+    # --clean: it drops the obsolete entries the catalogs keep on purpose.
     - name: Every web message is translated
       working-directory: web
-      run: pnpm exec lingui compile --strict
+      run: |
+        pnpm exec lingui extract
+        changed=$(git status --porcelain -- src/locales)
+        if [ -n "$changed" ]; then
+          echo "$changed"
+          echo "Run \`pnpm i18n:extract\` in web/, translate, and commit." >&2
+          exit 1
+        fi
+        pnpm exec lingui compile --strict
 
     # The client in web/src/lib/generated is generated from the catalog API's
     # document, committed beside it as catalog-openapi.json. Regenerating must

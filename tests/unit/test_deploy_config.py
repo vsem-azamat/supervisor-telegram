@@ -78,7 +78,9 @@ def test_the_catalog_api_is_where_the_app_says_it_is() -> None:
         if step.get("name") == "Check required configuration is present"
     )
     assert "CATALOG_ORIGIN" in check["env"]
-    assert "CATALOG_ORIGIN" in check["run"]
+    required = re.search(r"^\s*for name in ([A-Z_ ]+); do$", check["run"], re.M)
+    assert required, "the required-names loop is gone or was reshaped"
+    assert "CATALOG_ORIGIN" in required.group(1).split()
 
 
 def test_every_forwarded_name_has_a_value_to_forward() -> None:
