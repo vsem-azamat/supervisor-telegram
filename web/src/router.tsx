@@ -3,6 +3,7 @@ import ConsoleBlacklistPage from '@/console/pages/Blacklist';
 import ConsoleCatalogPage from '@/console/pages/Catalog';
 import ConsoleChatPage from '@/console/pages/Chat';
 import ConsoleChatsPage from '@/console/pages/Chats';
+import ConsolePartnerNewPage from '@/console/pages/PartnerNew';
 import ConsolePartnersPage from '@/console/pages/Partners';
 import ConsoleSpamPage from '@/console/pages/Spam';
 import ConsoleSummaryPage from '@/console/pages/Summary';
@@ -59,6 +60,7 @@ export const router = createBrowserRouter([
       { path: 'console', element: <ConsoleSummaryPage /> },
       { path: 'console/catalog', element: <ConsoleCatalogPage /> },
       { path: 'console/partners', element: <ConsolePartnersPage /> },
+      { path: 'console/partners/new', element: <ConsolePartnerNewPage /> },
       { path: 'console/chats', element: <ConsoleChatsPage /> },
       { path: 'console/chats/:id', element: <ConsoleChatPage /> },
       { path: 'console/spam', element: <ConsoleSpamPage /> },
