@@ -194,6 +194,10 @@ msgstr "per week"
 msgid "Откликнуться"
 msgstr "Respond"
 
+#: src/console/pages/Chat.tsx
+msgid "Обновлено"
+msgstr "Updated"
+
 #: src/pages/BecomeHelper.tsx
 #~ msgid "Когда ты свободен"
 #~ msgstr "When you're free"
@@ -245,6 +249,10 @@ msgstr "Which languages you're comfortable with"
 #: src/console/pages/Catalog.tsx
 msgid "Искали и не нашли"
 msgstr "Searched and not found"
+
+#: src/console/pages/Chat.tsx
+msgid "Ссылка должна вести на чат в Telegram: https://t.me/…"
+msgstr "The link must lead to a Telegram chat: https://t.me/…"
 
 #: src/console/ConsoleGate.tsx
 msgid "Данные входа устарели."
@@ -308,6 +316,7 @@ msgid "Не поняли запрос"
 msgstr "We did not understand"
 
 #: src/console/ConsoleGate.tsx
+#: src/console/pages/Chat.tsx
 msgid "Аккаунта нет среди главных администраторов бота."
 msgstr "This account is not one of the bot's main administrators."
 
@@ -335,10 +344,6 @@ msgstr "Free for individuals. For companies, there is <0>advertising to students
 #: src/pages/Profile.tsx
 msgid "Реклама для студентов"
 msgstr "Advertising to students"
-
-#: src/console/pages/Chat.tsx
-msgid "текст не задан"
-msgstr "no text set"
 
 #: src/pages/Ask.tsx
 msgid "Оставить заявку"
@@ -373,10 +378,6 @@ msgstr "Next · {0}"
 #: src/console/pages/Chat.tsx
 msgid "одобрен"
 msgstr "approved"
-
-#: src/console/pages/Chat.tsx
-msgid "Сервер не принял значение. Ссылка должна вести на чат в Telegram."
-msgstr "The server did not accept the value. The link must lead to a Telegram chat."
 
 #. placeholder {0}: figures.members.value
 #: src/pages/Ads.tsx
@@ -556,10 +557,6 @@ msgstr "Everything searched for was found."
 msgid "Чаты"
 msgstr "Chats"
 
-#: src/console/pages/Chat.tsx
-msgid "Привет! Правила в закрепе."
-msgstr "Hi! The rules are pinned."
-
 #: src/pages/MyHelper.tsx
 #~ msgid "Без предмета"
 #~ msgstr "No subject"
@@ -567,6 +564,10 @@ msgstr "Hi! The rules are pinned."
 #: src/pages/BecomeHelper.tsx
 #~ msgid "Сколько берёшь"
 #~ msgstr "What you charge"
+
+#: src/console/pages/Chat.tsx
+msgid "Вход не сохранился: откройте консоль в приложении Telegram."
+msgstr "The sign-in was not kept: open the console in the Telegram app."
 
 #: src/pages/Landing.tsx
 #~ msgid "Работы и материалы"
@@ -603,6 +604,10 @@ msgstr "unprotected"
 #: src/pages/Mine.tsx
 msgid "Пока без откликов"
 msgstr "No responses yet"
+
+#: src/console/pages/Chat.tsx
+msgid "администратор"
+msgstr "administrator"
 
 #: src/console/pages/Summary.tsx
 msgid "Система"
@@ -666,6 +671,10 @@ msgstr "in the catalog"
 #: src/components/Phrase.tsx
 msgid "И то, и другое"
 msgstr "Both"
+
+#: src/console/pages/Chat.tsx
+msgid "Забанить и стереть все его сообщения"
+msgstr "Ban and delete all their messages"
 
 #: src/pages/Ask.tsx
 #~ msgid "нужен матан на ČVUT, экзамен 14 февраля"
@@ -781,10 +790,6 @@ msgstr "not listed"
 #: src/components/RequestSheet.tsx
 msgid "Сколько готов платить"
 msgstr "What you are ready to pay"
-
-#: src/console/pages/Chat.tsx
-msgid "Забанить и стереть сообщения"
-msgstr "Ban and delete the messages"
 
 #: src/components/Phrase.tsx
 #: src/pages/MyHelper.tsx
@@ -917,6 +922,10 @@ msgstr "Maybe they hid it."
 msgid "Строчка под именем"
 msgstr "The line under your name"
 
+#: src/console/pages/Chat.tsx
+msgid "Ссылка"
+msgstr "Link"
+
 #: src/components/Phrase.tsx
 msgid "Онлайн и очно"
 msgstr "Online and in person"
@@ -1048,6 +1057,10 @@ msgstr "Also"
 #~ msgid "Мы сводим людей и запоминаем, что контакт состоялся — по этому считается время ответа. Сама переписка остаётся в Telegram."
 #~ msgstr "We connect people and note that contact happened — that's how response time is measured. The conversation itself stays in Telegram."
 
+#: src/console/pages/Chat.tsx
+msgid "Снять"
+msgstr "Take down"
+
 #: src/pages/Home.tsx
 #~ msgid "Люди"
 #~ msgstr "People"
@@ -1055,6 +1068,10 @@ msgstr "Also"
 #: src/pages/BecomeHelper.tsx
 #~ msgid "Онлайн или очно"
 #~ msgstr "Online or in person"
+
+#: src/console/pages/Chat.tsx
+msgid "Не виден: чат не одобрен"
+msgstr "Not visible: the chat is not approved"
 
 #: src/pages/Landing.tsx
 msgid "Кто поможет с учёбой в Чехии"
@@ -1067,6 +1084,10 @@ msgstr "Turnaround: <0/>"
 #: src/pages/Helper.tsx
 msgid "Свободные окна"
 msgstr "Open time slots"
+
+#: src/console/pages/Chat.tsx
+msgid "Вход устарел: откройте приложение заново."
+msgstr "The sign-in has expired: reopen the app."
 
 #: src/pages/BecomeHelper.tsx
 #~ msgid "Не хватает"
@@ -1115,6 +1136,10 @@ msgstr "Cheaper"
 #: src/console/pages/Catalog.tsx
 msgid "30 дней"
 msgstr "30 days"
+
+#: src/console/pages/Chat.tsx
+msgid "Сервер отказал: главного администратора забанить нельзя."
+msgstr "The server refused: a main administrator cannot be banned."
 
 #: src/components/RequestSheet.tsx
 msgid "Такая заявка уже открыта — она в разделе «Заявки»"
@@ -1170,6 +1195,10 @@ msgstr "What can you help with?"
 msgid "Пост в чатах"
 msgstr "A post in chats"
 
+#: src/console/pages/Chat.tsx
+msgid "Бот пишет его новичку: «@имя, ваш текст»."
+msgstr "The bot sends it to a newcomer: «@name, your text»."
+
 #: src/pages/MyHelper.tsx
 msgid "Город"
 msgstr "City"
@@ -1205,6 +1234,10 @@ msgstr "name, photo and member count"
 msgid "в месяц"
 msgstr "per month"
 
+#: src/console/pages/Chat.tsx
+msgid "Отключить чат"
+msgstr "Disable the chat"
+
 #: src/pages/Landing.tsx
 msgid "Нострификация"
 msgstr "Nostrification"
@@ -1224,6 +1257,10 @@ msgstr "{days} days"
 #: src/console/pages/Partners.tsx
 msgid "рядом с нострификацией"
 msgstr "next to nostrification"
+
+#: src/console/pages/Chat.tsx
+msgid "Снять с публичной вкладки?"
+msgstr "Take it off the public tab?"
 
 #: src/pages/Ads.tsx
 msgid "Займы, ставки, дипломы под ключ. Модерация чистит такое каждый день, и продавать то же самое сверху было бы странно."
@@ -1313,6 +1350,10 @@ msgstr "Send"
 msgid "У этого человека нет @username — написать не получится"
 msgstr "This person has no @username — there is no way to write to them"
 
+#: src/console/pages/Chat.tsx
+msgid "появится после одобрения"
+msgstr "appears once approved"
+
 #: src/pages/Ask.tsx
 msgid "Например"
 msgstr "For example"
@@ -1335,6 +1376,11 @@ msgstr "insurance, visa, bank, transfers"
 #: src/console/pages/Summary.tsx
 msgid "Партнёры"
 msgstr "Partners"
+
+#. placeholder {0}: sheet.sender.message_count
+#: src/console/pages/Chat.tsx
+msgid "здесь за неделю {0, plural, one {# сообщение} few {# сообщения} many {# сообщений} other {# сообщения}}. «Стереть» удаляет все его сообщения, которые видел бот, во всех чатах."
+msgstr "here this week {0, plural, one {# message} other {# messages}}. «Delete» removes every message of theirs the bot saw, in every chat."
 
 #. placeholder {0}: num(p.deals)
 #: src/components/Phrase.tsx
@@ -1415,6 +1461,11 @@ msgstr "This person doesn't have a public Telegram username, so you can't messag
 msgid "для компаний: посты в чатах и карточки"
 msgstr "for companies: posts in chats and cards"
 
+#. placeholder {0}: chat.public_link
+#: src/console/pages/Chat.tsx
+msgid "Ссылка сотрётся: {0}"
+msgstr "The link will be erased: {0}"
+
 #: src/console/pages/Summary.tsx
 msgid "бот в них есть, но они не одобрены"
 msgstr "the bot is in them, but they are not approved"
@@ -1426,6 +1477,10 @@ msgstr "Search chats"
 #: src/console/pages/Catalog.tsx
 msgid "Новые анкеты"
 msgstr "New profiles"
+
+#: src/console/pages/Chat.tsx
+msgid "правила в закрепе, рекламу не публикуем."
+msgstr "the rules are pinned, no ads please."
 
 #: src/pages/Ask.tsx
 msgid "По этому запросу пока никого"
@@ -1459,11 +1514,6 @@ msgstr "Works specifically with this university"
 #: src/pages/Join.tsx
 msgid "Помощь с учёбой"
 msgstr "Help with studies"
-
-#. placeholder {0}: sheet.sender.message_count
-#: src/console/pages/Chat.tsx
-msgid "здесь за неделю {0, plural, one {# сообщение} few {# сообщения} many {# сообщений} other {# сообщения}}. Снять бан можно здесь же."
-msgstr "here this week {0, plural, one {# message} other {# messages}}. The ban can be lifted here too."
 
 #: src/pages/Landing.tsx
 msgid "Открыть в Telegram"
@@ -1510,6 +1560,10 @@ msgstr "No requests yet"
 #: src/pages/OfferPrices.tsx
 msgid "Убрать"
 msgstr "Remove"
+
+#: src/console/pages/Chat.tsx
+msgid "не задан"
+msgstr "not set"
 
 #. placeholder {0}: alsoProps.named
 #: src/pages/Results.tsx
@@ -1769,6 +1823,14 @@ msgstr "per day"
 #: src/components/InstitutionPicker.tsx
 msgid "Список вузов не загрузился. Попробуй ещё раз позже."
 msgstr "The list of schools did not load. Try again later."
+
+#: src/console/pages/Chat.tsx
+msgid "Обновляем…"
+msgstr "Refreshing…"
+
+#: src/console/pages/Chat.tsx
+msgid "Текст приветствия"
+msgstr "Welcome text"
 
 #: src/pages/Ads.tsx
 #: src/pages/AdsChats.tsx

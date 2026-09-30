@@ -120,7 +120,7 @@ function ChatList() {
         </div>
       ) : (
         sections.map((section) => (
-          <div key={section.key === 'group' ? `group-${section.title}` : section.key}>
+          <div key={section.key === 'group' ? `group-${section.root}` : section.key}>
             <Label aside={section.chats.length}>
               {section.key === 'review' ? (
                 <Trans>На проверке</Trans>
@@ -159,7 +159,9 @@ function ChatLine({ chat, onOpen }: { chat: ConsoleChat; onOpen: () => void }) {
   const facts = [
     chat.member_count !== null ? i18n.number(chat.member_count) : null,
     guards.length ? guards.join(', ') : t`без защиты`,
-    chat.public_link ? t`на сайте` : t`не на сайте`,
+    chat.public_link && chat.resource_status === 'approved'
+      ? t`на сайте`
+      : t`не на сайте`,
   ].filter(Boolean);
   const tone =
     chat.resource_status === 'discovered'

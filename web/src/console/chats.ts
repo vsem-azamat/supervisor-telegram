@@ -13,14 +13,14 @@ export type StatusFilter = 'all' | ChatStatus;
 
 export type ConsoleSection =
   | { key: 'review'; title: null; chats: ConsoleChat[] }
-  | { key: 'group'; title: string; chats: ConsoleChat[] }
+  | { key: 'group'; title: string; root: number; chats: ConsoleChat[] }
   | { key: 'rest'; title: null; chats: ConsoleChat[] };
 
-/** Title words, in any order and without diacritics; or a part of the id. */
+/** Title words, in any order and without diacritics; digits also find an id. */
 function matches(chat: ConsoleChat, query: string): boolean {
   const trimmed = query.trim();
   if (!trimmed) return true;
-  if (/^-?\d+$/.test(trimmed)) return String(chat.id).includes(trimmed);
+  if (/^-?\d+$/.test(trimmed) && String(chat.id).includes(trimmed)) return true;
   const title = fold(chat.title ?? '');
   return fold(trimmed)
     .split(/\s+/)
@@ -68,6 +68,7 @@ export function consoleSections(
     sections.push({
       key: 'group',
       title: byId.get(root)?.title ?? String(root),
+      root,
       chats: members,
     });
   }

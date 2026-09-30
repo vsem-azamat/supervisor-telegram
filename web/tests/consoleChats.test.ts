@@ -60,6 +60,39 @@ test('a chat whose parent is not listed goes with the rest', () => {
   assert.deepEqual(titles(consoleSections(orphans, 'all', '')), [['rest', null, [7]]]);
 });
 
+test('the parent leads its section, wherever it came in the list', () => {
+  const late = [chat(2, 'ČVUT FIT', { parent_chat_id: 1 }), chat(1, 'ČVUT | ЧВУТ')];
+  const [section] = consoleSections(late, 'all', '');
+  assert.deepEqual(
+    section?.chats.map((c) => c.id),
+    [1, 2],
+  );
+  assert.equal(section?.key === 'group' ? section.root : null, 1);
+});
+
+test('two parents with the same title are two sections', () => {
+  const twins = [
+    chat(1, 'Общий'),
+    chat(2, 'A', { parent_chat_id: 1 }),
+    chat(3, 'Общий'),
+    chat(4, 'B', { parent_chat_id: 3 }),
+  ];
+  const roots = consoleSections(twins, 'all', '').map((s) =>
+    s.key === 'group' ? s.root : null,
+  );
+  assert.deepEqual(roots, [1, 3]);
+});
+
+test('digits find a title with them as well as an id', () => {
+  const named = [chat(-100777, 'ČVUT 2025'), chat(-100555, 'Flood')];
+  assert.deepEqual(titles(consoleSections(named, 'all', '2025')), [
+    ['rest', null, [-100777]],
+  ]);
+  assert.deepEqual(titles(consoleSections(named, 'all', '555')), [
+    ['rest', null, [-100555]],
+  ]);
+});
+
 test('each status is counted, and all of them together', () => {
   assert.deepEqual(statusCounts(CHATS), {
     all: 6,

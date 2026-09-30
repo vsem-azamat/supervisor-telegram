@@ -32,9 +32,13 @@ export class ConsoleError extends Error {
   }
 }
 
-/** Whether trying again can change the answer. */
+/**
+ * Whether trying again can change the answer: not for the reasons above, and
+ * not for a request the server understood and refused (a 404, a 422).
+ */
 export function isFinal(error: unknown): boolean {
-  return error instanceof ConsoleError && error.reason !== 'failed';
+  if (!(error instanceof ConsoleError)) return false;
+  return error.reason !== 'failed' || error.status < 500;
 }
 
 export type ConsoleGet = <T>(path: string, init?: RequestInit) => Promise<T>;

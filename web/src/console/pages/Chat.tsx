@@ -7,6 +7,7 @@ import { Sheet } from '@/components/Sheet';
 import {
   Action,
   Actions,
+  Chevron,
   Hint,
   Label,
   Letters,
@@ -19,15 +20,20 @@ import {
   ui,
 } from '@/components/Ui';
 import { ConsoleFailure, ConsoleGate } from '@/console/ConsoleGate';
-import { chatDetailQuery, consoleChanges, consoleChatsQuery } from '@/console/queries';
+import {
+  chatDetailQuery,
+  consoleChanges,
+  consoleChatsQuery,
+  consoleSystemQuery,
+} from '@/console/queries';
 import { Switch } from '@/console/Switch';
-import type {
-  ChatSender,
-  ChatUpdate,
-  ConsoleChat,
-  ConsoleChatDetail,
+import {
+  type ChatSender,
+  type ChatUpdate,
+  type ConsoleChat,
+  type ConsoleChatDetail,
+  ConsoleError,
 } from '@/console/session';
-import { ConsoleError } from '@/console/session';
 import { hapticSelection } from '@/hooks/useTelegram';
 import { initials } from '@/lib/chats';
 
@@ -40,20 +46,25 @@ export default function ConsoleChatPage() {
   const chatId = Number(id);
   return (
     <ConsoleGate>
-      {Number.isInteger(chatId) ? (
-        <ChatScreen chatId={chatId} />
-      ) : (
-        <Hint>
-          <Trans>Такого чата нет.</Trans>
-        </Hint>
-      )}
+      {Number.isInteger(chatId) ? <ChatScreen chatId={chatId} /> : <NoSuchChat />}
     </ConsoleGate>
+  );
+}
+
+function NoSuchChat() {
+  return (
+    <div style={{ marginTop: 16 }}>
+      <Hint>
+        <Trans>Такого чата нет.</Trans>
+      </Hint>
+    </div>
   );
 }
 
 type Sheets =
   | { kind: 'publish' }
-  | { kind: 'welcome' }
+  | { kind: 'unpublish' }
+  | { kind: 'welcome'; enable: boolean }
   | { kind: 'ban'; sender: ChatSender }
   | { kind: 'unban'; sender: ChatSender }
   | null;
@@ -63,68 +74,83 @@ function senderName(sender: ChatSender): string {
   return name || (sender.username ? `@${sender.username}` : String(sender.user_id));
 }
 
+/** What a failed change means for the person who tried it. */
+function FailureText({ error }: { error: unknown }) {
+  const reason = error instanceof ConsoleError ? error.reason : 'failed';
+  if (reason === 'stale') return <Trans>Вход устарел: откройте приложение заново.</Trans>;
+  if (reason === 'not-kept') {
+    return <Trans>Вход не сохранился: откройте консоль в приложении Telegram.</Trans>;
+  }
+  if (reason === 'refused') {
+    return <Trans>Аккаунта нет среди главных администраторов бота.</Trans>;
+  }
+  if (error instanceof ConsoleError && error.status === 422) {
+    return <Trans>Ссылка должна вести на чат в Telegram: https://t.me/…</Trans>;
+  }
+  if (error instanceof ConsoleError && error.status === 400) {
+    return <Trans>Сервер отказал: главного администратора забанить нельзя.</Trans>;
+  }
+  return <Trans>Не сохранилось. Попробуйте ещё раз.</Trans>;
+}
+
 function ChatScreen({ chatId }: { chatId: number }) {
   const { t, i18n } = useLingui();
   const queryClient = useQueryClient();
   const detail = useQuery(chatDetailQuery(chatId));
+  const system = useQuery(consoleSystemQuery);
   const [sheet, setSheet] = useState<Sheets>(null);
-  const [failure, setFailure] = useState<ReactNode>(null);
+  const [error, setError] = useState<unknown>(null);
+  const [refreshed, setRefreshed] = useState(false);
+  // The link a chat had before it was taken down, so publishing it again
+  // does not mean finding an invite hash in Telegram once more.
+  const [lastLink, setLastLink] = useState<string | null>(null);
 
-  const settle = (changed: Partial<ConsoleChat>) => {
+  const open = (next: Sheets) => {
+    setError(null);
+    setSheet(next);
+  };
+  const settle = (changed: Partial<ConsoleChatDetail>) => {
     queryClient.setQueryData<ConsoleChatDetail>(
       chatDetailQuery(chatId).queryKey,
       (old) => (old ? { ...old, ...changed } : old),
     );
     void queryClient.invalidateQueries({ queryKey: consoleChatsQuery.queryKey });
   };
-  const failed = (error: unknown) => {
-    setFailure(
-      error instanceof ConsoleError && error.status === 422 ? (
-        <Trans>Сервер не принял значение. Ссылка должна вести на чат в Telegram.</Trans>
-      ) : (
-        <Trans>Не сохранилось. Попробуйте ещё раз.</Trans>
-      ),
-    );
-  };
 
   const update = useMutation({
     mutationFn: (change: ChatUpdate) => consoleChanges.updateChat(chatId, change),
-    onMutate: () => setFailure(null),
-    onSuccess: (chat, change) =>
+    onMutate: () => setError(null),
+    onSuccess: (chat: ConsoleChat, change) =>
       // The answer is the list view; the welcome text is not in it.
       settle({ ...chat, ...('welcome_message' in change ? change : {}) }),
-    onError: failed,
+    onError: setError,
   });
   const refresh = useMutation({
     mutationFn: () => consoleChanges.refreshChat(chatId),
-    onMutate: () => setFailure(null),
-    onSuccess: (chat) => settle(chat),
-    onError: failed,
+    onMutate: () => {
+      setError(null);
+      setRefreshed(false);
+    },
+    onSuccess: (chat) => {
+      settle(chat);
+      setRefreshed(true);
+    },
+    onError: setError,
   });
   const block = useMutation({
     mutationFn: ({ sender, revoke }: { sender: ChatSender; revoke: boolean | null }) =>
       revoke === null
         ? consoleChanges.unblock(sender.user_id)
         : consoleChanges.block(sender.user_id, revoke),
-    onMutate: () => setFailure(null),
-    onSuccess: (answer, { sender }) => {
-      queryClient.setQueryData<ConsoleChatDetail>(
-        chatDetailQuery(chatId).queryKey,
-        (old) =>
-          old
-            ? {
-                ...old,
-                recent_senders: old.recent_senders.map((row) =>
-                  row.user_id === sender.user_id
-                    ? { ...row, blocked: answer.blocked }
-                    : row,
-                ),
-              }
-            : old,
+    onMutate: () => setError(null),
+    onSuccess: () => {
+      // A ban is every chat's: every chat's sender list may show it.
+      void queryClient.invalidateQueries({ queryKey: ['console', 'chat'] });
+      setSheet((current) =>
+        current?.kind === 'ban' || current?.kind === 'unban' ? null : current,
       );
-      setSheet(null);
     },
-    onError: failed,
+    onError: setError,
   });
 
   if (detail.isPending) {
@@ -133,6 +159,9 @@ function ChatScreen({ chatId }: { chatId: number }) {
         <SkeletonRows count={5} />
       </div>
     );
+  }
+  if (detail.error instanceof ConsoleError && detail.error.status === 404) {
+    return <NoSuchChat />;
   }
   if (detail.error || !detail.data) {
     return (
@@ -144,12 +173,19 @@ function ChatScreen({ chatId }: { chatId: number }) {
 
   const chat = detail.data;
   const title = chat.title ?? String(chat.id);
-  const busy = update.isPending;
-  const save = (change: ChatUpdate) => {
+  // One change at a time: a refresh answer landing after a switch's would
+  // put the switch back.
+  const busy = update.isPending || refresh.isPending;
+  const save = (change: ChatUpdate, after?: () => void) => {
     hapticSelection();
-    update.mutate(change);
+    update.mutate(change, { onSuccess: after });
   };
+  const approved = chat.resource_status === 'approved';
+  // What students see: the public tab lists approved chats with a link.
+  const listed = Boolean(chat.public_link) && approved;
+  const admins = new Set(system.data?.super_admin_ids ?? []);
   const total = chat.recent_senders.reduce((sum, row) => sum + row.message_count, 0);
+  const sheetError = sheet && error ? <FailureText error={error} /> : null;
 
   return (
     <>
@@ -173,7 +209,7 @@ function ChatScreen({ chatId }: { chatId: number }) {
               {' · '}
             </>
           ) : null}
-          {chat.resource_status === 'approved' ? (
+          {approved ? (
             <Trans>одобрен</Trans>
           ) : chat.resource_status === 'discovered' ? (
             <Trans>на проверке</Trans>
@@ -183,13 +219,15 @@ function ChatScreen({ chatId }: { chatId: number }) {
         </Sub>
       </div>
 
-      {failure ? (
+      {error && !sheet ? (
         <div style={{ marginTop: 12 }}>
-          <Hint>{failure}</Hint>
+          <Hint>
+            <FailureText error={error} />
+          </Hint>
         </div>
       ) : null}
 
-      {chat.resource_status !== 'approved' ? (
+      {!approved ? (
         <div style={{ marginTop: 16 }}>
           <Actions>
             <Action onClick={() => save({ resource_status: 'approved' })} disabled={busy}>
@@ -218,25 +256,38 @@ function ChatScreen({ chatId }: { chatId: number }) {
       <Rows>
         <Row
           title={
-            chat.public_link ? (
+            listed ? (
               <Trans>Показан в «Чатах»</Trans>
+            ) : chat.public_link ? (
+              <Trans>Не виден: чат не одобрен</Trans>
             ) : (
               <Trans>Не показан</Trans>
             )
           }
-          hint={chat.public_link ?? <Trans>нужна ссылка t.me</Trans>}
+          hint={
+            chat.public_link && !approved ? (
+              <Trans>появится после одобрения</Trans>
+            ) : chat.public_link ? null : (
+              <Trans>нужна ссылка t.me</Trans>
+            )
+          }
           trailing={
             <Switch
               checked={Boolean(chat.public_link)}
               busy={busy}
               label={t`На публичной вкладке`}
-              onChange={(on) =>
-                on ? setSheet({ kind: 'publish' }) : save({ public_link: '' })
-              }
+              onChange={(on) => open({ kind: on ? 'publish' : 'unpublish' })}
             />
           }
-          onClick={() => setSheet({ kind: 'publish' })}
         />
+        {chat.public_link ? (
+          <Row
+            title={<Trans>Ссылка</Trans>}
+            hint={chat.public_link}
+            trailing={<Chevron />}
+            onClick={() => open({ kind: 'publish' })}
+          />
+        ) : null}
       </Rows>
 
       <Label>
@@ -256,16 +307,25 @@ function ChatScreen({ chatId }: { chatId: number }) {
         />
         <Row
           title={<Trans>Приветствие</Trans>}
-          hint={chat.welcome_message || <Trans>текст не задан</Trans>}
           trailing={
             <Switch
               checked={chat.is_welcome_enabled}
               busy={busy}
               label={t`Приветствие`}
-              onChange={(on) => save({ is_welcome_enabled: on })}
+              onChange={(on) =>
+                // On with no text would greet nobody: ask for the text first.
+                on && !chat.welcome_message
+                  ? open({ kind: 'welcome', enable: true })
+                  : save({ is_welcome_enabled: on })
+              }
             />
           }
-          onClick={() => setSheet({ kind: 'welcome' })}
+        />
+        <Row
+          title={<Trans>Текст приветствия</Trans>}
+          hint={chat.welcome_message || <Trans>не задан</Trans>}
+          trailing={<Chevron />}
+          onClick={() => open({ kind: 'welcome', enable: false })}
         />
         <Row
           title={<Trans>Прятать «вошёл» и «вышел»</Trans>}
@@ -285,30 +345,42 @@ function ChatScreen({ chatId }: { chatId: number }) {
       </Label>
       {chat.recent_senders.length > 0 ? (
         <Rows>
-          {chat.recent_senders.map((sender) => (
-            <Row
-              key={sender.user_id}
-              title={senderName(sender)}
-              hint={
-                <>
-                  <Plural
-                    value={sender.message_count}
-                    one="# сообщение"
-                    few="# сообщения"
-                    many="# сообщений"
-                    other="# сообщения"
-                  />
-                  {sender.blocked ? (
-                    <>
-                      {' · '}
-                      <Trans>заблокирован</Trans>
-                    </>
-                  ) : null}
-                </>
-              }
-              onClick={() => setSheet({ kind: sender.blocked ? 'unban' : 'ban', sender })}
-            />
-          ))}
+          {chat.recent_senders.map((sender) => {
+            const admin = admins.has(sender.user_id);
+            return (
+              <Row
+                key={sender.user_id}
+                title={senderName(sender)}
+                hint={
+                  <>
+                    <Plural
+                      value={sender.message_count}
+                      one="# сообщение"
+                      few="# сообщения"
+                      many="# сообщений"
+                      other="# сообщения"
+                    />
+                    {admin ? (
+                      <>
+                        {' · '}
+                        <Trans>администратор</Trans>
+                      </>
+                    ) : sender.blocked ? (
+                      <>
+                        {' · '}
+                        <Trans>заблокирован</Trans>
+                      </>
+                    ) : null}
+                  </>
+                }
+                onClick={
+                  admin
+                    ? undefined
+                    : () => open({ kind: sender.blocked ? 'unban' : 'ban', sender })
+                }
+              />
+            );
+          })}
         </Rows>
       ) : (
         <Hint>
@@ -319,38 +391,103 @@ function ChatScreen({ chatId }: { chatId: number }) {
       <div style={{ marginTop: 16 }}>
         <Rows>
           <Row
-            title={<Trans>Обновить из Telegram</Trans>}
-            hint={<Trans>название, фото и число участников</Trans>}
-            onClick={() => {
-              hapticSelection();
-              refresh.mutate();
-            }}
+            title={
+              refresh.isPending ? (
+                <Trans>Обновляем…</Trans>
+              ) : (
+                <Trans>Обновить из Telegram</Trans>
+              )
+            }
+            hint={
+              refreshed ? (
+                <Trans>Обновлено</Trans>
+              ) : (
+                <Trans>название, фото и число участников</Trans>
+              )
+            }
+            onClick={
+              busy
+                ? undefined
+                : () => {
+                    hapticSelection();
+                    refresh.mutate();
+                  }
+            }
           />
         </Rows>
       </div>
 
+      {approved ? (
+        <div style={{ marginTop: 16 }}>
+          <Actions>
+            <Action
+              quiet
+              onClick={() => save({ resource_status: 'disabled' })}
+              disabled={busy}
+            >
+              <Trans>Отключить чат</Trans>
+            </Action>
+          </Actions>
+        </div>
+      ) : null}
+
       {sheet?.kind === 'publish' ? (
         <TextSheet
           title={t`Ссылка для публичной вкладки`}
-          initial={chat.public_link ?? 'https://t.me/'}
+          initial={chat.public_link ?? lastLink ?? 'https://t.me/'}
           placeholder="https://t.me/cvut_fit"
           busy={busy}
+          error={sheetError}
           onClose={() => setSheet(null)}
-          onSave={(link) =>
-            update.mutate({ public_link: link }, { onSuccess: () => setSheet(null) })
-          }
+          onSave={(link) => save({ public_link: link }, () => setSheet(null))}
         />
+      ) : null}
+      {sheet?.kind === 'unpublish' ? (
+        <Sheet
+          title={t`Снять с публичной вкладки?`}
+          closeLabel={t`Отмена`}
+          onClose={() => setSheet(null)}
+        >
+          <Sub>
+            <Trans>Ссылка сотрётся: {chat.public_link}</Trans>
+          </Sub>
+          {sheetError ? <Hint>{sheetError}</Hint> : null}
+          <div className={ui.actionsStacked}>
+            <Action
+              disabled={busy}
+              onClick={() => {
+                const link = chat.public_link;
+                save({ public_link: '' }, () => {
+                  setLastLink(link);
+                  setSheet(null);
+                });
+              }}
+            >
+              <Trans>Снять</Trans>
+            </Action>
+            <Action quiet onClick={() => setSheet(null)}>
+              <Trans>Отмена</Trans>
+            </Action>
+          </div>
+        </Sheet>
       ) : null}
       {sheet?.kind === 'welcome' ? (
         <TextSheet
           multiline
           title={t`Приветствие`}
+          note={<Trans>Бот пишет его новичку: «@имя, ваш текст».</Trans>}
           initial={chat.welcome_message ?? ''}
-          placeholder={t`Привет! Правила в закрепе.`}
+          placeholder={t`правила в закрепе, рекламу не публикуем.`}
           busy={busy}
+          error={sheetError}
           onClose={() => setSheet(null)}
           onSave={(text) =>
-            update.mutate({ welcome_message: text }, { onSuccess: () => setSheet(null) })
+            save(
+              sheet.enable && text
+                ? { welcome_message: text, is_welcome_enabled: true }
+                : { welcome_message: text },
+              () => setSheet(null),
+            )
           }
         />
       ) : null}
@@ -371,9 +508,10 @@ function ChatScreen({ chatId }: { chatId: number }) {
                 many="# сообщений"
                 other="# сообщения"
               />
-              . Снять бан можно здесь же.
+              . «Стереть» удаляет все его сообщения, которые видел бот, во всех чатах.
             </Trans>
           </Sub>
+          {sheetError ? <Hint>{sheetError}</Hint> : null}
           <div className={ui.actionsStacked}>
             <Action
               disabled={block.isPending}
@@ -386,7 +524,7 @@ function ChatScreen({ chatId }: { chatId: number }) {
               disabled={block.isPending}
               onClick={() => block.mutate({ sender: sheet.sender, revoke: true })}
             >
-              <Trans>Забанить и стереть сообщения</Trans>
+              <Trans>Забанить и стереть все его сообщения</Trans>
             </Action>
             <Action quiet onClick={() => setSheet(null)}>
               <Trans>Отмена</Trans>
@@ -401,7 +539,8 @@ function ChatScreen({ chatId }: { chatId: number }) {
           onClose={() => setSheet(null)}
         >
           <Sub>{senderName(sheet.sender)}</Sub>
-          <Actions>
+          {sheetError ? <Hint>{sheetError}</Hint> : null}
+          <div className={ui.actionsStacked}>
             <Action
               disabled={block.isPending}
               onClick={() => block.mutate({ sender: sheet.sender, revoke: null })}
@@ -411,7 +550,7 @@ function ChatScreen({ chatId }: { chatId: number }) {
             <Action quiet onClick={() => setSheet(null)}>
               <Trans>Отмена</Trans>
             </Action>
-          </Actions>
+          </div>
         </Sheet>
       ) : null}
     </>
@@ -420,18 +559,22 @@ function ChatScreen({ chatId }: { chatId: number }) {
 
 function TextSheet({
   title,
+  note,
   initial,
   placeholder,
   multiline = false,
   busy,
+  error,
   onClose,
   onSave,
 }: {
   title: string;
+  note?: ReactNode;
   initial: string;
   placeholder: string;
   multiline?: boolean;
   busy: boolean;
+  error: ReactNode;
   onClose: () => void;
   onSave: (value: string) => void;
 }) {
@@ -439,6 +582,7 @@ function TextSheet({
   const [value, setValue] = useState(initial);
   return (
     <Sheet title={title} closeLabel={t`Отмена`} onClose={onClose}>
+      {note ? <Sub>{note}</Sub> : null}
       <div
         className={ui.field}
         style={multiline ? { alignItems: 'flex-start' } : undefined}
@@ -463,6 +607,7 @@ function TextSheet({
           />
         )}
       </div>
+      {error ? <Hint>{error}</Hint> : null}
       <Actions>
         <Action disabled={busy} onClick={() => onSave(value.trim())}>
           <Trans>Сохранить</Trans>

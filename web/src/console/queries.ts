@@ -82,3 +82,12 @@ export const consoleChanges = {
   unblock: (userId: number) =>
     consoleGet<{ blocked: boolean }>(`/api/users/${userId}/block`, { method: 'DELETE' }),
 };
+
+/** Who the super admins are, among webapi's operational facts. */
+export const consoleSystemQuery = {
+  queryKey: ['console', 'system'] as const,
+  queryFn: ({ signal }: { signal: AbortSignal }) =>
+    consoleGet<{ super_admin_ids: number[] }>('/api/admin/system', { signal }),
+  staleTime: 10 * CONSOLE_STALE,
+  retryOnMount: false,
+};
