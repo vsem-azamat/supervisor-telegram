@@ -1,0 +1,40 @@
+name: Catalog contract
+
+# web/catalog-openapi.json is a copy of the catalog API's document, which lives
+# in teachers-catalog as apps/api/openapi.json. The test workflow checks the
+# client against the copy; this checks the copy against the catalog, on a
+# schedule, because a change there opens no pull request here.
+#
+# When it fails: copy the catalog's document over web/catalog-openapi.json,
+# run `pnpm api:generate` in web/, and fix what the new types break.
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - web/catalog-openapi.json
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - name: The copy is the catalog's current document
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CATALOG_REPO: ${{ github.repository_owner }}/teachers-catalog
+        run: |
+          set -euo pipefail
+          gh api "repos/$CATALOG_REPO/contents/apps/api/openapi.json" \
+            -H "Accept: application/vnd.github.raw" > "$RUNNER_TEMP/catalog.json"
+          # An error page or an empty answer would differ too, and be read as
+          # drift. Check it is a document before comparing.
+          grep -q '"openapi"' "$RUNNER_TEMP/catalog.json"
+          diff -u web/catalog-openapi.json "$RUNNER_TEMP/catalog.json"

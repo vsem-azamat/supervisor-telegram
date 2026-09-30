@@ -68,7 +68,7 @@ export async function preflight(browser) {
   } catch (error) {
     await fail(
       error.message,
-      'Start the dev server (make web) and the API (make api) first.',
+      'Start the dev server (pnpm dev) with the catalog API behind it first.',
     );
   }
 
@@ -83,7 +83,7 @@ export async function preflight(browser) {
   if (!gotData) {
     await fail(
       'the home screen came up without its categories',
-      'The API is rejecting this init data. Put a signed VITE_MOCK_INIT_DATA in apps/web/.env.local.',
+      'The API is rejecting this init data. Put a signed VITE_MOCK_INIT_DATA in web/.env.local.',
     );
   }
   await context.close();

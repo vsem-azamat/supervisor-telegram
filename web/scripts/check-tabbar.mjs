@@ -1,7 +1,7 @@
 /*
  * The tab bar must not show what is passing under it.
  *
- * The contract is in docs/architecture.md: anything pinned to an edge is
+ * The contract is in teachers-catalog's docs/architecture.md: anything pinned to an edge is
  * fixed, and a fixed bar is opaque behind its own controls. The bug this
  * guards against is not a layout one — nothing overflows, nothing overlaps
  * wrongly, and every element is exactly where it was put. It is that the bar's
@@ -22,7 +22,7 @@
  * outside that box.
  *
  * Needs the same running stack as check-scroll.mjs — see scripts/lib/stack.mjs
- * for what it checks before measuring anything. Where `make web` cannot have
+ * for what it checks before measuring anything. Where `pnpm dev` cannot have
  * sudo for mkcert, run it with VITE_NO_HTTPS=1 and pass
  * BASE=http://localhost:5173.
  */

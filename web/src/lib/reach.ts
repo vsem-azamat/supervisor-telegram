@@ -3,7 +3,7 @@
  *
  * The numbers are supervisor-telegram's (`GET /api/public/reach`), summed per
  * group and never per chat. The rules for saying them are in
- * docs/architecture.md, «The ads page is a showcase, not a shop».
+ * teachers-catalog's docs/architecture.md, «The ads page is a showcase, not a shop».
  */
 
 export interface ReachGroup {

@@ -2,26 +2,23 @@ import { fileURLToPath, URL } from 'node:url';
 import { lingui, linguiTransformerBabelPreset } from '@lingui/vite-plugin';
 import babel from '@rolldown/plugin-babel';
 import react from '@vitejs/plugin-react';
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig } from 'vite';
 import mkcert from 'vite-plugin-mkcert';
 
 /**
- * The API this app talks to. Proxied in development so the browser sees a
- * same-origin request: since 20 July 2026 Telegram only allows Mini App API
- * calls from the app's own origin, and matching that locally keeps the dev
- * environment honest.
+ * The two APIs this app talks to, proxied in development the way
+ * docker/Caddyfile routes them in production, so the browser sees same-origin
+ * requests: since 20 July 2026 Telegram only allows Mini App API calls from
+ * the app's own origin, and matching that locally keeps the dev environment
+ * honest.
+ *
+ * `/api/v1/*` is the catalog's API (teachers-catalog). Local by default, on
+ * 8010 because something else on the development machine holds 8000; set
+ * CATALOG_ORIGIN to use a deployed one instead. Everything else under `/api`
+ * is this repository's webapi.
  */
-// 8010, not 8000: something else on the development machine holds 8000,
-// and a proxy pointing at the wrong server fails as a blank screen.
-const API_TARGET = 'http://127.0.0.1:8010';
-
-// Where /api/public/* goes in development: supervisor-telegram, https://host.
-// No address is written here, the same as for deployment (docs/deploy.md).
-// Read from the repository's root .env, the one file the API reads too; the
-// shell wins over it. Vite does not load .env files into process.env, hence
-// loadEnv with an empty prefix. Unset, the chat screens show their error state.
-const ROOT = fileURLToPath(new URL('../..', import.meta.url));
-const SUPERVISOR_TARGET = loadEnv('development', ROOT, '').SUPERVISOR_ORIGIN;
+const CATALOG_TARGET = process.env.CATALOG_ORIGIN || 'http://127.0.0.1:8010';
+const WEBAPI_TARGET = 'http://127.0.0.1:8787';
 
 /**
  * Escape hatch for environments where mkcert cannot install its CA.
@@ -63,19 +60,10 @@ export default defineConfig({
       ...(process.env.VITE_ALLOWED_HOST ? [process.env.VITE_ALLOWED_HOST] : []),
     ],
     proxy: {
-      // supervisor-telegram's public API, same origin as in production. The
-      // more specific prefix first: Vite takes the first match.
-      ...(SUPERVISOR_TARGET
-        ? {
-            '/api/public/': {
-              target: SUPERVISOR_TARGET,
-              changeOrigin: true,
-              secure: true,
-            },
-          }
-        : {}),
-      '/api': { target: API_TARGET, changeOrigin: true },
-      '/healthz': { target: API_TARGET, changeOrigin: true },
+      // The more specific prefix first: Vite takes the first match.
+      '/api/v1/': { target: CATALOG_TARGET, changeOrigin: true, secure: true },
+      '/healthz': { target: CATALOG_TARGET, changeOrigin: true, secure: true },
+      '/api': { target: WEBAPI_TARGET, changeOrigin: true },
     },
   },
   preview: {

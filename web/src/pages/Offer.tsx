@@ -126,7 +126,7 @@ export default function OfferPage() {
               <div style={{ marginTop: -4, marginBottom: 10 }}>
                 <Hint>
                   {/* Private people offer these for free. A company is sent
-                      to the ads page instead: docs/architecture.md. */}
+                      to the ads page instead: teachers-catalog's docs/architecture.md. */}
                   <Trans>
                     Людям бесплатно. Компаниям —{' '}
                     <a

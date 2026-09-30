@@ -67,7 +67,7 @@ const without = (row: Draft, axis: Axis): Draft =>
  * the service: one with no axis is a service search cannot reach yet, not one
  * they withdrew. The row keeps everything else it held — the checklist, the
  * note and the turnaround belong to the service type and not to one of its
- * rows, which is what `docs/data-model.md` says of those columns and why the
+ * rows, which is what teachers-catalog's `docs/data-model.md` says of those columns and why the
  * screen writes a toggled option to every row of a service. A fresh blank row
  * here would answer «I do these five things, in three days, for 500» with
  * silence, because a chip was tapped off.

@@ -183,7 +183,7 @@ function detailOf(payload: unknown): string | undefined {
  *
  * Anonymous reads need no initData and get none. The join check is the one
  * call that carries it, in the body as supervisor's contract says, never in
- * the address. See docs/architecture.md, «Two backends, one origin».
+ * the address. See teachers-catalog's docs/architecture.md, «Two backends, one origin».
  */
 async function publicRequest<T>(
   path: string,
@@ -205,8 +205,8 @@ async function publicRequest<T>(
 //
 // Written by hand, and not by the generator: `openapi-ts.config.ts` declares
 // only the typescript plugin, so `lib/generated` holds types and no request
-// functions at all. Keep these in step with
-// apps/api/src/students_cz/api/v1/.
+// functions at all. Keep these in step with the catalog API,
+// apps/api/src/students_cz/api/v1/ in teachers-catalog.
 
 export const api = {
   /** The chat directory, supervisor's. Four fields per chat, in its order. */

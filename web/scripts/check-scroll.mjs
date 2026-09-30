@@ -1,7 +1,7 @@
 /*
  * Nothing should be scrollable to a stretch of nothing.
  *
- * The contract is in docs/architecture.md: the Mini App is a screen, not a
+ * The contract is in teachers-catalog's docs/architecture.md: the Mini App is a screen, not a
  * document. The bug this guards against is not "the page scrolls" — a list is
  * supposed to — it is travel that reveals nothing, which reads as a broken
  * screen and is invisible on a desktop window.
@@ -32,12 +32,12 @@
  * here is always the same number as the `100dvh` fallback. The iOS and Android
  * path that variable exists for is not exercised by anything on this machine.
  *
- * Needs the dev server (`make web`) and the API behind it, with a signed
- * `VITE_MOCK_INIT_DATA` in `apps/web/.env.local` — the API answers 401 to the
+ * Needs the dev server (`pnpm dev`) and the API behind it, with a signed
+ * `VITE_MOCK_INIT_DATA` in `web/.env.local` — the API answers 401 to the
  * unsigned mock, and a screen full of error states is not the screen being
  * measured. All three are checked before anything is measured.
  *
- * `make web` serves https through mkcert, which needs sudo once. Where it
+ * `pnpm dev` serves https through mkcert, which needs sudo once. Where it
  * cannot have it, run the server with VITE_NO_HTTPS=1 and pass
  * BASE=http://localhost:5173.
  */

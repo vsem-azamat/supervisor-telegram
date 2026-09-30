@@ -62,7 +62,7 @@ function writeSettled(queryId: string, outcome: Settled): void {
  *
  * Supervisor sends the button; this page proves the person pressing it is the
  * one who asked to join. After it passes it stays open and shows the way on.
- * See docs/architecture.md, «The join check answers one question».
+ * See teachers-catalog's docs/architecture.md, «The join check answers one question».
  */
 export default function JoinPage() {
   const [params] = useSearchParams();

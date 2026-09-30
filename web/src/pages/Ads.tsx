@@ -25,7 +25,7 @@ import { reachFigures } from '@/lib/reach';
  * Advertising, for a business that wants students to see it.
  *
  * A showcase and not a shop: two formats, how far they reach, and a person to
- * write to. Never a price. See docs/architecture.md, «The ads page is a
+ * write to. Never a price. See teachers-catalog's docs/architecture.md, «The ads page is a
  * showcase, not a shop».
  */
 export default function AdsPage() {

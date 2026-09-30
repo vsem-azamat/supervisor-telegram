@@ -1100,7 +1100,7 @@
   /* Opaque, not a gradient. The gradient reached full --bg only over the lower
      72% of the bar while its contents are centred over the whole height, so
      the top of every icon and the whole of the round button were painted onto
-     the cards sliding underneath. See docs/architecture.md and
+     the cards sliding underneath. See teachers-catalog's docs/architecture.md and
      scripts/check-tabbar.mjs, which photographs the bar with a list still and
      again with it moving and requires the same pixels. */
   background: var(--bg);

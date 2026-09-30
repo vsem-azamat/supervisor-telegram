@@ -10,8 +10,8 @@ dist-ssr/
 # NOT ignored: src/lib/generated/. The types are generated from the API's
 # OpenAPI document, and committing them is what lets a clone type-check with no
 # backend, and what puts a contract change in the diff where a reviewer can see
-# it. `make contract` regenerates and is what CI compares against; see
-# `openapi-ts.config.ts` for why it dumps the document instead of fetching it.
+# it. `pnpm api:generate` regenerates from catalog-openapi.json and is what CI
+# compares against; see `openapi-ts.config.ts`.
 
 # Catalogs compiled by `pnpm i18n:compile`. The build does not need them —
 # @lingui/vite-plugin compiles the .po files on import — so they are a local

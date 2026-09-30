@@ -1,25 +1,31 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from '@hey-api/openapi-ts';
 
 /**
- * Generates a typed client from the API's OpenAPI document.
+ * Generates a typed client from the catalog API's OpenAPI document.
  *
- * Run it through `make contract` from the repository root, which dumps the
- * document to a file first and then checks the result against what is
- * committed. Pointing this at a running API instead works, and writes that
- * server's address into the client as a literal `ClientOptions.baseUrl` — a
- * client that carries whichever machine generated it, and that the contract
- * check rejects. A file has no URL to bake in.
+ * The document is `catalog-openapi.json`, committed beside this file: the
+ * catalog API lives in another repository (teachers-catalog, where it is
+ * `apps/api/openapi.json`), and a committed copy is what makes this check
+ * deterministic. `.github/workflows/catalog-contract.yml` compares the copy
+ * with the catalog's own; when they differ, copy the new one over and run
+ * `pnpm api:generate`.
  *
- * Not wired into `pnpm build` on purpose: a build that fails because a backend
- * is not running is a bad build. Everything the generator has not covered yet
+ * An absolute path, and never a URL: given a URL, or a path the generator
+ * takes for one, it writes it into the client as a literal
+ * `ClientOptions.baseUrl`, and the client carries whichever machine made it.
+ *
+ * Not wired into `pnpm build`. Everything the generator has not covered yet
  * is hand-written in `src/lib/types.ts`.
  */
-const input = process.env.OPENAPI_URL;
-if (!input) {
-  // No default. Every value one could pick is a URL, and a URL is the thing
-  // that goes wrong here: the generator writes it into the client. `make
-  // contract` sets this to the file it dumped.
-  throw new Error('Set OPENAPI_URL, or run `make contract` from the repository root.');
+const input = fileURLToPath(new URL('./catalog-openapi.json', import.meta.url));
+
+// openapi-ts exits 0 without writing anything when its input is missing or
+// empty, and a generator that quietly did nothing leaves a stale client
+// looking identical to itself.
+if (!readFileSync(input, 'utf8').includes('"openapi"')) {
+  throw new Error(`${input} is not an OpenAPI document.`);
 }
 
 export default defineConfig({

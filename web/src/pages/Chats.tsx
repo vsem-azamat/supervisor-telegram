@@ -28,7 +28,7 @@ import { directory, initials, search, sectionHint } from '@/lib/chats';
 /**
  * The chat directory: supervisor-telegram's chats, read as places to go.
  *
- * How entries are built is in docs/architecture.md, «The chat directory
+ * How entries are built is in teachers-catalog's docs/architecture.md, «The chat directory
  * reads the order it is given», and in `lib/chats.ts`.
  */
 export default function ChatsPage() {
@@ -106,7 +106,7 @@ export default function ChatsPage() {
           <>
             {entries.length > 0 ? (
               // No heading: supervisor's groups are parent chats, not a
-              // category this screen could name. See docs/architecture.md.
+              // category this screen could name. See teachers-catalog's docs/architecture.md.
               <div style={{ marginTop: 18 }}>
                 <Rows>
                   {entries.map((entry, index) =>

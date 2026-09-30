@@ -1,7 +1,18 @@
-# Students CZ — Mini App
+# Mini App
 
-The Telegram Mini App front end for the student help catalog. Talks to the
-FastAPI service in [`apps/api`](../api).
+The Telegram Mini App: help with studies, the chat directory, the join check
+and the ads page. It talks to two APIs on its own origin, which
+[`docker/Caddyfile`](../docker/Caddyfile) routes in production and
+`vite.config.ts` routes in development:
+
+- `/api/v1/*` — the catalog API, in the teachers-catalog repository;
+- the rest of `/api/*` — this repository's webapi.
+
+The moderator console under `/admin` is still the Svelte app in
+[`webui`](../webui); the same image serves both builds.
+
+The product rules the code refers to as `teachers-catalog's docs/...` live in
+that repository.
 
 ## Stack
 
@@ -31,14 +42,9 @@ pnpm install
 pnpm dev
 ```
 
-The API is expected at `http://127.0.0.1:8010` — see the note in
-`vite.config.ts` about what holds 8000 — and `/api` and `/healthz` are
-proxied there, so calls from the browser stay same-origin. Start it separately,
-or with `make api` from the repository root:
-
-```sh
-cd ../api && uv run uvicorn students_cz.main:app --reload --port 8010
-```
+The catalog API is expected at `http://127.0.0.1:8010` (run it from a
+teachers-catalog checkout with `make api`), or wherever `CATALOG_ORIGIN`
+points; the webapi at `http://127.0.0.1:8787`. See `vite.config.ts`.
 
 ### HTTPS is not optional
 
@@ -123,7 +129,7 @@ close the app from the client's menu rather than just backing out of it.
 | `pnpm test`           | `tests/` on node's own runner; fails if it finds none  |
 | `pnpm i18n:extract`   | Scan source for new messages, update the `.po` files  |
 | `pnpm i18n:compile`   | Compile catalogs by hand (the build does not need it) |
-| `pnpm api:generate`   | Regenerate API types — via `make contract`, see below  |
+| `pnpm api:generate`   | Regenerate the catalog API's types, see below         |
 
 ## Layout
 
@@ -187,24 +193,18 @@ choice the user makes by hand is stored in `localStorage` and outranks it.
 
 ### API types
 
-`src/lib/generated/` holds types generated from the API's OpenAPI document, and
-it is **committed**. `src/lib/types.ts` still declares the rest of the wire by
-hand and must be kept in step with `apps/api/src/students_cz/schemas.py`; a type
-moves across as the screen using it is touched.
+`src/lib/generated/` holds types generated from the catalog API's OpenAPI
+document, and it is **committed**. `src/lib/types.ts` still declares the rest
+of the wire by hand and must be kept in step with the catalog's
+`apps/api/src/students_cz/schemas.py`; a type moves across as the screen using
+it is touched.
 
-To regenerate, run `make contract` from the repository root and commit what it
-writes. It needs no server: the document is dumped straight from the app. The
-same target is what CI runs, and it fails when the committed copy differs — so a
-schema changed without regenerating stops being something only the next runtime
-error tells you about.
+The document is `catalog-openapi.json`, a committed copy of the catalog's
+`apps/api/openapi.json`. `pnpm api:generate` reads it, and CI fails when
+regenerating changes the committed client. The `Catalog contract` workflow
+compares the copy with the catalog's own every day; when it fails, copy the
+new document over, regenerate, and fix what the new types break.
 
-Do not generate from a running API. Given a URL, the generator writes it into
-the client as a literal type — `ClientOptions.baseUrl: 'http://127.0.0.1:8010'`
-instead of the URL-independent form — so the result carries whichever machine
-produced it, and the contract check rejects it. Reading the document from a file
-has no URL to bake in, which is why `make contract` dumps it. There is no
-default input for that reason: `pnpm api:generate` on its own says so and stops.
-
-Generation is not wired into `pnpm build` on purpose — a build that fails
-because a backend is not running is a bad build. The directory is excluded from
-Biome, since the generator owns its formatting.
+Generation is not wired into `pnpm build`: the build uses the committed
+client. The directory is excluded from Biome, since the generator owns its
+formatting.

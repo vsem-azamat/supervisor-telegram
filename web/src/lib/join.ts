@@ -4,7 +4,7 @@
  * A person arrives from a join request to a moderated chat with a query id in
  * the address. Supervisor approves the request when it gets that id together
  * with the signed initData of the person it was issued to. See
- * docs/architecture.md, «The join check answers one question».
+ * teachers-catalog's docs/architecture.md, «The join check answers one question».
  */
 
 export type JoinState =
