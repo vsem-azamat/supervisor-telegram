@@ -104,7 +104,7 @@ async def test_revoke_current_session_400(client_factory, db_session_maker) -> N
         client.cookies.set(settings.webapi.session_cookie_name, "active-token")
         resp = await client.delete("/api/admin/sessions/active-token")
     assert resp.status_code == 400
-    assert "logout" in resp.json()["detail"].lower()
+    assert "cannot close itself" in resp.json()["detail"]
 
 
 async def test_revoke_session_404_when_unknown(client_factory) -> None:

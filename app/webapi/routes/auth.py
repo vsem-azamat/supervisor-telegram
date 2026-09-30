@@ -71,18 +71,6 @@ async def webapp_login(
     return AuthMeResponse(user_id=caller.user_id)
 
 
-@router.post("/logout", status_code=204)
-async def logout(
-    request: Request,
-    response: Response,
-    session: Annotated[AsyncSession, Depends(get_session)],
-) -> None:
-    token = request.cookies.get(settings.webapi.session_cookie_name)
-    if token:
-        await session_store.revoke_session(session, token)
-    response.delete_cookie(settings.webapi.session_cookie_name, path="/")
-
-
 @router.get("/me")
 async def me(user_id: Annotated[int, Depends(require_super_admin)]) -> AuthMeResponse:
     return AuthMeResponse(user_id=user_id)

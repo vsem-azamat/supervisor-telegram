@@ -137,12 +137,7 @@ class ChatUpdate(BaseModel):
 
 
 class ChatNode(BaseModel):
-    """Recursive node for the /chats/graph tree response.
-
-    member_count is intentionally NOT enriched here — the tree endpoint
-    skips member counts, which the tile does not show. Drill into /chats/:id
-    for live counts.
-    """
+    """A chat listed under its parent on the chat's own screen."""
 
     id: int
     title: str | None

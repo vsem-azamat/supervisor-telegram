@@ -1,4 +1,4 @@
-"""`POST /api/chats/{id}/refresh` and `GET /api/chats/{id}/avatar`.
+"""`POST /api/chats/{id}/refresh`.
 
 Refresh asks Telegram for a chat's title, photo and member count, all over the
 Bot API. The title used to come through Telethon, which this process has never
@@ -152,33 +152,4 @@ async def test_refresh_returns_404_for_unknown_chat(client_factory) -> None:
     make, _bot_holder = client_factory
     async with make() as client:
         resp = await client.post("/api/chats/-9999/refresh")
-    assert resp.status_code == 404
-
-
-async def test_avatar_proxies_bytes(client_factory, db_session_maker) -> None:
-    make, _bot_holder = client_factory
-    async with db_session_maker() as s:
-        chat = Chat(id=-7004, title="C")
-        chat.photo_file_id = "photo-file-id-1"
-        s.add(chat)
-        await s.commit()
-
-    async with make() as client:
-        resp = await client.get("/api/chats/-7004/avatar")
-
-    assert resp.status_code == 200
-    assert resp.headers["content-type"] == "image/jpeg"
-    assert resp.headers["cache-control"] == "public, max-age=3600"
-    assert resp.content.startswith(b"\xff\xd8\xff\xe0")  # JPEG SOI marker
-
-
-async def test_avatar_returns_404_when_no_cache(client_factory, db_session_maker) -> None:
-    make, _bot_holder = client_factory
-    async with db_session_maker() as s:
-        s.add(Chat(id=-7005, title="D"))
-        await s.commit()
-
-    async with make() as client:
-        resp = await client.get("/api/chats/-7005/avatar")
-
     assert resp.status_code == 404

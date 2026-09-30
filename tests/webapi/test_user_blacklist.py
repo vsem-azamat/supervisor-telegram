@@ -98,25 +98,6 @@ async def test_unblock_404_when_user_unknown(client_factory) -> None:
     assert resp.status_code == 404
 
 
-async def test_get_status_returns_blocked_flag(client_factory, db_session_maker) -> None:
-    make, _bot = client_factory
-    async with db_session_maker() as s:
-        s.add(User(id=44, username="carol", blocked=True))
-        await s.commit()
-
-    async with make() as client:
-        resp = await client.get("/api/users/44")
-    assert resp.status_code == 200
-    assert resp.json()["blocked"] is True
-
-
-async def test_get_status_404_when_unknown(client_factory) -> None:
-    make, _bot = client_factory
-    async with make() as client:
-        resp = await client.get("/api/users/99999")
-    assert resp.status_code == 404
-
-
 @pytest.mark.parametrize("user_id", [1, 2])
 async def test_a_super_admin_cannot_be_banned(client_factory, db_session_maker, user_id: int) -> None:
     """Not themselves, and not each other.
