@@ -97,20 +97,19 @@ The catalog lived in the `teachers-catalog` repository until 30 September
 2026, and its history is there; it is `catalog/` in `supervisor-telegram` now,
 beside the bot, the webapi and the Mini App.
 
-## The app lives elsewhere
+## One origin, two APIs
 
-The Mini App is `web/` in this repository, served at `APP_URL`
-(konnekt.azamat.io) beside the moderator console. It reads from two APIs.
-`/api/v1/*` is this repository's; `/api/public/*` is supervisor's: the chat
-directory (`catalog`), the advertising reach (`reach`) and the join check
-(`join-check`). Telegram lets a Mini App call only its own origin, so the
-router in front of the app proxies `/api/v1/*` and `/healthz` here. For the
-browser it is one host.
+The Mini App is `web/`, served at `APP_URL` (konnekt.azamat.io) beside the
+moderator console. It reads from two APIs. `/api/v1/*` is the catalog's;
+`/api/public/*` is the webapi's: the chat directory (`catalog`), the
+advertising reach (`reach`) and the join check (`join-check`). Telegram lets a
+Mini App call only its own origin, so the router in front of the app
+(`docker/Caddyfile`) sends `/api/v1/*` and `/healthz` to the catalog inside
+the stack. For the browser it is one host.
 
-This host serves the API and nothing else. Every other path answers 301 to
-the same path under `APP_URL`, so a link shared before the move, or a client
-that cached the old menu URL, lands on the app. The bot's buttons open
-`APP_URL` too.
+The catalog has no host of its own. Its old one, `tutors.azamat.io`, answers
+301 to the same path under `APP_URL`, so a link shared before the move lands
+on the app. The bot's buttons open `APP_URL` too.
 
 The rules below about the app's screens, and «The web shell scrolls in exactly
 one place», govern that `web/` directory. They stay here because the product
@@ -126,7 +125,7 @@ longer exists shows as gone. The app checks what arrives: an item without a
 title or a `t.me` link is dropped, and an activity it does not know counts as
 `unknown`.
 
-Every `/api/v1/*` request reaches this API from the app's host, not from the
+Every `/api/v1/*` request reaches the catalog from the router, not from the
 user's address. Nothing here limits per client today. A per-IP rate limit, or
 a Cloudflare rate rule in front of this host, would throttle every Mini App
 user as one client.

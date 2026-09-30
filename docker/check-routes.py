@@ -8,7 +8,7 @@ in CI would notice. The same goes for a route that falls back to the page
 where it must not, or the other way round, and for a cookie leaving for the
 catalog.
 
-Usage: caddy adapt ... | python3 docker/check-routes.py <catalog host>
+Usage: caddy adapt ... | python3 docker/check-routes.py
 """
 
 import fnmatch
@@ -17,6 +17,7 @@ import re
 import sys
 
 WEBAPI = "webapi:8787"
+CATALOG = "catalog-api:8000"
 APP = "/srv/app"
 
 
@@ -26,12 +27,12 @@ APP = "/srv/app"
 FALLS_BACK = {"/", "/chats", "/join", "/console", "/console/chats/-100123", "/administrator"}
 
 
-def expectations(catalog: str) -> dict[str, str]:
+def expectations() -> dict[str, str]:
     """Sample path → where it must end up: a proxy dial or a file root."""
     return {
         # The catalog's API: the help screens, profiles, requests.
-        "/api/v1/me": f"{catalog}:443",
-        "/healthz": f"{catalog}:443",
+        "/api/v1/me": CATALOG,
+        "/healthz": CATALOG,
         # Everything else under /api is this repository's webapi.
         "/api/public/catalog": WEBAPI,
         "/api/auth/telegram": WEBAPI,
@@ -139,25 +140,21 @@ def problems(route: dict, path: str, expected: str) -> list[str]:
     if where != expected:
         return [f"goes to {where or 'nothing'}, not {expected}"]
     out = []
-    if expected.endswith(":443"):
-        # The one upstream outside this stack: across the internet, and not
-        # ours to hand the console's session to.
-        if "tls" not in proxy.get("transport", {}):
-            out.append("is proxied without TLS")
-        if not cookie_free(proxy):
-            out.append("is proxied with cookies")
+    if expected == CATALOG and not cookie_free(proxy):
+        # The console's session is valid on this whole origin, and the
+        # catalog authenticates by initData alone: not its to receive.
+        out.append("is proxied with cookies")
     if not proxy and falls_back(route) != (path in FALLS_BACK):
         out.append("falls back to the page" if falls_back(route) else "does not fall back to the page")
     return out
 
 
 def main() -> int:
-    catalog = sys.argv[1]
     # `handle` blocks share a group and exactly one of them runs: the first
     # whose matcher fits. Routes outside a group (encode) pass through.
     terminal = [r for r in routes(json.load(sys.stdin)) if "group" in r]
     failed = False
-    for path, expected in expectations(catalog).items():
+    for path, expected in expectations().items():
         chosen = next((r for r in terminal if matches(r, path)), None)
         found = problems(chosen, path, expected) if chosen else ["is handled by nothing"]
         for problem in found:

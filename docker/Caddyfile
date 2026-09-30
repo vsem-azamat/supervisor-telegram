@@ -1,20 +1,15 @@
 :80 {
 	encode zstd gzip
 
-	# The catalog's API, for the Mini App's help screens: tutors, profiles,
-	# requests. Same origin for the app, a different backend: Telegram only
-	# allows Mini App API calls to the app's own origin. First, so the /api/*
-	# block below never sees it. The Host header is Caddy's default for an
-	# https upstream; it is written out because the upstream's edge routes on
-	# it and this must not depend on a default.
+	# The catalog's API (catalog/), for the Mini App's help screens: tutors,
+	# profiles, requests. First, so the /api/* block below never sees it.
 	#
 	# Cookies stop here, both ways. The console's session cookie is valid on
 	# this whole origin, and the catalog authenticates by initData alone: it
 	# has no use for an admin session, and no business setting cookies on it.
 	@catalog path /api/v1/* /healthz
 	handle @catalog {
-		reverse_proxy {$CATALOG_ORIGIN} {
-			header_up Host {upstream_hostport}
+		reverse_proxy catalog-api:8000 {
 			header_up -Cookie
 			header_down -Set-Cookie
 		}

@@ -18,6 +18,7 @@ recover.
 | `DB_PASSWORD` | PostgreSQL password. The database runs beside this stack rather than in it, so this is the password that database already has — see [The Database](database.md). |
 | `MODERATOR_BOT_TOKEN` | Bot token from BotFather |
 | `MCP_TOKEN` | Bearer token for the control plane |
+| `CATALOG_DB_PASSWORD` | The catalog database's password: the one its data directory was created with (teachers-catalog's `POSTGRES_PASSWORD`). Changing it here does not change it there — see catalog/docs/deploy.md. |
 | `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY` | Deploy target and key |
 
 `MCP_TOKEN` is the entire protection on a plane that can mute, unmute, unban and
@@ -39,8 +40,10 @@ repository access, so nothing sensitive goes here.
 | --- | --- |
 | `ADMIN_SUPER_ADMINS` | Comma-separated Telegram IDs |
 | `ADMIN_REPORT_CHAT_ID` | Defaults to the first super admin |
-| `WEBAPI_PUBLIC_URL` | Also becomes the allowed CORS origin |
-| `CATALOG_ORIGIN` | Required. The catalog API's https origin (`teachers-catalog`); webui's Caddy proxies the Mini App's `/api/v1/*` and `/healthz` there |
+| `WEBAPI_PUBLIC_URL` | Required. The allowed CORS origin, and where the catalog's buttons and notifications open the app |
+| `CATALOG_DB_USER`, `CATALOG_DB_NAME` | Required. The catalog database's role and name, as its data directory has them |
+| `CATALOG_OWNER_TG_ID` | Optional. Who the catalog tells about a first profile or request; should be one of `ADMIN_SUPER_ADMINS` so the ping's console button opens |
+| `CATALOG_ADS_CONTACT` | Optional. The Telegram username the ads page offers |
 
 ## Features switch themselves on
 

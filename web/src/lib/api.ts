@@ -188,7 +188,7 @@ function detailOf(payload: unknown): string | undefined {
  *
  * Anonymous reads need no initData and get none. The join check is the one
  * call that carries it, in the body as supervisor's contract says, never in
- * the address. See catalog/docs/architecture.md, «Two backends, one origin».
+ * the address. See catalog/docs/architecture.md, «One origin, two APIs».
  */
 async function publicRequest<T>(
   path: string,
