@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from aiogram.enums import ChatMemberStatus
-from aiogram.types import ChatMemberBanned, ChatMemberMember, TelegramObject
+from aiogram.types import ChatMemberBanned, ChatMemberMember, Message, TelegramObject
 from app.presentation.telegram.middlewares import black_list
 from app.presentation.telegram.middlewares.black_list import BlacklistMiddleware
 
@@ -370,3 +370,53 @@ class TestBlacklistMiddlewareEdgeCases:
 
         with pytest.raises(ValueError, match="Handler failed"):
             await blacklist_middleware(failing_handler, message, data)
+
+
+@pytest.mark.middleware
+@pytest.mark.parametrize("arrival", ["message", "join"])
+async def test_an_unban_the_cache_missed_holds_before_it_expires(arrival: str) -> None:
+    """The console unbans from the webapi process, whose cache reset cannot reach
+    this one. A cached id is confirmed against the row before anybody is banned
+    again, so the person let back in is not thrown out on arrival.
+    """
+    black_list._blacklist_cache = None
+    factory = TelegramObjectFactory()
+    repo = AsyncMock()
+    returned = create_normal_user(id=999, username="returned")
+    cached = AsyncMock()
+    cached.id = returned.id
+    repo.get_blocked_users.return_value = [cached]
+    bot = MockBot()
+    bot.mock.ban_chat_member = AsyncMock()
+    handler = MockHandler()
+    middleware = BlacklistMiddleware()
+    data = {"user_repo": repo, "bot": bot.mock}
+
+    def arrive() -> TelegramObject:
+        if arrival == "join":
+            return factory.create_chat_member_updated(chat=create_test_chat(), user=returned)
+        return factory.create_message(user=returned, chat=create_test_chat())
+
+    # The first arrival fills the cache while the person is still banned.
+    blocked_row = AsyncMock()
+    blocked_row.blocked = True
+    repo.get_by_id.return_value = blocked_row
+    first = arrive()
+    if isinstance(first, Message):
+        with patch.object(first, "delete", new=AsyncMock()):
+            await middleware(handler, first, data)
+    else:
+        await middleware(handler, first, data)
+    bot.mock.ban_chat_member.assert_awaited_once()
+    bot.mock.ban_chat_member.reset_mock()
+
+    # Unbanned elsewhere: the row says so, the cache does not.
+    unblocked_row = AsyncMock()
+    unblocked_row.blocked = False
+    repo.get_by_id.return_value = unblocked_row
+    await middleware(handler, arrive(), data)
+
+    assert handler.called is True
+    bot.mock.ban_chat_member.assert_not_called()
+    # Dropped, so the next arrival reloads the list rather than asking again.
+    assert black_list._blacklist_cache is None

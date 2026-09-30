@@ -28,6 +28,22 @@ def invalidate_blacklist_cache() -> None:
     _blacklist_cache = None
 
 
+async def _still_blocked(user_repo: "UserRepository", user_id: int) -> bool:
+    """Confirm a cached id against its row before acting on it.
+
+    The console unbans from the webapi process, whose reset of this cache cannot
+    reach the bot, and the MCP unblacklist tool does not reset it either. Without
+    the check a person let back in would be banned again on their first message
+    until the cache expired. Only ids already in the
+    cache pay for the query, and those are few.
+    """
+    user = await user_repo.get_by_id(user_id)
+    if user is not None and user.blocked:
+        return True
+    invalidate_blacklist_cache()
+    return False
+
+
 class BlacklistMiddleware(BaseMiddleware):
     def __init__(self) -> None:
         super().__init__()
@@ -52,6 +68,8 @@ class BlacklistMiddleware(BaseMiddleware):
             _blacklist_cache = (blacklisted_ids, now + _CACHE_TTL)
 
         if isinstance(event, types.Message) and event.from_user and event.from_user.id in blacklisted_ids:
+            if not await _still_blocked(user_repo, event.from_user.id):
+                return await handler(event, data)
             try:
                 await bot.ban_chat_member(event.chat.id, event.from_user.id)
                 await event.delete()
@@ -61,7 +79,11 @@ class BlacklistMiddleware(BaseMiddleware):
 
         if isinstance(event, types.ChatMemberUpdated):
             joining = event.new_chat_member.user
-            if event.new_chat_member.status in _PRESENT_STATUSES and joining.id in blacklisted_ids:
+            if (
+                event.new_chat_member.status in _PRESENT_STATUSES
+                and joining.id in blacklisted_ids
+                and await _still_blocked(user_repo, joining.id)
+            ):
                 try:
                     await bot.ban_chat_member(event.chat.id, joining.id)
                 except Exception as e:

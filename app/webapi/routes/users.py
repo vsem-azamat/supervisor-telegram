@@ -14,8 +14,10 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.enums import ModerationEventAction, ModerationEventSource
 from app.core.exceptions import ProtectedUserError, UserNotFoundException
 from app.db.models import User
+from app.moderation import audit
 from app.moderation.blacklist import add_to_blacklist, remove_from_blacklist
 from app.webapi.deps import get_publish_bot, get_session, require_super_admin
 from app.webapi.schemas import BlockedUserRead, UserBlockRequest, UserBlockResponse
@@ -52,12 +54,19 @@ async def block_user(
     payload: UserBlockRequest,
     session: Annotated[AsyncSession, Depends(get_session)],
     bot: Annotated[Bot, Depends(get_publish_bot)],
-    _admin_id: Annotated[int, Depends(require_super_admin)],
+    admin_id: Annotated[int, Depends(require_super_admin)],
 ) -> UserBlockResponse:
     try:
         await add_to_blacklist(session, bot, user_id, revoke_messages=payload.revoke_messages or None)
     except ProtectedUserError as err:
         raise HTTPException(status_code=400, detail="A super admin cannot be banned") from err
+    await audit.record(
+        session,
+        action=ModerationEventAction.BLACKLIST,
+        source=ModerationEventSource.CONSOLE,
+        actor_id=admin_id,
+        target_user_id=user_id,
+    )
     return UserBlockResponse(
         user_id=user_id,
         blocked=True,
@@ -70,12 +79,19 @@ async def unblock_user(
     user_id: int,
     session: Annotated[AsyncSession, Depends(get_session)],
     bot: Annotated[Bot, Depends(get_publish_bot)],
-    _admin_id: Annotated[int, Depends(require_super_admin)],
+    admin_id: Annotated[int, Depends(require_super_admin)],
 ) -> UserBlockResponse:
     try:
         await remove_from_blacklist(session, bot, user_id)
     except UserNotFoundException as err:
         raise HTTPException(status_code=404, detail=f"User {user_id} not in DB") from err
+    await audit.record(
+        session,
+        action=ModerationEventAction.UNBLACKLIST,
+        source=ModerationEventSource.CONSOLE,
+        actor_id=admin_id,
+        target_user_id=user_id,
+    )
     return UserBlockResponse(user_id=user_id, blocked=False, message="User unblocked.")
 
 
