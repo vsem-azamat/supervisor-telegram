@@ -1,4 +1,4 @@
-"""A chat names its university in teachers-catalog's taxonomy.
+"""A chat names its university in the catalog's taxonomy.
 
 Nullable and unset for every existing chat: the console sets it on the chats
 at the top, and the ones under them carry it through their parent.

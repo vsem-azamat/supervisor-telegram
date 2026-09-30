@@ -28,7 +28,7 @@ import type { AdminPlacement, PlacementSlot } from '@/lib/generated/types.gen';
 /**
  * Partner placements and how they did over the last month; a new one, and
  * a tap on one to switch it off or on. Nothing is deleted, so a stopped card
- * keeps its numbers. See teachers-catalog's docs/architecture.md.
+ * keeps its numbers. See catalog/docs/architecture.md.
  */
 export default function ConsolePartnersPage() {
   return (

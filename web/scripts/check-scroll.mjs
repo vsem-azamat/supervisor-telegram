@@ -1,7 +1,7 @@
 /*
  * Nothing should be scrollable to a stretch of nothing.
  *
- * The contract is in teachers-catalog's docs/architecture.md: the Mini App is a screen, not a
+ * The contract is in catalog/docs/architecture.md: the Mini App is a screen, not a
  * document. The bug this guards against is not "the page scrolls" — a list is
  * supposed to — it is travel that reveals nothing, which reads as a broken
  * screen and is invisible on a desktop window.

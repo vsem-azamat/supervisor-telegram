@@ -91,6 +91,14 @@ pnpm --dir web lint && pnpm --dir web typecheck && pnpm --dir web test
 against that baseline rather than expecting zero, and do not let your change
 raise it.
 
+`catalog/` is a separate Python project with its own lockfile, database and
+rules: its product and data rules are `catalog/docs/`, and its checks run from
+inside it, where `ty` stands at zero.
+
+```bash
+cd catalog && make lint && make test && make contract   # test needs `make db-up`
+```
+
 ## Working Style
 
 - Inspect the checkout before proposing or editing.

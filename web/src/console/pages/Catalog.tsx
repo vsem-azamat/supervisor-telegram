@@ -23,7 +23,7 @@ import { hapticSelection } from '@/hooks/useTelegram';
 /**
  * The catalog as the operator reads it: new profiles, requests nobody
  * answered, and what people searched for and did not find. Reads only.
- * See teachers-catalog's docs/architecture.md, «The operator reads, and only reads».
+ * See catalog/docs/architecture.md, «The operator reads the catalog and runs the partner cards».
  */
 export default function ConsoleCatalogPage() {
   return (

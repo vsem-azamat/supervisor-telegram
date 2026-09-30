@@ -11,7 +11,7 @@ import { Action, Actions } from './Ui';
  *
  * The address is `ADS_CONTACT` on the server. Unset, there is no button: a
  * page that invites a business to write to nobody is worse than one that
- * does not invite it. See teachers-catalog's docs/architecture.md.
+ * does not invite it. See catalog/docs/architecture.md.
  */
 export function AdsContact() {
   const { data } = useQuery({

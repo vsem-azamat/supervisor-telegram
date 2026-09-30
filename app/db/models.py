@@ -117,7 +117,7 @@ class Chat(Base):
     # to have been on a public page for a month. A chat is in the catalogue when
     # it is approved and this is set; taking it down means clearing it.
     public_link: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    # The university in teachers-catalog's taxonomy, by its code ("cvut"), so
+    # The university in the catalog's taxonomy, by its code ("cvut"), so
     # the app can put a student's own university first. Set on the chat at the
     # top; the chats under it carry it through their parent.
     institution_code: Mapped[str | None] = mapped_column(String(32), nullable=True)

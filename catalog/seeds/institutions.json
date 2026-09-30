@@ -1,0 +1,2348 @@
+{
+  "institutions": [
+    {
+      "code": "cvut",
+      "kind": "university",
+      "city": "Praha",
+      "site_url": "https://www.cvut.cz",
+      "names": {
+        "cs": "České vysoké učení technické v Praze",
+        "en": "Czech Technical University in Prague",
+        "ru": "Чешский технический университет в Праге",
+        "uk": "Чеський технічний університет у Празі"
+      },
+      "short_names": {
+        "cs": "ČVUT",
+        "en": "CTU",
+        "ru": "ČVUT",
+        "uk": "ČVUT"
+      },
+      "faculties": [
+        {
+          "code": "cvut_fsv",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Fakulta stavební",
+            "en": "Faculty of Civil Engineering",
+            "ru": "Строительный факультет",
+            "uk": "Будівельний факультет"
+          },
+          "short_names": {
+            "cs": "FSv",
+            "en": "FSv",
+            "ru": "FSv",
+            "uk": "FSv"
+          }
+        },
+        {
+          "code": "cvut_fs",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Fakulta strojní",
+            "en": "Faculty of Mechanical Engineering",
+            "ru": "Машиностроительный факультет",
+            "uk": "Машинобудівний факультет"
+          },
+          "short_names": {
+            "cs": "FS",
+            "en": "FS",
+            "ru": "FS",
+            "uk": "FS"
+          }
+        },
+        {
+          "code": "cvut_fel",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Fakulta elektrotechnická",
+            "en": "Faculty of Electrical Engineering",
+            "ru": "Электротехнический факультет",
+            "uk": "Електротехнічний факультет"
+          },
+          "short_names": {
+            "cs": "FEL",
+            "en": "FEL",
+            "ru": "FEL",
+            "uk": "FEL"
+          }
+        },
+        {
+          "code": "cvut_fjfi",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Fakulta jaderná a fyzikálně inženýrská",
+            "en": "Faculty of Nuclear Sciences and Physical Engineering",
+            "ru": "Факультет ядерных наук и физической инженерии",
+            "uk": "Факультет ядерних наук та фізичної інженерії"
+          },
+          "short_names": {
+            "cs": "FJFI",
+            "en": "FJFI",
+            "ru": "FJFI",
+            "uk": "FJFI"
+          }
+        },
+        {
+          "code": "cvut_fa",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Fakulta architektury",
+            "en": "Faculty of Architecture",
+            "ru": "Факультет архитектуры",
+            "uk": "Факультет архітектури"
+          },
+          "short_names": {
+            "cs": "FA",
+            "en": "FA",
+            "ru": "FA",
+            "uk": "FA"
+          }
+        },
+        {
+          "code": "cvut_fd",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Fakulta dopravní",
+            "en": "Faculty of Transportation Sciences",
+            "ru": "Транспортный факультет",
+            "uk": "Транспортний факультет"
+          },
+          "short_names": {
+            "cs": "FD",
+            "en": "FD",
+            "ru": "FD",
+            "uk": "FD"
+          }
+        },
+        {
+          "code": "cvut_fbmi",
+          "kind": "faculty",
+          "city": "Kladno",
+          "names": {
+            "cs": "Fakulta biomedicínského inženýrství",
+            "en": "Faculty of Biomedical Engineering",
+            "ru": "Факультет биомедицинской инженерии",
+            "uk": "Факультет біомедичної інженерії"
+          },
+          "short_names": {
+            "cs": "FBMI",
+            "en": "FBMI",
+            "ru": "FBMI",
+            "uk": "FBMI"
+          }
+        },
+        {
+          "code": "cvut_fit",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Fakulta informačních technologií",
+            "en": "Faculty of Information Technology",
+            "ru": "Факультет информационных технологий",
+            "uk": "Факультет інформаційних технологій"
+          },
+          "short_names": {
+            "cs": "FIT",
+            "en": "FIT",
+            "ru": "FIT",
+            "uk": "FIT"
+          }
+        }
+      ]
+    },
+    {
+      "code": "vse",
+      "kind": "university",
+      "city": "Praha",
+      "site_url": "https://www.vse.cz",
+      "names": {
+        "cs": "Vysoká škola ekonomická v Praze",
+        "en": "Prague University of Economics and Business",
+        "ru": "Высшая школа экономики в Праге",
+        "uk": "Вища школа економіки у Празі"
+      },
+      "short_names": {
+        "cs": "VŠE",
+        "en": "VŠE",
+        "ru": "VŠE",
+        "uk": "VŠE"
+      },
+      "faculties": [
+        {
+          "code": "vse_ffu",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Fakulta financí a účetnictví",
+            "en": "Faculty of Finance and Accounting",
+            "ru": "Факультет финансов и учёта",
+            "uk": "Факультет фінансів та обліку"
+          },
+          "short_names": {
+            "cs": "FFÚ",
+            "en": "FFÚ",
+            "ru": "FFÚ",
+            "uk": "FFÚ"
+          }
+        },
+        {
+          "code": "vse_fmv",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Fakulta mezinárodních vztahů",
+            "en": "Faculty of International Relations",
+            "ru": "Факультет международных отношений",
+            "uk": "Факультет міжнародних відносин"
+          },
+          "short_names": {
+            "cs": "FMV",
+            "en": "FMV",
+            "ru": "FMV",
+            "uk": "FMV"
+          }
+        },
+        {
+          "code": "vse_fph",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Fakulta podnikohospodářská",
+            "en": "Faculty of Business Administration",
+            "ru": "Факультет бизнес-администрирования",
+            "uk": "Факультет бізнес-адміністрування"
+          },
+          "short_names": {
+            "cs": "FPH",
+            "en": "FPH",
+            "ru": "FPH",
+            "uk": "FPH"
+          }
+        },
+        {
+          "code": "vse_fis",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Fakulta informatiky a statistiky",
+            "en": "Faculty of Informatics and Statistics",
+            "ru": "Факультет информатики и статистики",
+            "uk": "Факультет інформатики та статистики"
+          },
+          "short_names": {
+            "cs": "FIS",
+            "en": "FIS",
+            "ru": "FIS",
+            "uk": "FIS"
+          }
+        },
+        {
+          "code": "vse_nf",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Národohospodářská fakulta",
+            "en": "Faculty of Economics",
+            "ru": "Народнохозяйственный факультет",
+            "uk": "Народногосподарський факультет"
+          },
+          "short_names": {
+            "cs": "NF",
+            "en": "NF",
+            "ru": "NF",
+            "uk": "NF"
+          }
+        },
+        {
+          "code": "vse_fm",
+          "kind": "faculty",
+          "city": "Jindřichův Hradec",
+          "names": {
+            "cs": "Fakulta managementu",
+            "en": "Faculty of Management",
+            "ru": "Факультет менеджмента",
+            "uk": "Факультет менеджменту"
+          },
+          "short_names": {
+            "cs": "FM",
+            "en": "FM",
+            "ru": "FM",
+            "uk": "FM"
+          }
+        }
+      ]
+    },
+    {
+      "code": "uk",
+      "kind": "university",
+      "city": "Praha",
+      "site_url": "https://cuni.cz",
+      "names": {
+        "cs": "Univerzita Karlova",
+        "en": "Charles University",
+        "ru": "Карлов университет",
+        "uk": "Карлів університет"
+      },
+      "short_names": {
+        "cs": "UK",
+        "en": "CU",
+        "ru": "UK",
+        "uk": "UK"
+      },
+      "faculties": [
+        {
+          "code": "uk_ktf",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Katolická teologická fakulta",
+            "en": "Catholic Theological Faculty",
+            "ru": "Католический богословский факультет",
+            "uk": "Католицький богословський факультет"
+          },
+          "short_names": {
+            "cs": "KTF",
+            "en": "KTF",
+            "ru": "KTF",
+            "uk": "KTF"
+          }
+        },
+        {
+          "code": "uk_etf",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Evangelická teologická fakulta",
+            "en": "Protestant Theological Faculty",
+            "ru": "Евангелический богословский факультет",
+            "uk": "Євангельський богословський факультет"
+          },
+          "short_names": {
+            "cs": "ETF",
+            "en": "ETF",
+            "ru": "ETF",
+            "uk": "ETF"
+          }
+        },
+        {
+          "code": "uk_htf",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Husitská teologická fakulta",
+            "en": "Hussite Theological Faculty",
+            "ru": "Гуситский богословский факультет",
+            "uk": "Гуситський богословський факультет"
+          },
+          "short_names": {
+            "cs": "HTF",
+            "en": "HTF",
+            "ru": "HTF",
+            "uk": "HTF"
+          }
+        },
+        {
+          "code": "uk_pf",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Právnická fakulta",
+            "en": "Faculty of Law",
+            "ru": "Юридический факультет",
+            "uk": "Юридичний факультет"
+          },
+          "short_names": {
+            "cs": "PF",
+            "en": "PF",
+            "ru": "PF",
+            "uk": "PF"
+          }
+        },
+        {
+          "code": "uk_1lf",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "1. lékařská fakulta",
+            "en": "First Faculty of Medicine",
+            "ru": "Первый медицинский факультет",
+            "uk": "Перший медичний факультет"
+          },
+          "short_names": {
+            "cs": "1. LF",
+            "en": "1. LF",
+            "ru": "1. LF",
+            "uk": "1. LF"
+          }
+        },
+        {
+          "code": "uk_2lf",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "2. lékařská fakulta",
+            "en": "Second Faculty of Medicine",
+            "ru": "Второй медицинский факультет",
+            "uk": "Другий медичний факультет"
+          },
+          "short_names": {
+            "cs": "2. LF",
+            "en": "2. LF",
+            "ru": "2. LF",
+            "uk": "2. LF"
+          }
+        },
+        {
+          "code": "uk_3lf",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "3. lékařská fakulta",
+            "en": "Third Faculty of Medicine",
+            "ru": "Третий медицинский факультет",
+            "uk": "Третій медичний факультет"
+          },
+          "short_names": {
+            "cs": "3. LF",
+            "en": "3. LF",
+            "ru": "3. LF",
+            "uk": "3. LF"
+          }
+        },
+        {
+          "code": "uk_lfp",
+          "kind": "faculty",
+          "city": "Plzeň",
+          "names": {
+            "cs": "Lékařská fakulta v Plzni",
+            "en": "Faculty of Medicine in Pilsen",
+            "ru": "Медицинский факультет в Пльзене",
+            "uk": "Медичний факультет у Пльзені"
+          },
+          "short_names": {
+            "cs": "LFP",
+            "en": "LFP",
+            "ru": "LFP",
+            "uk": "LFP"
+          }
+        },
+        {
+          "code": "uk_lfhk",
+          "kind": "faculty",
+          "city": "Hradec Králové",
+          "names": {
+            "cs": "Lékařská fakulta v Hradci Králové",
+            "en": "Faculty of Medicine in Hradec Králové",
+            "ru": "Медицинский факультет в Градец-Кралове",
+            "uk": "Медичний факультет у Градець-Кралове"
+          },
+          "short_names": {
+            "cs": "LF HK",
+            "en": "LF HK",
+            "ru": "LF HK",
+            "uk": "LF HK"
+          }
+        },
+        {
+          "code": "uk_faf",
+          "kind": "faculty",
+          "city": "Hradec Králové",
+          "names": {
+            "cs": "Farmaceutická fakulta v Hradci Králové",
+            "en": "Faculty of Pharmacy in Hradec Králové",
+            "ru": "Фармацевтический факультет в Градец-Кралове",
+            "uk": "Фармацевтичний факультет у Градець-Кралове"
+          },
+          "short_names": {
+            "cs": "FaF",
+            "en": "FaF",
+            "ru": "FaF",
+            "uk": "FaF"
+          }
+        },
+        {
+          "code": "uk_ff",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Filozofická fakulta",
+            "en": "Faculty of Arts",
+            "ru": "Философский факультет",
+            "uk": "Філософський факультет"
+          },
+          "short_names": {
+            "cs": "FF",
+            "en": "FF",
+            "ru": "FF",
+            "uk": "FF"
+          }
+        },
+        {
+          "code": "uk_prf",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Přírodovědecká fakulta",
+            "en": "Faculty of Science",
+            "ru": "Естественнонаучный факультет",
+            "uk": "Природничий факультет"
+          },
+          "short_names": {
+            "cs": "PřF",
+            "en": "PřF",
+            "ru": "PřF",
+            "uk": "PřF"
+          }
+        },
+        {
+          "code": "uk_mff",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Matematicko-fyzikální fakulta",
+            "en": "Faculty of Mathematics and Physics",
+            "ru": "Математико-физический факультет",
+            "uk": "Математико-фізичний факультет"
+          },
+          "short_names": {
+            "cs": "MFF",
+            "en": "MFF",
+            "ru": "MFF",
+            "uk": "MFF"
+          }
+        },
+        {
+          "code": "uk_pedf",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Pedagogická fakulta",
+            "en": "Faculty of Education",
+            "ru": "Педагогический факультет",
+            "uk": "Педагогічний факультет"
+          },
+          "short_names": {
+            "cs": "PedF",
+            "en": "PedF",
+            "ru": "PedF",
+            "uk": "PedF"
+          }
+        },
+        {
+          "code": "uk_fsv",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Fakulta sociálních věd",
+            "en": "Faculty of Social Sciences",
+            "ru": "Факультет социальных наук",
+            "uk": "Факультет соціальних наук"
+          },
+          "short_names": {
+            "cs": "FSV",
+            "en": "FSV",
+            "ru": "FSV",
+            "uk": "FSV"
+          }
+        },
+        {
+          "code": "uk_ftvs",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Fakulta tělesné výchovy a sportu",
+            "en": "Faculty of Physical Education and Sport",
+            "ru": "Факультет физического воспитания и спорта",
+            "uk": "Факультет фізичного виховання та спорту"
+          },
+          "short_names": {
+            "cs": "FTVS",
+            "en": "FTVS",
+            "ru": "FTVS",
+            "uk": "FTVS"
+          }
+        },
+        {
+          "code": "uk_fhs",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Fakulta humanitních studií",
+            "en": "Faculty of Humanities",
+            "ru": "Факультет гуманитарных исследований",
+            "uk": "Факультет гуманітарних студій"
+          },
+          "short_names": {
+            "cs": "FHS",
+            "en": "FHS",
+            "ru": "FHS",
+            "uk": "FHS"
+          }
+        }
+      ]
+    },
+    {
+      "code": "vut",
+      "kind": "university",
+      "city": "Brno",
+      "site_url": "https://www.vut.cz",
+      "names": {
+        "cs": "Vysoké učení technické v Brně",
+        "en": "Brno University of Technology",
+        "ru": "Брненский технический университет",
+        "uk": "Брненський технічний університет"
+      },
+      "short_names": {
+        "cs": "VUT",
+        "en": "BUT",
+        "ru": "VUT",
+        "uk": "VUT"
+      },
+      "faculties": [
+        {
+          "code": "vut_fast",
+          "kind": "faculty",
+          "city": "Brno",
+          "names": {
+            "cs": "Fakulta stavební",
+            "en": "Faculty of Civil Engineering",
+            "ru": "Строительный факультет",
+            "uk": "Будівельний факультет"
+          },
+          "short_names": {
+            "cs": "FAST",
+            "en": "FAST",
+            "ru": "FAST",
+            "uk": "FAST"
+          }
+        },
+        {
+          "code": "vut_fsi",
+          "kind": "faculty",
+          "city": "Brno",
+          "names": {
+            "cs": "Fakulta strojního inženýrství",
+            "en": "Faculty of Mechanical Engineering",
+            "ru": "Факультет машиностроения",
+            "uk": "Факультет машинобудування"
+          },
+          "short_names": {
+            "cs": "FSI",
+            "en": "FSI",
+            "ru": "FSI",
+            "uk": "FSI"
+          }
+        },
+        {
+          "code": "vut_fekt",
+          "kind": "faculty",
+          "city": "Brno",
+          "names": {
+            "cs": "Fakulta elektrotechniky a komunikačních technologií",
+            "en": "Faculty of Electrical Engineering and Communication",
+            "ru": "Факультет электротехники и коммуникационных технологий",
+            "uk": "Факультет електротехніки та комунікаційних технологій"
+          },
+          "short_names": {
+            "cs": "FEKT",
+            "en": "FEKT",
+            "ru": "FEKT",
+            "uk": "FEKT"
+          }
+        },
+        {
+          "code": "vut_fa",
+          "kind": "faculty",
+          "city": "Brno",
+          "names": {
+            "cs": "Fakulta architektury",
+            "en": "Faculty of Architecture",
+            "ru": "Факультет архитектуры",
+            "uk": "Факультет архітектури"
+          },
+          "short_names": {
+            "cs": "FA",
+            "en": "FA",
+            "ru": "FA",
+            "uk": "FA"
+          }
+        },
+        {
+          "code": "vut_fch",
+          "kind": "faculty",
+          "city": "Brno",
+          "names": {
+            "cs": "Fakulta chemická",
+            "en": "Faculty of Chemistry",
+            "ru": "Химический факультет",
+            "uk": "Хімічний факультет"
+          },
+          "short_names": {
+            "cs": "FCH",
+            "en": "FCH",
+            "ru": "FCH",
+            "uk": "FCH"
+          }
+        },
+        {
+          "code": "vut_fp",
+          "kind": "faculty",
+          "city": "Brno",
+          "names": {
+            "cs": "Fakulta podnikatelská",
+            "en": "Faculty of Business and Management",
+            "ru": "Факультет предпринимательства",
+            "uk": "Факультет підприємництва"
+          },
+          "short_names": {
+            "cs": "FP",
+            "en": "FP",
+            "ru": "FP",
+            "uk": "FP"
+          }
+        },
+        {
+          "code": "vut_favu",
+          "kind": "faculty",
+          "city": "Brno",
+          "names": {
+            "cs": "Fakulta výtvarných umění",
+            "en": "Faculty of Fine Arts",
+            "ru": "Факультет изобразительных искусств",
+            "uk": "Факультет образотворчих мистецтв"
+          },
+          "short_names": {
+            "cs": "FaVU",
+            "en": "FaVU",
+            "ru": "FaVU",
+            "uk": "FaVU"
+          }
+        },
+        {
+          "code": "vut_fit",
+          "kind": "faculty",
+          "city": "Brno",
+          "names": {
+            "cs": "Fakulta informačních technologií",
+            "en": "Faculty of Information Technology",
+            "ru": "Факультет информационных технологий",
+            "uk": "Факультет інформаційних технологій"
+          },
+          "short_names": {
+            "cs": "FIT",
+            "en": "FIT",
+            "ru": "FIT",
+            "uk": "FIT"
+          }
+        }
+      ]
+    },
+    {
+      "code": "muni",
+      "kind": "university",
+      "city": "Brno",
+      "site_url": "https://www.muni.cz",
+      "names": {
+        "cs": "Masarykova univerzita",
+        "en": "Masaryk University",
+        "ru": "Университет имени Масарика",
+        "uk": "Університет імені Масарика"
+      },
+      "short_names": {
+        "cs": "MUNI",
+        "en": "MUNI",
+        "ru": "MUNI",
+        "uk": "MUNI"
+      },
+      "faculties": [
+        {
+          "code": "muni_prf",
+          "kind": "faculty",
+          "city": "Brno",
+          "names": {
+            "cs": "Právnická fakulta",
+            "en": "Faculty of Law",
+            "ru": "Юридический факультет",
+            "uk": "Юридичний факультет"
+          },
+          "short_names": {
+            "cs": "PrF",
+            "en": "PrF",
+            "ru": "PrF",
+            "uk": "PrF"
+          }
+        },
+        {
+          "code": "muni_lf",
+          "kind": "faculty",
+          "city": "Brno",
+          "names": {
+            "cs": "Lékařská fakulta",
+            "en": "Faculty of Medicine",
+            "ru": "Медицинский факультет",
+            "uk": "Медичний факультет"
+          },
+          "short_names": {
+            "cs": "LF",
+            "en": "LF",
+            "ru": "LF",
+            "uk": "LF"
+          }
+        },
+        {
+          "code": "muni_prif",
+          "kind": "faculty",
+          "city": "Brno",
+          "names": {
+            "cs": "Přírodovědecká fakulta",
+            "en": "Faculty of Science",
+            "ru": "Естественнонаучный факультет",
+            "uk": "Природничий факультет"
+          },
+          "short_names": {
+            "cs": "PřF",
+            "en": "PřF",
+            "ru": "PřF",
+            "uk": "PřF"
+          }
+        },
+        {
+          "code": "muni_ff",
+          "kind": "faculty",
+          "city": "Brno",
+          "names": {
+            "cs": "Filozofická fakulta",
+            "en": "Faculty of Arts",
+            "ru": "Философский факультет",
+            "uk": "Філософський факультет"
+          },
+          "short_names": {
+            "cs": "FF",
+            "en": "FF",
+            "ru": "FF",
+            "uk": "FF"
+          }
+        },
+        {
+          "code": "muni_pdf",
+          "kind": "faculty",
+          "city": "Brno",
+          "names": {
+            "cs": "Pedagogická fakulta",
+            "en": "Faculty of Education",
+            "ru": "Педагогический факультет",
+            "uk": "Педагогічний факультет"
+          },
+          "short_names": {
+            "cs": "PdF",
+            "en": "PdF",
+            "ru": "PdF",
+            "uk": "PdF"
+          }
+        },
+        {
+          "code": "muni_esf",
+          "kind": "faculty",
+          "city": "Brno",
+          "names": {
+            "cs": "Ekonomicko-správní fakulta",
+            "en": "Faculty of Economics and Administration",
+            "ru": "Экономико-административный факультет",
+            "uk": "Економіко-адміністративний факультет"
+          },
+          "short_names": {
+            "cs": "ESF",
+            "en": "ESF",
+            "ru": "ESF",
+            "uk": "ESF"
+          }
+        },
+        {
+          "code": "muni_fi",
+          "kind": "faculty",
+          "city": "Brno",
+          "names": {
+            "cs": "Fakulta informatiky",
+            "en": "Faculty of Informatics",
+            "ru": "Факультет информатики",
+            "uk": "Факультет інформатики"
+          },
+          "short_names": {
+            "cs": "FI",
+            "en": "FI",
+            "ru": "FI",
+            "uk": "FI"
+          }
+        },
+        {
+          "code": "muni_fss",
+          "kind": "faculty",
+          "city": "Brno",
+          "names": {
+            "cs": "Fakulta sociálních studií",
+            "en": "Faculty of Social Studies",
+            "ru": "Факультет социальных исследований",
+            "uk": "Факультет соціальних студій"
+          },
+          "short_names": {
+            "cs": "FSS",
+            "en": "FSS",
+            "ru": "FSS",
+            "uk": "FSS"
+          }
+        },
+        {
+          "code": "muni_fsps",
+          "kind": "faculty",
+          "city": "Brno",
+          "names": {
+            "cs": "Fakulta sportovních studií",
+            "en": "Faculty of Sports Studies",
+            "ru": "Факультет спортивных исследований",
+            "uk": "Факультет спортивних студій"
+          },
+          "short_names": {
+            "cs": "FSpS",
+            "en": "FSpS",
+            "ru": "FSpS",
+            "uk": "FSpS"
+          }
+        },
+        {
+          "code": "muni_faf",
+          "kind": "faculty",
+          "city": "Brno",
+          "names": {
+            "cs": "Farmaceutická fakulta",
+            "en": "Faculty of Pharmacy",
+            "ru": "Фармацевтический факультет",
+            "uk": "Фармацевтичний факультет"
+          },
+          "short_names": {
+            "cs": "FaF",
+            "en": "FaF",
+            "ru": "FaF",
+            "uk": "FaF"
+          }
+        }
+      ]
+    },
+    {
+      "code": "czu",
+      "kind": "university",
+      "city": "Praha",
+      "site_url": "https://www.czu.cz",
+      "names": {
+        "cs": "Česká zemědělská univerzita v Praze",
+        "en": "Czech University of Life Sciences Prague",
+        "ru": "Чешский аграрный университет в Праге",
+        "uk": "Чеський аграрний університет у Празі"
+      },
+      "short_names": {
+        "cs": "ČZU",
+        "en": "CZU",
+        "ru": "ČZU",
+        "uk": "ČZU"
+      },
+      "faculties": [
+        {
+          "code": "czu_fappz",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Fakulta agrobiologie, potravinových a přírodních zdrojů",
+            "en": "Faculty of Agrobiology, Food and Natural Resources",
+            "ru": "Факультет агробиологии, продовольственных и природных ресурсов",
+            "uk": "Факультет агробіології, продовольчих та природних ресурсів"
+          },
+          "short_names": {
+            "cs": "FAPPZ",
+            "en": "FAPPZ",
+            "ru": "FAPPZ",
+            "uk": "FAPPZ"
+          }
+        },
+        {
+          "code": "czu_tf",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Technická fakulta",
+            "en": "Faculty of Engineering",
+            "ru": "Технический факультет",
+            "uk": "Технічний факультет"
+          },
+          "short_names": {
+            "cs": "TF",
+            "en": "TF",
+            "ru": "TF",
+            "uk": "TF"
+          }
+        },
+        {
+          "code": "czu_fzp",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Fakulta životního prostředí",
+            "en": "Faculty of Environmental Sciences",
+            "ru": "Факультет окружающей среды",
+            "uk": "Факультет навколишнього середовища"
+          },
+          "short_names": {
+            "cs": "FŽP",
+            "en": "FŽP",
+            "ru": "FŽP",
+            "uk": "FŽP"
+          }
+        },
+        {
+          "code": "czu_pef",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Provozně ekonomická fakulta",
+            "en": "Faculty of Economics and Management",
+            "ru": "Экономико-управленческий факультет",
+            "uk": "Економіко-управлінський факультет"
+          },
+          "short_names": {
+            "cs": "PEF",
+            "en": "PEF",
+            "ru": "PEF",
+            "uk": "PEF"
+          }
+        },
+        {
+          "code": "czu_fld",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Fakulta lesnická a dřevařská",
+            "en": "Faculty of Forestry and Wood Sciences",
+            "ru": "Факультет лесного хозяйства и деревообработки",
+            "uk": "Факультет лісового господарства та деревообробки"
+          },
+          "short_names": {
+            "cs": "FLD",
+            "en": "FLD",
+            "ru": "FLD",
+            "uk": "FLD"
+          }
+        },
+        {
+          "code": "czu_ftz",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Fakulta tropického zemědělství",
+            "en": "Faculty of Tropical AgriSciences",
+            "ru": "Факультет тропического сельского хозяйства",
+            "uk": "Факультет тропічного сільського господарства"
+          },
+          "short_names": {
+            "cs": "FTZ",
+            "en": "FTZ",
+            "ru": "FTZ",
+            "uk": "FTZ"
+          }
+        }
+      ]
+    },
+    {
+      "code": "vscht",
+      "kind": "university",
+      "city": "Praha",
+      "site_url": "https://www.vscht.cz",
+      "names": {
+        "cs": "Vysoká škola chemicko-technologická v Praze",
+        "en": "University of Chemistry and Technology, Prague",
+        "ru": "Высшая школа химической технологии в Праге",
+        "uk": "Вища школа хімічної технології у Празі"
+      },
+      "short_names": {
+        "cs": "VŠCHT",
+        "en": "UCT Prague",
+        "ru": "VŠCHT",
+        "uk": "VŠCHT"
+      },
+      "faculties": [
+        {
+          "code": "vscht_fcht",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Fakulta chemické technologie",
+            "en": "Faculty of Chemical Technology",
+            "ru": "Факультет химической технологии",
+            "uk": "Факультет хімічної технології"
+          },
+          "short_names": {
+            "cs": "FCHT",
+            "en": "FCHT",
+            "ru": "FCHT",
+            "uk": "FCHT"
+          }
+        },
+        {
+          "code": "vscht_ftop",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Fakulta technologie ochrany prostředí",
+            "en": "Faculty of Environmental Technology",
+            "ru": "Факультет технологий защиты окружающей среды",
+            "uk": "Факультет технологій захисту довкілля"
+          },
+          "short_names": {
+            "cs": "FTOP",
+            "en": "FTOP",
+            "ru": "FTOP",
+            "uk": "FTOP"
+          }
+        },
+        {
+          "code": "vscht_fpbt",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Fakulta potravinářské a biochemické technologie",
+            "en": "Faculty of Food and Biochemical Technology",
+            "ru": "Факультет пищевой и биохимической технологии",
+            "uk": "Факультет харчової та біохімічної технології"
+          },
+          "short_names": {
+            "cs": "FPBT",
+            "en": "FPBT",
+            "ru": "FPBT",
+            "uk": "FPBT"
+          }
+        },
+        {
+          "code": "vscht_fchi",
+          "kind": "faculty",
+          "city": "Praha",
+          "names": {
+            "cs": "Fakulta chemicko-inženýrská",
+            "en": "Faculty of Chemical Engineering",
+            "ru": "Химико-инженерный факультет",
+            "uk": "Хіміко-інженерний факультет"
+          },
+          "short_names": {
+            "cs": "FCHI",
+            "en": "FCHI",
+            "ru": "FCHI",
+            "uk": "FCHI"
+          }
+        }
+      ]
+    },
+    {
+      "code": "zcu",
+      "kind": "university",
+      "city": "Plzeň",
+      "site_url": "https://www.zcu.cz",
+      "names": {
+        "cs": "Západočeská univerzita v Plzni",
+        "en": "University of West Bohemia",
+        "ru": "Западночешский университет в Пльзене",
+        "uk": "Західночеський університет у Пльзені"
+      },
+      "short_names": {
+        "cs": "ZČU",
+        "en": "UWB",
+        "ru": "ZČU",
+        "uk": "ZČU"
+      },
+      "faculties": [
+        {
+          "code": "zcu_fav",
+          "kind": "faculty",
+          "city": "Plzeň",
+          "names": {
+            "cs": "Fakulta aplikovaných věd",
+            "en": "Faculty of Applied Sciences",
+            "ru": "Факультет прикладных наук",
+            "uk": "Факультет прикладних наук"
+          },
+          "short_names": {
+            "cs": "FAV",
+            "en": "FAV",
+            "ru": "FAV",
+            "uk": "FAV"
+          }
+        },
+        {
+          "code": "zcu_fel",
+          "kind": "faculty",
+          "city": "Plzeň",
+          "names": {
+            "cs": "Fakulta elektrotechnická",
+            "en": "Faculty of Electrical Engineering",
+            "ru": "Электротехнический факультет",
+            "uk": "Електротехнічний факультет"
+          },
+          "short_names": {
+            "cs": "FEL",
+            "en": "FEL",
+            "ru": "FEL",
+            "uk": "FEL"
+          }
+        },
+        {
+          "code": "zcu_fst",
+          "kind": "faculty",
+          "city": "Plzeň",
+          "names": {
+            "cs": "Fakulta strojní",
+            "en": "Faculty of Mechanical Engineering",
+            "ru": "Машиностроительный факультет",
+            "uk": "Машинобудівний факультет"
+          },
+          "short_names": {
+            "cs": "FST",
+            "en": "FST",
+            "ru": "FST",
+            "uk": "FST"
+          }
+        },
+        {
+          "code": "zcu_ff",
+          "kind": "faculty",
+          "city": "Plzeň",
+          "names": {
+            "cs": "Fakulta filozofická",
+            "en": "Faculty of Arts",
+            "ru": "Философский факультет",
+            "uk": "Філософський факультет"
+          },
+          "short_names": {
+            "cs": "FF",
+            "en": "FF",
+            "ru": "FF",
+            "uk": "FF"
+          }
+        },
+        {
+          "code": "zcu_fpe",
+          "kind": "faculty",
+          "city": "Plzeň",
+          "names": {
+            "cs": "Fakulta pedagogická",
+            "en": "Faculty of Education",
+            "ru": "Педагогический факультет",
+            "uk": "Педагогічний факультет"
+          },
+          "short_names": {
+            "cs": "FPE",
+            "en": "FPE",
+            "ru": "FPE",
+            "uk": "FPE"
+          }
+        },
+        {
+          "code": "zcu_fek",
+          "kind": "faculty",
+          "city": "Plzeň",
+          "names": {
+            "cs": "Fakulta ekonomická",
+            "en": "Faculty of Economics",
+            "ru": "Экономический факультет",
+            "uk": "Економічний факультет"
+          },
+          "short_names": {
+            "cs": "FEK",
+            "en": "FEK",
+            "ru": "FEK",
+            "uk": "FEK"
+          }
+        },
+        {
+          "code": "zcu_fpr",
+          "kind": "faculty",
+          "city": "Plzeň",
+          "names": {
+            "cs": "Fakulta právnická",
+            "en": "Faculty of Law",
+            "ru": "Юридический факультет",
+            "uk": "Юридичний факультет"
+          },
+          "short_names": {
+            "cs": "FPR",
+            "en": "FPR",
+            "ru": "FPR",
+            "uk": "FPR"
+          }
+        },
+        {
+          "code": "zcu_fzs",
+          "kind": "faculty",
+          "city": "Plzeň",
+          "names": {
+            "cs": "Fakulta zdravotnických studií",
+            "en": "Faculty of Health Care Studies",
+            "ru": "Факультет медицинских исследований",
+            "uk": "Факультет медичних студій"
+          },
+          "short_names": {
+            "cs": "FZS",
+            "en": "FZS",
+            "ru": "FZS",
+            "uk": "FZS"
+          }
+        },
+        {
+          "code": "zcu_fdu",
+          "kind": "faculty",
+          "city": "Plzeň",
+          "names": {
+            "cs": "Fakulta designu a umění Ladislava Sutnara",
+            "en": "Ladislav Sutnar Faculty of Design and Art",
+            "ru": "Факультет дизайна и искусства имени Ладислава Сутнара",
+            "uk": "Факультет дизайну та мистецтва імені Ладіслава Сутнара"
+          },
+          "short_names": {
+            "cs": "FDU",
+            "en": "FDU",
+            "ru": "FDU",
+            "uk": "FDU"
+          }
+        }
+      ]
+    },
+    {
+      "code": "mendelu",
+      "kind": "university",
+      "city": "Brno",
+      "site_url": "https://mendelu.cz",
+      "names": {
+        "cs": "Mendelova univerzita v Brně",
+        "en": "Mendel University in Brno",
+        "ru": "Университет имени Менделя в Брно",
+        "uk": "Університет імені Менделя у Брно"
+      },
+      "short_names": {
+        "cs": "MENDELU",
+        "en": "MENDELU",
+        "ru": "MENDELU",
+        "uk": "MENDELU"
+      },
+      "faculties": [
+        {
+          "code": "mendelu_af",
+          "kind": "faculty",
+          "city": "Brno",
+          "names": {
+            "cs": "Agronomická fakulta",
+            "en": "Faculty of AgriSciences",
+            "ru": "Агрономический факультет",
+            "uk": "Агрономічний факультет"
+          },
+          "short_names": {
+            "cs": "AF",
+            "en": "AF",
+            "ru": "AF",
+            "uk": "AF"
+          }
+        },
+        {
+          "code": "mendelu_ldf",
+          "kind": "faculty",
+          "city": "Brno",
+          "names": {
+            "cs": "Lesnická a dřevařská fakulta",
+            "en": "Faculty of Forestry and Wood Technology",
+            "ru": "Факультет лесного хозяйства и деревообработки",
+            "uk": "Факультет лісового господарства та деревообробки"
+          },
+          "short_names": {
+            "cs": "LDF",
+            "en": "LDF",
+            "ru": "LDF",
+            "uk": "LDF"
+          }
+        },
+        {
+          "code": "mendelu_pef",
+          "kind": "faculty",
+          "city": "Brno",
+          "names": {
+            "cs": "Provozně ekonomická fakulta",
+            "en": "Faculty of Business and Economics",
+            "ru": "Экономико-управленческий факультет",
+            "uk": "Економіко-управлінський факультет"
+          },
+          "short_names": {
+            "cs": "PEF",
+            "en": "PEF",
+            "ru": "PEF",
+            "uk": "PEF"
+          }
+        },
+        {
+          "code": "mendelu_zf",
+          "kind": "faculty",
+          "city": "Lednice",
+          "names": {
+            "cs": "Zahradnická fakulta",
+            "en": "Faculty of Horticulture",
+            "ru": "Садоводческий факультет",
+            "uk": "Садівничий факультет"
+          },
+          "short_names": {
+            "cs": "ZF",
+            "en": "ZF",
+            "ru": "ZF",
+            "uk": "ZF"
+          }
+        },
+        {
+          "code": "mendelu_frrms",
+          "kind": "faculty",
+          "city": "Brno",
+          "names": {
+            "cs": "Fakulta regionálního rozvoje a mezinárodních studií",
+            "en": "Faculty of Regional Development and International Studies",
+            "ru": "Факультет регионального развития и международных исследований",
+            "uk": "Факультет регіонального розвитку та міжнародних студій"
+          },
+          "short_names": {
+            "cs": "FRRMS",
+            "en": "FRRMS",
+            "ru": "FRRMS",
+            "uk": "FRRMS"
+          }
+        }
+      ]
+    },
+    {
+      "code": "upol",
+      "kind": "university",
+      "city": "Olomouc",
+      "site_url": "https://www.upol.cz",
+      "names": {
+        "cs": "Univerzita Palackého v Olomouci",
+        "en": "Palacký University Olomouc",
+        "ru": "Университет Палацкого в Оломоуце",
+        "uk": "Університет Палацького в Оломоуці"
+      },
+      "short_names": {
+        "cs": "UP",
+        "en": "UP",
+        "ru": "UP",
+        "uk": "UP"
+      },
+      "faculties": [
+        {
+          "code": "upol_cmtf",
+          "kind": "faculty",
+          "city": "Olomouc",
+          "names": {
+            "cs": "Cyrilometodějská teologická fakulta",
+            "en": "Sts Cyril and Methodius Faculty of Theology",
+            "ru": "Богословский факультет святых Кирилла и Мефодия",
+            "uk": "Богословський факультет святих Кирила і Мефодія"
+          },
+          "short_names": {
+            "cs": "CMTF",
+            "en": "CMTF",
+            "ru": "CMTF",
+            "uk": "CMTF"
+          }
+        },
+        {
+          "code": "upol_lf",
+          "kind": "faculty",
+          "city": "Olomouc",
+          "names": {
+            "cs": "Lékařská fakulta",
+            "en": "Faculty of Medicine and Dentistry",
+            "ru": "Медицинский факультет",
+            "uk": "Медичний факультет"
+          },
+          "short_names": {
+            "cs": "LF",
+            "en": "LF",
+            "ru": "LF",
+            "uk": "LF"
+          }
+        },
+        {
+          "code": "upol_ff",
+          "kind": "faculty",
+          "city": "Olomouc",
+          "names": {
+            "cs": "Filozofická fakulta",
+            "en": "Faculty of Arts",
+            "ru": "Философский факультет",
+            "uk": "Філософський факультет"
+          },
+          "short_names": {
+            "cs": "FF",
+            "en": "FF",
+            "ru": "FF",
+            "uk": "FF"
+          }
+        },
+        {
+          "code": "upol_prf",
+          "kind": "faculty",
+          "city": "Olomouc",
+          "names": {
+            "cs": "Přírodovědecká fakulta",
+            "en": "Faculty of Science",
+            "ru": "Естественнонаучный факультет",
+            "uk": "Природничий факультет"
+          },
+          "short_names": {
+            "cs": "PřF",
+            "en": "PřF",
+            "ru": "PřF",
+            "uk": "PřF"
+          }
+        },
+        {
+          "code": "upol_pdf",
+          "kind": "faculty",
+          "city": "Olomouc",
+          "names": {
+            "cs": "Pedagogická fakulta",
+            "en": "Faculty of Education",
+            "ru": "Педагогический факультет",
+            "uk": "Педагогічний факультет"
+          },
+          "short_names": {
+            "cs": "PdF",
+            "en": "PdF",
+            "ru": "PdF",
+            "uk": "PdF"
+          }
+        },
+        {
+          "code": "upol_ftk",
+          "kind": "faculty",
+          "city": "Olomouc",
+          "names": {
+            "cs": "Fakulta tělesné kultury",
+            "en": "Faculty of Physical Culture",
+            "ru": "Факультет физической культуры",
+            "uk": "Факультет фізичної культури"
+          },
+          "short_names": {
+            "cs": "FTK",
+            "en": "FTK",
+            "ru": "FTK",
+            "uk": "FTK"
+          }
+        },
+        {
+          "code": "upol_pf",
+          "kind": "faculty",
+          "city": "Olomouc",
+          "names": {
+            "cs": "Právnická fakulta",
+            "en": "Faculty of Law",
+            "ru": "Юридический факультет",
+            "uk": "Юридичний факультет"
+          },
+          "short_names": {
+            "cs": "PF",
+            "en": "PF",
+            "ru": "PF",
+            "uk": "PF"
+          }
+        },
+        {
+          "code": "upol_fzv",
+          "kind": "faculty",
+          "city": "Olomouc",
+          "names": {
+            "cs": "Fakulta zdravotnických věd",
+            "en": "Faculty of Health Sciences",
+            "ru": "Факультет медицинских наук",
+            "uk": "Факультет медичних наук"
+          },
+          "short_names": {
+            "cs": "FZV",
+            "en": "FZV",
+            "ru": "FZV",
+            "uk": "FZV"
+          }
+        }
+      ]
+    },
+    {
+      "code": "tul",
+      "kind": "university",
+      "city": "Liberec",
+      "site_url": "https://www.tul.cz",
+      "names": {
+        "cs": "Technická univerzita v Liberci",
+        "en": "Technical University of Liberec",
+        "ru": "Технический университет в Либерце",
+        "uk": "Технічний університет у Ліберці"
+      },
+      "short_names": {
+        "cs": "TUL",
+        "en": "TUL",
+        "ru": "TUL",
+        "uk": "TUL"
+      },
+      "faculties": [
+        {
+          "code": "tul_fs",
+          "kind": "faculty",
+          "city": "Liberec",
+          "names": {
+            "cs": "Fakulta strojní",
+            "en": "Faculty of Mechanical Engineering",
+            "ru": "Машиностроительный факультет",
+            "uk": "Машинобудівний факультет"
+          },
+          "short_names": {
+            "cs": "FS",
+            "en": "FS",
+            "ru": "FS",
+            "uk": "FS"
+          }
+        },
+        {
+          "code": "tul_ft",
+          "kind": "faculty",
+          "city": "Liberec",
+          "names": {
+            "cs": "Fakulta textilní",
+            "en": "Faculty of Textile Engineering",
+            "ru": "Текстильный факультет",
+            "uk": "Текстильний факультет"
+          },
+          "short_names": {
+            "cs": "FT",
+            "en": "FT",
+            "ru": "FT",
+            "uk": "FT"
+          }
+        },
+        {
+          "code": "tul_fp",
+          "kind": "faculty",
+          "city": "Liberec",
+          "names": {
+            "cs": "Fakulta přírodovědně-humanitní a pedagogická",
+            "en": "Faculty of Science, Humanities and Education",
+            "ru": "Естественнонаучно-гуманитарный и педагогический факультет",
+            "uk": "Природничо-гуманітарний та педагогічний факультет"
+          },
+          "short_names": {
+            "cs": "FP",
+            "en": "FP",
+            "ru": "FP",
+            "uk": "FP"
+          }
+        },
+        {
+          "code": "tul_ef",
+          "kind": "faculty",
+          "city": "Liberec",
+          "names": {
+            "cs": "Ekonomická fakulta",
+            "en": "Faculty of Economics",
+            "ru": "Экономический факультет",
+            "uk": "Економічний факультет"
+          },
+          "short_names": {
+            "cs": "EF",
+            "en": "EF",
+            "ru": "EF",
+            "uk": "EF"
+          }
+        },
+        {
+          "code": "tul_fua",
+          "kind": "faculty",
+          "city": "Liberec",
+          "names": {
+            "cs": "Fakulta umění a architektury",
+            "en": "Faculty of Arts and Architecture",
+            "ru": "Факультет искусств и архитектуры",
+            "uk": "Факультет мистецтв та архітектури"
+          },
+          "short_names": {
+            "cs": "FUA",
+            "en": "FUA",
+            "ru": "FUA",
+            "uk": "FUA"
+          }
+        },
+        {
+          "code": "tul_fm",
+          "kind": "faculty",
+          "city": "Liberec",
+          "names": {
+            "cs": "Fakulta mechatroniky, informatiky a mezioborových studií",
+            "en": "Faculty of Mechatronics, Informatics and Interdisciplinary Studies",
+            "ru": "Факультет мехатроники, информатики и междисциплинарных исследований",
+            "uk": "Факультет мехатроніки, інформатики та міждисциплінарних студій"
+          },
+          "short_names": {
+            "cs": "FM",
+            "en": "FM",
+            "ru": "FM",
+            "uk": "FM"
+          }
+        },
+        {
+          "code": "tul_fzs",
+          "kind": "faculty",
+          "city": "Liberec",
+          "names": {
+            "cs": "Fakulta zdravotnických studií",
+            "en": "Faculty of Health Studies",
+            "ru": "Факультет медицинских исследований",
+            "uk": "Факультет медичних студій"
+          },
+          "short_names": {
+            "cs": "FZS",
+            "en": "FZS",
+            "ru": "FZS",
+            "uk": "FZS"
+          }
+        }
+      ]
+    },
+    {
+      "code": "utb",
+      "kind": "university",
+      "city": "Zlín",
+      "site_url": "https://www.utb.cz",
+      "names": {
+        "cs": "Univerzita Tomáše Bati ve Zlíně",
+        "en": "Tomas Bata University in Zlín",
+        "ru": "Университет имени Томаша Бати в Злине",
+        "uk": "Університет імені Томаша Баті у Зліні"
+      },
+      "short_names": {
+        "cs": "UTB",
+        "en": "TBU",
+        "ru": "UTB",
+        "uk": "UTB"
+      },
+      "faculties": [
+        {
+          "code": "utb_ft",
+          "kind": "faculty",
+          "city": "Zlín",
+          "names": {
+            "cs": "Fakulta technologická",
+            "en": "Faculty of Technology",
+            "ru": "Технологический факультет",
+            "uk": "Технологічний факультет"
+          },
+          "short_names": {
+            "cs": "FT",
+            "en": "FT",
+            "ru": "FT",
+            "uk": "FT"
+          }
+        },
+        {
+          "code": "utb_fame",
+          "kind": "faculty",
+          "city": "Zlín",
+          "names": {
+            "cs": "Fakulta managementu a ekonomiky",
+            "en": "Faculty of Management and Economics",
+            "ru": "Факультет менеджмента и экономики",
+            "uk": "Факультет менеджменту та економіки"
+          },
+          "short_names": {
+            "cs": "FaME",
+            "en": "FaME",
+            "ru": "FaME",
+            "uk": "FaME"
+          }
+        },
+        {
+          "code": "utb_fmk",
+          "kind": "faculty",
+          "city": "Zlín",
+          "names": {
+            "cs": "Fakulta multimediálních komunikací",
+            "en": "Faculty of Multimedia Communications",
+            "ru": "Факультет мультимедийных коммуникаций",
+            "uk": "Факультет мультимедійних комунікацій"
+          },
+          "short_names": {
+            "cs": "FMK",
+            "en": "FMK",
+            "ru": "FMK",
+            "uk": "FMK"
+          }
+        },
+        {
+          "code": "utb_fai",
+          "kind": "faculty",
+          "city": "Zlín",
+          "names": {
+            "cs": "Fakulta aplikované informatiky",
+            "en": "Faculty of Applied Informatics",
+            "ru": "Факультет прикладной информатики",
+            "uk": "Факультет прикладної інформатики"
+          },
+          "short_names": {
+            "cs": "FAI",
+            "en": "FAI",
+            "ru": "FAI",
+            "uk": "FAI"
+          }
+        },
+        {
+          "code": "utb_fhs",
+          "kind": "faculty",
+          "city": "Zlín",
+          "names": {
+            "cs": "Fakulta humanitních studií",
+            "en": "Faculty of Humanities",
+            "ru": "Факультет гуманитарных исследований",
+            "uk": "Факультет гуманітарних студій"
+          },
+          "short_names": {
+            "cs": "FHS",
+            "en": "FHS",
+            "ru": "FHS",
+            "uk": "FHS"
+          }
+        },
+        {
+          "code": "utb_flkr",
+          "kind": "faculty",
+          "city": "Uherské Hradiště",
+          "names": {
+            "cs": "Fakulta logistiky a krizového řízení",
+            "en": "Faculty of Logistics and Crisis Management",
+            "ru": "Факультет логистики и кризисного управления",
+            "uk": "Факультет логістики та кризового управління"
+          },
+          "short_names": {
+            "cs": "FLKŘ",
+            "en": "FLKŘ",
+            "ru": "FLKŘ",
+            "uk": "FLKŘ"
+          }
+        }
+      ]
+    },
+    {
+      "code": "jcu",
+      "kind": "university",
+      "city": "České Budějovice",
+      "site_url": "https://www.jcu.cz",
+      "names": {
+        "cs": "Jihočeská univerzita v Českých Budějovicích",
+        "en": "University of South Bohemia in České Budějovice",
+        "ru": "Южночешский университет в Ческе-Будеёвице",
+        "uk": "Південночеський університет у Ческе-Будейовіце"
+      },
+      "short_names": {
+        "cs": "JU",
+        "en": "USB",
+        "ru": "JU",
+        "uk": "JU"
+      },
+      "faculties": [
+        {
+          "code": "jcu_ef",
+          "kind": "faculty",
+          "city": "České Budějovice",
+          "names": {
+            "cs": "Ekonomická fakulta",
+            "en": "Faculty of Economics",
+            "ru": "Экономический факультет",
+            "uk": "Економічний факультет"
+          },
+          "short_names": {
+            "cs": "EF",
+            "en": "EF",
+            "ru": "EF",
+            "uk": "EF"
+          }
+        },
+        {
+          "code": "jcu_ff",
+          "kind": "faculty",
+          "city": "České Budějovice",
+          "names": {
+            "cs": "Filozofická fakulta",
+            "en": "Faculty of Arts",
+            "ru": "Философский факультет",
+            "uk": "Філософський факультет"
+          },
+          "short_names": {
+            "cs": "FF",
+            "en": "FF",
+            "ru": "FF",
+            "uk": "FF"
+          }
+        },
+        {
+          "code": "jcu_pf",
+          "kind": "faculty",
+          "city": "České Budějovice",
+          "names": {
+            "cs": "Pedagogická fakulta",
+            "en": "Faculty of Education",
+            "ru": "Педагогический факультет",
+            "uk": "Педагогічний факультет"
+          },
+          "short_names": {
+            "cs": "PF",
+            "en": "PF",
+            "ru": "PF",
+            "uk": "PF"
+          }
+        },
+        {
+          "code": "jcu_prf",
+          "kind": "faculty",
+          "city": "České Budějovice",
+          "names": {
+            "cs": "Přírodovědecká fakulta",
+            "en": "Faculty of Science",
+            "ru": "Естественнонаучный факультет",
+            "uk": "Природничий факультет"
+          },
+          "short_names": {
+            "cs": "PřF",
+            "en": "PřF",
+            "ru": "PřF",
+            "uk": "PřF"
+          }
+        },
+        {
+          "code": "jcu_frov",
+          "kind": "faculty",
+          "city": "Vodňany",
+          "names": {
+            "cs": "Fakulta rybářství a ochrany vod",
+            "en": "Faculty of Fisheries and Protection of Waters",
+            "ru": "Факультет рыбного хозяйства и охраны вод",
+            "uk": "Факультет рибного господарства та охорони вод"
+          },
+          "short_names": {
+            "cs": "FROV",
+            "en": "FROV",
+            "ru": "FROV",
+            "uk": "FROV"
+          }
+        },
+        {
+          "code": "jcu_tf",
+          "kind": "faculty",
+          "city": "České Budějovice",
+          "names": {
+            "cs": "Teologická fakulta",
+            "en": "Faculty of Theology",
+            "ru": "Теологический факультет",
+            "uk": "Теологічний факультет"
+          },
+          "short_names": {
+            "cs": "TF",
+            "en": "TF",
+            "ru": "TF",
+            "uk": "TF"
+          }
+        },
+        {
+          "code": "jcu_zsf",
+          "kind": "faculty",
+          "city": "České Budějovice",
+          "names": {
+            "cs": "Zdravotně sociální fakulta",
+            "en": "Faculty of Health and Social Sciences",
+            "ru": "Медико-социальный факультет",
+            "uk": "Медико-соціальний факультет"
+          },
+          "short_names": {
+            "cs": "ZSF",
+            "en": "ZSF",
+            "ru": "ZSF",
+            "uk": "ZSF"
+          }
+        },
+        {
+          "code": "jcu_fzt",
+          "kind": "faculty",
+          "city": "České Budějovice",
+          "names": {
+            "cs": "Fakulta zemědělská a technologická",
+            "en": "Faculty of Agriculture and Technology",
+            "ru": "Сельскохозяйственно-технологический факультет",
+            "uk": "Сільськогосподарсько-технологічний факультет"
+          },
+          "short_names": {
+            "cs": "FZT",
+            "en": "FZT",
+            "ru": "FZT",
+            "uk": "FZT"
+          }
+        }
+      ]
+    },
+    {
+      "code": "osu",
+      "kind": "university",
+      "city": "Ostrava",
+      "site_url": "https://www.osu.cz",
+      "names": {
+        "cs": "Ostravská univerzita",
+        "en": "University of Ostrava",
+        "ru": "Остравский университет",
+        "uk": "Остравський університет"
+      },
+      "short_names": {
+        "cs": "OU",
+        "en": "OU",
+        "ru": "OU",
+        "uk": "OU"
+      },
+      "faculties": [
+        {
+          "code": "osu_ff",
+          "kind": "faculty",
+          "city": "Ostrava",
+          "names": {
+            "cs": "Filozofická fakulta",
+            "en": "Faculty of Arts",
+            "ru": "Философский факультет",
+            "uk": "Філософський факультет"
+          },
+          "short_names": {
+            "cs": "FF",
+            "en": "FF",
+            "ru": "FF",
+            "uk": "FF"
+          }
+        },
+        {
+          "code": "osu_prf",
+          "kind": "faculty",
+          "city": "Ostrava",
+          "names": {
+            "cs": "Přírodovědecká fakulta",
+            "en": "Faculty of Science",
+            "ru": "Естественнонаучный факультет",
+            "uk": "Природничий факультет"
+          },
+          "short_names": {
+            "cs": "PřF",
+            "en": "PřF",
+            "ru": "PřF",
+            "uk": "PřF"
+          }
+        },
+        {
+          "code": "osu_pdf",
+          "kind": "faculty",
+          "city": "Ostrava",
+          "names": {
+            "cs": "Pedagogická fakulta",
+            "en": "Faculty of Education",
+            "ru": "Педагогический факультет",
+            "uk": "Педагогічний факультет"
+          },
+          "short_names": {
+            "cs": "PdF",
+            "en": "PdF",
+            "ru": "PdF",
+            "uk": "PdF"
+          }
+        },
+        {
+          "code": "osu_lf",
+          "kind": "faculty",
+          "city": "Ostrava",
+          "names": {
+            "cs": "Lékařská fakulta",
+            "en": "Faculty of Medicine",
+            "ru": "Медицинский факультет",
+            "uk": "Медичний факультет"
+          },
+          "short_names": {
+            "cs": "LF",
+            "en": "LF",
+            "ru": "LF",
+            "uk": "LF"
+          }
+        },
+        {
+          "code": "osu_fu",
+          "kind": "faculty",
+          "city": "Ostrava",
+          "names": {
+            "cs": "Fakulta umění",
+            "en": "Faculty of Fine Arts and Music",
+            "ru": "Факультет изобразительных искусств и музыки",
+            "uk": "Факультет образотворчих мистецтв та музики"
+          },
+          "short_names": {
+            "cs": "FU",
+            "en": "FU",
+            "ru": "FU",
+            "uk": "FU"
+          }
+        },
+        {
+          "code": "osu_fss",
+          "kind": "faculty",
+          "city": "Ostrava",
+          "names": {
+            "cs": "Fakulta sociálních studií",
+            "en": "Faculty of Social Studies",
+            "ru": "Факультет социальных исследований",
+            "uk": "Факультет соціальних студій"
+          },
+          "short_names": {
+            "cs": "FSS",
+            "en": "FSS",
+            "ru": "FSS",
+            "uk": "FSS"
+          }
+        }
+      ]
+    },
+    {
+      "code": "uhk",
+      "kind": "university",
+      "city": "Hradec Králové",
+      "site_url": "https://www.uhk.cz",
+      "names": {
+        "cs": "Univerzita Hradec Králové",
+        "en": "University of Hradec Králové",
+        "ru": "Университет Градец-Кралове",
+        "uk": "Університет Градець-Кралове"
+      },
+      "short_names": {
+        "cs": "UHK",
+        "en": "UHK",
+        "ru": "UHK",
+        "uk": "UHK"
+      },
+      "faculties": [
+        {
+          "code": "uhk_pdf",
+          "kind": "faculty",
+          "city": "Hradec Králové",
+          "names": {
+            "cs": "Pedagogická fakulta",
+            "en": "Faculty of Education",
+            "ru": "Педагогический факультет",
+            "uk": "Педагогічний факультет"
+          },
+          "short_names": {
+            "cs": "PdF",
+            "en": "PdF",
+            "ru": "PdF",
+            "uk": "PdF"
+          }
+        },
+        {
+          "code": "uhk_ff",
+          "kind": "faculty",
+          "city": "Hradec Králové",
+          "names": {
+            "cs": "Filozofická fakulta",
+            "en": "Philosophical Faculty",
+            "ru": "Философский факультет",
+            "uk": "Філософський факультет"
+          },
+          "short_names": {
+            "cs": "FF",
+            "en": "FF",
+            "ru": "FF",
+            "uk": "FF"
+          }
+        },
+        {
+          "code": "uhk_prf",
+          "kind": "faculty",
+          "city": "Hradec Králové",
+          "names": {
+            "cs": "Přírodovědecká fakulta",
+            "en": "Faculty of Science",
+            "ru": "Естественнонаучный факультет",
+            "uk": "Природничий факультет"
+          },
+          "short_names": {
+            "cs": "PřF",
+            "en": "PřF",
+            "ru": "PřF",
+            "uk": "PřF"
+          }
+        },
+        {
+          "code": "uhk_fim",
+          "kind": "faculty",
+          "city": "Hradec Králové",
+          "names": {
+            "cs": "Fakulta informatiky a managementu",
+            "en": "Faculty of Informatics and Management",
+            "ru": "Факультет информатики и менеджмента",
+            "uk": "Факультет інформатики та менеджменту"
+          },
+          "short_names": {
+            "cs": "FIM",
+            "en": "FIM",
+            "ru": "FIM",
+            "uk": "FIM"
+          }
+        }
+      ]
+    },
+    {
+      "code": "upce",
+      "kind": "university",
+      "city": "Pardubice",
+      "site_url": "https://www.upce.cz",
+      "names": {
+        "cs": "Univerzita Pardubice",
+        "en": "University of Pardubice",
+        "ru": "Университет Пардубице",
+        "uk": "Університет Пардубіце"
+      },
+      "short_names": {
+        "cs": "UPCE",
+        "en": "UPCE",
+        "ru": "UPCE",
+        "uk": "UPCE"
+      },
+      "faculties": [
+        {
+          "code": "upce_dfjp",
+          "kind": "faculty",
+          "city": "Pardubice",
+          "names": {
+            "cs": "Dopravní fakulta Jana Pernera",
+            "en": "Faculty of Transport Engineering",
+            "ru": "Транспортный факультет имени Яна Пернера",
+            "uk": "Транспортний факультет імені Яна Пернера"
+          },
+          "short_names": {
+            "cs": "DFJP",
+            "en": "DFJP",
+            "ru": "DFJP",
+            "uk": "DFJP"
+          }
+        },
+        {
+          "code": "upce_fes",
+          "kind": "faculty",
+          "city": "Pardubice",
+          "names": {
+            "cs": "Fakulta ekonomicko-správní",
+            "en": "Faculty of Economics and Administration",
+            "ru": "Экономико-административный факультет",
+            "uk": "Економіко-адміністративний факультет"
+          },
+          "short_names": {
+            "cs": "FES",
+            "en": "FES",
+            "ru": "FES",
+            "uk": "FES"
+          }
+        },
+        {
+          "code": "upce_fei",
+          "kind": "faculty",
+          "city": "Pardubice",
+          "names": {
+            "cs": "Fakulta elektrotechniky a informatiky",
+            "en": "Faculty of Electrical Engineering and Informatics",
+            "ru": "Факультет электротехники и информатики",
+            "uk": "Факультет електротехніки та інформатики"
+          },
+          "short_names": {
+            "cs": "FEI",
+            "en": "FEI",
+            "ru": "FEI",
+            "uk": "FEI"
+          }
+        },
+        {
+          "code": "upce_ff",
+          "kind": "faculty",
+          "city": "Pardubice",
+          "names": {
+            "cs": "Fakulta filozofická",
+            "en": "Faculty of Arts and Philosophy",
+            "ru": "Философский факультет",
+            "uk": "Філософський факультет"
+          },
+          "short_names": {
+            "cs": "FF",
+            "en": "FF",
+            "ru": "FF",
+            "uk": "FF"
+          }
+        },
+        {
+          "code": "upce_fcht",
+          "kind": "faculty",
+          "city": "Pardubice",
+          "names": {
+            "cs": "Fakulta chemicko-technologická",
+            "en": "Faculty of Chemical Technology",
+            "ru": "Химико-технологический факультет",
+            "uk": "Хіміко-технологічний факультет"
+          },
+          "short_names": {
+            "cs": "FChT",
+            "en": "FChT",
+            "ru": "FChT",
+            "uk": "FChT"
+          }
+        },
+        {
+          "code": "upce_fr",
+          "kind": "faculty",
+          "city": "Litomyšl",
+          "names": {
+            "cs": "Fakulta restaurování",
+            "en": "Faculty of Restoration",
+            "ru": "Факультет реставрации",
+            "uk": "Факультет реставрації"
+          },
+          "short_names": {
+            "cs": "FR",
+            "en": "FR",
+            "ru": "FR",
+            "uk": "FR"
+          }
+        },
+        {
+          "code": "upce_fzs",
+          "kind": "faculty",
+          "city": "Pardubice",
+          "names": {
+            "cs": "Fakulta zdravotnických studií",
+            "en": "Faculty of Health Studies",
+            "ru": "Факультет медицинских исследований",
+            "uk": "Факультет медичних студій"
+          },
+          "short_names": {
+            "cs": "FZS",
+            "en": "FZS",
+            "ru": "FZS",
+            "uk": "FZS"
+          }
+        }
+      ]
+    }
+  ],
+  "skipped": []
+}
