@@ -75,25 +75,11 @@ A release of the catalog: revert on `main`. Its image is still in the registry
 under `catalog-<sha>`. Migrations do not run backwards; reversing a schema
 change is its own, deliberate decision.
 
-Back to the pre-move stack, if the move itself has to be undone. The router's
-upstream is built into the webui image, so the stack cannot simply be swapped:
-
-1. Revert the move on `main` (supervisor-telegram #141). Its deploy brings back
-   a webui that proxies to `CATALOG_ORIGIN` — keep that variable until the move
-   has held for a while — and removes the `catalog-*` containers.
-2. On the host, `docker compose -p students-cz start`. Never while a
-   `catalog-postgres` runs — see «The database».
-3. Point `tutors.azamat.io` back at `127.0.0.1:18086` in the edge Caddy.
-
-If the first deploy fails at the password check, nothing was stopped and
-nothing needs doing. If it fails later — the migration or the embedding —
-webui is still the old one and proxies `/api/v1/*` to `tutors.azamat.io`:
-`docker stop supervisor-telegram-catalog-postgres`, then step 2. Either way,
-merge nothing to `main` until it is fixed: the next deploy stops the old stack
-again.
-
-Between steps 1 and 3 the reverted webui proxies to `tutors.azamat.io`, which
-redirects back to konnekt.azamat.io, so the catalog is down until step 3.
+The pre-move stack is gone: its containers were removed on 30 September 2026,
+once the catalog had been checked end to end from here. Undoing the move means
+reverting #141 here and teachers-catalog #61, which removed that repository's
+deploy, then deploying from there; its data is the same volume, and its last dumps are in
+`~/deploy/teachers-catalog/data/backups/`.
 
 ## Two ways to break production
 
