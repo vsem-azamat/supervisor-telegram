@@ -15,7 +15,6 @@
 	// Telegram there is nothing to offer, and the panel below explains that case
 	// rather than retrying it.
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
 	import Header from '$lib/components/app-shell/Header.svelte';
 	import Sidebar from '$lib/components/app-shell/Sidebar.svelte';
 	// Toasts are a console thing — only the chat detail page raises them. Kept
@@ -37,9 +36,14 @@
 		settled = true;
 	});
 
+	// Set by the button, so the panel below says what happened instead of
+	// telling somebody who just signed out that they are not on the list.
+	let signedOut = $state(false);
+
 	async function doLogout(): Promise<void> {
+		// Stays here: `/` is the Mini App now, a build this router cannot reach.
 		await auth.logout();
-		await goto('/');
+		signedOut = true;
 	}
 </script>
 
@@ -59,10 +63,14 @@
 				Вход — это само открытие приложения: личность подтверждает Telegram, паролей и ссылок нет.
 				Напишите боту <span class="font-medium text-zinc-700">/start</span> и нажмите «Открыть консоль».
 			</p>
-			<p class="text-xs text-zinc-400">
-				Если вы открыли это из Telegram и всё равно видите сообщение — аккаунт не в списке главных
-				администраторов.
-			</p>
+			{#if signedOut}
+				<p class="text-xs text-zinc-400">Вы вышли. Чтобы войти снова, откройте консоль заново.</p>
+			{:else}
+				<p class="text-xs text-zinc-400">
+					Если вы открыли это из Telegram и всё равно видите сообщение — аккаунт не в списке главных
+					администраторов.
+				</p>
+			{/if}
 		</div>
 	</div>
 {:else}

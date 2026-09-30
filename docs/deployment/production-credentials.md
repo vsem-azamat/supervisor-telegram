@@ -40,7 +40,6 @@ repository access, so nothing sensitive goes here.
 | `ADMIN_SUPER_ADMINS` | Comma-separated Telegram IDs |
 | `ADMIN_REPORT_CHAT_ID` | Defaults to the first super admin |
 | `WEBAPI_PUBLIC_URL` | Also becomes the allowed CORS origin |
-| `WEBAPI_HELP_URL` | The help catalogue (`teachers-catalog`), which runs on this bot's token. Unset hides its `/start` button |
 | `CATALOG_ORIGIN` | Required. The catalog API's https origin (`teachers-catalog`); webui's Caddy proxies the Mini App's `/api/v1/*` and `/healthz` there |
 
 ## Features switch themselves on

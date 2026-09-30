@@ -93,16 +93,20 @@ an operator needs in order to decide on approval.
 
 ## The two halves of the web
 
-**The public half calls nothing but `/api/public/*`.** Those endpoints return
-explicit safe projections, so what a stranger may see is decided once, at the
-boundary, rather than by a conditional on a page that somebody can delete. A
-public page reaching a protected endpoint is the bug; the 401 it earns is only
-the symptom.
+The public half is the Mini App in `web/`; the console is the Svelte app in
+`webui/`, and only the console. `docker/Caddyfile` decides which build answers
+which path.
+
+**The public half calls nothing of ours but `/api/public/*`.** Those endpoints
+return explicit safe projections, so what a stranger may see is decided once,
+at the boundary, rather than by a conditional on a page that somebody can
+delete. A public screen reaching a protected endpoint is the bug; the 401 it
+earns is only the symptom. Its other API, `/api/v1/*`, is the catalog's, a
+different backend that never sees this one's session.
 
 **Authorisation is a layout, not a per-page check.** Everything under
 `(admin)/` is guarded by where it sits, so a new screen cannot forget to ask.
-The root layout guards nothing, because it covers both halves and anything it
-decides is decided for both.
+No console page lives outside it.
 
 **The browser's guard is the second lock, never the only one.** The API refuses
 without a valid super-admin cookie whatever the client believes. What the
@@ -147,10 +151,10 @@ catalogue in bulk, but it must never be the only way to change it — a feature
 whose switch lives in a maintainer's terminal is a feature the operator cannot
 undo.
 
-**`/join` stays outside both groups.** The join check is opened inside Telegram
-by an applicant who has no session and must not be sent to get one. It is the
-only page that belongs to neither half, there being no sign-in page any more —
-the console signs itself in from the signature it was opened with.
+**`/join` belongs to the public half.** The join check is opened inside
+Telegram by an applicant who has no session and must not be sent to get one;
+it proves who they are with the signature it was opened with, sent to
+`/api/public/join-check`.
 
 ## Who may moderate
 

@@ -1,13 +1,15 @@
 """The public half of the web must stay public.
 
-Route groups are a directory convention, and a convention is exactly the kind of
-thing that erodes: somebody needs a member count on the landing page, reaches for
-the endpoint that already returns one, and a page anybody can open starts asking
-for an admin session. Nothing in the type system notices.
+The public half is the Mini App in `web/`; the console is the Svelte app in
+`webui/`, under `/admin`. Which build answers which path is docker/Caddyfile's
+business, and a convention is exactly the kind of thing that erodes: somebody
+needs a member count on a public screen, reaches for the endpoint that already
+returns one, and a page anybody can open starts asking for an admin session.
+Nothing in the type system notices.
 
 So the boundary is asserted here instead. These read the sources as text on
-purpose — a Svelte component cannot be imported into pytest, and what needs
-checking is which imports and which URLs appear, which the text answers exactly.
+purpose — what needs checking is which imports and which URLs appear, which the
+text answers exactly.
 """
 
 from __future__ import annotations
@@ -19,52 +21,56 @@ import pytest
 
 pytestmark = pytest.mark.unit
 
-ROUTES = Path(__file__).resolve().parents[2] / "webui" / "src" / "routes"
-PUBLIC = ROUTES / "(public)"
+ROOT = Path(__file__).resolve().parents[2]
+ROUTES = ROOT / "webui" / "src" / "routes"
 ADMIN = ROUTES / "(admin)"
+APP = ROOT / "web" / "src"
 
-# `apiFetch('/api/…')` and friends. Only literal paths are findable, which is the
-# point: a computed endpoint on a public page would be unreviewable anyway.
-API_CALL = re.compile(r"""['"`](/api/[^'"`\s]*)""")
+# `fetch('/api/…')` and friends, also after a template's base: `${BASE}/api/…`.
+# Only literal paths are findable, which is the point: a computed endpoint on a
+# public screen would be unreviewable anyway.
+API_CALL = re.compile(r"""(?:['"`]|\})(/api/[^'"`\s$]*)""")
+
+# What the Mini App may reach under /api: this repository's public endpoints,
+# and the catalog's API, which Caddy sends to another backend altogether.
+ALLOWED = ("/api/public", "/api/v1")
 
 
-def _sources(root: Path) -> list[Path]:
-    return sorted(p for p in root.rglob("*.svelte")) + sorted(p for p in root.rglob("*.ts"))
+def _app_sources() -> list[Path]:
+    generated = APP / "lib" / "generated"
+    return sorted(p for p in [*APP.rglob("*.ts"), *APP.rglob("*.tsx")] if generated not in p.parents)
 
 
 def _rel(path: Path) -> str:
-    return str(path.relative_to(ROUTES.parent.parent))
+    return str(path.relative_to(ROOT))
 
 
 class TestTheHalvesExist:
-    def test_both_route_groups_are_there(self) -> None:
-        assert PUBLIC.is_dir(), "the public half should live in webui/src/routes/(public)"
-        assert ADMIN.is_dir(), "the console should live in webui/src/routes/(admin)"
-
-    def test_the_landing_page_is_the_public_one(self) -> None:
-        """`/` belongs to the students, not to the console."""
-        assert (PUBLIC / "+page.svelte").is_file()
-        assert not (ROUTES / "+page.svelte").exists()
-
     def test_the_console_is_under_admin(self) -> None:
         assert (ADMIN / "admin" / "+page.svelte").is_file()
 
+    def test_the_console_build_has_no_public_pages(self) -> None:
+        """Every Svelte page is the console's; the public screens are the Mini App's.
+
+        A page outside /admin would be unreachable (Caddy sends only /admin and
+        /_app to this build) or, worse, a second public site nobody maintains.
+        """
+        pages = sorted(ROUTES.rglob("+page.svelte")) + sorted(ROUTES.rglob("+page.ts"))
+        outside = [_rel(p) for p in pages if (ADMIN / "admin") not in p.parents]
+
+        assert not outside
+
+    def test_the_mini_app_is_there(self) -> None:
+        assert (APP / "lib" / "api.ts").is_file()
+
 
 class TestThePublicHalfAsksNothingOfAnybody:
-    @pytest.mark.parametrize("source", _sources(PUBLIC), ids=_rel)
+    @pytest.mark.parametrize("source", _app_sources(), ids=_rel)
     def test_it_only_calls_public_endpoints(self, source: Path) -> None:
         called = API_CALL.findall(source.read_text(encoding="utf-8"))
-        private = [path for path in called if not path.startswith("/api/public")]
+        private = [path for path in called if not any(path == a or path.startswith(f"{a}/") for a in ALLOWED)]
 
         assert not private, f"{_rel(source)} reaches {private}, which needs a session"
-
-    @pytest.mark.parametrize("source", _sources(PUBLIC), ids=_rel)
-    def test_it_does_not_pull_in_the_console(self, source: Path) -> None:
-        """The admin shell and the auth store are the console's, not the site's."""
-        text = source.read_text(encoding="utf-8")
-
-        assert "components/app-shell" not in text
-        assert "stores/auth" not in text
 
 
 class TestTheConsoleIsGuardedByWhereItSits:
