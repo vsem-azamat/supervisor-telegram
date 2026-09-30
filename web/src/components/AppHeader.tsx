@@ -104,9 +104,7 @@ export function AppHeader() {
 
   return (
     <header className={css.head}>
-      <span className={css.wordmark}>
-        Students <span className={css.wordmarkTail}>CZ</span>
-      </span>
+      <span className={css.wordmark}>Konnekt</span>
 
       <div className={css.headActions}>
         <button

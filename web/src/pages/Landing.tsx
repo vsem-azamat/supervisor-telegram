@@ -18,9 +18,7 @@ import css from './Landing.module.css';
 export default function LandingPage() {
   return (
     <main className={css.page}>
-      <span className={css.wordmark}>
-        Students <span className={css.wordmarkTail}>CZ</span>
-      </span>
+      <span className={css.wordmark}>Konnekt</span>
 
       <h1 className={css.headline}>
         <Trans>Кто поможет с учёбой в Чехии</Trans>

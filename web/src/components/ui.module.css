@@ -54,9 +54,6 @@
 
 /* The country half, greyed: it qualifies the name rather than being part of
    it, and at full weight the two words fight each other. */
-.wordmarkTail {
-  color: var(--muted);
-}
 
 .headActions {
   display: flex;
