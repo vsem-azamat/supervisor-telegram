@@ -1,0 +1,297 @@
+"""What the operator reads in the console, and the partner cards they run.
+
+See docs/architecture.md, «The operator reads the catalog and runs the partner cards».
+"""
+
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
+from sqlalchemy import ColumnElement, and_, case, exists, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import QueryableAttribute, selectinload
+
+from students_cz.db.models import HelperProfile, Offer, ServiceType, User
+from students_cz.db.models.enums import (
+    PlacementEventKind,
+    PlacementSlot,
+    PublishStatus,
+    RequestStatus,
+    UiLang,
+)
+from students_cz.db.models.ops import SearchQuery
+from students_cz.db.models.partners import (
+    Partner,
+    PartnerOffer,
+    PartnerOfferI18n,
+    Placement,
+    PlacementEvent,
+)
+from students_cz.db.models.requests import HelpRequest, RequestResponse
+from students_cz.schemas import (
+    AdminCatalog,
+    AdminCounts,
+    AdminPlacement,
+    AdminPlacementIn,
+    AdminProfile,
+    AdminRequest,
+    AdminSearch,
+)
+from students_cz.services.catalog import display_name
+from students_cz.services.errors import NotFound
+from students_cz.services.naming import names_by_id
+from students_cz.services.placements import offer_text
+from students_cz.services.requests import live
+
+WEEK = timedelta(days=7)
+MONTH = timedelta(days=30)
+# Enough to read on a phone; the counts say how long the full lists are.
+LIST_CAP = 50
+SEARCH_CAP = 20
+
+
+async def catalog(session: AsyncSession, lang: UiLang) -> AdminCatalog:
+    now = datetime.now(UTC)
+    new_profile = and_(
+        HelperProfile.status == PublishStatus.PUBLISHED,
+        HelperProfile.published_at >= now - WEEK,
+    )
+    unanswered = and_(
+        live(now), ~exists().where(RequestResponse.request_id == HelpRequest.id)
+    )
+    failed_search = and_(
+        SearchQuery.results_count == 0, SearchQuery.created_at >= now - MONTH
+    )
+    return AdminCatalog(
+        profiles=await _new_profiles(session, lang, new_profile),
+        unanswered=await _unanswered(session, unanswered),
+        failed_searches=await _failed_searches(session, failed_search),
+        counts=AdminCounts(
+            profiles_week=await _count(session, HelperProfile.user_id, new_profile),
+            requests_week=await _count(
+                session,
+                HelpRequest.id,
+                and_(
+                    HelpRequest.status != RequestStatus.DRAFT,
+                    HelpRequest.created_at >= now - WEEK,
+                ),
+            ),
+            unanswered=await _count(session, HelpRequest.id, unanswered),
+            failed_searches=await _count(
+                session, func.distinct(_search_key()), failed_search
+            ),
+        ),
+    )
+
+
+async def _count(
+    session: AsyncSession,
+    what: ColumnElement[Any] | QueryableAttribute[Any],
+    where: ColumnElement[bool],
+) -> int:
+    return await session.scalar(select(func.count(what)).where(where)) or 0
+
+
+async def _new_profiles(
+    session: AsyncSession, lang: UiLang, where: ColumnElement[bool]
+) -> list[AdminProfile]:
+    rows = (
+        await session.execute(
+            select(HelperProfile.published_at, User)
+            .join(User, User.id == HelperProfile.user_id)
+            .where(where)
+            .order_by(HelperProfile.published_at.desc())
+            .limit(LIST_CAP)
+        )
+    ).all()
+    ids = [user.id for _, user in rows]
+    # What the catalog lists for them: a service switched off is not offered.
+    offered = (
+        await session.execute(
+            select(Offer.helper_id, Offer.service_type_id)
+            .where(Offer.helper_id.in_(ids), Offer.is_active.is_(True))
+            .order_by(Offer.id)
+        )
+    ).all()
+    names = await names_by_id(
+        session, ServiceType, {service for _, service in offered}, lang
+    )
+    services: dict[int, list[str]] = {}
+    for helper_id, service_id in offered:
+        listed = services.setdefault(helper_id, [])
+        if names.get(service_id) and names[service_id] not in listed:
+            listed.append(names[service_id])
+    return [
+        AdminProfile(
+            user_id=user.id,
+            # As the catalog shows people, since the operator reads them the
+            # way anybody browsing does.
+            name=display_name(user),
+            services=services.get(user.id, []),
+            published_at=published_at,
+        )
+        for published_at, user in rows
+    ]
+
+
+async def _unanswered(
+    session: AsyncSession, where: ColumnElement[bool]
+) -> list[AdminRequest]:
+    rows = await session.scalars(
+        select(HelpRequest).where(where).order_by(HelpRequest.created_at).limit(LIST_CAP)
+    )
+    return [
+        AdminRequest(id=row.id, text=row.raw_text, created_at=row.created_at)
+        for row in rows
+    ]
+
+
+def _search_key() -> ColumnElement[Any]:
+    # The same search typed twice differs in case and stray spaces; the
+    # operator wants to know what people looked for, not how they typed it.
+    return func.lower(func.btrim(SearchQuery.raw_text))
+
+
+async def _failed_searches(
+    session: AsyncSession, where: ColumnElement[bool]
+) -> list[AdminSearch]:
+    times = func.count(SearchQuery.id)
+    last = func.max(SearchQuery.created_at)
+    rows = (
+        await session.execute(
+            select(func.min(func.btrim(SearchQuery.raw_text)), times, last)
+            .where(where)
+            .group_by(_search_key())
+            .order_by(times.desc(), last.desc())
+            .limit(SEARCH_CAP)
+        )
+    ).all()
+    return [AdminSearch(text=text, times=n, last_at=at) for text, n, at in rows]
+
+
+async def partners(session: AsyncSession, lang: UiLang) -> list[AdminPlacement]:
+    """Every placement with its last month's numbers."""
+    return await _placements(session, lang)
+
+
+async def _placement(
+    session: AsyncSession, lang: UiLang, placement_id: int
+) -> AdminPlacement:
+    """One placement as the list shows it; the caller knows it exists."""
+    (row,) = await _placements(session, lang, Placement.id == placement_id)
+    return row
+
+
+async def _placements(
+    session: AsyncSession, lang: UiLang, *where: ColumnElement[bool]
+) -> list[AdminPlacement]:
+    since = datetime.now(UTC) - MONTH
+    recent = and_(
+        PlacementEvent.placement_id == Placement.id, PlacementEvent.created_at >= since
+    )
+    impressions = func.count(
+        case((PlacementEvent.kind == PlacementEventKind.IMPRESSION, 1))
+    )
+    clicks = func.count(case((PlacementEvent.kind == PlacementEventKind.CLICK, 1)))
+    rows = (
+        await session.execute(
+            select(Placement, impressions, clicks)
+            .outerjoin(PlacementEvent, recent)
+            .options(
+                selectinload(Placement.offer).selectinload(PartnerOffer.partner),
+                selectinload(Placement.offer).selectinload(PartnerOffer.texts),
+            )
+            .where(*where)
+            .group_by(Placement.id)
+            .order_by(Placement.is_active.desc(), impressions.desc(), Placement.id)
+        )
+    ).all()
+    return [
+        AdminPlacement(
+            placement_id=placement.id,
+            partner=placement.offer.partner.name,
+            title=text.title if (text := offer_text(placement.offer, lang)) else "",
+            slot=placement.slot.value,
+            is_active=placement.is_active,
+            impressions=shown,
+            clicks=clicked,
+        )
+        for placement, shown, clicked in rows
+    ]
+
+
+def _partner_code(name: str, taken: set[str]) -> str:
+    """A stable, readable key for a partner, unique among the ones there are."""
+    import re
+    import unicodedata
+
+    ascii_name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
+    base = re.sub(r"[^a-z0-9]+", "-", ascii_name.lower()).strip("-")[:48] or "partner"
+    code, n = base, 2
+    while code in taken:
+        code, n = f"{base}-{n}", n + 1
+    return code
+
+
+async def create_placement(
+    session: AsyncSession, lang: UiLang, card: AdminPlacementIn
+) -> AdminPlacement:
+    """A card on the Life screen, the one slot the app draws.
+
+    The partner is found by name ignoring case, so a second card for the same
+    company does not make a second company; the text is stored in the
+    operator's language, and readers in another see it as the first text the
+    card has.
+    """
+    partner = (
+        await session.scalars(
+            select(Partner)
+            .where(func.lower(Partner.name) == card.partner.lower())
+            .order_by(Partner.id)
+        )
+    ).first()
+    if partner is None:
+        taken = set((await session.scalars(select(Partner.code))).all())
+        partner = Partner(code=_partner_code(card.partner, taken), name=card.partner)
+        session.add(partner)
+        await session.flush()
+
+    offer = PartnerOffer(
+        partner_id=partner.id, url=card.url, logo_text=card.logo_text or None
+    )
+    session.add(offer)
+    await session.flush()
+    session.add(
+        PartnerOfferI18n(
+            offer_id=offer.id,
+            lang=lang,
+            title=card.title,
+            subtitle=card.subtitle or None,
+            price_text=card.price_text or None,
+            context_note=card.context_note or None,
+        )
+    )
+    # First on the screen: a slot shows three, and the operator must see the
+    # card they just added.
+    top = await session.scalar(
+        select(func.max(Placement.priority)).where(
+            Placement.slot == PlacementSlot.SCREEN_LIFE
+        )
+    )
+    placement = Placement(
+        offer_id=offer.id, slot=PlacementSlot.SCREEN_LIFE, priority=(top or 0) + 1
+    )
+    session.add(placement)
+    await session.flush()
+    return await _placement(session, lang, placement.id)
+
+
+async def set_placement_active(
+    session: AsyncSession, lang: UiLang, placement_id: int, active: bool
+) -> AdminPlacement:
+    """On or off; nothing is deleted, so a stopped card keeps its numbers."""
+    placement = await session.get(Placement, placement_id)
+    if placement is None:
+        raise NotFound("no such placement")
+    placement.is_active = active
+    await session.flush()
+    return await _placement(session, lang, placement_id)

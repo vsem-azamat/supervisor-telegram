@@ -19,7 +19,7 @@ import { ApiError, api, UnauthorizedError } from '@/lib/api';
 
 /**
  * A new partner card for the Life screen, drawn as students will see it
- * while it is being written. See teachers-catalog's docs/architecture.md.
+ * while it is being written. See catalog/docs/architecture.md.
  */
 export default function ConsolePartnerNewPage() {
   return (

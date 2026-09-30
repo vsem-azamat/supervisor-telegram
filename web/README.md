@@ -5,7 +5,7 @@ and the ads page. It talks to two APIs on its own origin, which
 [`docker/Caddyfile`](../docker/Caddyfile) routes in production and
 `vite.config.ts` routes in development:
 
-- `/api/v1/*` — the catalog API, in the teachers-catalog repository;
+- `/api/v1/*` — the catalog API, in [`catalog/`](../catalog/);
 - the rest of `/api/*` — this repository's webapi.
 
 The moderator console is `src/console/`, at `/console`, for super admins. It
@@ -13,8 +13,8 @@ alone uses webapi's session endpoints; the rest of the app may call only
 `/api/public` and `/api/v1`, and may not import the console
 (`tests/unit/test_web_split.py`).
 
-The product rules the code refers to as `teachers-catalog's docs/...` live in
-that repository.
+The product rules the code refers to as `catalog/docs/...` are the
+catalog's, in [`catalog/docs/`](../catalog/docs/).
 
 ## Stack
 
@@ -44,9 +44,9 @@ pnpm install
 pnpm dev
 ```
 
-The catalog API is expected at `http://127.0.0.1:8010` (run it from a
-teachers-catalog checkout with `make api`), or wherever `CATALOG_ORIGIN`
-points; the webapi at `http://127.0.0.1:8787`. See `vite.config.ts`.
+The catalog API is expected at `http://127.0.0.1:8010` (`make setup` once,
+then `make api`, in `catalog/`), or wherever `CATALOG_ORIGIN` points; the
+webapi at `http://127.0.0.1:8787`. See `vite.config.ts`.
 
 ### HTTPS is not optional
 
@@ -198,14 +198,13 @@ choice the user makes by hand is stored in `localStorage` and outranks it.
 `src/lib/generated/` holds types generated from the catalog API's OpenAPI
 document, and it is **committed**. `src/lib/types.ts` still declares the rest
 of the wire by hand and must be kept in step with the catalog's
-`apps/api/src/students_cz/schemas.py`; a type moves across as the screen using
+`catalog/src/students_cz/schemas.py`; a type moves across as the screen using
 it is touched.
 
-The document is `catalog-openapi.json`, a committed copy of the catalog's
-`apps/api/openapi.json`. `pnpm api:generate` reads it, and CI fails when
-regenerating changes the committed client. The `Catalog contract` workflow
-compares the copy with the catalog's own every day; when it fails, copy the
-new document over, regenerate, and fix what the new types break.
+The document is `catalog/openapi.json`, which the catalog's CI keeps equal to
+what its API declares. `pnpm api:generate` reads it, and CI fails when
+regenerating changes the committed client, so a change to the catalog's
+schema arrives here in the same pull request.
 
 Generation is not wired into `pnpm build`: the build uses the committed
 client. The directory is excluded from Biome, since the generator owns its

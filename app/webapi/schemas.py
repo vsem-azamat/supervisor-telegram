@@ -38,7 +38,7 @@ class PublicCatalogItem(BaseModel):
     title: str
     link: str
     group: str | None = None
-    # The university's code in teachers-catalog, the group's own: every app user
+    # The university's code in the catalog, the group's own: every app user
     # can read the catalog's taxonomy, and it lets the app put a student's first.
     institution: str | None = None
     # "unknown" is a real answer, not a missing one: it says the recording
@@ -122,7 +122,7 @@ class ChatUpdate(BaseModel):
     # Setting this publishes the chat; clearing it takes it down. Nothing else
     # does either, which is why it is one field and not a field plus a switch.
     public_link: str | None = None
-    # teachers-catalog's code for a university; empty clears it.
+    # the catalog's code for a university; empty clears it.
     institution_code: str | None = None
 
     @field_validator("institution_code")

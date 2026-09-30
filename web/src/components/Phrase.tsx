@@ -159,7 +159,7 @@ export function PriceUnitLabel({ unit }: { unit: string }): ReactElement {
  * The heading over a shelf of service tiles.
  *
  * Translated here rather than in the database, like every other closed enum
- * the server sends. See teachers-catalog's docs/data-model.md — the i18n tables are for rows we
+ * the server sends. See catalog/docs/data-model.md — the i18n tables are for rows we
  * keep adding to, and there are three of these for good.
  */
 export function ServiceGroupLabel({ group }: { group: ServiceGroup }): ReactElement {

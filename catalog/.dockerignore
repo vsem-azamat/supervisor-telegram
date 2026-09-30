@@ -1,0 +1,9 @@
+# Everything the image does not need. Keeping the build context small also
+# keeps the layer cache from being invalidated by unrelated edits.
+.venv/
+.ruff_cache/
+.pytest_cache/
+__pycache__/
+*.pyc
+tests/
+.python-version

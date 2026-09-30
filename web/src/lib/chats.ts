@@ -3,7 +3,7 @@
  *
  * The chats are supervisor-telegram's (`GET /api/public/catalog`), served on
  * this origin by the router. What may be read and why is in
- * teachers-catalog's docs/architecture.md, «Two backends, one origin»; how the directory is
+ * catalog/docs/architecture.md, «Two backends, one origin»; how the directory is
  * built from it is the paragraph after.
  */
 

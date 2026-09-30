@@ -6,13 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": [
-      "**",
-      "!dist",
-      "!src/locales/**/*.ts",
-      "!src/lib/generated",
-      "!catalog-openapi.json"
-    ]
+    "includes": ["**", "!dist", "!src/locales/**/*.ts", "!src/lib/generated"]
   },
   "formatter": {
     "enabled": true,

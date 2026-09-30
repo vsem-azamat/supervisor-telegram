@@ -64,7 +64,7 @@ test('the last row of a service stays, with its axes cleared', () => {
 
 test('and keeps what the person said about the service itself', () => {
   // The checklist, the note, the turnaround and the price belong to the
-  // service type, not to one of its rows — see teachers-catalog's docs/data-model.md. Tapping a
+  // service type, not to one of its rows — see catalog/docs/data-model.md. Tapping a
   // subject chip off is not an answer to any of those questions.
   const [last] = dropRow([row()], row(), 'subject');
   assert.deepEqual(last?.option_ids, [3, 4]);

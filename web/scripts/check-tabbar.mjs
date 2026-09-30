@@ -1,7 +1,7 @@
 /*
  * The tab bar must not show what is passing under it.
  *
- * The contract is in teachers-catalog's docs/architecture.md: anything pinned to an edge is
+ * The contract is in catalog/docs/architecture.md: anything pinned to an edge is
  * fixed, and a fixed bar is opaque behind its own controls. The bug this
  * guards against is not a layout one — nothing overflows, nothing overlaps
  * wrongly, and every element is exactly where it was put. It is that the bar's

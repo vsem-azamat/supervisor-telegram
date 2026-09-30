@@ -12,7 +12,7 @@ import mkcert from 'vite-plugin-mkcert';
  * the app's own origin, and matching that locally keeps the dev environment
  * honest.
  *
- * `/api/v1/*` is the catalog's API (teachers-catalog). Local by default, on
+ * `/api/v1/*` is the catalog's API (`catalog/`). Local by default, on
  * 8010 because something else on the development machine holds 8000; set
  * CATALOG_ORIGIN to use a deployed one instead. Everything else under `/api`
  * is this repository's webapi.

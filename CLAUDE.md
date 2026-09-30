@@ -26,6 +26,10 @@ pnpm --dir web lint && pnpm --dir web typecheck && pnpm --dir web test
 # Migrations
 uv run alembic revision --autogenerate -m "description"
 uv run alembic upgrade head
+
+# The catalog API (catalog/, its own project): `make help` lists the rest
+make -C catalog setup   # database, dependencies, migrations, reference data
+make -C catalog api     # on :8010, where web/'s dev server expects it
 ```
 
 `docker compose up -d` is the production path and reads its configuration from

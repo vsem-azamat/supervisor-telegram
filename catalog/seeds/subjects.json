@@ -1,0 +1,1910 @@
+{
+  "groups": [
+    {
+      "slug": "math",
+      "names": {
+        "cs": "Matematika",
+        "en": "Mathematics",
+        "ru": "Математика",
+        "uk": "Математика"
+      },
+      "children": [
+        {
+          "slug": "matematicka-analyza",
+          "names": {
+            "cs": "Matematická analýza",
+            "en": "Calculus / Mathematical Analysis",
+            "ru": "Математический анализ",
+            "uk": "Математичний аналіз"
+          },
+          "synonyms": [
+            "матан",
+            "matan",
+            "мат анализ",
+            "матанализ",
+            "mat. analyza",
+            "matematicka analyza",
+            "analiza",
+            "калькулюс",
+            "calculus",
+            "MA1",
+            "MA2",
+            "BI-MA1",
+            "матан 1",
+            "матан 2",
+            "матаналіз",
+            "інтеграли",
+            "производные",
+            "интегралы",
+            "limity",
+            "пределы"
+          ]
+        },
+        {
+          "slug": "linearni-algebra",
+          "names": {
+            "cs": "Lineární algebra",
+            "en": "Linear Algebra",
+            "ru": "Линейная алгебра",
+            "uk": "Лінійна алгебра"
+          },
+          "synonyms": [
+            "линал",
+            "linal",
+            "линейка",
+            "лінал",
+            "linearni algebra",
+            "lin. algebra",
+            "linear algebra",
+            "LAG",
+            "BI-LIN",
+            "матрицы",
+            "matice",
+            "matrices",
+            "определители",
+            "векторы",
+            "лінійна алгебра"
+          ]
+        },
+        {
+          "slug": "diskretni-matematika",
+          "names": {
+            "cs": "Diskrétní matematika",
+            "en": "Discrete Mathematics",
+            "ru": "Дискретная математика",
+            "uk": "Дискретна математика"
+          },
+          "synonyms": [
+            "дискретка",
+            "diskretka",
+            "diskretni matematika",
+            "diskretka mat",
+            "discrete math",
+            "дискра",
+            "дискретна",
+            "BI-DML",
+            "комбинаторика",
+            "kombinatorika",
+            "combinatorics"
+          ]
+        },
+        {
+          "slug": "pravdepodobnost-a-statistika",
+          "names": {
+            "cs": "Pravděpodobnost a statistika",
+            "en": "Probability and Statistics",
+            "ru": "Теория вероятностей и статистика",
+            "uk": "Теорія ймовірностей і статистика"
+          },
+          "synonyms": [
+            "тервер",
+            "теория вероятностей",
+            "терв",
+            "terver",
+            "теорвер",
+            "pravdepodobnost",
+            "pravdepodobnost a statistika",
+            "statistika",
+            "probability",
+            "stats",
+            "мат статистика",
+            "математическая статистика",
+            "теорія ймовірностей",
+            "PST",
+            "BI-PST"
+          ]
+        },
+        {
+          "slug": "diferencialni-rovnice",
+          "names": {
+            "cs": "Diferenciální rovnice",
+            "en": "Differential Equations",
+            "ru": "Дифференциальные уравнения",
+            "uk": "Диференціальні рівняння"
+          },
+          "synonyms": [
+            "диффуры",
+            "дифуры",
+            "diffury",
+            "difury",
+            "diferencialni rovnice",
+            "dif. rovnice",
+            "ODE",
+            "ОДУ",
+            "differential equations",
+            "дифуравнения",
+            "дифрівняння"
+          ]
+        },
+        {
+          "slug": "numericka-matematika",
+          "names": {
+            "cs": "Numerická matematika",
+            "en": "Numerical Methods",
+            "ru": "Численные методы",
+            "uk": "Чисельні методи"
+          },
+          "synonyms": [
+            "численные методы",
+            "чм",
+            "numericka matematika",
+            "numerika",
+            "numerical methods",
+            "numerical analysis",
+            "числаки",
+            "чисельні методи",
+            "numericke metody"
+          ]
+        },
+        {
+          "slug": "teorie-grafu",
+          "names": {
+            "cs": "Teorie grafů",
+            "en": "Graph Theory",
+            "ru": "Теория графов",
+            "uk": "Теорія графів"
+          },
+          "synonyms": [
+            "графы",
+            "grafy",
+            "teorie grafu",
+            "graph theory",
+            "теория графов",
+            "графи",
+            "теорграфов"
+          ]
+        },
+        {
+          "slug": "logika-a-teorie-mnozin",
+          "names": {
+            "cs": "Logika a teorie množin",
+            "en": "Logic and Set Theory",
+            "ru": "Логика и теория множеств",
+            "uk": "Логіка і теорія множин"
+          },
+          "synonyms": [
+            "логика",
+            "logika",
+            "мат логика",
+            "математическая логика",
+            "teorie mnozin",
+            "set theory",
+            "mathematical logic",
+            "множества",
+            "мнозины",
+            "логіка"
+          ]
+        },
+        {
+          "slug": "komplexni-analyza",
+          "names": {
+            "cs": "Komplexní analýza",
+            "en": "Complex Analysis",
+            "ru": "ТФКП / Комплексный анализ",
+            "uk": "ТФКЗ / Комплексний аналіз"
+          },
+          "synonyms": [
+            "тфкп",
+            "tfkp",
+            "комплексный анализ",
+            "komplexni analyza",
+            "complex analysis",
+            "функции комплексного переменного",
+            "комплексні числа",
+            "komplexni cisla"
+          ]
+        },
+        {
+          "slug": "matematika-stredni-skola",
+          "names": {
+            "cs": "Matematika – střední škola",
+            "en": "High School Mathematics",
+            "ru": "Школьная математика",
+            "uk": "Шкільна математика"
+          },
+          "synonyms": [
+            "школьная математика",
+            "математика школа",
+            "matematika ss",
+            "matematika stredni skola",
+            "school math",
+            "high school math",
+            "алгебра школа",
+            "geometrie",
+            "геометрия",
+            "шкільна математика",
+            "podpora matematika"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "physics",
+      "names": {
+        "cs": "Fyzika",
+        "en": "Physics",
+        "ru": "Физика",
+        "uk": "Фізика"
+      },
+      "children": [
+        {
+          "slug": "fyzika-1",
+          "names": {
+            "cs": "Fyzika 1",
+            "en": "Physics 1",
+            "ru": "Физика 1",
+            "uk": "Фізика 1"
+          },
+          "synonyms": [
+            "физика 1",
+            "fyzika1",
+            "fyzika 1",
+            "физ1",
+            "F1",
+            "physics 1",
+            "механика и молекулярная",
+            "фізика 1",
+            "фізика перший семестр"
+          ]
+        },
+        {
+          "slug": "fyzika-2",
+          "names": {
+            "cs": "Fyzika 2",
+            "en": "Physics 2",
+            "ru": "Физика 2",
+            "uk": "Фізика 2"
+          },
+          "synonyms": [
+            "физика 2",
+            "fyzika2",
+            "fyzika 2",
+            "физ2",
+            "F2",
+            "physics 2",
+            "электричество и магнетизм",
+            "фізика 2",
+            "фізика другий семестр"
+          ]
+        },
+        {
+          "slug": "mechanika",
+          "names": {
+            "cs": "Mechanika",
+            "en": "Mechanics",
+            "ru": "Теоретическая механика",
+            "uk": "Теоретична механіка"
+          },
+          "synonyms": [
+            "термех",
+            "теормех",
+            "termeh",
+            "teormeh",
+            "mechanika",
+            "mechanics",
+            "теоретическая механика",
+            "кинематика",
+            "динамика",
+            "kinematika",
+            "dynamika",
+            "теормеханіка"
+          ]
+        },
+        {
+          "slug": "termomechanika",
+          "names": {
+            "cs": "Termomechanika",
+            "en": "Thermodynamics / Thermomechanics",
+            "ru": "Термомеханика и термодинамика",
+            "uk": "Термомеханіка і термодинаміка"
+          },
+          "synonyms": [
+            "терех",
+            "terech",
+            "terex",
+            "termomechanika",
+            "термомеханика",
+            "термодинамика",
+            "termodynamika",
+            "thermodynamics",
+            "термех цвут",
+            "термодинаміка",
+            "TER"
+          ]
+        },
+        {
+          "slug": "elektrina-a-magnetismus",
+          "names": {
+            "cs": "Elektřina a magnetismus",
+            "en": "Electricity and Magnetism",
+            "ru": "Электричество и магнетизм",
+            "uk": "Електрика і магнетизм"
+          },
+          "synonyms": [
+            "электричество",
+            "магнетизм",
+            "elektrina a magnetismus",
+            "elektrina",
+            "EM",
+            "electromagnetism",
+            "электродинамика",
+            "elektrodynamika",
+            "електрика"
+          ]
+        },
+        {
+          "slug": "kvantova-fyzika",
+          "names": {
+            "cs": "Kvantová fyzika",
+            "en": "Quantum Physics",
+            "ru": "Квантовая физика",
+            "uk": "Квантова фізика"
+          },
+          "synonyms": [
+            "квантмех",
+            "квантовая механика",
+            "kvantovka",
+            "kvantova fyzika",
+            "kvantova mechanika",
+            "quantum mechanics",
+            "quantum physics",
+            "квантова механіка",
+            "атомная физика"
+          ]
+        },
+        {
+          "slug": "fyzika-stredni-skola",
+          "names": {
+            "cs": "Fyzika – střední škola",
+            "en": "High School Physics",
+            "ru": "Школьная физика",
+            "uk": "Шкільна фізика"
+          },
+          "synonyms": [
+            "школьная физика",
+            "физика школа",
+            "fyzika ss",
+            "fyzika stredni skola",
+            "school physics",
+            "физика для поступления",
+            "шкільна фізика",
+            "fyzika zaklady"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "it-programming",
+      "names": {
+        "cs": "Informatika a programování",
+        "en": "Computer Science and Programming",
+        "ru": "Информатика и программирование",
+        "uk": "Інформатика і програмування"
+      },
+      "children": [
+        {
+          "slug": "algoritmizace-a-datove-struktury",
+          "names": {
+            "cs": "Algoritmizace a datové struktury",
+            "en": "Algorithms and Data Structures",
+            "ru": "Алгоритмы и структуры данных",
+            "uk": "Алгоритми і структури даних"
+          },
+          "synonyms": [
+            "алгоритмы",
+            "алгосы",
+            "algoritmy",
+            "algoritmizace",
+            "ADS",
+            "algoritmy a datove struktury",
+            "algorithms",
+            "data structures",
+            "структуры данных",
+            "BI-AG1",
+            "алгоритми"
+          ]
+        },
+        {
+          "slug": "programovani-v-c",
+          "names": {
+            "cs": "Programování v C a C++",
+            "en": "C / C++ Programming",
+            "ru": "Программирование на C и C++",
+            "uk": "Програмування на C і C++"
+          },
+          "synonyms": [
+            "си",
+            "плюсы",
+            "cpp",
+            "c++",
+            "c plus plus",
+            "programovani v c",
+            "programko c",
+            "c programming",
+            "си плюс плюс",
+            "BI-PA1",
+            "PA1",
+            "PA2"
+          ]
+        },
+        {
+          "slug": "programovani-v-jave",
+          "names": {
+            "cs": "Programování v Javě",
+            "en": "Java Programming",
+            "ru": "Программирование на Java",
+            "uk": "Програмування на Java"
+          },
+          "synonyms": [
+            "java",
+            "джава",
+            "ява",
+            "programovani v jave",
+            "java programming",
+            "жаба",
+            "spring",
+            "джава программирование"
+          ]
+        },
+        {
+          "slug": "python",
+          "names": {
+            "cs": "Programování v Pythonu",
+            "en": "Python Programming",
+            "ru": "Программирование на Python",
+            "uk": "Програмування на Python"
+          },
+          "synonyms": [
+            "python",
+            "питон",
+            "пайтон",
+            "пітон",
+            "programovani v pythonu",
+            "pajton",
+            "py",
+            "pandas",
+            "numpy"
+          ]
+        },
+        {
+          "slug": "objektove-orientovane-programovani",
+          "names": {
+            "cs": "Objektově orientované programování",
+            "en": "Object-Oriented Programming",
+            "ru": "Объектно-ориентированное программирование",
+            "uk": "Об'єктно-орієнтоване програмування"
+          },
+          "synonyms": [
+            "ооп",
+            "oop",
+            "oop programovani",
+            "objektove programovani",
+            "object oriented",
+            "объектно ориентированное",
+            "об'єктне програмування",
+            "OOP design"
+          ]
+        },
+        {
+          "slug": "databaze",
+          "names": {
+            "cs": "Databáze",
+            "en": "Databases",
+            "ru": "Базы данных",
+            "uk": "Бази даних"
+          },
+          "synonyms": [
+            "базы данных",
+            "бд",
+            "databaze",
+            "databaze sql",
+            "sql",
+            "SQL dotazy",
+            "databases",
+            "postgres",
+            "mysql",
+            "бази даних",
+            "BI-DBS",
+            "DBS"
+          ]
+        },
+        {
+          "slug": "operacni-systemy",
+          "names": {
+            "cs": "Operační systémy",
+            "en": "Operating Systems",
+            "ru": "Операционные системы",
+            "uk": "Операційні системи"
+          },
+          "synonyms": [
+            "ос",
+            "операционки",
+            "operacni systemy",
+            "OSY",
+            "operating systems",
+            "linux",
+            "unix",
+            "bash",
+            "операційні системи",
+            "BI-OSY"
+          ]
+        },
+        {
+          "slug": "pocitacove-site",
+          "names": {
+            "cs": "Počítačové sítě",
+            "en": "Computer Networks",
+            "ru": "Компьютерные сети",
+            "uk": "Комп'ютерні мережі"
+          },
+          "synonyms": [
+            "сети",
+            "site",
+            "pocitacove site",
+            "networks",
+            "computer networks",
+            "tcp ip",
+            "мережі",
+            "cisco",
+            "сетки"
+          ]
+        },
+        {
+          "slug": "teoreticka-informatika",
+          "names": {
+            "cs": "Teoretická informatika a automaty",
+            "en": "Theoretical Computer Science and Automata",
+            "ru": "Теоретическая информатика и автоматы",
+            "uk": "Теоретична інформатика і автомати"
+          },
+          "synonyms": [
+            "автоматы",
+            "automaty",
+            "teoreticka informatika",
+            "TIN",
+            "automata",
+            "formalni jazyky",
+            "формальные языки",
+            "теория автоматов",
+            "turing",
+            "автомати",
+            "BI-AAG"
+          ]
+        },
+        {
+          "slug": "webove-technologie",
+          "names": {
+            "cs": "Webové technologie",
+            "en": "Web Development",
+            "ru": "Веб-разработка",
+            "uk": "Веброзробка"
+          },
+          "synonyms": [
+            "веб",
+            "web",
+            "webove technologie",
+            "html css",
+            "javascript",
+            "js",
+            "frontend",
+            "фронтенд",
+            "верстка",
+            "react",
+            "веброзробка"
+          ]
+        },
+        {
+          "slug": "strojove-uceni",
+          "names": {
+            "cs": "Strojové učení a data science",
+            "en": "Machine Learning and Data Science",
+            "ru": "Машинное обучение и Data Science",
+            "uk": "Машинне навчання і Data Science"
+          },
+          "synonyms": [
+            "мл",
+            "ml",
+            "machine learning",
+            "strojove uceni",
+            "data science",
+            "машинное обучение",
+            "нейросети",
+            "neuronove site",
+            "ai",
+            "машинне навчання"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "economics-finance",
+      "names": {
+        "cs": "Ekonomie a finance",
+        "en": "Economics and Finance",
+        "ru": "Экономика и финансы",
+        "uk": "Економіка і фінанси"
+      },
+      "children": [
+        {
+          "slug": "mikroekonomie",
+          "names": {
+            "cs": "Mikroekonomie",
+            "en": "Microeconomics",
+            "ru": "Микроэкономика",
+            "uk": "Мікроекономіка"
+          },
+          "synonyms": [
+            "микра",
+            "mikra",
+            "mikro",
+            "mikroekonomie",
+            "микроэкономика",
+            "microeconomics",
+            "micro",
+            "мікра",
+            "мікроекономіка",
+            "1MI101"
+          ]
+        },
+        {
+          "slug": "makroekonomie",
+          "names": {
+            "cs": "Makroekonomie",
+            "en": "Macroeconomics",
+            "ru": "Макроэкономика",
+            "uk": "Макроекономіка"
+          },
+          "synonyms": [
+            "макра",
+            "makra",
+            "makro",
+            "makroekonomie",
+            "макроэкономика",
+            "macroeconomics",
+            "macro",
+            "макра вше",
+            "макроекономіка"
+          ]
+        },
+        {
+          "slug": "ucetnictvi",
+          "names": {
+            "cs": "Účetnictví",
+            "en": "Accounting",
+            "ru": "Бухгалтерский учёт",
+            "uk": "Бухгалтерський облік"
+          },
+          "synonyms": [
+            "бухучет",
+            "бухгалтерия",
+            "учет",
+            "ucetnictvi",
+            "ucto",
+            "účto",
+            "accounting",
+            "финансовый учет",
+            "financni ucetnictvi",
+            "бухоблік",
+            "1FU201"
+          ]
+        },
+        {
+          "slug": "ekonometrie",
+          "names": {
+            "cs": "Ekonometrie",
+            "en": "Econometrics",
+            "ru": "Эконометрика",
+            "uk": "Економетрика"
+          },
+          "synonyms": [
+            "эконометрика",
+            "эконометрия",
+            "ekonometrie",
+            "econometrics",
+            "регрессия",
+            "regrese",
+            "gretl",
+            "stata",
+            "економетрика",
+            "eviews"
+          ]
+        },
+        {
+          "slug": "statistika-pro-ekonomy",
+          "names": {
+            "cs": "Statistika",
+            "en": "Statistics for Economists",
+            "ru": "Статистика для экономистов",
+            "uk": "Статистика для економістів"
+          },
+          "synonyms": [
+            "статистика вше",
+            "statistika vse",
+            "4ST201",
+            "statistika",
+            "statistics",
+            "описательная статистика",
+            "статистика экономика",
+            "spss",
+            "статистика університет"
+          ]
+        },
+        {
+          "slug": "matematika-pro-ekonomy",
+          "names": {
+            "cs": "Matematika pro ekonomy",
+            "en": "Mathematics for Economists",
+            "ru": "Математика для экономистов",
+            "uk": "Математика для економістів"
+          },
+          "synonyms": [
+            "матан вше",
+            "4MM101",
+            "matematika vse",
+            "matematika pro ekonomy",
+            "math for economics",
+            "математика вше",
+            "оптимизация",
+            "matematika ekonomie"
+          ]
+        },
+        {
+          "slug": "podnikove-finance",
+          "names": {
+            "cs": "Podnikové finance",
+            "en": "Corporate Finance",
+            "ru": "Корпоративные финансы",
+            "uk": "Корпоративні фінанси"
+          },
+          "synonyms": [
+            "финансы",
+            "корпфин",
+            "corporate finance",
+            "podnikove finance",
+            "finance podniku",
+            "финансы предприятия",
+            "NPV",
+            "фінанси",
+            "1FP201"
+          ]
+        },
+        {
+          "slug": "financni-matematika",
+          "names": {
+            "cs": "Finanční matematika",
+            "en": "Financial Mathematics",
+            "ru": "Финансовая математика",
+            "uk": "Фінансова математика"
+          },
+          "synonyms": [
+            "финмат",
+            "финансовая математика",
+            "financni matematika",
+            "financial math",
+            "проценты",
+            "аннуитеты",
+            "uroky",
+            "фінансова математика"
+          ]
+        },
+        {
+          "slug": "management",
+          "names": {
+            "cs": "Management",
+            "en": "Management",
+            "ru": "Менеджмент",
+            "uk": "Менеджмент"
+          },
+          "synonyms": [
+            "менеджмент",
+            "management",
+            "manazment",
+            "основы менеджмента",
+            "zaklady managementu",
+            "управление",
+            "менеджмент вше",
+            "3MA112"
+          ]
+        },
+        {
+          "slug": "marketing",
+          "names": {
+            "cs": "Marketing",
+            "en": "Marketing",
+            "ru": "Маркетинг",
+            "uk": "Маркетинг"
+          },
+          "synonyms": [
+            "маркетинг",
+            "marketing",
+            "marketink",
+            "основы маркетинга",
+            "zaklady marketingu",
+            "маркетинг вше",
+            "3MG101"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "chemistry",
+      "names": {
+        "cs": "Chemie",
+        "en": "Chemistry",
+        "ru": "Химия",
+        "uk": "Хімія"
+      },
+      "children": [
+        {
+          "slug": "obecna-chemie",
+          "names": {
+            "cs": "Obecná chemie",
+            "en": "General Chemistry",
+            "ru": "Общая химия",
+            "uk": "Загальна хімія"
+          },
+          "synonyms": [
+            "общая химия",
+            "obecna chemie",
+            "general chemistry",
+            "химия основы",
+            "загальна хімія",
+            "chemie zaklady",
+            "хімія"
+          ]
+        },
+        {
+          "slug": "organicka-chemie",
+          "names": {
+            "cs": "Organická chemie",
+            "en": "Organic Chemistry",
+            "ru": "Органическая химия",
+            "uk": "Органічна хімія"
+          },
+          "synonyms": [
+            "органика",
+            "organika",
+            "organicka chemie",
+            "organic chemistry",
+            "органическая химия",
+            "орг химия",
+            "органічна хімія",
+            "orgchem"
+          ]
+        },
+        {
+          "slug": "anorganicka-chemie",
+          "names": {
+            "cs": "Anorganická chemie",
+            "en": "Inorganic Chemistry",
+            "ru": "Неорганическая химия",
+            "uk": "Неорганічна хімія"
+          },
+          "synonyms": [
+            "неорганика",
+            "neorganika",
+            "anorganicka chemie",
+            "inorganic chemistry",
+            "неорганическая химия",
+            "неорганічна хімія",
+            "anorganika"
+          ]
+        },
+        {
+          "slug": "analyticka-chemie",
+          "names": {
+            "cs": "Analytická chemie",
+            "en": "Analytical Chemistry",
+            "ru": "Аналитическая химия",
+            "uk": "Аналітична хімія"
+          },
+          "synonyms": [
+            "аналитика",
+            "аналитическая химия",
+            "analyticka chemie",
+            "analytical chemistry",
+            "титрование",
+            "titrace",
+            "аналітична хімія"
+          ]
+        },
+        {
+          "slug": "fyzikalni-chemie",
+          "names": {
+            "cs": "Fyzikální chemie",
+            "en": "Physical Chemistry",
+            "ru": "Физическая химия",
+            "uk": "Фізична хімія"
+          },
+          "synonyms": [
+            "физхимия",
+            "физколлоидная",
+            "fyzikalni chemie",
+            "physical chemistry",
+            "физическая химия",
+            "фізична хімія",
+            "fyzchem"
+          ]
+        },
+        {
+          "slug": "chemie-stredni-skola",
+          "names": {
+            "cs": "Chemie – střední škola",
+            "en": "High School Chemistry",
+            "ru": "Школьная химия",
+            "uk": "Шкільна хімія"
+          },
+          "synonyms": [
+            "школьная химия",
+            "chemie ss",
+            "chemie stredni skola",
+            "school chemistry",
+            "химия для поступления",
+            "chemie prijimacky",
+            "шкільна хімія"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "biology-medicine",
+      "names": {
+        "cs": "Biologie a medicína",
+        "en": "Biology and Medicine",
+        "ru": "Биология и медицина",
+        "uk": "Біологія і медицина"
+      },
+      "children": [
+        {
+          "slug": "biologie-stredni-skola",
+          "names": {
+            "cs": "Biologie – střední škola",
+            "en": "High School Biology",
+            "ru": "Школьная биология",
+            "uk": "Шкільна біологія"
+          },
+          "synonyms": [
+            "школьная биология",
+            "biologie ss",
+            "biologie stredni skola",
+            "school biology",
+            "биология для поступления",
+            "biologie prijimacky",
+            "шкільна біологія",
+            "био"
+          ]
+        },
+        {
+          "slug": "obecna-biologie",
+          "names": {
+            "cs": "Obecná biologie a cytologie",
+            "en": "General Biology and Cell Biology",
+            "ru": "Общая биология и цитология",
+            "uk": "Загальна біологія і цитологія"
+          },
+          "synonyms": [
+            "общая биология",
+            "цитология",
+            "obecna biologie",
+            "cytologie",
+            "cell biology",
+            "клеточная биология",
+            "загальна біологія",
+            "biologie bunky"
+          ]
+        },
+        {
+          "slug": "anatomie",
+          "names": {
+            "cs": "Anatomie",
+            "en": "Anatomy",
+            "ru": "Анатомия",
+            "uk": "Анатомія"
+          },
+          "synonyms": [
+            "анатомия",
+            "anatomie",
+            "anatomy",
+            "анатомка",
+            "анатомія",
+            "kosti svaly",
+            "анатомия человека",
+            "anatomie cloveka"
+          ]
+        },
+        {
+          "slug": "fyziologie",
+          "names": {
+            "cs": "Fyziologie",
+            "en": "Physiology",
+            "ru": "Физиология",
+            "uk": "Фізіологія"
+          },
+          "synonyms": [
+            "физиология",
+            "fyziologie",
+            "physiology",
+            "физа",
+            "фізіологія",
+            "нормальная физиология",
+            "fyzio"
+          ]
+        },
+        {
+          "slug": "histologie",
+          "names": {
+            "cs": "Histologie a embryologie",
+            "en": "Histology and Embryology",
+            "ru": "Гистология и эмбриология",
+            "uk": "Гістологія і ембріологія"
+          },
+          "synonyms": [
+            "гистология",
+            "гиста",
+            "histologie",
+            "histology",
+            "embryologie",
+            "эмбриология",
+            "гістологія"
+          ]
+        },
+        {
+          "slug": "biochemie",
+          "names": {
+            "cs": "Biochemie",
+            "en": "Biochemistry",
+            "ru": "Биохимия",
+            "uk": "Біохімія"
+          },
+          "synonyms": [
+            "биохимия",
+            "биохим",
+            "biochemie",
+            "biochemistry",
+            "метаболизм",
+            "metabolismus",
+            "біохімія",
+            "biochem"
+          ]
+        },
+        {
+          "slug": "genetika",
+          "names": {
+            "cs": "Genetika a molekulární biologie",
+            "en": "Genetics and Molecular Biology",
+            "ru": "Генетика и молекулярная биология",
+            "uk": "Генетика і молекулярна біологія"
+          },
+          "synonyms": [
+            "генетика",
+            "genetika",
+            "genetics",
+            "молекулярка",
+            "molekularni biologie",
+            "молекулярная биология",
+            "днк",
+            "DNA",
+            "генетика молекулярна"
+          ]
+        },
+        {
+          "slug": "latinska-lekarska-terminologie",
+          "names": {
+            "cs": "Latinská lékařská terminologie",
+            "en": "Latin Medical Terminology",
+            "ru": "Латынь и медицинская терминология",
+            "uk": "Латина і медична термінологія"
+          },
+          "synonyms": [
+            "латынь",
+            "латинский",
+            "latina",
+            "latinska terminologie",
+            "latin",
+            "медицинская латынь",
+            "латина",
+            "lekarska terminologie",
+            "medical latin"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "engineering",
+      "names": {
+        "cs": "Technické a inženýrské předměty",
+        "en": "Engineering",
+        "ru": "Инженерные дисциплины",
+        "uk": "Інженерні дисципліни"
+      },
+      "children": [
+        {
+          "slug": "pruznost-a-pevnost",
+          "names": {
+            "cs": "Pružnost a pevnost",
+            "en": "Strength of Materials",
+            "ru": "Сопротивление материалов",
+            "uk": "Опір матеріалів"
+          },
+          "synonyms": [
+            "сопромат",
+            "sopromat",
+            "сопр",
+            "pruznost a pevnost",
+            "pruznost",
+            "PP",
+            "strength of materials",
+            "опір матеріалів",
+            "опромат",
+            "напряжения деформации"
+          ]
+        },
+        {
+          "slug": "statika-a-stavebni-mechanika",
+          "names": {
+            "cs": "Statika a stavební mechanika",
+            "en": "Statics and Structural Mechanics",
+            "ru": "Статика и строительная механика",
+            "uk": "Статика і будівельна механіка"
+          },
+          "synonyms": [
+            "статика",
+            "statika",
+            "строймех",
+            "stavebni mechanika",
+            "structural mechanics",
+            "statics",
+            "строительная механика",
+            "будівельна механіка",
+            "фермы",
+            "prihradove konstrukce"
+          ]
+        },
+        {
+          "slug": "elektrotechnika",
+          "names": {
+            "cs": "Elektrotechnika",
+            "en": "Electrical Engineering",
+            "ru": "Электротехника",
+            "uk": "Електротехніка"
+          },
+          "synonyms": [
+            "электротехника",
+            "тоэ",
+            "toe",
+            "elektrotechnika",
+            "electrical engineering",
+            "elektro",
+            "теоретические основы электротехники",
+            "електротехніка",
+            "obvody"
+          ]
+        },
+        {
+          "slug": "elektronika-a-obvody",
+          "names": {
+            "cs": "Elektronika a elektrické obvody",
+            "en": "Electronics and Circuits",
+            "ru": "Электроника и схемотехника",
+            "uk": "Електроніка і схемотехніка"
+          },
+          "synonyms": [
+            "схемотехника",
+            "электроника",
+            "elektronika",
+            "obvody",
+            "circuits",
+            "electronics",
+            "транзисторы",
+            "tranzistory",
+            "електроніка",
+            "analogova elektronika"
+          ]
+        },
+        {
+          "slug": "technicke-kresleni-a-cad",
+          "names": {
+            "cs": "Technické kreslení a CAD",
+            "en": "Technical Drawing and CAD",
+            "ru": "Черчение и CAD",
+            "uk": "Креслення і CAD"
+          },
+          "synonyms": [
+            "черчение",
+            "начерталка",
+            "начертательная геометрия",
+            "technicke kresleni",
+            "cad",
+            "autocad",
+            "solidworks",
+            "inventor",
+            "technical drawing",
+            "креслення",
+            "deskriptivni geometrie"
+          ]
+        },
+        {
+          "slug": "nauka-o-materialu",
+          "names": {
+            "cs": "Nauka o materiálu",
+            "en": "Materials Science",
+            "ru": "Материаловедение",
+            "uk": "Матеріалознавство"
+          },
+          "synonyms": [
+            "материаловедение",
+            "матвед",
+            "nauka o materialu",
+            "materialy",
+            "materials science",
+            "металловедение",
+            "матеріалознавство",
+            "materialove inzenyrstvi"
+          ]
+        },
+        {
+          "slug": "hydromechanika",
+          "names": {
+            "cs": "Hydromechanika a mechanika tekutin",
+            "en": "Fluid Mechanics",
+            "ru": "Гидромеханика и механика жидкостей",
+            "uk": "Гідромеханіка і механіка рідин"
+          },
+          "synonyms": [
+            "гидравлика",
+            "гидромеханика",
+            "hydraulika",
+            "hydromechanika",
+            "mechanika tekutin",
+            "fluid mechanics",
+            "механика жидкости",
+            "гідравліка",
+            "гідромеханіка"
+          ]
+        },
+        {
+          "slug": "automatizace-a-rizeni",
+          "names": {
+            "cs": "Automatizace a teorie řízení",
+            "en": "Control Theory and Automation",
+            "ru": "Теория автоматического управления",
+            "uk": "Теорія автоматичного керування"
+          },
+          "synonyms": [
+            "тау",
+            "tau",
+            "автоматика",
+            "automatizace",
+            "teorie rizeni",
+            "rizeni",
+            "control theory",
+            "control systems",
+            "регуляторы",
+            "PID",
+            "автоматизація",
+            "керування"
+          ]
+        },
+        {
+          "slug": "casti-stroju",
+          "names": {
+            "cs": "Části a mechanismy strojů",
+            "en": "Machine Elements",
+            "ru": "Детали машин",
+            "uk": "Деталі машин"
+          },
+          "synonyms": [
+            "детали машин",
+            "деталюхи",
+            "casti stroju",
+            "machine elements",
+            "machine design",
+            "механизмы",
+            "mechanismy",
+            "деталі машин",
+            "prevody"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "languages",
+      "names": {
+        "cs": "Jazyky",
+        "en": "Languages",
+        "ru": "Языки",
+        "uk": "Мови"
+      },
+      "children": [
+        {
+          "slug": "cestina-a1-a2",
+          "names": {
+            "cs": "Čeština pro cizince A1–A2",
+            "en": "Czech for Foreigners A1–A2",
+            "ru": "Чешский язык A1–A2 (начальный)",
+            "uk": "Чеська мова A1–A2 (початковий)"
+          },
+          "synonyms": [
+            "чешский с нуля",
+            "чешский для начинающих",
+            "cestina a1",
+            "cestina a2",
+            "cestina pro zacatecniky",
+            "czech a1",
+            "czech for beginners",
+            "чеська з нуля",
+            "чешский начальный",
+            "cestina pro cizince"
+          ]
+        },
+        {
+          "slug": "cestina-b1",
+          "names": {
+            "cs": "Čeština pro cizince B1",
+            "en": "Czech for Foreigners B1",
+            "ru": "Чешский язык B1",
+            "uk": "Чеська мова B1"
+          },
+          "synonyms": [
+            "чешский b1",
+            "cestina b1",
+            "czech b1",
+            "чешский средний уровень",
+            "b1 zkouska",
+            "экзамен b1",
+            "чеська b1",
+            "cestina pro obcanstvi"
+          ]
+        },
+        {
+          "slug": "cestina-b2",
+          "names": {
+            "cs": "Čeština pro cizince B2",
+            "en": "Czech for Foreigners B2",
+            "ru": "Чешский язык B2 (для вуза и нострификации)",
+            "uk": "Чеська мова B2 (для вишу і нострифікації)"
+          },
+          "synonyms": [
+            "чешский b2",
+            "cestina b2",
+            "czech b2",
+            "b2 экзамен",
+            "zkouska b2",
+            "чешский для поступления",
+            "чешский для нострификации",
+            "cestina pro vysokou skolu",
+            "чеська b2",
+            "CCE B2",
+            "UJOP B2"
+          ]
+        },
+        {
+          "slug": "cestina-c1",
+          "names": {
+            "cs": "Čeština pro cizince C1",
+            "en": "Czech for Foreigners C1",
+            "ru": "Чешский язык C1 (продвинутый)",
+            "uk": "Чеська мова C1 (просунутий)"
+          },
+          "synonyms": [
+            "чешский c1",
+            "cestina c1",
+            "czech c1",
+            "продвинутый чешский",
+            "CCE C1",
+            "zkouska c1",
+            "чеська c1",
+            "cestina pokrocila"
+          ]
+        },
+        {
+          "slug": "cestina-konverzace",
+          "names": {
+            "cs": "Čeština – konverzace",
+            "en": "Czech Conversation Practice",
+            "ru": "Разговорный чешский",
+            "uk": "Розмовна чеська"
+          },
+          "synonyms": [
+            "разговорный чешский",
+            "чешская разговорная практика",
+            "cestina konverzace",
+            "czech conversation",
+            "speaking czech",
+            "практика чешского",
+            "розмовна чеська",
+            "cestina mluveni"
+          ]
+        },
+        {
+          "slug": "anglictina",
+          "names": {
+            "cs": "Angličtina",
+            "en": "English",
+            "ru": "Английский язык",
+            "uk": "Англійська мова"
+          },
+          "synonyms": [
+            "английский",
+            "англ",
+            "anglictina",
+            "english",
+            "инглиш",
+            "англійська",
+            "англ язык",
+            "english lessons",
+            "anglicky jazyk"
+          ]
+        },
+        {
+          "slug": "anglictina-ielts-toefl",
+          "names": {
+            "cs": "Angličtina – příprava na IELTS a TOEFL",
+            "en": "English – IELTS and TOEFL Preparation",
+            "ru": "Английский: подготовка к IELTS и TOEFL",
+            "uk": "Англійська: підготовка до IELTS і TOEFL"
+          },
+          "synonyms": [
+            "ielts",
+            "toefl",
+            "айлтс",
+            "тоефл",
+            "подготовка к ielts",
+            "priprava ielts",
+            "cambridge exam",
+            "FCE",
+            "CAE",
+            "англійська іспит",
+            "английский экзамен"
+          ]
+        },
+        {
+          "slug": "obchodni-anglictina",
+          "names": {
+            "cs": "Obchodní angličtina",
+            "en": "Business English",
+            "ru": "Деловой английский",
+            "uk": "Ділова англійська"
+          },
+          "synonyms": [
+            "деловой английский",
+            "бизнес английский",
+            "business english",
+            "obchodni anglictina",
+            "anglictina pro praci",
+            "english for business",
+            "ділова англійська",
+            "английский для работы"
+          ]
+        },
+        {
+          "slug": "nemcina",
+          "names": {
+            "cs": "Němčina",
+            "en": "German",
+            "ru": "Немецкий язык",
+            "uk": "Німецька мова"
+          },
+          "synonyms": [
+            "немецкий",
+            "нем",
+            "nemcina",
+            "german",
+            "deutsch",
+            "дойч",
+            "німецька",
+            "немецкий язык",
+            "nemecky jazyk",
+            "goethe zertifikat"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "admissions-prep",
+      "names": {
+        "cs": "Příprava na přijímací zkoušky",
+        "en": "University Admissions Preparation",
+        "ru": "Подготовка к поступлению",
+        "uk": "Підготовка до вступу"
+      },
+      "children": [
+        {
+          "slug": "prijimacky-technicke-vs",
+          "names": {
+            "cs": "Přijímačky na technické VŠ (matematika + fyzika)",
+            "en": "Admissions to Technical Universities (Maths + Physics)",
+            "ru": "Поступление в технические вузы (математика + физика)",
+            "uk": "Вступ до технічних ВНЗ (математика + фізика)"
+          },
+          "synonyms": [
+            "приемка цвут",
+            "prijimacky cvut",
+            "поступление цвут",
+            "prijimacky vut",
+            "prijimacky technika",
+            "подготовка цвут",
+            "cvut math exam",
+            "вступ цвут",
+            "prijimaci zkousky technicke"
+          ]
+        },
+        {
+          "slug": "prijimacky-matematika",
+          "names": {
+            "cs": "Přijímací zkouška z matematiky",
+            "en": "Mathematics Entrance Exam",
+            "ru": "Вступительный экзамен по математике",
+            "uk": "Вступний іспит з математики"
+          },
+          "synonyms": [
+            "приемка математика",
+            "prijimacky matematika",
+            "prijimacka z matematiky",
+            "math entrance exam",
+            "вступительный по математике",
+            "prijimacky mat",
+            "математика на поступление",
+            "вступний з математики"
+          ]
+        },
+        {
+          "slug": "prijimacky-fyzika",
+          "names": {
+            "cs": "Přijímací zkouška z fyziky",
+            "en": "Physics Entrance Exam",
+            "ru": "Вступительный экзамен по физике",
+            "uk": "Вступний іспит з фізики"
+          },
+          "synonyms": [
+            "приемка физика",
+            "prijimacky fyzika",
+            "prijimacka z fyziky",
+            "physics entrance exam",
+            "физика на поступление",
+            "вступительный по физике",
+            "вступний з фізики"
+          ]
+        },
+        {
+          "slug": "prijimacky-ekonomicke-vs",
+          "names": {
+            "cs": "Přijímačky na ekonomické VŠ (VŠE)",
+            "en": "Admissions to Business Schools (VŠE)",
+            "ru": "Поступление в экономические вузы (VŠE)",
+            "uk": "Вступ до економічних ВНЗ (VŠE)"
+          },
+          "synonyms": [
+            "приемка вше",
+            "prijimacky vse",
+            "vse prijimacky",
+            "поступление вше",
+            "prijimacky ekonomie",
+            "vse entrance",
+            "вступ вше",
+            "приемные экзамены вше",
+            "prijimacky na vse matematika"
+          ]
+        },
+        {
+          "slug": "prijimacky-medicina",
+          "names": {
+            "cs": "Přijímačky na medicínu (biologie + chemie)",
+            "en": "Medical School Admissions (Biology + Chemistry)",
+            "ru": "Поступление на медицину (биология + химия)",
+            "uk": "Вступ на медицину (біологія + хімія)"
+          },
+          "synonyms": [
+            "приемка медицина",
+            "prijimacky medicina",
+            "prijimacky na lekarskou",
+            "медфак",
+            "1 lf uk",
+            "поступление в мед",
+            "medical admissions",
+            "biologie chemie prijimacky",
+            "вступ на медицину",
+            "lekarska fakulta prijimacky",
+            "prijimacky na medicinu",
+            "приймачки на медицину",
+            "поступление на медицину",
+            "vstup na medicinu"
+          ]
+        },
+        {
+          "slug": "tsp-muni",
+          "names": {
+            "cs": "TSP – Test studijních předpokladů (MUNI)",
+            "en": "TSP – Masaryk University Aptitude Test",
+            "ru": "TSP — тест способностей (Университет Масарика)",
+            "uk": "TSP — тест здібностей (Університет Масарика)"
+          },
+          "synonyms": [
+            "тсп",
+            "tsp",
+            "tsp muni",
+            "test studijnich predpokladu",
+            "тест способностей",
+            "муни тест",
+            "masaryk tsp",
+            "тсп муні",
+            "подготовка к tsp"
+          ]
+        },
+        {
+          "slug": "osp-scio",
+          "names": {
+            "cs": "OSP – Obecné studijní předpoklady (Scio)",
+            "en": "OSP – Scio General Study Aptitude Test",
+            "ru": "OSP — тест Scio (общие способности)",
+            "uk": "OSP — тест Scio (загальні здібності)"
+          },
+          "synonyms": [
+            "осп",
+            "osp",
+            "scio",
+            "сцио",
+            "obecne studijni predpoklady",
+            "scio test",
+            "нсз",
+            "NSZ",
+            "подготовка к osp",
+            "осп сціо",
+            "scio prijimacky"
+          ]
+        },
+        {
+          "slug": "zsv-scio",
+          "names": {
+            "cs": "ZSV – Základy společenských věd (Scio)",
+            "en": "ZSV – Social Sciences Test (Scio)",
+            "ru": "ZSV — обществознание (тест Scio)",
+            "uk": "ZSV — суспільствознавство (тест Scio)"
+          },
+          "synonyms": [
+            "зсв",
+            "zsv",
+            "zsv scio",
+            "zaklady spolecenskych ved",
+            "обществознание",
+            "суспільствознавство",
+            "zsv test",
+            "подготовка зсв"
+          ]
+        },
+        {
+          "slug": "nostrifikacni-zkousky",
+          "names": {
+            "cs": "Nostrifikační zkoušky",
+            "en": "Nostrification Exams (Diploma Recognition)",
+            "ru": "Нострификационные экзамены",
+            "uk": "Нострифікаційні іспити"
+          },
+          "synonyms": [
+            "нострификация",
+            "нострик",
+            "nostrifikace",
+            "nostrifikacni zkousky",
+            "nostrification",
+            "признание аттестата",
+            "подготовка к нострификации",
+            "нострифікація",
+            "нострификация математика",
+            "nostrifikace biologie",
+            "nostrifikace zemepis"
+          ]
+        },
+        {
+          "slug": "maturita",
+          "names": {
+            "cs": "Příprava na maturitu",
+            "en": "Czech School-Leaving Exam (Maturita) Preparation",
+            "ru": "Подготовка к матурите",
+            "uk": "Підготовка до матури"
+          },
+          "synonyms": [
+            "матурита",
+            "матура",
+            "maturita",
+            "maturitni zkouska",
+            "cermat",
+            "подготовка к матурите",
+            "didakticky test",
+            "матурита математика",
+            "матура чеська"
+          ]
+        }
+      ]
+    },
+    {
+      "slug": "humanities-social",
+      "names": {
+        "cs": "Humanitní a společenské vědy",
+        "en": "Humanities and Social Sciences",
+        "ru": "Гуманитарные и общественные науки",
+        "uk": "Гуманітарні і суспільні науки"
+      },
+      "children": [
+        {
+          "slug": "zaklady-spolecenskych-ved",
+          "names": {
+            "cs": "Základy společenských věd",
+            "en": "Social Studies",
+            "ru": "Обществознание",
+            "uk": "Суспільствознавство"
+          },
+          "synonyms": [
+            "обществознание",
+            "обществоведение",
+            "zsv",
+            "zaklady spolecenskych ved",
+            "social studies",
+            "суспільствознавство",
+            "общество",
+            "zsv priprava"
+          ]
+        },
+        {
+          "slug": "dejepis",
+          "names": {
+            "cs": "Dějepis a historie",
+            "en": "History",
+            "ru": "История",
+            "uk": "Історія"
+          },
+          "synonyms": [
+            "история",
+            "истор",
+            "dejepis",
+            "historie",
+            "history",
+            "історія",
+            "история чехии",
+            "dejiny",
+            "ceske dejiny"
+          ]
+        },
+        {
+          "slug": "filozofie",
+          "names": {
+            "cs": "Filozofie",
+            "en": "Philosophy",
+            "ru": "Философия",
+            "uk": "Філософія"
+          },
+          "synonyms": [
+            "философия",
+            "филос",
+            "filozofie",
+            "filosofie",
+            "philosophy",
+            "філософія",
+            "фило",
+            "dejiny filozofie"
+          ]
+        },
+        {
+          "slug": "psychologie",
+          "names": {
+            "cs": "Psychologie",
+            "en": "Psychology",
+            "ru": "Психология",
+            "uk": "Психологія"
+          },
+          "synonyms": [
+            "психология",
+            "психа",
+            "psychologie",
+            "psychology",
+            "психологія",
+            "общая психология",
+            "obecna psychologie",
+            "psycho"
+          ]
+        },
+        {
+          "slug": "sociologie",
+          "names": {
+            "cs": "Sociologie",
+            "en": "Sociology",
+            "ru": "Социология",
+            "uk": "Соціологія"
+          },
+          "synonyms": [
+            "социология",
+            "социо",
+            "sociologie",
+            "sociology",
+            "соціологія",
+            "socio",
+            "zaklady sociologie"
+          ]
+        },
+        {
+          "slug": "pravo",
+          "names": {
+            "cs": "Právo a základy práva",
+            "en": "Law Basics",
+            "ru": "Право и основы права",
+            "uk": "Право і основи права"
+          },
+          "synonyms": [
+            "право",
+            "юриспруденция",
+            "pravo",
+            "zaklady prava",
+            "law",
+            "obchodni pravo",
+            "хозяйственное право",
+            "гражданское право",
+            "obcanske pravo",
+            "право чехії"
+          ]
+        },
+        {
+          "slug": "politologie",
+          "names": {
+            "cs": "Politologie a mezinárodní vztahy",
+            "en": "Political Science and International Relations",
+            "ru": "Политология и международные отношения",
+            "uk": "Політологія і міжнародні відносини"
+          },
+          "synonyms": [
+            "политология",
+            "мо",
+            "politologie",
+            "mezinarodni vztahy",
+            "political science",
+            "international relations",
+            "міжнародні відносини",
+            "политика",
+            "IR"
+          ]
+        },
+        {
+          "slug": "akademicke-psani",
+          "names": {
+            "cs": "Akademické psaní a bakalářská práce",
+            "en": "Academic Writing and Thesis Support",
+            "ru": "Академическое письмо и дипломная работа",
+            "uk": "Академічне письмо і дипломна робота"
+          },
+          "synonyms": [
+            "академическое письмо",
+            "дипломная",
+            "бакалаврская",
+            "akademicke psani",
+            "bakalarska prace",
+            "diplomova prace",
+            "thesis",
+            "academic writing",
+            "курсовая",
+            "seminarni prace",
+            "дипломна робота",
+            "оформление работы"
+          ]
+        }
+      ]
+    }
+  ]
+}

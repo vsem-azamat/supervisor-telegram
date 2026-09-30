@@ -22,9 +22,8 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-!web/src/lib/
-!web/scripts/lib/
+# Anchored: an unanchored lib/ hid web/src/lib and would hide any other.
+/lib/
 lib64/
 
 # Superpowers brainstorm session files

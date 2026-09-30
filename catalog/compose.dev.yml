@@ -1,0 +1,42 @@
+# The catalog's development database; production is in docs/deploy.md.
+# Its own project name, so it never shares a volume with an older checkout's.
+name: catalog-dev
+
+services:
+  db:
+    # pgvector's image rather than the plain one: semantic search over free-text
+    # queries is on the roadmap, and having the extension present from day one
+    # costs nothing. It is not enabled yet — see docs/data-model.md.
+    image: pgvector/pgvector:pg18
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-students_cz}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-students_cz}
+      POSTGRES_DB: ${POSTGRES_DB:-students_cz}
+      # The catalog is searched case- and accent-insensitively in four
+      # languages; a C collation would break ordering for all of them.
+      POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=cs-CZ --encoding=UTF8"
+    ports:
+      # 5433 on the host: 5432 is usually taken by a local Postgres.
+      - "${POSTGRES_PORT:-5433}:5432"
+    volumes:
+      # Postgres 18 moved the image's volume from /var/lib/postgresql/data up to
+      # /var/lib/postgresql (PGDATA is now .../18/docker). Mounting the old path
+      # leaves the real data directory inside the container layer, where it is
+      # lost on the next recreate.
+      - pgdata:/var/lib/postgresql
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-students_cz} -d ${POSTGRES_DB:-students_cz}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  # Deliberately not pinned to the old name, unlike production. The role
+  # and the database live *inside* the cluster, so renaming them in this
+  # file does not rename them in there — keeping the old volume would
+  # mean a cluster owned by `konnekt` and a connection string saying
+  # `students_cz`. A development database is `make setup` away, so it is
+  # recreated instead. Production has no such luxury and keeps its own.
+  pgdata:
