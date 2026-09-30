@@ -288,6 +288,11 @@ class SpamPingRead(BaseModel):
     chat_id: int
     chat_title: str | None = None
     user_id: int
+    # The author as the bot last saw them; none of it for somebody never stored.
+    username: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    blocked: bool = False
     message_id: int
     kind: str
     matches: list[str]

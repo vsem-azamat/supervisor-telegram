@@ -1,9 +1,9 @@
 import { Plural, Trans, useLingui } from '@lingui/react/macro';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useState } from 'react';
-import { useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 
-import { Sheet } from '@/components/Sheet';
+import { Pick, Sheet } from '@/components/Sheet';
 import {
   Action,
   Actions,
@@ -19,8 +19,12 @@ import {
   Title,
   ui,
 } from '@/components/Ui';
+import { parentChoices } from '@/console/activity';
+import { Heatmap, MemberTrend } from '@/console/Charts';
 import { ConsoleFailure, ConsoleGate } from '@/console/ConsoleGate';
 import { isListed } from '@/console/chats';
+import { FailureText } from '@/console/FailureText';
+import { PingRows, PingSheet } from '@/console/Pings';
 import {
   blockedQuery,
   chatDetailQuery,
@@ -35,6 +39,8 @@ import {
   type ConsoleChat,
   type ConsoleChatDetail,
   ConsoleError,
+  personName,
+  type SpamPing,
 } from '@/console/session';
 import { hapticSelection } from '@/hooks/useTelegram';
 import { initials } from '@/lib/chats';
@@ -75,36 +81,16 @@ type Sheets =
   | { kind: 'welcome'; enable: boolean }
   | { kind: 'ban'; sender: ChatSender }
   | { kind: 'unban'; sender: ChatSender }
+  | { kind: 'ping'; ping: SpamPing }
+  | { kind: 'parent' }
   | null;
-
-function senderName(sender: ChatSender): string {
-  const name = [sender.first_name, sender.last_name].filter(Boolean).join(' ');
-  return name || (sender.username ? `@${sender.username}` : String(sender.user_id));
-}
-
-/** What a failed change means for the person who tried it. */
-function FailureText({ error }: { error: unknown }) {
-  const reason = error instanceof ConsoleError ? error.reason : 'failed';
-  if (reason === 'stale') return <Trans>Вход устарел: откройте приложение заново.</Trans>;
-  if (reason === 'not-kept') {
-    return <Trans>Вход не сохранился: откройте консоль в приложении Telegram.</Trans>;
-  }
-  if (reason === 'refused') {
-    return <Trans>Аккаунта нет среди главных администраторов бота.</Trans>;
-  }
-  if (error instanceof ConsoleError && error.status === 422) {
-    return <Trans>Ссылка должна вести на чат в Telegram: https://t.me/…</Trans>;
-  }
-  if (error instanceof ConsoleError && error.status === 400) {
-    return <Trans>Сервер отказал: главного администратора забанить нельзя.</Trans>;
-  }
-  return <Trans>Не сохранилось. Попробуйте ещё раз.</Trans>;
-}
 
 function ChatScreen({ chatId }: { chatId: number }) {
   const { t, i18n } = useLingui();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const detail = useQuery(chatDetailQuery(chatId));
+  const chats = useQuery(consoleChatsQuery);
   const system = useQuery(consoleSystemQuery);
   const [sheet, setSheet] = useState<Sheets>(null);
   const [error, setError] = useState<unknown>(null);
@@ -157,8 +143,9 @@ function ChatScreen({ chatId }: { chatId: number }) {
         : consoleChanges.block(sender.user_id, revoke),
     onMutate: () => setError(null),
     onSuccess: () => {
-      // A ban is every chat's: every chat's sender list may show it.
+      // A ban is every chat's: every chat's sender list and hits may show it.
       void queryClient.invalidateQueries({ queryKey: ['console', 'chat'] });
+      void queryClient.invalidateQueries({ queryKey: ['console', 'spam'] });
       void queryClient.invalidateQueries({ queryKey: blockedQuery.queryKey });
       setSheet((current) =>
         current?.kind === 'ban' || current?.kind === 'unban' ? null : current,
@@ -200,6 +187,11 @@ function ChatScreen({ chatId }: { chatId: number }) {
   const admins = new Set(system.data?.super_admin_ids ?? []);
   const total = chat.recent_senders.reduce((sum, row) => sum + row.message_count, 0);
   const sheetError = sheet && error ? <FailureText error={error} /> : null;
+  const parent = chats.data?.find((row) => row.id === chat.parent_chat_id);
+  const goTo = (id: number) => {
+    hapticSelection();
+    navigate(`/console/chats/${id}`);
+  };
 
   return (
     <>
@@ -366,6 +358,58 @@ function ChatScreen({ chatId }: { chatId: number }) {
         />
       </Rows>
 
+      <Label>
+        <Trans>Место в списке</Trans>
+      </Label>
+      <Rows>
+        <Row
+          title={<Trans>Входит в</Trans>}
+          hint={
+            chat.parent_chat_id === null ? (
+              <Trans>ни во что: стоит отдельно</Trans>
+            ) : (
+              (parent?.title ?? String(chat.parent_chat_id))
+            )
+          }
+          trailing={<Chevron />}
+          onClick={() => {
+            if (!busy) open({ kind: 'parent' });
+          }}
+        />
+        {chat.children.map((child) => (
+          <Row
+            key={child.id}
+            title={child.title ?? String(child.id)}
+            hint={<Trans>входит в этот чат</Trans>}
+            trailing={<Chevron />}
+            onClick={() => goTo(child.id)}
+          />
+        ))}
+      </Rows>
+
+      <Label>
+        <Trans>Активность</Trans>
+      </Label>
+      <div className={ui.column}>
+        <MemberTrend snapshots={chat.member_snapshots} />
+        <Heatmap cells={chat.heatmap} />
+      </div>
+
+      <Label>
+        <Trans>Реклама</Trans>
+      </Label>
+      {chat.spam_pings.length > 0 ? (
+        <PingRows
+          pings={chat.spam_pings}
+          showChat={false}
+          onPick={(ping) => open({ kind: 'ping', ping })}
+        />
+      ) : (
+        <Hint>
+          <Trans>Детектор здесь ничего не находил.</Trans>
+        </Hint>
+      )}
+
       <Label aside={total > 0 ? <Trans>всего {i18n.number(total)}</Trans> : null}>
         <Trans>Кто писал за неделю</Trans>
       </Label>
@@ -376,7 +420,7 @@ function ChatScreen({ chatId }: { chatId: number }) {
             return (
               <Row
                 key={sender.user_id}
-                title={senderName(sender)}
+                title={personName(sender)}
                 hint={
                   <>
                     <Plural
@@ -551,7 +595,7 @@ function ChatScreen({ chatId }: { chatId: number }) {
       {sheet?.kind === 'ban' ? (
         <Sheet title={t`Забанить во всех чатах?`} closeLabel={t`Отмена`} onClose={close}>
           <Sub>
-            {senderName(sheet.sender)} ·{' '}
+            {personName(sheet.sender)} ·{' '}
             <Trans>
               здесь за неделю{' '}
               <Plural
@@ -585,9 +629,30 @@ function ChatScreen({ chatId }: { chatId: number }) {
           </div>
         </Sheet>
       ) : null}
+      {sheet?.kind === 'ping' ? <PingSheet ping={sheet.ping} onClose={close} /> : null}
+      {sheet?.kind === 'parent' ? (
+        <ParentSheet
+          chat={chat}
+          chats={chats.data}
+          busy={busy}
+          error={sheet && error ? <ParentFailure error={error} /> : null}
+          onPick={(parentId) =>
+            parentId === chat.parent_chat_id
+              ? close()
+              : save({ parent_chat_id: parentId }, () => {
+                  // The old and the new parent list their children.
+                  void queryClient.invalidateQueries({ queryKey: ['console', 'chat'] });
+                  close();
+                })
+          }
+          retry={() => void chats.refetch()}
+          failed={chats.error}
+          onClose={close}
+        />
+      ) : null}
       {sheet?.kind === 'unban' ? (
         <Sheet title={t`Снять бан во всех чатах?`} closeLabel={t`Отмена`} onClose={close}>
-          <Sub>{senderName(sheet.sender)}</Sub>
+          <Sub>{personName(sheet.sender)}</Sub>
           {sheetError ? <Hint>{sheetError}</Hint> : null}
           <div className={ui.actionsStacked}>
             <Action
@@ -604,6 +669,83 @@ function ChatScreen({ chatId }: { chatId: number }) {
       ) : null}
     </>
   );
+}
+
+/**
+ * Which chat this one is listed under. The console's and the public lists
+ * group one level deep, so only a top-level chat is offered.
+ */
+function ParentSheet({
+  chat,
+  chats,
+  failed,
+  busy,
+  error,
+  onPick,
+  retry,
+  onClose,
+}: {
+  chat: ConsoleChatDetail;
+  chats: ConsoleChat[] | undefined;
+  failed: unknown;
+  busy: boolean;
+  error: ReactNode;
+  onPick: (parentId: number | null) => void;
+  retry: () => void;
+  onClose: () => void;
+}) {
+  const { t } = useLingui();
+  const choices = chats ? parentChoices(chats, chat.id) : [];
+  const nested = chat.children.length > 0;
+  return (
+    <Sheet title={t`Входит в`} closeLabel={t`Отмена`} onClose={onClose}>
+      {error ? <Hint>{error}</Hint> : null}
+      {failed ? (
+        <ConsoleFailure error={failed} retry={retry} />
+      ) : !chats ? (
+        <SkeletonRows count={3} />
+      ) : (
+        <>
+          {nested ? (
+            <Hint>
+              <Trans>В этот чат входят другие, поэтому он сам стоит отдельно.</Trans>
+            </Hint>
+          ) : null}
+          <div className={ui.sheetList}>
+            {/* Offered whenever it is a change, so a chat nested against the rule can
+                still be taken out. */}
+            {!nested || chat.parent_chat_id !== null ? (
+              <Pick
+                name={<Trans>Ни во что</Trans>}
+                selected={chat.parent_chat_id === null}
+                disabled={busy}
+                onClick={() => onPick(null)}
+              />
+            ) : null}
+            {choices.map((choice) => (
+              <Pick
+                key={choice.id}
+                name={choice.title ?? String(choice.id)}
+                selected={chat.parent_chat_id === choice.id}
+                disabled={busy}
+                onClick={() => onPick(choice.id)}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </Sheet>
+  );
+}
+
+/** Why a parent was refused: the list moved on under the sheet. */
+function ParentFailure({ error }: { error: unknown }) {
+  if (error instanceof ConsoleError && (error.status === 409 || error.status === 422)) {
+    return (
+      <Trans>Так вложить нельзя: список чатов изменился. Откройте экран заново.</Trans>
+    );
+  }
+  return <FailureText error={error} />;
 }
 
 function TextSheet({

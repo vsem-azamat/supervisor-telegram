@@ -13,6 +13,7 @@ import {
   type ConsoleChatDetail,
   consoleRequester,
   type HomeStats,
+  type SpamPing,
   type SystemStatus,
 } from './session';
 
@@ -115,6 +116,15 @@ export const sessionsQuery = {
   queryKey: ['console', 'sessions'] as const,
   queryFn: ({ signal }: { signal: AbortSignal }) =>
     consoleGet<AdminSession[]>('/api/admin/sessions', { signal }),
+  staleTime: CONSOLE_STALE,
+  retryOnMount: false,
+};
+
+/** The ad detector's latest hits across every chat. */
+export const spamPingsQuery = {
+  queryKey: ['console', 'spam'] as const,
+  queryFn: ({ signal }: { signal: AbortSignal }) =>
+    consoleGet<SpamPing[]>('/api/spam/pings?limit=100', { signal }),
   staleTime: CONSOLE_STALE,
   retryOnMount: false,
 };

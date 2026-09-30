@@ -58,16 +58,25 @@ export function Pick({
   name,
   hint,
   selected = false,
+  disabled = false,
   onClick,
 }: {
   leading?: ReactNode;
   name: ReactNode;
   hint?: ReactNode;
   selected?: boolean;
+  /** While the choice before it is on its way. */
+  disabled?: boolean;
   onClick: () => void;
 }) {
   return (
-    <button type="button" className={css.pick} aria-pressed={selected} onClick={onClick}>
+    <button
+      type="button"
+      className={css.pick}
+      aria-pressed={selected}
+      disabled={disabled}
+      onClick={onClick}
+    >
       {leading}
       <span className={css.pickBody}>
         <span className={css.pickName}>{name}</span>

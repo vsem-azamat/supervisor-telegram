@@ -127,3 +127,37 @@ async def test_chat_detail_includes_spam_pings(client_factory, db_session_maker)
     body = resp.json()
     assert len(body["spam_pings"]) == 1
     assert body["spam_pings"][0]["kind"] == "link"
+
+
+@pytest.mark.parametrize("path", ["/api/spam/pings", "/api/chats/-1001"])
+async def test_a_ping_names_its_author_and_whether_they_are_banned(client_factory, db_session_maker, path) -> None:
+    """The console bans from a ping, and a moderator needs a name to decide on,
+    and to see whether somebody already did."""
+    from app.db.models import User
+
+    await _seed_chat(db_session_maker, chat_id=-1001, title="Test")
+    await _seed_ping(db_session_maker, chat_id=-1001)
+    async with db_session_maker() as session:
+        session.add(User(id=42, username="spammer", first_name="Spam", last_name="Bot", blocked=True))
+        await session.commit()
+
+    async with client_factory() as client:
+        body = (await client.get(path)).json()
+
+    ping = body[0] if isinstance(body, list) else body["spam_pings"][0]
+    assert (ping["username"], ping["first_name"], ping["last_name"], ping["blocked"]) == (
+        "spammer",
+        "Spam",
+        "Bot",
+        True,
+    )
+
+
+async def test_a_ping_from_somebody_never_seen_has_no_name(client_factory, db_session_maker) -> None:
+    await _seed_chat(db_session_maker, chat_id=-1001, title="Test")
+    await _seed_ping(db_session_maker, chat_id=-1001)
+
+    async with client_factory() as client:
+        ping = (await client.get("/api/spam/pings")).json()[0]
+
+    assert (ping["username"], ping["first_name"], ping["blocked"]) == (None, None, False)

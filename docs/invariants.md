@@ -154,6 +154,15 @@ catalogue in bulk, but it must never be the only way to change it — a feature
 whose switch lives in a maintainer's terminal is a feature the operator cannot
 undo.
 
+**Chats nest one level deep.** A chat goes under a top-level chat, and a chat
+others sit under stays at the top itself. Both lists group by the parent and
+nothing deeper, so a grandchild would appear under neither its parent nor its
+grandparent; the console offers only the parents that keep that true.
+
+**Times are read where the reader is.** Webapi stores and counts in UTC; the
+console shows every time, and the hours of its activity grid, in the reader's
+own zone. A Prague evening drawn as UTC looks like the afternoon.
+
 **`/join` belongs to the public half.** The join check is opened inside
 Telegram by an applicant who has no session and must not be sent to get one;
 it proves who they are with the signature it was opened with, sent to

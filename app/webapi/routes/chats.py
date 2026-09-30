@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.chats.metadata import fetch_member_count, fetch_metadata
 from app.core.logging import get_logger
 from app.core.time import utc_now
-from app.db.models import Chat, ChatMemberSnapshot, Message, SpamPing, User
+from app.db.models import Chat, ChatMemberSnapshot, Message, User
 from app.webapi.deps import (
     get_publish_bot,
     get_session,
@@ -39,9 +39,9 @@ from app.webapi.schemas import (
     ChatUpdate,
     HeatmapCell,
     MemberSnapshotPoint,
-    SpamPingRead,
 )
 from app.webapi.services import member_counts
+from app.webapi.services.spam_pings import read_pings
 
 logger = get_logger("webapi.routes.chats")
 
@@ -146,32 +146,7 @@ async def get_chat(
         for c in children_rows
     ]
 
-    spam_rows = (
-        (
-            await session.execute(
-                select(SpamPing)
-                .where(SpamPing.chat_id == chat_id)
-                .order_by(SpamPing.detected_at.desc())
-                .limit(_SPAM_PINGS_LIMIT)
-            )
-        )
-        .scalars()
-        .all()
-    )
-    spam_pings = [
-        SpamPingRead(
-            id=p.id,
-            chat_id=p.chat_id,
-            chat_title=chat.title,
-            user_id=p.user_id,
-            message_id=p.message_id,
-            kind=p.kind,
-            matches=p.matches,
-            snippet=p.snippet,
-            detected_at=p.detected_at,
-        )
-        for p in spam_rows
-    ]
+    spam_pings = await read_pings(session, chat_id=chat_id, limit=_SPAM_PINGS_LIMIT)
 
     senders_since = utc_now() - datetime.timedelta(days=_RECENT_SENDERS_LOOKBACK_DAYS)
     senders_rows = (
@@ -273,6 +248,12 @@ async def update_chat(
                 raise HTTPException(status_code=422, detail="Chat hierarchy cannot contain cycles")
             seen.add(cursor)
             cursor = parent_by_id.get(cursor)
+
+        # Both lists group one level deep; see docs/invariants.md.
+        if parent_by_id.get(parent_id) is not None:
+            raise HTTPException(status_code=409, detail="A chat goes only under a top-level chat")
+        if any(parent == chat_id for child, parent in parent_by_id.items() if child != chat_id):
+            raise HTTPException(status_code=409, detail="A chat others sit under stays at the top")
 
     for key, value in fields.items():
         setattr(chat, key, value)

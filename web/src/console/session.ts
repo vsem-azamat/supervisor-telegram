@@ -152,9 +152,43 @@ export interface SystemStatus {
   feature_flags: { name: string; enabled: boolean; source: string }[];
 }
 
+export interface HeatmapCell {
+  /** 0 is Monday, in UTC. */
+  weekday: number;
+  /** 0–23, UTC. */
+  hour: number;
+  count: number;
+}
+
+export interface MemberSnapshot {
+  captured_at: string;
+  member_count: number;
+}
+
+/** One ad-detector hit, with the author as the bot last saw them. */
+export interface SpamPing {
+  id: number;
+  chat_id: number;
+  chat_title: string | null;
+  user_id: number;
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  blocked: boolean;
+  message_id: number;
+  kind: 'link' | 'mention' | string;
+  matches: string[];
+  snippet: string | null;
+  detected_at: string;
+}
+
 export interface ConsoleChatDetail extends ConsoleChat {
   welcome_message: string | null;
   recent_senders: ChatSender[];
+  heatmap: HeatmapCell[];
+  member_snapshots: MemberSnapshot[];
+  spam_pings: SpamPing[];
+  children: { id: number; title: string | null }[];
 }
 
 /** The fields the console changes on a chat; only the ones sent are applied. */
@@ -166,6 +200,7 @@ export type ChatUpdate = Partial<
     | 'is_welcome_enabled'
     | 'is_service_cleanup_enabled'
     | 'welcome_message'
+    | 'parent_chat_id'
   > & { public_link: string }
 >;
 
@@ -220,4 +255,15 @@ export function daysSince(iso: string, now: Date = new Date()): number {
  */
 export function utc(iso: string): string {
   return /(Z|[+-]\d{2}:?\d{2})$/.test(iso) ? iso : `${iso}Z`;
+}
+
+/** The name Telegram gave, else the handle, else the id. */
+export function personName(person: {
+  user_id: number;
+  first_name: string | null;
+  last_name: string | null;
+  username: string | null;
+}): string {
+  const name = [person.first_name, person.last_name].filter(Boolean).join(' ');
+  return name || (person.username ? `@${person.username}` : String(person.user_id));
 }

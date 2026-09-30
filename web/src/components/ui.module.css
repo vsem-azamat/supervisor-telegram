@@ -1323,3 +1323,100 @@
   gap: 8px;
   margin-top: 10px;
 }
+
+/* The message an ad-detector hit came from, as the bot saw it. */
+.quote {
+  margin: 10px 0 6px;
+  padding: 10px 12px;
+  border-radius: var(--r-row);
+  background: var(--surface);
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 30vh;
+  overflow-y: auto;
+}
+
+/* A week by hour: seven rows of 24 cells, a day's name in front. The cells
+   share what the row has left, so the grid fits a phone without scrolling. */
+.heatmap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: var(--r-row);
+  background: var(--surface);
+}
+
+.heatmapRow {
+  display: grid;
+  grid-template-columns: 22px repeat(24, minmax(0, 1fr));
+  gap: 2px;
+  align-items: center;
+}
+
+.heatmapDay,
+.heatmapHour {
+  font-size: 10px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.heatmapCell {
+  aspect-ratio: 1;
+  border-radius: 2px;
+  background: var(--good);
+}
+
+.heatmapCell[data-empty] {
+  background: var(--surface-pressed);
+}
+
+.trend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: var(--r-row);
+  background: var(--surface);
+}
+
+.trendLine {
+  width: 100%;
+  height: 40px;
+  stroke: var(--good);
+  stroke-width: 2px;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.trendFacts {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.trendFacts b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* A sheet's choices when there may be dozens: they scroll inside the sheet
+   rather than push it past the top of the screen. */
+.sheetList {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  max-height: 55vh;
+  overflow-y: auto;
+}
+
+/* Blocks one under another with the rows' own gap. Not .stack, which is the
+   overlapping avatars and lays its children out backwards in a row. */
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-row);
+}

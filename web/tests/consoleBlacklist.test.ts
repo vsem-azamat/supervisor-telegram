@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { blockedName, searchBlocked } from '../src/console/blacklist.ts';
+import { searchBlocked } from '../src/console/blacklist.ts';
 import type { BlockedUser } from '../src/console/session.ts';
+import { personName } from '../src/console/session.ts';
 
 function user(id: number, over: Partial<BlockedUser> = {}): BlockedUser {
   return {
@@ -16,9 +17,9 @@ function user(id: number, over: Partial<BlockedUser> = {}): BlockedUser {
 }
 
 test('a name is the one Telegram gave, else the handle, else the id', () => {
-  assert.equal(blockedName(user(1, { first_name: 'Ivan', last_name: 'P.' })), 'Ivan P.');
-  assert.equal(blockedName(user(1, { username: 'spam_bot' })), '@spam_bot');
-  assert.equal(blockedName(user(5512398877)), '5512398877');
+  assert.equal(personName(user(1, { first_name: 'Ivan', last_name: 'P.' })), 'Ivan P.');
+  assert.equal(personName(user(1, { username: 'spam_bot' })), '@spam_bot');
+  assert.equal(personName(user(5512398877)), '5512398877');
 });
 
 test('search finds a name, a handle with or without @, and an id', () => {

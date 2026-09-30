@@ -17,10 +17,10 @@ import {
   Title,
   ui,
 } from '@/components/Ui';
-import { blockedName, searchBlocked } from '@/console/blacklist';
+import { searchBlocked } from '@/console/blacklist';
 import { ConsoleFailure, ConsoleGate } from '@/console/ConsoleGate';
 import { blockedQuery, consoleChanges } from '@/console/queries';
-import { type BlockedUser, utc } from '@/console/session';
+import { type BlockedUser, personName, utc } from '@/console/session';
 import { hapticSelection } from '@/hooks/useTelegram';
 import { initials } from '@/lib/chats';
 
@@ -50,8 +50,9 @@ function Blacklist() {
     mutationFn: (user: BlockedUser) => consoleChanges.unblock(user.user_id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: blockedQuery.queryKey });
-      // Chats' sender lists mark who is banned.
+      // Chats' sender lists and the detector's hits mark who is banned.
       void queryClient.invalidateQueries({ queryKey: ['console', 'chat'] });
+      void queryClient.invalidateQueries({ queryKey: ['console', 'spam'] });
       setPicked(null);
     },
   });
@@ -111,7 +112,7 @@ function Blacklist() {
       ) : (
         <Rows>
           {shown.map((user) => {
-            const name = blockedName(user);
+            const name = personName(user);
             return (
               <Row
                 key={user.user_id}
@@ -155,7 +156,7 @@ function Blacklist() {
 
       {picked ? (
         <Sheet title={t`Снять бан во всех чатах?`} closeLabel={t`Отмена`} onClose={close}>
-          <Sub>{blockedName(picked)}</Sub>
+          <Sub>{personName(picked)}</Sub>
           {unblock.isError ? (
             <Hint>
               <Trans>Не получилось. Попробуйте ещё раз.</Trans>
