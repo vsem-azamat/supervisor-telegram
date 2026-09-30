@@ -8,6 +8,7 @@ import {
   consoleRequester,
   daysSince,
   isFinal,
+  utc,
 } from '../src/console/session.ts';
 
 type Call = { url: string; method: string; body?: string };
@@ -160,4 +161,11 @@ test('days since counts whole days, today being zero', () => {
   const now = new Date('2026-09-30T12:00:00Z');
   assert.equal(daysSince('2026-09-30T01:00:00Z', now), 0);
   assert.equal(daysSince('2026-09-27T13:00:00Z', now), 2);
+});
+
+test('webapi times without a zone are read as UTC, the zone they were written in', () => {
+  assert.equal(utc('2026-09-30T15:40:00'), '2026-09-30T15:40:00Z');
+  assert.equal(utc('2026-09-30T15:40:00.123456'), '2026-09-30T15:40:00.123456Z');
+  assert.equal(utc('2026-09-30T15:40:00+02:00'), '2026-09-30T15:40:00+02:00');
+  assert.equal(utc('2026-09-30T15:40:00Z'), '2026-09-30T15:40:00Z');
 });

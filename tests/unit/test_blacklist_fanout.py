@@ -88,3 +88,24 @@ class TestRevokingMessages:
         await blacklist.add_to_blacklist(AsyncMock(), bot, 777, revoke_messages=True)
 
         assert bot.delete_message.await_count == 2
+
+
+class TestSuperAdmins:
+    async def test_a_super_admin_is_never_blacklisted(self, wired, monkeypatch):
+        """Whichever door asks: a command, the console, the control plane.
+
+        A blacklisted account loses every message, its private ones to the bot
+        included, so a super admin on the list would lose the bot itself.
+        """
+        from app.core.config import settings
+        from app.core.exceptions import ProtectedUserError
+
+        bot, message_repo = wired
+        monkeypatch.setattr(settings.admin, "super_admins", [777])
+
+        with pytest.raises(ProtectedUserError):
+            await blacklist.add_to_blacklist(AsyncMock(), bot, 777, revoke_messages=True)
+
+        bot.ban_chat_member.assert_not_awaited()
+        bot.delete_message.assert_not_awaited()
+        message_repo.get_user_messages.assert_not_awaited()

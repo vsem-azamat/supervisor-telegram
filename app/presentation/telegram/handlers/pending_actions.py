@@ -10,6 +10,7 @@ from aiogram import Bot, Router, types
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.exceptions import ProtectedUserError
 from app.core.logging import get_logger
 from app.presentation.telegram.utils.callback_data import PendingActionDecision
 
@@ -38,11 +39,17 @@ async def handle_pending_action(
     service = PendingActionService(bot, db)
     confirming = bool(callback_data.confirm)
 
-    resolved = (
-        await service.confirm(callback_data.pending_id, admin_id=callback.from_user.id)
-        if confirming
-        else await service.reject(callback_data.pending_id, admin_id=callback.from_user.id)
-    )
+    try:
+        resolved = (
+            await service.confirm(callback_data.pending_id, admin_id=callback.from_user.id)
+            if confirming
+            else await service.reject(callback_data.pending_id, admin_id=callback.from_user.id)
+        )
+    except ProtectedUserError:
+        note = "Не выполнено: главного администратора забанить нельзя."
+        await callback.answer(note, show_alert=True)
+        await _strip_keyboard(callback, note)
+        return
 
     if resolved is None:
         # Already pressed, already gone, or its deadline passed while it sat here.

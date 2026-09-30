@@ -126,6 +126,32 @@ export interface ChatSender {
   blocked: boolean;
 }
 
+export interface BlockedUser {
+  user_id: number;
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  /** When webapi's row last changed; a rename changes it too. */
+  changed_at: string;
+}
+
+export interface AdminSession {
+  session_id: string;
+  created_at: string;
+  last_seen_at: string;
+  expires_at: string;
+  user_agent: string | null;
+  ip: string | null;
+  is_current: boolean;
+}
+
+export interface SystemStatus {
+  super_admin_ids: number[];
+  publish_bot_ready: boolean;
+  session_ttl_days: number;
+  feature_flags: { name: string; enabled: boolean; source: string }[];
+}
+
 export interface ConsoleChatDetail extends ConsoleChat {
   welcome_message: string | null;
   recent_senders: ChatSender[];
@@ -186,4 +212,12 @@ export function clickRate(
 /** Whole days between an ISO time and now; today is zero. */
 export function daysSince(iso: string, now: Date = new Date()): number {
   return Math.max(0, Math.floor((now.getTime() - new Date(iso).getTime()) / 86_400_000));
+}
+
+/**
+ * A webapi time as the browser should read it. Webapi writes UTC without a
+ * zone, which a browser would take for local time and show hours off.
+ */
+export function utc(iso: string): string {
+  return /(Z|[+-]\d{2}:?\d{2})$/.test(iso) ? iso : `${iso}Z`;
 }

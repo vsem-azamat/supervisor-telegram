@@ -24,6 +24,7 @@ from app.core.enums import (
 )
 from app.core.logging import get_logger
 from app.mcp.deps import ToolError, approved_chat_id, clamp, initiator_id, moderator_bot, session_maker
+from app.moderation.blacklist import is_protected
 
 if TYPE_CHECKING:
     from fastmcp import FastMCP
@@ -237,6 +238,8 @@ async def _propose(action: ModerationAction, *, chat_id: int | None, user_id: in
     from app.moderation.pending_actions import PendingActionService
 
     try:
+        if action is ModerationAction.BLACKLIST and is_protected(user_id):
+            raise ToolError("protected_user", f"User {user_id} is a super admin and cannot be blacklisted.")
         admin_id = initiator_id()
         bot = moderator_bot()
         async with session_maker()() as session:

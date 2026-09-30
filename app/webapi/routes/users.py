@@ -14,14 +14,36 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
-from app.core.exceptions import UserNotFoundException
+from app.core.exceptions import ProtectedUserError, UserNotFoundException
 from app.db.models import User
 from app.moderation.blacklist import add_to_blacklist, remove_from_blacklist
 from app.webapi.deps import get_publish_bot, get_session, require_super_admin
-from app.webapi.schemas import UserBlockRequest, UserBlockResponse
+from app.webapi.schemas import BlockedUserRead, UserBlockRequest, UserBlockResponse
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+
+@router.get("/blocked", response_model=list[BlockedUserRead])
+async def list_blocked_users(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _admin_id: Annotated[int, Depends(require_super_admin)],
+) -> list[BlockedUserRead]:
+    """Everybody on the global blacklist, most recently changed first.
+
+    Declared before `/{user_id}`: that route would take «blocked» for an id and
+    refuse it as not a number.
+    """
+    rows = await session.scalars(select(User).where(User.blocked).order_by(User.modified_at.desc()))
+    return [
+        BlockedUserRead(
+            user_id=user.id,
+            username=user.username,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            changed_at=user.modified_at,
+        )
+        for user in rows
+    ]
 
 
 @router.post("/{user_id}/block", response_model=UserBlockResponse)
@@ -32,11 +54,10 @@ async def block_user(
     bot: Annotated[Bot, Depends(get_publish_bot)],
     _admin_id: Annotated[int, Depends(require_super_admin)],
 ) -> UserBlockResponse:
-    # A blacklisted account loses every message, its private ones to the bot
-    # included, so a banned super admin would lose the bot and this console.
-    if user_id in settings.admin.super_admins:
-        raise HTTPException(status_code=400, detail="A super admin cannot be banned")
-    await add_to_blacklist(session, bot, user_id, revoke_messages=payload.revoke_messages or None)
+    try:
+        await add_to_blacklist(session, bot, user_id, revoke_messages=payload.revoke_messages or None)
+    except ProtectedUserError as err:
+        raise HTTPException(status_code=400, detail="A super admin cannot be banned") from err
     return UserBlockResponse(
         user_id=user_id,
         blocked=True,

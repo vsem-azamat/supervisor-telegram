@@ -13,6 +13,11 @@ msgstr ""
 "Language-Team: \n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. placeholder {0}: blocked.data.length
+#: src/console/pages/Summary.tsx
+msgid "{0, plural, one {# человек} few {# человека} many {# человек} other {# человека}}"
+msgstr "{0, plural, one {# person} other {# people}}"
+
 #: src/pages/Ask.tsx
 #~ msgid "курсовая по экономике"
 #~ msgstr "term paper in economics"
@@ -61,6 +66,10 @@ msgstr "What you do"
 msgid "Свободны"
 msgstr "Available"
 
+#: src/console/pages/Blacklist.tsx
+msgid "Имя, @username или id"
+msgstr "Name, @username or id"
+
 #: src/pages/MyHelper.tsx
 msgid "Пока ни одной. Добавь ниже — без них тебя не найдут по поиску."
 msgstr "None yet. Add one below — without them search cannot find you."
@@ -95,6 +104,10 @@ msgstr "No such request"
 msgid "Отключить чат?"
 msgstr "Disable the chat?"
 
+#: src/console/pages/System.tsx
+msgid "вкл."
+msgstr "on"
+
 #: src/console/pages/Catalog.tsx
 msgid "{days, plural, one {# дн} few {# дн} many {# дн} other {# дн}}"
 msgstr "{days, plural, one {# d} other {# d}}"
@@ -114,6 +127,10 @@ msgstr "Help"
 #: src/pages/MyHelper.tsx
 msgid "Видимость"
 msgstr "Visibility"
+
+#: src/console/pages/System.tsx
+msgid "Главные администраторы"
+msgstr "Main administrators"
 
 #: src/pages/ChatSection.tsx
 msgid "Вернись к списку чатов."
@@ -184,6 +201,10 @@ msgstr "Nothing found. Try the abbreviation — ČVUT, VŠE, MUNI."
 msgid "Как проходит"
 msgstr "How it works"
 
+#: src/console/pages/System.tsx
+msgid "это устройство"
+msgstr "this device"
+
 #: src/components/ChatRow.tsx
 msgid "оживлённый"
 msgstr "lively"
@@ -230,6 +251,7 @@ msgstr "Shown to whoever needs it right now, not to everyone."
 #~ msgid "Вещи"
 #~ msgstr "Things"
 
+#: src/console/pages/Blacklist.tsx
 #: src/console/pages/Chat.tsx
 msgid "Снять бан во всех чатах?"
 msgstr "Lift the ban in every chat?"
@@ -270,6 +292,10 @@ msgstr "first year"
 msgid "Эта проверка открывается кнопкой из заявки на вступление в чат."
 msgstr "This check opens from the button in a request to join a chat."
 
+#: src/console/pages/Summary.tsx
+msgid "где выполнен вход, настройки"
+msgstr "where you are signed in, settings"
+
 #: src/pages/Results.tsx
 #~ msgid "По этому запросу ещё нет никого. Создай заявку — тогда найдут тебя."
 #~ msgstr "No one matches this search yet. Post a request — then people will find you."
@@ -290,6 +316,11 @@ msgstr "{0, plural, one {# time} other {# times}}"
 #: src/pages/AdsChats.tsx
 msgid "чатов"
 msgstr "chats"
+
+#. placeholder {0}: i18n.date(utc(user.changed_at), { day: 'numeric', month: 'short', year: 'numeric', })
+#: src/console/pages/Blacklist.tsx
+msgid "изменено {0}"
+msgstr "changed {0}"
 
 #: src/components/AppHeader.tsx
 msgid "Оформление: как в системе. Нажми, чтобы сменить"
@@ -384,6 +415,10 @@ msgstr "Next · {0}"
 msgid "одобрен"
 msgstr "approved"
 
+#: src/console/pages/Summary.tsx
+msgid "забанены во всех чатах"
+msgstr "banned in every chat"
+
 #. placeholder {0}: figures.members.value
 #: src/pages/Ads.tsx
 msgid "{0, plural, one {участник} few {участника} many {участников} other {участника}}"
@@ -404,10 +439,6 @@ msgstr "School or faculty — ČVUT, VŠE, FEL"
 #: src/console/pages/Chat.tsx
 msgid "Показан в «Чатах»"
 msgstr "Shown in «Chats»"
-
-#: src/console/pages/Summary.tsx
-msgid "сессии, настройки"
-msgstr "sessions, settings"
 
 #: src/components/InstitutionPicker.tsx
 msgid "Загружаем список вузов…"
@@ -491,7 +522,9 @@ msgstr "Partner"
 msgid "Сохранить"
 msgstr "Save"
 
+#: src/console/pages/Blacklist.tsx
 #: src/console/pages/Chat.tsx
+#: src/console/pages/System.tsx
 msgid "Отмена"
 msgstr "Cancel"
 
@@ -615,6 +648,7 @@ msgid "администратор"
 msgstr "administrator"
 
 #: src/console/pages/Summary.tsx
+#: src/console/pages/System.tsx
 msgid "Система"
 msgstr "System"
 
@@ -736,6 +770,10 @@ msgstr "today"
 msgid "Откройте приложение заново"
 msgstr "Reopen the app"
 
+#: src/console/pages/System.tsx
+msgid "выкл."
+msgstr "off"
+
 #: src/pages/Join.tsx
 msgid "Готово, ты в чате"
 msgstr "Done, you are in the chat"
@@ -850,6 +888,11 @@ msgstr "My services"
 msgid "опиши задачу — придут отклики"
 msgstr "describe the task and replies will come"
 
+#: src/console/pages/Blacklist.tsx
+#: src/console/pages/System.tsx
+msgid "Не получилось. Попробуйте ещё раз."
+msgstr "That did not work. Try again."
+
 #: src/console/pages/Partners.tsx
 msgid "в профиле"
 msgstr "in the profile"
@@ -857,6 +900,10 @@ msgstr "in the profile"
 #: src/pages/Request.tsx
 #~ msgid "Заявку видят те, кто ведёт этот предмет. Обычно отвечают в течение дня."
 #~ msgstr "People who teach this subject can see your request. They usually answer within a day."
+
+#: src/console/pages/System.tsx
+msgid "на месте: баны и обновления из Telegram работают"
+msgstr "in place: bans and refreshes from Telegram work"
 
 #: src/console/pages/Partners.tsx
 msgid "Показы и клики за 30 дней."
@@ -881,6 +928,10 @@ msgstr "No such chat"
 #: src/console/ConsoleGate.tsx
 msgid "Откройте консоль в приложении Telegram на телефоне или компьютере."
 msgstr "Open the console in the Telegram app on a phone or computer."
+
+#: src/console/pages/System.tsx
+msgid "не настроен: баны и обновления из Telegram не пройдут"
+msgstr "not set up: bans and refreshes from Telegram will fail"
 
 #: src/pages/AdsChats.tsx
 msgid "Куда попадёт"
@@ -1045,6 +1096,7 @@ msgstr "captcha"
 msgid "Название или id"
 msgstr "Name or id"
 
+#: src/console/pages/Blacklist.tsx
 #: src/console/pages/Chat.tsx
 msgid "Снять бан"
 msgstr "Lift the ban"
@@ -1118,6 +1170,10 @@ msgstr "The link is out of date, or has a typo in it."
 msgid "Показ можно ограничить месяцами и языком интерфейса."
 msgstr "Showing it can be limited to certain months and interface languages."
 
+#: src/console/pages/Blacklist.tsx
+msgid "Список пуст."
+msgstr "The list is empty."
+
 #: src/components/RequestSheet.tsx
 msgid "Что нужно"
 msgstr "What you need"
@@ -1170,6 +1226,10 @@ msgstr "calculus ČVUT"
 #: src/pages/Results.tsx
 msgid "всего {0}"
 msgstr "{0} total"
+
+#: src/console/pages/System.tsx
+msgid "Состояние"
+msgstr "Status"
 
 #: src/pages/Ask.tsx
 msgid "нострификация аттестата"
@@ -1230,12 +1290,18 @@ msgstr "What they help with"
 #: src/components/AppHeader.tsx
 #: src/components/RequestSheet.tsx
 #: src/components/TabBar.tsx
+#: src/console/pages/System.tsx
 msgid "Закрыть"
 msgstr "Close"
 
 #: src/pages/Profile.tsx
 #~ msgid "Оформление"
 #~ msgstr "Appearance"
+
+#. placeholder {0}: system.data.session_ttl_days
+#: src/console/pages/System.tsx
+msgid "{0, plural, one {# день} few {# дня} many {# дней} other {# дня}}"
+msgstr "{0, plural, one {# day} other {# days}}"
 
 #: src/console/pages/Chat.tsx
 msgid "название, фото и число участников"
@@ -1282,6 +1348,10 @@ msgstr "Loans, betting, ready-made theses. Moderation removes that every day, an
 #: src/pages/Profile.tsx
 msgid "Жизнь в Чехии"
 msgstr "Life in Czechia"
+
+#: src/console/pages/Blacklist.tsx
+msgid "Забанены во всех чатах. Банят командой /banall или с экрана чата."
+msgstr "Banned in every chat. Bans are made with /banall or from a chat's screen."
 
 #: src/components/SubjectSearch.tsx
 msgid "Добавить предмет — матан, čeština, физика"
@@ -1363,9 +1433,17 @@ msgstr "Send"
 msgid "У этого человека нет @username — написать не получится"
 msgstr "This person has no @username — there is no way to write to them"
 
+#: src/console/pages/System.tsx
+msgid "Бот для действий из консоли"
+msgstr "The bot for console actions"
+
 #: src/console/pages/Chat.tsx
 msgid "появится после одобрения"
 msgstr "appears once approved"
+
+#: src/console/pages/System.tsx
+msgid "Вход действует"
+msgstr "A sign-in lasts"
 
 #: src/pages/Ask.tsx
 msgid "Например"
@@ -1415,6 +1493,10 @@ msgstr "ČVUT FEL, third year"
 #: src/pages/NotFound.tsx
 msgid "Такой страницы нет"
 msgstr "There is no such page"
+
+#: src/console/pages/System.tsx
+msgid "Где выполнен вход"
+msgstr "Where you are signed in"
 
 #: src/components/Phrase.tsx
 msgid "С твоего факультета"
@@ -1473,6 +1555,12 @@ msgstr "detector, all chats · {0} this week"
 #: src/pages/Helper.tsx
 msgid "У этого человека нет открытого username в Telegram, написать не получится."
 msgstr "This person doesn't have a public Telegram username, so you can't message them."
+
+#. placeholder {0}: when(session.last_seen_at)
+#. placeholder {1}: session.ip ?? '—'
+#: src/console/pages/System.tsx
+msgid "был {0} · {1}"
+msgstr "last seen {0} · {1}"
 
 #: src/pages/Profile.tsx
 msgid "для компаний: посты в чатах и карточки"
@@ -1738,6 +1826,10 @@ msgstr "3 days"
 msgid "Помощь нужна до экзамена или на нём?"
 msgstr "Do you need help before the exam or during it?"
 
+#: src/console/pages/Blacklist.tsx
+msgid "Никого не нашлось."
+msgstr "Nobody found."
+
 #: src/pages/Chats.tsx
 msgid "Найди свой чат"
 msgstr "Find your chat"
@@ -1753,6 +1845,10 @@ msgstr "Needs attention"
 #: src/components/RequestSheet.tsx
 msgid "Опубликовать заявку"
 msgstr "Post the request"
+
+#: src/console/pages/Blacklist.tsx
+msgid "Заблокированы"
+msgstr "Banned"
 
 #: src/components/TabBar.tsx
 #: src/pages/Mine.tsx
@@ -1896,9 +1992,18 @@ msgstr "Fill in your profile first"
 msgid "Попробуй название вуза или факультета латиницей."
 msgstr "Try the university or faculty name in Latin letters."
 
+#: src/console/pages/Blacklist.tsx
+#: src/console/pages/Summary.tsx
+msgid "Чёрный список"
+msgstr "Blacklist"
+
 #: src/pages/Join.tsx
 msgid "Заявка устарела или открыта не тем аккаунтом. Подай её заново."
 msgstr "The request has expired or was opened from another account. Send it again."
+
+#: src/console/pages/System.tsx
+msgid "Закрыть этот вход?"
+msgstr "Sign this session out?"
 
 #: src/console/ConsoleGate.tsx
 #: src/pages/Ads.tsx

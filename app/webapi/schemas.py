@@ -202,6 +202,20 @@ class UserBlockRequest(BaseModel):
     revoke_messages: bool = False
 
 
+class BlockedUserRead(BaseModel):
+    """One entry of the global blacklist, as /blacklist shows it in the bot."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    user_id: int
+    username: str | None
+    first_name: str | None
+    last_name: str | None
+    # When the row last changed. Not when the block went on: a rename or a
+    # repeated block changes it too, and there is no column for the block.
+    changed_at: datetime.datetime
+
+
 class UserBlockResponse(BaseModel):
     user_id: int
     blocked: bool

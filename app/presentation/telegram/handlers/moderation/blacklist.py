@@ -56,6 +56,10 @@ async def ban_everywhere(message: types.Message, message_repo: MessageRepository
         return
 
     id_user = target.from_user.id
+    if moderation_services.is_protected(id_user):
+        await message.answer("Главного администратора забанить во всех чатах нельзя.")
+        await message.delete()
+        return
     chats_count = await message_repo.count_user_chats(id_user)
     messages_count = await message_repo.count_user_messages(id_user)
     spam_flag = await spam_service.detect_spam(db, target)
@@ -94,6 +98,13 @@ async def process_blacklist_confirm(
     message_repo: MessageRepository,
 ) -> None:
     user_id = callback_data.user_id
+    # Checked again here: a dialog can outlive a change to the admin list, and
+    # the ban below in this chat comes before the service's own refusal.
+    if moderation_services.is_protected(user_id):
+        await callback.answer("Главного администратора забанить нельзя.", show_alert=True)
+        if isinstance(callback.message, types.Message):
+            await callback.message.edit_text("Не выполнено: главного администратора забанить нельзя.")
+        return
     chat_id = callback_data.chat_id
     message_id = callback_data.message_id
     revoke = bool(callback_data.revoke)

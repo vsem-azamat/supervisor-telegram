@@ -195,3 +195,23 @@ class TestExpiry:
         assert await PendingActionService(bot=bot, db=session).expire_stale() == 1
         await session.refresh(stale)
         assert stale.status == PendingActionStatus.EXPIRED
+
+
+class TestSuperAdmins:
+    async def test_blacklisting_a_super_admin_is_refused_at_the_press(self, session, bot, monkeypatch) -> None:
+        """A proposal older than the admin list: refused, recorded as not done."""
+        from app.core.config import settings
+        from app.core.exceptions import ProtectedUserError
+
+        executor = AsyncMock()
+        pending = await _propose(session, bot, action="blacklist")
+        monkeypatch.setattr(settings.admin, "super_admins", [ADMIN_ID, TARGET_ID])
+        service = PendingActionService(bot=bot, db=session, executor=executor)
+
+        with pytest.raises(ProtectedUserError):
+            await service.confirm(pending.id, admin_id=ADMIN_ID)
+
+        executor.assert_not_awaited()
+        await session.refresh(pending)
+        assert pending.status == PendingActionStatus.REJECTED
+        assert pending.resolved_by is None, "the admin who pressed confirm did not say no"

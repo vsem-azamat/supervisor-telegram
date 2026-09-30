@@ -136,3 +136,53 @@ async def test_a_super_admin_cannot_be_banned(client_factory, db_session_maker, 
     async with db_session_maker() as s:
         u = (await s.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
         assert u is None or u.blocked is False
+
+
+async def test_the_blacklist_lists_the_blocked_most_recently_changed_first(client_factory, db_session_maker) -> None:
+    """What /blacklist shows in the bot, for the console: who, and when the row last changed."""
+    import datetime
+
+    make, _bot = client_factory
+    async with db_session_maker() as s:
+        s.add_all(
+            [
+                User(id=61, username="old_spammer", blocked=True),
+                User(id=62, username="new_spammer", first_name="Ivan", blocked=True),
+                User(id=63, username="fine"),
+            ]
+        )
+        await s.commit()
+        old = (await s.execute(select(User).where(User.id == 61))).scalar_one()
+        old.modified_at = datetime.datetime(2026, 1, 1)
+        await s.commit()
+
+    async with make() as client:
+        resp = await client.get("/api/users/blocked")
+
+    assert resp.status_code == 200, resp.text
+    rows = resp.json()
+    ids = [row["user_id"] for row in rows]
+    assert 63 not in ids
+    assert ids.index(62) < ids.index(61)
+    newest = rows[ids.index(62)]
+    assert newest["username"] == "new_spammer"
+    assert newest["first_name"] == "Ivan"
+    assert "changed_at" in newest
+
+
+async def test_the_blacklist_is_for_super_admins(db_session_maker) -> None:
+    from app.webapi.deps import get_session, require_super_admin
+
+    async def _override_session():
+        async with db_session_maker() as s:
+            yield s
+
+    app.dependency_overrides[get_session] = _override_session
+    # The suite signs everybody in; this test is about who is not.
+    app.dependency_overrides.pop(require_super_admin, None)
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            resp = await client.get("/api/users/blocked")
+    finally:
+        app.dependency_overrides.pop(get_session, None)
+    assert resp.status_code == 401
