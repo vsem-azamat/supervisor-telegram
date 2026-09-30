@@ -36,6 +36,11 @@ x-runtime-env: &runtime-env
   APP_ENVIRONMENT: production
   LOG_LEVEL: INFO
 
+# The catalog's services rotate their logs as its old stack did.
+x-catalog-logging: &catalog-logging
+  driver: json-file
+  options: {max-size: "10m", max-file: "3"}
+
 services:
   bot:
     image: ghcr.io/vsem-azamat/supervisor-telegram:${IMAGE_TAG:?Set IMAGE_TAG to a published image tag}
@@ -68,15 +73,151 @@ services:
   webui:
     image: ghcr.io/vsem-azamat/supervisor-telegram-webui:${IMAGE_TAG:?Set IMAGE_TAG to a published image tag}
     container_name: supervisor-telegram-webui
-    # Where the Mini App's /api/v1/* goes: the catalog's API, an https origin.
-    # Read by Caddy, never by the app, so it is not in the shared block.
-    environment:
-      CATALOG_ORIGIN:
     ports:
       - "127.0.0.1:18083:80"
     depends_on:
       - webapi
+      - catalog-api
+    restart: unless-stopped
+
+  # ── The catalog (catalog/) ─────────────────────────────────────────────
+  # Its own database, image and settings: nothing but the bot token and the
+  # admin ids is shared with the services above. See catalog/docs/deploy.md.
+
+  catalog-postgres:
+    # The schema needs pg_trgm, unaccent, btree_gist and vector. The exact
+    # image the data was written by: the database collates with ICU (cs-CZ),
+    # and another Debian base brings another ICU, whose text indexes then
+    # need rebuilding.
+    image: pgvector/pgvector:0.8.6-pg18-bookworm
+    container_name: supervisor-telegram-catalog-postgres
+    environment:
+      # Checked present by the deploy before it reaches the host.
+      POSTGRES_DB: ${CATALOG_DB_NAME}
+      POSTGRES_USER: ${CATALOG_DB_USER}
+      POSTGRES_PASSWORD: ${CATALOG_DB_PASSWORD}
+      # Read only when the data directory is empty, which it is not; kept so
+      # a rebuilt one sorts the same way. See catalog/docs/data-model.md.
+      POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=cs-CZ --encoding=UTF8"
+    volumes:
+      # /var/lib/postgresql, not .../data: Postgres 18 moved PGDATA.
+      - catalog-postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    security_opt: [no-new-privileges:true]
+    logging: *catalog-logging
+    restart: unless-stopped
+
+  # Run by the deploy with `compose run --rm` before the API starts, so a
+  # failed migration stops the deployment instead of crash-looping the API.
+  catalog-migrate:
+    image: ghcr.io/vsem-azamat/supervisor-telegram:catalog-${IMAGE_TAG:?Set IMAGE_TAG to a published image tag}
+    command: ["alembic", "upgrade", "head"]
+    profiles: ["tools"]
+    environment:
+      DATABASE_URL: &catalog-database postgresql+asyncpg://${CATALOG_DB_USER}:${CATALOG_DB_PASSWORD}@catalog-postgres:5432/${CATALOG_DB_NAME}
+    depends_on:
+      catalog-postgres: {condition: service_healthy}
+    security_opt: [no-new-privileges:true]
+    logging: *catalog-logging
+    restart: "no"
+
+  # Derived data: costs nothing when the catalog and the model are unchanged.
+  catalog-embed:
+    image: ghcr.io/vsem-azamat/supervisor-telegram:catalog-${IMAGE_TAG:?Set IMAGE_TAG to a published image tag}
+    command: ["python", "-m", "students_cz.db.embed"]
+    profiles: ["tools"]
+    environment:
+      DATABASE_URL: *catalog-database
+    depends_on:
+      catalog-postgres: {condition: service_healthy}
+    security_opt: [no-new-privileges:true]
+    logging: *catalog-logging
+    restart: "no"
+
+  catalog-api:
+    image: ghcr.io/vsem-azamat/supervisor-telegram:catalog-${IMAGE_TAG:?Set IMAGE_TAG to a published image tag}
+    container_name: supervisor-telegram-catalog-api
+    environment:
+      DATABASE_URL: *catalog-database
+      # The moderator bot's: the catalog sends through it and checks initData
+      # with it, and never asks it for updates. See catalog/docs/deploy.md.
+      BOT_TOKEN: ${MODERATOR_BOT_TOKEN}
+      # Where the bot's buttons and the notifications open the app.
+      PUBLIC_BASE_URL: ${WEBAPI_PUBLIC_URL}
+      CORS_ORIGINS: '["${WEBAPI_PUBLIC_URL}"]'
+      # The console's operators are the bot's super admins.
+      ADMIN_TG_IDS: ${ADMIN_SUPER_ADMINS}
+      # Empty means nobody is told when a profile or a request appears.
+      OWNER_TG_ID: ${CATALOG_OWNER_TG_ID:-}
+      ADS_CONTACT: ${CATALOG_ADS_CONTACT:-}
+      # Never true here. It would let anyone claim to be anyone.
+      ALLOW_UNSIGNED_INIT_DATA: "false"
+      LOG_LEVEL: INFO
+    depends_on:
+      catalog-postgres: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=4).status==200 else 1)\""]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+    security_opt: [no-new-privileges:true]
+    logging: *catalog-logging
+    restart: unless-stopped
+
+  # A dump a day, kept for two weeks, beside the stack on the host. The
+  # shared database server's backups do not cover this database.
+  catalog-backup:
+    image: pgvector/pgvector:0.8.6-pg18-bookworm
+    container_name: supervisor-telegram-catalog-backup
+    environment:
+      PGHOST: catalog-postgres
+      PGDATABASE: ${CATALOG_DB_NAME}
+      PGUSER: ${CATALOG_DB_USER}
+      PGPASSWORD: ${CATALOG_DB_PASSWORD}
+      BACKUP_HOUR_UTC: 3
+      BACKUP_RETENTION_DAYS: 14
+    volumes:
+      - ./catalog-backups:/backups
+    depends_on:
+      catalog-postgres: {condition: service_healthy}
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -euo pipefail
+        while true; do
+          now=$$(date -u +%s)
+          # Next occurrence of BACKUP_HOUR_UTC:00, today or tomorrow.
+          target=$$(date -u -d "today $${BACKUP_HOUR_UTC}:00" +%s)
+          [ "$$target" -le "$$now" ] && target=$$(date -u -d "tomorrow $${BACKUP_HOUR_UTC}:00" +%s)
+          sleep $$((target - now))
+          stamp=$$(date -u +%Y%m%dT%H%M%SZ)
+          if pg_dump --format=custom --file="/backups/catalog-$$stamp.dump.part"; then
+            # Renamed only once complete, so a partial file is never taken for
+            # a usable backup.
+            mv "/backups/catalog-$$stamp.dump.part" "/backups/catalog-$$stamp.dump"
+            echo "backup ok: catalog-$$stamp.dump"
+          else
+            rm -f "/backups/catalog-$$stamp.dump.part"
+            echo "backup FAILED at $$stamp" >&2
+          fi
+          find /backups -name '*.dump' -mtime "+$${BACKUP_RETENTION_DAYS}" -delete
+        done
+    security_opt: [no-new-privileges:true]
+    logging: *catalog-logging
     restart: unless-stopped
 
 volumes:
   bot-logs:
+  # The catalog's data, in the volume its old stack (teachers-catalog,
+  # compose project `konnekt`, later `students-cz`) created. External and
+  # named, because a compose volume is `<project>_<name>` and any other
+  # declaration would be a new, empty database.
+  catalog-postgres-data:
+    external: true
+    name: konnekt_postgres-data
