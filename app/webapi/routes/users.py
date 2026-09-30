@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.exceptions import UserNotFoundException
 from app.db.models import User
 from app.moderation.blacklist import add_to_blacklist, remove_from_blacklist
@@ -31,6 +32,10 @@ async def block_user(
     bot: Annotated[Bot, Depends(get_publish_bot)],
     _admin_id: Annotated[int, Depends(require_super_admin)],
 ) -> UserBlockResponse:
+    # A blacklisted account loses every message, its private ones to the bot
+    # included, so a banned super admin would lose the bot and this console.
+    if user_id in settings.admin.super_admins:
+        raise HTTPException(status_code=400, detail="A super admin cannot be banned")
     await add_to_blacklist(session, bot, user_id, revoke_messages=payload.revoke_messages or None)
     return UserBlockResponse(
         user_id=user_id,

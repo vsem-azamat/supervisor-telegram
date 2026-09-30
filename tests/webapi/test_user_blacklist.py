@@ -115,3 +115,24 @@ async def test_get_status_404_when_unknown(client_factory) -> None:
     async with make() as client:
         resp = await client.get("/api/users/99999")
     assert resp.status_code == 404
+
+
+@pytest.mark.parametrize("user_id", [1, 2])
+async def test_a_super_admin_cannot_be_banned(client_factory, db_session_maker, user_id: int) -> None:
+    """Not themselves, and not each other.
+
+    A blacklisted account's every message is dropped, private ones to the bot
+    included, so a super admin banned by one tap in the console would lose the
+    bot and the console with it. Refused here rather than hidden in the UI.
+    """
+    make, bot = client_factory
+    settings.admin.super_admins = [1, 2]
+
+    async with make() as client:
+        resp = await client.post(f"/api/users/{user_id}/block", json={"revoke_messages": True})
+
+    assert resp.status_code == 400, resp.text
+    bot.ban_chat_member.assert_not_called()
+    async with db_session_maker() as s:
+        u = (await s.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
+        assert u is None or u.blocked is False

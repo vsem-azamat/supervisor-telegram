@@ -1,0 +1,200 @@
+import { Trans, useLingui } from '@lingui/react/macro';
+import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
+
+import { SearchIcon } from '@/components/icons';
+import {
+  Chevron,
+  Chips,
+  ChipView,
+  Hint,
+  Label,
+  Letters,
+  Row,
+  Rows,
+  SkeletonRows,
+  Tile,
+  Title,
+  ui,
+} from '@/components/Ui';
+import { ConsoleFailure, ConsoleGate } from '@/console/ConsoleGate';
+import {
+  consoleSections,
+  isListed,
+  type StatusFilter,
+  statusCounts,
+} from '@/console/chats';
+import { consoleChatsQuery } from '@/console/queries';
+import type { ConsoleChat } from '@/console/session';
+import { hapticSelection } from '@/hooks/useTelegram';
+import { initials } from '@/lib/chats';
+
+const FILTERS: StatusFilter[] = ['all', 'discovered', 'approved', 'disabled'];
+
+function isFilter(value: string | null): value is StatusFilter {
+  return FILTERS.includes(value as StatusFilter);
+}
+
+/**
+ * Every chat the bot is in, for the people who run them. Unlike the public
+ * directory this names member counts and the chats nobody approved yet.
+ */
+export default function ConsoleChatsPage() {
+  return (
+    <ConsoleGate>
+      <Title>
+        <Trans>Чаты</Trans>
+      </Title>
+      <ChatList />
+    </ConsoleGate>
+  );
+}
+
+function ChatList() {
+  const { t } = useLingui();
+  const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
+  const status = params.get('status');
+  const filter: StatusFilter = isFilter(status) ? status : 'all';
+  const [query, setQuery] = useState('');
+  const { data, isPending, error, refetch } = useQuery(consoleChatsQuery);
+
+  if (isPending) {
+    return (
+      <div style={{ marginTop: 16 }}>
+        <SkeletonRows count={5} />
+      </div>
+    );
+  }
+  if (error || !data) {
+    return (
+      <div style={{ marginTop: 16 }}>
+        <ConsoleFailure error={error} retry={() => void refetch()} />
+      </div>
+    );
+  }
+
+  const counts = statusCounts(data);
+  const sections = consoleSections(data, filter, query);
+  const label: Record<StatusFilter, string> = {
+    all: t`Все`,
+    discovered: t`На проверке`,
+    approved: t`Одобрены`,
+    disabled: t`Откл.`,
+  };
+
+  return (
+    <>
+      {/* Chips, not a segmented control: four labels with counts do not fit
+          one row of equal segments on a phone. */}
+      <div style={{ marginTop: 14 }}>
+        <Chips>
+          {/* The chosen one stays, even at zero, so the page says what it shows. */}
+          {FILTERS.filter(
+            (key) => key === 'all' || key === filter || counts[key] > 0,
+          ).map((key) => (
+            <ChipView
+              key={key}
+              active={key === filter}
+              onClick={() => {
+                hapticSelection();
+                // Replaced, not pushed: a filter is a view of this screen, and
+                // back should leave the screen rather than step through filters.
+                setParams(key === 'all' ? {} : { status: key }, { replace: true });
+              }}
+            >
+              {label[key]} {counts[key]}
+            </ChipView>
+          ))}
+        </Chips>
+      </div>
+      <div className={ui.field} style={{ marginTop: 12 }}>
+        <SearchIcon size={18} className={ui.fieldIcon} />
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder={t`Название или id`}
+          maxLength={80}
+          style={{ all: 'unset', flex: 1, minWidth: 0 }}
+        />
+      </div>
+
+      {sections.length === 0 ? (
+        <div style={{ marginTop: 16 }}>
+          <Hint>
+            <Trans>Таких чатов нет.</Trans>
+          </Hint>
+        </div>
+      ) : (
+        sections.map((section) => (
+          <div key={section.key === 'group' ? `group-${section.root}` : section.key}>
+            <Label aside={section.chats.length}>
+              {section.key === 'review' ? (
+                <Trans>На проверке</Trans>
+              ) : section.key === 'rest' ? (
+                <Trans>Остальные</Trans>
+              ) : (
+                section.title
+              )}
+            </Label>
+            <Rows>
+              {section.chats.map((chat) => (
+                <ChatLine
+                  key={chat.id}
+                  chat={chat}
+                  onOpen={() => {
+                    hapticSelection();
+                    navigate(`/console/chats/${chat.id}`);
+                  }}
+                />
+              ))}
+            </Rows>
+          </div>
+        ))
+      )}
+    </>
+  );
+}
+
+function ChatLine({ chat, onOpen }: { chat: ConsoleChat; onOpen: () => void }) {
+  const { t, i18n } = useLingui();
+  const title = chat.title ?? String(chat.id);
+  const guards = [
+    chat.is_captcha_enabled ? t`капча` : null,
+    chat.is_welcome_enabled ? t`приветствие` : null,
+  ].filter(Boolean);
+  // Protection runs only where the bot is approved; elsewhere the status is
+  // the thing to know.
+  const facts =
+    chat.resource_status === 'approved'
+      ? [
+          chat.member_count !== null ? i18n.number(chat.member_count) : null,
+          guards.length ? guards.join(', ') : t`без защиты`,
+          isListed(chat) ? t`на сайте` : t`не на сайте`,
+        ]
+      : [
+          chat.member_count !== null ? i18n.number(chat.member_count) : null,
+          chat.resource_status === 'discovered' ? t`на проверке` : t`отключён`,
+        ];
+  const tone =
+    chat.resource_status === 'discovered'
+      ? 1
+      : chat.resource_status === 'disabled'
+        ? 5
+        : 3;
+
+  return (
+    <Row
+      leading={
+        <Tile tone={tone}>
+          <Letters text={initials(title)} />
+        </Tile>
+      }
+      title={title}
+      hint={facts.filter(Boolean).join(' · ')}
+      trailing={<Chevron />}
+      onClick={onOpen}
+    />
+  );
+}

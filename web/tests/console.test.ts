@@ -104,6 +104,10 @@ test('a failure that is none of those may be tried again', async () => {
     return true;
   });
   assert.equal(isFinal(new ConsoleError(403, 'refused')), true);
+  // A request the server understood and refused (404, 422) is not a hiccup.
+  assert.equal(isFinal(new ConsoleError(404)), true);
+  assert.equal(isFinal(new ConsoleError(502)), false);
+  assert.equal(isFinal(new ConsoleError(500)), false);
 });
 
 test('without initData there is nothing to sign in with', async () => {
