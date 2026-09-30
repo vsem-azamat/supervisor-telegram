@@ -73,7 +73,7 @@ time a word changes.
 
 **A migration that adds reference data carries the rows itself.** The
 deployment runs `alembic upgrade head` and never runs `seed.py`
-(`.github/workflows/deploy.yml`), so a service type that exists only in the
+(see `catalog/docs/deploy.md`), so a service type that exists only in the
 seed reaches every developer's database and no production one. Reference rows
 therefore live in two places on purpose, and
 `catalog/tests/test_service_groups.py` fails when the two disagree about which

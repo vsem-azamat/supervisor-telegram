@@ -175,8 +175,8 @@ jobs:
     services:
       postgres:
         # The schema needs pg_trgm, unaccent, btree_gist and vector, and the
-        # tests exercise them all.
-        image: pgvector/pgvector:pg18
+        # tests exercise them all. Pinned like the bot's.
+        image: pgvector/pgvector:0.8.2-pg18-trixie
         env:
           POSTGRES_USER: students_cz
           POSTGRES_PASSWORD: students_cz

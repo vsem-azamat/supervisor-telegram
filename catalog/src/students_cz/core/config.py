@@ -31,12 +31,14 @@ ENV_FILE = _find_env_file()
 
 
 class Settings(BaseSettings):
-    # One .env at the repo root, shared with docker compose, so the database
+    # One .env in catalog/, shared with compose.dev.yml, so the database
     # credentials cannot drift between the container and the application.
     # Found regardless of where the process was started from — and in
     # production there is no file at all, only the environment.
     model_config = SettingsConfigDict(
-        env_file=(ENV_FILE, ".env") if ENV_FILE else (".env",),
+        # Only the one found above. A bare ".env" would be read from wherever
+        # the process starts, the repository root included.
+        env_file=ENV_FILE,
         env_file_encoding="utf-8",
         extra="ignore",
     )

@@ -1,6 +1,6 @@
-# The catalog's development database. Production runs from the repository
-# root's docker-compose.yaml; see docs/deploy.md.
-name: students-cz
+# The catalog's development database; production is in docs/deploy.md.
+# Its own project name, so it never shares a volume with an older checkout's.
+name: catalog-dev
 
 services:
   db:
