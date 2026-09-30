@@ -692,6 +692,10 @@ msgstr "Decline"
 msgid "без защиты"
 msgstr "unprotected"
 
+#: src/console/pages/Chat.tsx
+msgid "задаётся у родителя"
+msgstr "set on the parent"
+
 #. placeholder {0}: i18n.number(trend.first)
 #. placeholder {1}: i18n.number(trend.last)
 #: src/console/Charts.tsx
@@ -901,6 +905,10 @@ msgstr "No more questions after this."
 #: src/console/pages/Chats.tsx
 msgid "не на сайте"
 msgstr "not listed"
+
+#: src/console/pages/Chat.tsx
+msgid "Вуз"
+msgstr "University"
 
 #: src/components/RequestSheet.tsx
 msgid "Сколько готов платить"
@@ -1654,6 +1662,10 @@ msgstr "What we do not place"
 msgid "Работает только в одобренном чате."
 msgstr "Works only in an approved chat."
 
+#: src/console/pages/Chat.tsx
+msgid "не указан: чаты под ним его студентам не поднимутся"
+msgstr "not set: the chats under it won't come first for its students"
+
 #: src/pages/AdsApp.tsx
 msgid "страховка, визы, банк, переводы"
 msgstr "insurance, visas, bank, translations"
@@ -1904,6 +1916,10 @@ msgstr "Not shown"
 #~ msgid "Расскажи своими словами"
 #~ msgstr "Tell it in your own words"
 
+#: src/console/pages/Chat.tsx
+msgid "Не указан"
+msgstr "Not set"
+
 #: src/console/pages/Catalog.tsx
 msgid "анкет за 7 дней"
 msgstr "profiles in 7 days"
@@ -2076,6 +2092,11 @@ msgstr "The list of schools did not load. Try again later."
 #: src/console/pages/Chat.tsx
 msgid "Обновляем…"
 msgstr "Refreshing…"
+
+#. placeholder {0}: universityName(parent.institution_code)
+#: src/console/pages/Chat.tsx
+msgid "как у родителя: {0}"
+msgstr "as the parent: {0}"
 
 #: src/console/pages/Chat.tsx
 msgid "Текст приветствия"

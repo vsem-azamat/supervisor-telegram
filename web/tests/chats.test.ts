@@ -5,6 +5,7 @@ import {
   chipFor,
   directory,
   initials,
+  ownUniversity,
   type PublicChat,
   sanitize,
   search,
@@ -20,6 +21,7 @@ function chat(
     title,
     link: `https://t.me/${title.replace(/\W+/g, '_').toLowerCase()}`,
     group,
+    institution: null,
     activity: 'active',
     ...over,
   };
@@ -166,4 +168,63 @@ test('what arrives from the other backend is checked, not trusted', () => {
       ['Invite', 'unknown'],
     ],
   );
+});
+
+test("a student's own university comes first, the rest keep their order", () => {
+  const chats = [
+    chat('VŠE FIS', 'VŠE', { institution: 'vse' }),
+    chat('VŠE FFÚ', 'VŠE', { institution: 'vse' }),
+    chat('ČVUT FIT', CVUT, { institution: 'cvut' }),
+    chat('ČVUT FEL', CVUT, { institution: 'cvut' }),
+    chat('UK Hostel', 'UK', { institution: 'uk' }),
+  ];
+  const names = (mine: string | null) =>
+    directory(chats, mine).entries.map((entry) =>
+      entry.kind === 'section' ? entry.name : entry.chat.title,
+    );
+  assert.deepEqual(names('cvut'), [CVUT, 'VŠE', 'UK Hostel']);
+  assert.deepEqual(names(null), ['VŠE', CVUT, 'UK Hostel']);
+  assert.deepEqual(names('muni'), ['VŠE', CVUT, 'UK Hostel']);
+  assert.deepEqual(names('uk'), ['UK Hostel', 'VŠE', CVUT]);
+});
+
+test('a faculty belongs to its university, found through the taxonomy', () => {
+  const taxonomy = [
+    {
+      id: 1,
+      code: 'cvut',
+      parent_id: null,
+      faculties: [{ id: 11, code: 'cvut-fit', parent_id: 1, faculties: [] }],
+    },
+    { id: 2, code: 'vse', parent_id: null, faculties: [] },
+  ];
+  assert.equal(
+    ownUniversity({ id: 11, code: 'cvut-fit', parent_id: 1 }, taxonomy),
+    'cvut',
+  );
+  assert.equal(ownUniversity({ id: 2, code: 'vse', parent_id: null }, taxonomy), 'vse');
+  assert.equal(ownUniversity(null, taxonomy), null);
+  // A faculty whose university is not in the list yet: its own code is no match.
+  assert.equal(ownUniversity({ id: 99, code: 'x-y', parent_id: 98 }, taxonomy), null);
+});
+
+test('an institution code that is not a code is dropped at the boundary', () => {
+  const [kept, dropped] = sanitize([
+    {
+      title: 'A',
+      link: 'https://t.me/a',
+      group: null,
+      institution: 'cvut',
+      activity: 'busy',
+    },
+    {
+      title: 'B',
+      link: 'https://t.me/b',
+      group: null,
+      institution: '<b>x</b>',
+      activity: 'busy',
+    },
+  ]);
+  assert.equal(kept?.institution, 'cvut');
+  assert.equal(dropped?.institution, null);
 });

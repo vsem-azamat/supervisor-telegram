@@ -692,6 +692,10 @@ msgstr "Odmítnout"
 msgid "без защиты"
 msgstr "bez ochrany"
 
+#: src/console/pages/Chat.tsx
+msgid "задаётся у родителя"
+msgstr "nastavuje se u nadřazeného"
+
 #. placeholder {0}: i18n.number(trend.first)
 #. placeholder {1}: i18n.number(trend.last)
 #: src/console/Charts.tsx
@@ -901,6 +905,10 @@ msgstr "Víc otázek nebude."
 #: src/console/pages/Chats.tsx
 msgid "не на сайте"
 msgstr "není na webu"
+
+#: src/console/pages/Chat.tsx
+msgid "Вуз"
+msgstr "Vysoká škola"
 
 #: src/components/RequestSheet.tsx
 msgid "Сколько готов платить"
@@ -1654,6 +1662,10 @@ msgstr "Co nezveřejňujeme"
 msgid "Работает только в одобренном чате."
 msgstr "Funguje jen ve schváleném chatu."
 
+#: src/console/pages/Chat.tsx
+msgid "не указан: чаты под ним его студентам не поднимутся"
+msgstr "neuvedena: chaty pod ním se jejím studentům nezobrazí první"
+
 #: src/pages/AdsApp.tsx
 msgid "страховка, визы, банк, переводы"
 msgstr "pojištění, víza, banka, překlady"
@@ -1904,6 +1916,10 @@ msgstr "Nezobrazen"
 #~ msgid "Расскажи своими словами"
 #~ msgstr "Napiš vlastními slovy"
 
+#: src/console/pages/Chat.tsx
+msgid "Не указан"
+msgstr "Neuvedena"
+
 #: src/console/pages/Catalog.tsx
 msgid "анкет за 7 дней"
 msgstr "profilů za 7 dní"
@@ -2076,6 +2092,11 @@ msgstr "Seznam škol se nenačetl. Zkus to prosím později."
 #: src/console/pages/Chat.tsx
 msgid "Обновляем…"
 msgstr "Obnovujeme…"
+
+#. placeholder {0}: universityName(parent.institution_code)
+#: src/console/pages/Chat.tsx
+msgid "как у родителя: {0}"
+msgstr "jako nadřazený: {0}"
 
 #: src/console/pages/Chat.tsx
 msgid "Текст приветствия"

@@ -22,8 +22,8 @@ import {
   Title,
   ui,
 } from '@/components/Ui';
-import { chatsQuery } from '@/lib/api';
-import { directory, initials, search, sectionHint } from '@/lib/chats';
+import { chatsQuery, institutionsQuery, meQuery } from '@/lib/api';
+import { directory, initials, ownUniversity, search, sectionHint } from '@/lib/chats';
 
 /**
  * The chat directory: supervisor-telegram's chats, read as places to go.
@@ -39,7 +39,16 @@ export default function ChatsPage() {
   const { data, isPending, isError, refetch } = useQuery(chatsQuery);
 
   const found = useMemo(() => (data ? search(data, query) : []), [data, query]);
-  const { entries, rest } = useMemo(() => directory(data ?? []), [data]);
+  // A student's own university first. Outside Telegram there is no one to
+  // ask, and the directory keeps supervisor's order.
+  const me = useQuery(meQuery);
+  const institutions = useQuery({
+    ...institutionsQuery,
+    // Only a faculty needs it: the taxonomy names the university above it.
+    enabled: me.data?.institution?.parent_id != null,
+  });
+  const mine = ownUniversity(me.data?.institution, institutions.data ?? []);
+  const { entries, rest } = useMemo(() => directory(data ?? [], mine), [data, mine]);
   const searching = query.trim() !== '';
 
   return (

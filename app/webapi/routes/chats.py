@@ -86,6 +86,7 @@ async def list_chats(
             parent_chat_id=chat.parent_chat_id,
             relation_notes=chat.relation_notes,
             public_link=chat.public_link,
+            institution_code=chat.institution_code,
             member_count=counts.get(chat.id),
             has_photo=chat.photo_file_id is not None,
             last_synced_at=chat.last_synced_at,
@@ -192,6 +193,7 @@ async def get_chat(
         parent_chat_id=chat.parent_chat_id,
         relation_notes=chat.relation_notes,
         public_link=chat.public_link,
+        institution_code=chat.institution_code,
         member_count=member_count,
         has_photo=chat.photo_file_id is not None,
         last_synced_at=chat.last_synced_at,
@@ -255,6 +257,14 @@ async def update_chat(
         if any(parent == chat_id for child, parent in parent_by_id.items() if child != chat_id):
             raise HTTPException(status_code=409, detail="A chat others sit under stays at the top")
 
+    # A chat under a parent takes its university from it: refused on a child,
+    # and a code left from when it stood at the top goes when it moves under one.
+    will_have_parent = fields.get("parent_chat_id", chat.parent_chat_id) is not None
+    if will_have_parent and fields.get("institution_code") is not None:
+        raise HTTPException(status_code=409, detail="A chat under a parent takes its university from it")
+    if will_have_parent:
+        fields["institution_code"] = None
+
     for key, value in fields.items():
         setattr(chat, key, value)
     await session.commit()
@@ -272,6 +282,7 @@ async def update_chat(
         parent_chat_id=chat.parent_chat_id,
         relation_notes=chat.relation_notes,
         public_link=chat.public_link,
+        institution_code=chat.institution_code,
         member_count=member_count,
         has_photo=chat.photo_file_id is not None,
         last_synced_at=chat.last_synced_at,
@@ -326,6 +337,7 @@ async def refresh_chat_from_telegram(
         parent_chat_id=chat.parent_chat_id,
         relation_notes=chat.relation_notes,
         public_link=chat.public_link,
+        institution_code=chat.institution_code,
         member_count=member_count,
         has_photo=chat.photo_file_id is not None,
         last_synced_at=chat.last_synced_at,

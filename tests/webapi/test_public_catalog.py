@@ -125,14 +125,49 @@ class TestWhatGetsIn:
 
 
 class TestWhatComesBack:
-    async def test_the_row_carries_four_fields_and_no_more(self, client_factory, db_session_maker) -> None:
+    async def test_the_row_carries_five_fields_and_no_more(self, client_factory, db_session_maker) -> None:
         """Whatever a page does with this, it cannot show what is not here."""
         await _seed(db_session_maker, _chat(FIT, "ČVUT FIT", public_link="https://t.me/cvut_fit"))
 
         async with client_factory() as client:
             resp = await client.get("/api/public/catalog")
 
-        assert set(resp.json()[0]) == {"title", "link", "group", "activity"}
+        assert set(resp.json()[0]) == {"title", "link", "group", "institution", "activity"}
+
+    async def test_a_chat_names_the_university_its_group_belongs_to(self, client_factory, db_session_maker) -> None:
+        """The catalog's code for it, so the app can put a student's own first.
+        Set on the chat at the top; the chats under it carry it without being told."""
+        await _seed(
+            db_session_maker,
+            _chat(CVUT, "ČVUT | ЧВУТ", public_link="https://t.me/cvut_chat", institution_code="cvut"),
+            _chat(FIT, "ČVUT FIT", public_link="https://t.me/cvut_fit", parent_chat_id=CVUT),
+            _chat(-1001, "Flood", public_link="https://t.me/flood"),
+        )
+
+        async with client_factory() as client:
+            rows = (await client.get("/api/public/catalog")).json()
+
+        by_title = {row["title"]: row["institution"] for row in rows}
+        assert by_title == {"ČVUT | ЧВУТ": "cvut", "ČVUT FIT": "cvut", "Flood": None}
+
+    async def test_the_parent_decides_even_when_a_child_has_a_code_of_its_own(
+        self, client_factory, db_session_maker
+    ) -> None:
+        """A code left over from when a chat stood at the top is not published."""
+        await _seed(
+            db_session_maker,
+            _chat(CVUT, "ČVUT | ЧВУТ", public_link="https://t.me/cvut_chat", institution_code="cvut"),
+            _chat(FIT, "ČVUT FIT", public_link="https://t.me/cvut_fit", parent_chat_id=CVUT, institution_code="vse"),
+            _chat(-1002, "Kolej", public_link="https://t.me/kolej"),
+            _chat(-1003, "Kolej 7", public_link="https://t.me/kolej7", parent_chat_id=-1002, institution_code="uk"),
+        )
+
+        async with client_factory() as client:
+            rows = (await client.get("/api/public/catalog")).json()
+
+        by_title = {row["title"]: row["institution"] for row in rows}
+        assert by_title["ČVUT FIT"] == "cvut"
+        assert by_title["Kolej 7"] is None
 
     async def test_the_university_above_it_is_named(self, client_factory, db_session_maker) -> None:
         await _seed(

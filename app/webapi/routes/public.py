@@ -10,7 +10,7 @@ import datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
@@ -105,6 +105,12 @@ async def get_public_catalog(
                 Chat.title,
                 Chat.public_link,
                 parent.title.label("group_title"),
+                # The group's university: the parent's under one, the chat's own
+                # at the top. Never a child's own: one left from when it stood at
+                # the top would split its group.
+                case((Chat.parent_chat_id.is_(None), Chat.institution_code), else_=parent.institution_code).label(
+                    "institution"
+                ),
                 func.coalesce(recent_messages.c.messages, 0).label("messages"),
             )
             .outerjoin(parent, parent.id == Chat.parent_chat_id)
@@ -119,6 +125,7 @@ async def get_public_catalog(
             title=row.title,
             link=row.public_link,
             group=row.group_title,
+            institution=row.institution,
             activity=_activity(row.messages, grounded=grounded),
         )
         for row in rows

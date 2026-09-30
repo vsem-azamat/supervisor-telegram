@@ -208,7 +208,7 @@ async function publicRequest<T>(
 // apps/api/src/students_cz/api/v1/ in teachers-catalog.
 
 export const api = {
-  /** The chat directory, supervisor's. Four fields per chat, in its order. */
+  /** The chat directory, supervisor's. Five fields per chat, in its order. */
   getChats: async (signal?: AbortSignal): Promise<PublicChat[]> => {
     const payload = await publicRequest<unknown>('/catalog', { signal });
     // Not a list at all is a failure, not an empty directory: it shows the
@@ -347,11 +347,19 @@ export const api = {
 
 export type Api = typeof api;
 
+/** Universities with their faculties; they change a few times a year. */
+export const institutionsQuery = {
+  queryKey: ['institutions'] as const,
+  queryFn: ({ signal }: { signal: AbortSignal }) => api.getInstitutions(signal),
+  staleTime: 60 * 60 * 1000,
+};
+
 /**
  * The chat directory's query, shared by the directory and a section's screen
  * so that opening a section costs no request. The directory changes when a
  * moderator publishes a chat, not while somebody is looking at it.
  */
+
 export const chatsQuery = {
   queryKey: ['chats'] as const,
   queryFn: ({ signal }: { signal: AbortSignal }) => api.getChats(signal),

@@ -26,7 +26,7 @@ PUBLIC_LINK = re.compile(
 class PublicCatalogItem(BaseModel):
     """What a stranger may know about a chat.
 
-    Four fields, and the shape is the safety rather than any check downstream:
+    Five fields, and the shape is the safety rather than any check downstream:
     there is no Telegram id here, no member count, no moderation state, nothing
     about who is in the room. A public page cannot leak a field this model does
     not carry, however carelessly it is written.
@@ -38,6 +38,9 @@ class PublicCatalogItem(BaseModel):
     title: str
     link: str
     group: str | None = None
+    # The university's code in teachers-catalog, the group's own: every app user
+    # can read the catalog's taxonomy, and it lets the app put a student's first.
+    institution: str | None = None
     # "unknown" is a real answer, not a missing one: it says the recording
     # behind the other three values is too short to stand on. A page shows
     # nothing for it rather than guessing.
@@ -93,10 +96,14 @@ class ChatRead(BaseModel):
     # can say which chats are not, rather than leaving it to be discovered by
     # looking at the public page and counting.
     public_link: str | None = None
+    institution_code: str | None = None
     member_count: int | None = None  # last recorded snapshot; None when never measured
     has_photo: bool = False
     last_synced_at: datetime.datetime | None = None
     created_at: datetime.datetime
+
+
+_INSTITUTION_CODE = re.compile(r"[a-z0-9][a-z0-9_-]{0,31}")
 
 
 class ChatUpdate(BaseModel):
@@ -115,6 +122,20 @@ class ChatUpdate(BaseModel):
     # Setting this publishes the chat; clearing it takes it down. Nothing else
     # does either, which is why it is one field and not a field plus a switch.
     public_link: str | None = None
+    # teachers-catalog's code for a university; empty clears it.
+    institution_code: str | None = None
+
+    @field_validator("institution_code")
+    @classmethod
+    def _check_institution_code(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        code = value.strip().lower()
+        if not code:
+            return None
+        if not _INSTITUTION_CODE.fullmatch(code):
+            raise ValueError("An institution code is a short latin slug, e.g. cvut")
+        return code
 
     @field_validator("public_link")
     @classmethod
