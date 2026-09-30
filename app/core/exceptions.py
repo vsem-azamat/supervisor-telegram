@@ -15,3 +15,11 @@ class UserNotFoundException(DomainError):
     def __init__(self, user_id: int):
         self.user_id = user_id
         super().__init__(f"User with ID {user_id} not found")
+
+
+class ProtectedUserError(DomainError):
+    """Raised when an action would put a super admin on the blacklist."""
+
+    def __init__(self, user_id: int):
+        self.user_id = user_id
+        super().__init__(f"User {user_id} is a super admin and cannot be blacklisted")

@@ -133,3 +133,22 @@ class TestTheDialog:
         await ban_everywhere(command, message_repo, AsyncMock())
 
         assert command.answer.call_args[1].get("reply_markup") is None
+
+
+@pytest.mark.handlers
+class TestSuperAdmins:
+    async def test_a_super_admin_is_not_offered_for_banning(self, telegram_factory, message_repo, monkeypatch):
+        from app.core.config import settings
+
+        monkeypatch.setattr(settings.admin, "super_admins", [555])
+        chat = create_test_chat()
+        target = telegram_factory.create_message(user=create_normal_user(id=555, username="boss"), chat=chat)
+        command = telegram_factory.create_command_message(
+            command="banall", user=create_admin_user(), chat=chat, reply_to_message=target
+        )
+
+        await ban_everywhere(command, message_repo, AsyncMock())
+
+        text = command.answer.call_args[0][0]
+        assert "главн" in text.lower()
+        assert "reply_markup" not in command.answer.call_args[1]

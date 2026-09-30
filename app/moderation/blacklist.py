@@ -3,6 +3,8 @@ import asyncio
 from aiogram import Bot
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
+from app.core.exceptions import ProtectedUserError
 from app.core.logging import get_logger
 from app.db.repositories import (
     ChatRepository,
@@ -13,12 +15,23 @@ from app.db.repositories import (
 logger = get_logger("moderation")
 
 
+def is_protected(user_id: int) -> bool:
+    """A super admin: never blacklisted, by any caller.
+
+    A blacklisted account loses every message, its private ones to the bot
+    included, so a super admin on the list would lose the bot itself.
+    """
+    return user_id in settings.admin.super_admins
+
+
 async def add_to_blacklist(
     db: AsyncSession,
     bot: Bot,
     id_tg: int,
     revoke_messages: bool | None = None,
 ) -> None:
+    if is_protected(id_tg):
+        raise ProtectedUserError(id_tg)
     user_repo = UserRepository(db)
     chat_repo = ChatRepository(db)
     message_repo = MessageRepository(db)

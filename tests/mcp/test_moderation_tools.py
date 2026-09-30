@@ -143,6 +143,13 @@ class TestRemovalsWait:
             blocked = await session.scalar(select(User).where(User.id == USER_ID))
         assert blocked is None
 
+    async def test_a_super_admin_is_not_proposed_for_the_blacklist(self, wired, bot) -> None:
+        """Refused at the proposal, not only at the press: nobody should be asked."""
+        result = await _call("propose_blacklist", {"user_id": ADMIN_ID})
+
+        assert result["error"] == "protected_user"
+        bot.send_message.assert_not_awaited()
+
     async def test_proposal_reaches_the_configured_admin(self, wired, bot) -> None:
         await _call("propose_blacklist", {"user_id": USER_ID})
 
