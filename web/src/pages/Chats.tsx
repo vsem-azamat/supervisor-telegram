@@ -44,7 +44,8 @@ export default function ChatsPage() {
   const me = useQuery(meQuery);
   const institutions = useQuery({
     ...institutionsQuery,
-    enabled: Boolean(me.data?.institution),
+    // Only a faculty needs it: the taxonomy names the university above it.
+    enabled: me.data?.institution?.parent_id != null,
   });
   const mine = ownUniversity(me.data?.institution, institutions.data ?? []);
   const { entries, rest } = useMemo(() => directory(data ?? [], mine), [data, mine]);

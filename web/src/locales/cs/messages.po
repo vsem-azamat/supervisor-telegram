@@ -1662,6 +1662,10 @@ msgstr "Co nezveřejňujeme"
 msgid "Работает только в одобренном чате."
 msgstr "Funguje jen ve schváleném chatu."
 
+#: src/console/pages/Chat.tsx
+msgid "не указан: чаты под ним его студентам не поднимутся"
+msgstr "neuvedena: chaty pod ním se jejím studentům nezobrazí první"
+
 #: src/pages/AdsApp.tsx
 msgid "страховка, визы, банк, переводы"
 msgstr "pojištění, víza, banka, překlady"
@@ -1767,10 +1771,6 @@ msgstr "Pomoc v den zkoušky"
 #: src/pages/Helper.tsx
 msgid "Профиль недоступен"
 msgstr "Profil není dostupný"
-
-#: src/console/pages/Chat.tsx
-msgid "не указан: его студентам этот чат не поднимется"
-msgstr "neuvedena: jejím studentům se tento chat nezobrazí první"
 
 #: src/pages/Chats.tsx
 #: src/pages/ChatSection.tsx

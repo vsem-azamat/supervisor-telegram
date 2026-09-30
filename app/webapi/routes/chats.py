@@ -257,6 +257,14 @@ async def update_chat(
         if any(parent == chat_id for child, parent in parent_by_id.items() if child != chat_id):
             raise HTTPException(status_code=409, detail="A chat others sit under stays at the top")
 
+    # A chat under a parent takes its university from it: refused on a child,
+    # and a code left from when it stood at the top goes when it moves under one.
+    will_have_parent = fields.get("parent_chat_id", chat.parent_chat_id) is not None
+    if will_have_parent and fields.get("institution_code") is not None:
+        raise HTTPException(status_code=409, detail="A chat under a parent takes its university from it")
+    if will_have_parent:
+        fields["institution_code"] = None
+
     for key, value in fields.items():
         setattr(chat, key, value)
     await session.commit()

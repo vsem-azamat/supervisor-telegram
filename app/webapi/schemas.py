@@ -38,8 +38,8 @@ class PublicCatalogItem(BaseModel):
     title: str
     link: str
     group: str | None = None
-    # The university's code in teachers-catalog, the group's own: public in the
-    # catalog's taxonomy already, and what lets the app put a student's first.
+    # The university's code in teachers-catalog, the group's own: every app user
+    # can read the catalog's taxonomy, and it lets the app put a student's first.
     institution: str | None = None
     # "unknown" is a real answer, not a missing one: it says the recording
     # behind the other three values is too short to stand on. A page shows

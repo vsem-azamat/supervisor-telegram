@@ -161,10 +161,11 @@ grandparent; the console offers only the parents that keep that true.
 
 **A chat names its university by the catalog's code.** `institution_code` is
 teachers-catalog's code for a university (`cvut`), set in the console on a chat
-at the top; the chats under it carry their parent's. The public catalogue
-publishes it as `institution` so the app can put a student's own university
-first. A faculty is never set here: its students are found through their
-university, and a second code for the same room would split its group.
+at the top; the chats under it carry their parent's, so the server refuses a
+code on a child and drops one when a chat moves under a parent. The public
+catalogue publishes it as `institution` so the app can put a student's own
+university first. The console offers universities only, never a faculty: a
+faculty's students are found through their university.
 
 **Times are read where the reader is.** Webapi stores and counts in UTC; the
 console shows every time, and the hours of its activity grid, in the reader's

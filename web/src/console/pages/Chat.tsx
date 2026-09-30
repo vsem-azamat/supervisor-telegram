@@ -43,7 +43,7 @@ import {
   type SpamPing,
 } from '@/console/session';
 import { hapticSelection } from '@/hooks/useTelegram';
-import { institutionsQuery } from '@/lib/api';
+import { chatsQuery, institutionsQuery } from '@/lib/api';
 import { initials } from '@/lib/chats';
 import type { Institution } from '@/lib/types';
 
@@ -391,7 +391,7 @@ function ChatScreen({ chatId }: { chatId: number }) {
               chat.institution_code ? (
                 universityName(chat.institution_code)
               ) : (
-                <Trans>не указан: его студентам этот чат не поднимется</Trans>
+                <Trans>не указан: чаты под ним его студентам не поднимутся</Trans>
               )
             }
             trailing={<Chevron />}
@@ -678,7 +678,7 @@ function ChatScreen({ chatId }: { chatId: number }) {
               ? close()
               : save({ institution_code: code }, () => {
                   // The public directory orders by it.
-                  void queryClient.invalidateQueries({ queryKey: ['chats'] });
+                  void queryClient.invalidateQueries({ queryKey: chatsQuery.queryKey });
                   close();
                 })
           }
