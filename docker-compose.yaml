@@ -58,7 +58,8 @@ x-pg-backup-loop: &pg-backup-loop
             rm -f "/backups/$${BACKUP_PREFIX}-$$stamp.dump.part"
             echo "backup FAILED at $$stamp" >&2
           fi
-          find /backups -name '*.dump' -mtime "+$${BACKUP_RETENTION_DAYS}" -delete
+          # Only the top level: the directory may hold other dumps, kept by hand.
+          find /backups -maxdepth 1 -name '*.dump' -mtime "+$${BACKUP_RETENTION_DAYS}" -delete
         done
 
 # Logs rotated as the catalog's old stack rotated them.
