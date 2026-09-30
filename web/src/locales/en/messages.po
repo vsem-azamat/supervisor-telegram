@@ -377,10 +377,6 @@ msgstr "Try other words — or post a request and let them find you."
 msgid "Не отправилось — попробуй ещё раз."
 msgstr "It did not go through — try again."
 
-#: src/console/Charts.tsx
-msgid "Сообщения по дням недели и часам"
-msgstr "Messages by weekday and hour"
-
 #: src/pages/Profile.tsx
 #~ msgid "Хочу помогать"
 #~ msgstr "I want to help"
@@ -881,6 +877,10 @@ msgstr "{0, plural, one {# chat} other {# chats}} · {approved} approved"
 msgid "Неделя"
 msgstr "A week"
 
+#: src/console/Charts.tsx
+msgid "Сообщения по дням недели и часам; больше всего: {busiest}"
+msgstr "Messages by weekday and hour; busiest: {busiest}"
+
 #: src/components/Phrase.tsx
 #: src/lib/workFormat.tsx
 msgid "Очно"
@@ -1087,12 +1087,6 @@ msgstr "no deadline"
 #: src/console/pages/Chat.tsx
 msgid "{0, plural, one {# сообщение} few {# сообщения} many {# сообщений} other {# сообщения}}"
 msgstr "{0, plural, one {# message} other {# messages}}"
-
-#. placeholder {0}: trend.first
-#. placeholder {1}: trend.last
-#: src/console/Charts.tsx
-msgid "Участники с {since}: {0} → {1}"
-msgstr "Members since {since}: {0} → {1}"
 
 #: src/pages/Home.tsx
 msgid "матан, čeština B2, přijímačky…"
@@ -1324,6 +1318,10 @@ msgstr "{0} total"
 #: src/console/pages/System.tsx
 msgid "Состояние"
 msgstr "Status"
+
+#: src/console/pages/Chat.tsx
+msgid "Так вложить нельзя: список чатов изменился. Откройте экран заново."
+msgstr "That nesting is not allowed: the chat list has changed. Open the screen again."
 
 #: src/pages/Ask.tsx
 msgid "нострификация аттестата"

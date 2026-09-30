@@ -107,6 +107,34 @@ async def test_update_chat_parent_cycle_422(client_factory, db_session_maker) ->
     assert resp.status_code == 422
 
 
+async def test_a_chat_goes_only_under_a_top_level_chat(client_factory, db_session_maker) -> None:
+    """Both lists group by the parent and nothing deeper: a grandchild would
+    appear under neither. The console offers only top-level chats, and this
+    holds for whatever else sends the change."""
+    async with db_session_maker() as s:
+        s.add(Chat(id=-2010, title="ČVUT"))
+        s.add(Chat(id=-2011, title="ČVUT FIT", parent_chat_id=-2010))
+        s.add(Chat(id=-2012, title="FIT 2026"))
+        await s.commit()
+    async with client_factory() as client:
+        resp = await client.patch("/api/chats/-2012", json={"parent_chat_id": -2011})
+    assert resp.status_code == 409, resp.text
+
+
+async def test_a_chat_others_sit_under_stays_at_the_top(client_factory, db_session_maker) -> None:
+    async with db_session_maker() as s:
+        s.add(Chat(id=-2013, title="ČVUT"))
+        s.add(Chat(id=-2014, title="ČVUT FIT", parent_chat_id=-2013))
+        s.add(Chat(id=-2015, title="Praha"))
+        await s.commit()
+    async with client_factory() as client:
+        resp = await client.patch("/api/chats/-2013", json={"parent_chat_id": -2015})
+        # Taking it out from under a parent is always allowed.
+        out = await client.patch("/api/chats/-2014", json={"parent_chat_id": None})
+    assert resp.status_code == 409, resp.text
+    assert out.status_code == 200, out.text
+
+
 class TestPublishingAChat:
     """Setting the public link is what puts a chat on the public page.
 

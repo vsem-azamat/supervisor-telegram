@@ -377,10 +377,6 @@ msgstr "Напиши інакше — або залиш заявку, і зна�
 msgid "Не отправилось — попробуй ещё раз."
 msgstr "Не надіслалося — спробуй ще раз."
 
-#: src/console/Charts.tsx
-msgid "Сообщения по дням недели и часам"
-msgstr "Повідомлення за днями тижня та годинами"
-
 #: src/pages/Profile.tsx
 #~ msgid "Хочу помогать"
 #~ msgstr "Хочу допомагати"
@@ -881,6 +877,10 @@ msgstr "{0, plural, one {# чат} few {# чати} many {# чатів} other {#
 msgid "Неделя"
 msgstr "Тиждень"
 
+#: src/console/Charts.tsx
+msgid "Сообщения по дням недели и часам; больше всего: {busiest}"
+msgstr "Повідомлення за днями тижня та годинами; найбільше: {busiest}"
+
 #: src/components/Phrase.tsx
 #: src/lib/workFormat.tsx
 msgid "Очно"
@@ -1087,12 +1087,6 @@ msgstr "без строку"
 #: src/console/pages/Chat.tsx
 msgid "{0, plural, one {# сообщение} few {# сообщения} many {# сообщений} other {# сообщения}}"
 msgstr "{0, plural, one {# повідомлення} few {# повідомлення} many {# повідомлень} other {# повідомлення}}"
-
-#. placeholder {0}: trend.first
-#. placeholder {1}: trend.last
-#: src/console/Charts.tsx
-msgid "Участники с {since}: {0} → {1}"
-msgstr "Учасники з {since}: {0} → {1}"
 
 #: src/pages/Home.tsx
 msgid "матан, čeština B2, přijímačky…"
@@ -1324,6 +1318,10 @@ msgstr "всього {0}"
 #: src/console/pages/System.tsx
 msgid "Состояние"
 msgstr "Стан"
+
+#: src/console/pages/Chat.tsx
+msgid "Так вложить нельзя: список чатов изменился. Откройте экран заново."
+msgstr "Так вкласти не можна: список чатів змінився. Відкрийте екран знову."
 
 #: src/pages/Ask.tsx
 msgid "нострификация аттестата"

@@ -80,7 +80,7 @@ function Summary() {
       <Row
         key="ads"
         leading={
-          <Tile tone={4}>
+          <Tile tone={1}>
             <ShieldIcon size={19} />
           </Tile>
         }

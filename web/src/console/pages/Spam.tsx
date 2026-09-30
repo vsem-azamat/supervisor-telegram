@@ -39,7 +39,7 @@ function Spam() {
           </Trans>
         </Sub>
       </div>
-      <Label aside={data?.length}>
+      <Label>
         <Trans>Последние</Trans>
       </Label>
       {isPending ? (
@@ -57,7 +57,12 @@ function Spam() {
         <PingSheet
           ping={picked}
           onClose={() => setPicked(null)}
-          onOpenChat={() => navigate(`/console/chats/${picked.chat_id}`)}
+          // A chat the bot never stored has no screen to open.
+          onOpenChat={
+            picked.chat_title === null
+              ? undefined
+              : () => navigate(`/console/chats/${picked.chat_id}`)
+          }
         />
       ) : null}
     </>

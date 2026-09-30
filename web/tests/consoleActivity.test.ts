@@ -1,12 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import {
-  localHeatmap,
-  memberTrend,
-  parentChoices,
-  personName,
-} from '../src/console/activity.ts';
+import { localHeatmap, memberTrend, parentChoices } from '../src/console/activity.ts';
 import type { ConsoleChat } from '../src/console/session.ts';
 
 test('the heatmap is read in local time, so a Prague evening is not UTC afternoon', () => {
@@ -95,17 +90,15 @@ test('a chat others sit under cannot go under anything', () => {
   assert.deepEqual(parentChoices(chats, 1), []);
 });
 
-test('a person is their name, else their handle, else their id', () => {
-  assert.equal(
-    personName({ user_id: 7, first_name: 'Jan', last_name: 'N.', username: 'jan' }),
-    'Jan N.',
-  );
-  assert.equal(
-    personName({ user_id: 7, first_name: null, last_name: null, username: 'jan' }),
-    '@jan',
-  );
-  assert.equal(
-    personName({ user_id: 7, first_name: null, last_name: null, username: null }),
-    '7',
+test('a half-hour zone moves by the whole hours in it, either side of Greenwich', () => {
+  assert.equal(localHeatmap([{ weekday: 0, hour: 10, count: 1 }], 330).grid[0]?.[15], 1);
+  assert.equal(localHeatmap([{ weekday: 0, hour: 10, count: 1 }], -210).grid[0]?.[7], 1);
+});
+
+test('a chat under one parent may move under another', () => {
+  const chats = [chat(1, 'ČVUT'), chat(2, 'ČVUT FIT', 1), chat(3, 'VŠE')];
+  assert.deepEqual(
+    parentChoices(chats, 2).map((c) => c.id),
+    [1, 3],
   );
 });

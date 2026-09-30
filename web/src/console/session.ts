@@ -8,8 +8,6 @@
  * a request meets its absence, once, and never retries a refusal.
  */
 
-import type { HeatmapCell, MemberSnapshot } from './activity.ts';
-
 /**
  * Why a console request failed, which decides what the screen says:
  * - `refused`: signed in, and webapi said this account is not a super admin;
@@ -154,6 +152,19 @@ export interface SystemStatus {
   feature_flags: { name: string; enabled: boolean; source: string }[];
 }
 
+export interface HeatmapCell {
+  /** 0 is Monday, in UTC. */
+  weekday: number;
+  /** 0–23, UTC. */
+  hour: number;
+  count: number;
+}
+
+export interface MemberSnapshot {
+  captured_at: string;
+  member_count: number;
+}
+
 /** One ad-detector hit, with the author as the bot last saw them. */
 export interface SpamPing {
   id: number;
@@ -244,4 +255,15 @@ export function daysSince(iso: string, now: Date = new Date()): number {
  */
 export function utc(iso: string): string {
   return /(Z|[+-]\d{2}:?\d{2})$/.test(iso) ? iso : `${iso}Z`;
+}
+
+/** The name Telegram gave, else the handle, else the id. */
+export function personName(person: {
+  user_id: number;
+  first_name: string | null;
+  last_name: string | null;
+  username: string | null;
+}): string {
+  const name = [person.first_name, person.last_name].filter(Boolean).join(' ');
+  return name || (person.username ? `@${person.username}` : String(person.user_id));
 }

@@ -19,7 +19,7 @@ import {
   Title,
   ui,
 } from '@/components/Ui';
-import { parentChoices, personName } from '@/console/activity';
+import { parentChoices } from '@/console/activity';
 import { Heatmap, MemberTrend } from '@/console/Charts';
 import { ConsoleFailure, ConsoleGate } from '@/console/ConsoleGate';
 import { isListed } from '@/console/chats';
@@ -39,6 +39,7 @@ import {
   type ConsoleChat,
   type ConsoleChatDetail,
   ConsoleError,
+  personName,
   type SpamPing,
 } from '@/console/session';
 import { hapticSelection } from '@/hooks/useTelegram';
@@ -142,8 +143,9 @@ function ChatScreen({ chatId }: { chatId: number }) {
         : consoleChanges.block(sender.user_id, revoke),
     onMutate: () => setError(null),
     onSuccess: () => {
-      // A ban is every chat's: every chat's sender list may show it.
+      // A ban is every chat's: every chat's sender list and hits may show it.
       void queryClient.invalidateQueries({ queryKey: ['console', 'chat'] });
+      void queryClient.invalidateQueries({ queryKey: ['console', 'spam'] });
       void queryClient.invalidateQueries({ queryKey: blockedQuery.queryKey });
       setSheet((current) =>
         current?.kind === 'ban' || current?.kind === 'unban' ? null : current,
@@ -370,7 +372,9 @@ function ChatScreen({ chatId }: { chatId: number }) {
             )
           }
           trailing={<Chevron />}
-          onClick={busy ? undefined : () => open({ kind: 'parent' })}
+          onClick={() => {
+            if (!busy) open({ kind: 'parent' });
+          }}
         />
         {chat.children.map((child) => (
           <Row
@@ -391,7 +395,7 @@ function ChatScreen({ chatId }: { chatId: number }) {
         <Heatmap cells={chat.heatmap} />
       </div>
 
-      <Label aside={chat.spam_pings.length || null}>
+      <Label>
         <Trans>Реклама</Trans>
       </Label>
       {chat.spam_pings.length > 0 ? (
@@ -631,8 +635,18 @@ function ChatScreen({ chatId }: { chatId: number }) {
           chat={chat}
           chats={chats.data}
           busy={busy}
-          error={sheetError}
-          onPick={(parentId) => save({ parent_chat_id: parentId }, close)}
+          error={sheet && error ? <ParentFailure error={error} /> : null}
+          onPick={(parentId) =>
+            parentId === chat.parent_chat_id
+              ? close()
+              : save({ parent_chat_id: parentId }, () => {
+                  // The old and the new parent list their children.
+                  void queryClient.invalidateQueries({ queryKey: ['console', 'chat'] });
+                  close();
+                })
+          }
+          retry={() => void chats.refetch()}
+          failed={chats.error}
           onClose={close}
         />
       ) : null}
@@ -664,48 +678,74 @@ function ChatScreen({ chatId }: { chatId: number }) {
 function ParentSheet({
   chat,
   chats,
+  failed,
   busy,
   error,
   onPick,
+  retry,
   onClose,
 }: {
   chat: ConsoleChatDetail;
   chats: ConsoleChat[] | undefined;
+  failed: unknown;
   busy: boolean;
   error: ReactNode;
   onPick: (parentId: number | null) => void;
+  retry: () => void;
   onClose: () => void;
 }) {
   const { t } = useLingui();
   const choices = chats ? parentChoices(chats, chat.id) : [];
+  const nested = chat.children.length > 0;
   return (
     <Sheet title={t`Входит в`} closeLabel={t`Отмена`} onClose={onClose}>
       {error ? <Hint>{error}</Hint> : null}
-      {!chats ? (
+      {failed ? (
+        <ConsoleFailure error={failed} retry={retry} />
+      ) : !chats ? (
         <SkeletonRows count={3} />
-      ) : chat.children.length > 0 ? (
-        <Hint>
-          <Trans>В этот чат входят другие, поэтому он сам стоит отдельно.</Trans>
-        </Hint>
       ) : (
-        <div className={ui.sheetList}>
-          <Pick
-            name={<Trans>Ни во что</Trans>}
-            selected={chat.parent_chat_id === null}
-            onClick={() => !busy && onPick(null)}
-          />
-          {choices.map((choice) => (
-            <Pick
-              key={choice.id}
-              name={choice.title ?? String(choice.id)}
-              selected={chat.parent_chat_id === choice.id}
-              onClick={() => !busy && onPick(choice.id)}
-            />
-          ))}
-        </div>
+        <>
+          {nested ? (
+            <Hint>
+              <Trans>В этот чат входят другие, поэтому он сам стоит отдельно.</Trans>
+            </Hint>
+          ) : null}
+          <div className={ui.sheetList}>
+            {/* Offered whenever it is a change, so a chat nested against the rule can
+                still be taken out. */}
+            {!nested || chat.parent_chat_id !== null ? (
+              <Pick
+                name={<Trans>Ни во что</Trans>}
+                selected={chat.parent_chat_id === null}
+                disabled={busy}
+                onClick={() => onPick(null)}
+              />
+            ) : null}
+            {choices.map((choice) => (
+              <Pick
+                key={choice.id}
+                name={choice.title ?? String(choice.id)}
+                selected={chat.parent_chat_id === choice.id}
+                disabled={busy}
+                onClick={() => onPick(choice.id)}
+              />
+            ))}
+          </div>
+        </>
       )}
     </Sheet>
   );
+}
+
+/** Why a parent was refused: the list moved on under the sheet. */
+function ParentFailure({ error }: { error: unknown }) {
+  if (error instanceof ConsoleError && (error.status === 409 || error.status === 422)) {
+    return (
+      <Trans>Так вложить нельзя: список чатов изменился. Откройте экран заново.</Trans>
+    );
+  }
+  return <FailureText error={error} />;
 }
 
 function TextSheet({

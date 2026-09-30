@@ -3,10 +3,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { Sheet } from '@/components/Sheet';
 import { Action, Hint, Row, Rows, Sub, ui } from '@/components/Ui';
-import { personName } from '@/console/activity';
 import { FailureText } from '@/console/FailureText';
 import { blockedQuery, consoleChanges, consoleSystemQuery } from '@/console/queries';
-import { type SpamPing, utc } from '@/console/session';
+import { personName, type SpamPing, utc } from '@/console/session';
 import { hapticSelection } from '@/hooks/useTelegram';
 
 /**

@@ -30,7 +30,6 @@ from app.webapi.deps import (
     get_session,
     require_super_admin,
 )
-from app.webapi.routes.spam import read_pings
 from app.webapi.schemas import (
     ChatDetail,
     ChatNode,
@@ -42,6 +41,7 @@ from app.webapi.schemas import (
     MemberSnapshotPoint,
 )
 from app.webapi.services import member_counts
+from app.webapi.services.spam_pings import read_pings
 
 logger = get_logger("webapi.routes.chats")
 
@@ -248,6 +248,12 @@ async def update_chat(
                 raise HTTPException(status_code=422, detail="Chat hierarchy cannot contain cycles")
             seen.add(cursor)
             cursor = parent_by_id.get(cursor)
+
+        # Both lists group one level deep; see docs/invariants.md.
+        if parent_by_id.get(parent_id) is not None:
+            raise HTTPException(status_code=409, detail="A chat goes only under a top-level chat")
+        if any(parent == chat_id for child, parent in parent_by_id.items() if child != chat_id):
+            raise HTTPException(status_code=409, detail="A chat others sit under stays at the top")
 
     for key, value in fields.items():
         setattr(chat, key, value)

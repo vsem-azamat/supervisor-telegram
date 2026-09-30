@@ -1,19 +1,6 @@
-/** A chat's activity and its place in the tree, apart from the screen. */
+/** A chat's activity and its place in the list, apart from the screen. */
 
-import type { ConsoleChat } from './session.ts';
-
-export interface HeatmapCell {
-  /** 0 is Monday, in UTC. */
-  weekday: number;
-  /** 0–23, UTC. */
-  hour: number;
-  count: number;
-}
-
-export interface MemberSnapshot {
-  captured_at: string;
-  member_count: number;
-}
+import type { ConsoleChat, HeatmapCell, MemberSnapshot } from './session.ts';
 
 const WEEK_HOURS = 7 * 24;
 
@@ -21,13 +8,17 @@ const WEEK_HOURS = 7 * 24;
  * Messages per weekday and hour in the reader's own time: webapi counts in
  * UTC, and a Prague evening read as UTC would look like the afternoon.
  * `offsetMinutes` is east of UTC, the opposite sign of getTimezoneOffset().
+ *
+ * Approximate twice over: a half-hour zone moves by the whole hours in it,
+ * and today's offset is applied to the whole week, so a week across a clock
+ * change is an hour off for part of it. A grid of busy hours survives both.
  */
 export function localHeatmap(
   cells: HeatmapCell[],
   offsetMinutes: number,
 ): { grid: number[][]; max: number } {
   const week = Array<number>(WEEK_HOURS).fill(0);
-  const shift = Math.floor(offsetMinutes / 60);
+  const shift = Math.trunc(offsetMinutes / 60);
   for (const cell of cells) {
     const at =
       (((cell.weekday * 24 + cell.hour + shift) % WEEK_HOURS) + WEEK_HOURS) % WEEK_HOURS;
@@ -71,15 +62,4 @@ export function parentChoices(chats: ConsoleChat[], chatId: number): ConsoleChat
   return chats
     .filter((chat) => chat.id !== chatId && chat.parent_chat_id === null)
     .sort((a, b) => (a.title ?? '').localeCompare(b.title ?? ''));
-}
-
-/** The name Telegram gave, else the handle, else the id. */
-export function personName(person: {
-  user_id: number;
-  first_name: string | null;
-  last_name: string | null;
-  username: string | null;
-}): string {
-  const name = [person.first_name, person.last_name].filter(Boolean).join(' ');
-  return name || (person.username ? `@${person.username}` : String(person.user_id));
 }
