@@ -15,7 +15,6 @@
 	// Telegram there is nothing to offer, and the panel below explains that case
 	// rather than retrying it.
 	import { onMount } from 'svelte';
-	import { goto } from '$app/navigation';
 	import Header from '$lib/components/app-shell/Header.svelte';
 	import Sidebar from '$lib/components/app-shell/Sidebar.svelte';
 	// Toasts are a console thing — only the chat detail page raises them. Kept
@@ -38,8 +37,9 @@
 	});
 
 	async function doLogout(): Promise<void> {
+		// Stays here: signed out, this layout offers the sign-in again. `/` is
+		// the Mini App now, a different build this router cannot reach.
 		await auth.logout();
-		await goto('/');
 	}
 </script>
 

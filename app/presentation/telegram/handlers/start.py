@@ -34,10 +34,6 @@ def _site() -> str:
     return settings.webapi.public_url.rstrip("/")
 
 
-def _help() -> str:
-    return settings.webapi.help_url.rstrip("/")
-
-
 def _mini_app_possible(*, private: bool) -> bool:
     """Whether Telegram will accept a Mini App button here at all.
 
@@ -72,7 +68,7 @@ async def start_private(message: types.Message, admin_repo: AdminRepository) -> 
         "и общежитиям. За ними следят модераторы, спам вычищается.\n\n"
     )
     # Said only when its button is there: the greeting names what it offers.
-    if _help():
+    if settings.webapi.public_url:
         text += "А ещё здесь люди, которые помогут с учёбой: репетиторы, přijímačky, нострификация.\n\n"
 
     is_super_admin = message.from_user.id in settings.admin.super_admins
@@ -98,11 +94,9 @@ async def start_private(message: types.Message, admin_repo: AdminRepository) -> 
         builder.add(_open_button("⚙️ Открыть консоль", f"{_site()}/admin", private=private))
     if settings.webapi.public_url:
         builder.add(_open_button("🔎 Найти свой чат", f"{_site()}/chats", private=private))
-    # The tutor catalogue runs on this bot's token, so this greeting is its
-    # door too. Its own row, second: finding a chat is why most people come.
-    if _help():
-        builder.add(_open_button("🎓 Помощь с учёбой", _help(), private=private))
-    if settings.webapi.public_url:
+        # The Mini App's first screen. Its own row, second: finding a chat is
+        # why most people come.
+        builder.add(_open_button("🎓 Помощь с учёбой", _site(), private=private))
         builder.add(_open_button("📣 Реклама в чатах", f"{_site()}/ads", private=private))
     builder.add(types.InlineKeyboardButton(text="✉️ Написать нам", url=f"https://t.me/{CONTACT_USERNAME}"))
 
@@ -110,7 +104,7 @@ async def start_private(message: types.Message, admin_repo: AdminRepository) -> 
     # same weight to the reason somebody opened the bot and to the two things
     # nobody did. Advertising and the contact link share the last row; the
     # shape depends on the console, which only a super administrator is shown.
-    lead = [1] * (int(shows_console) + int(bool(_help())))
+    lead = [1] * (int(shows_console) + int(bool(settings.webapi.public_url)))
     builder.adjust(*(lead + [1, 2]))
 
     # Deliberately not scheduled for deletion. This is the message somebody
