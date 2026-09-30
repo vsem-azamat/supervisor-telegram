@@ -981,6 +981,10 @@ msgstr "Off"
 msgid "Выходит в выбранных чатах один раз. Где он уместен, подскажем."
 msgstr "It goes out once in the chats you choose. We will tell you where it fits."
 
+#: src/console/pages/Chat.tsx
+msgid "Чат пропадёт с публичной вкладки."
+msgstr "The chat leaves the public tab."
+
 #: src/console/pages/Chats.tsx
 msgid "Таких чатов нет."
 msgstr "No such chats."
@@ -1215,6 +1219,10 @@ msgstr "City"
 msgid "{0, plural, one {# занятие через нас} few {# занятия через нас} many {# занятий через нас} other {# занятия через нас}}"
 msgstr "{0, plural, one {# lesson through us} other {# lessons through us}}"
 
+#: src/console/pages/Chat.tsx
+msgid "обновите его из Telegram"
+msgstr "refresh it from Telegram"
+
 #: src/pages/Helper.tsx
 msgid "Чем помогает"
 msgstr "What they help with"
@@ -1334,10 +1342,6 @@ msgstr "Could not get through. Try again."
 #: src/pages/AdsApp.tsx
 msgid "Так она выглядит"
 msgstr "This is what it looks like"
-
-#: src/console/pages/Chat.tsx
-msgid "Бот перестанет его модерировать: капча, приветствие и чёрный список там работать не будут. Чат пропадёт с публичной вкладки. Включить можно здесь же."
-msgstr "The bot will stop moderating it: captcha, the welcome and the blacklist will not work there. The chat leaves the public tab. It can be enabled again here."
 
 #: src/console/pages/Catalog.tsx
 msgid "Заявки без откликов"
@@ -1516,6 +1520,10 @@ msgstr "hidden — not visible in the catalog"
 msgid "За день"
 msgstr "In a day"
 
+#: src/console/pages/Chat.tsx
+msgid "Бот перестанет его модерировать: капча, приветствие и чёрный список там работать не будут. Включить можно здесь же."
+msgstr "The bot will stop moderating it: captcha, the welcome and the blacklist will not work there. It can be enabled again here."
+
 #: src/pages/Request.tsx
 msgid "выбран"
 msgstr "chosen"
@@ -1540,6 +1548,10 @@ msgstr "Check your connection and try again."
 #: src/console/ConsoleGate.tsx
 msgid "Консоль только для администраторов"
 msgstr "The console is for administrators only"
+
+#: src/console/pages/Chat.tsx
+msgid "Не виден: у чата нет названия"
+msgstr "Not visible: the chat has no title"
 
 #: src/components/Phrase.tsx
 msgid "Помощь в день экзамена"

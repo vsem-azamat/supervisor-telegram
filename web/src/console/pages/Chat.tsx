@@ -270,8 +270,10 @@ function ChatScreen({ chatId }: { chatId: number }) {
           title={
             listed ? (
               <Trans>Показан в «Чатах»</Trans>
-            ) : chat.public_link ? (
+            ) : chat.public_link && !approved ? (
               <Trans>Не виден: чат не одобрен</Trans>
+            ) : chat.public_link ? (
+              <Trans>Не виден: у чата нет названия</Trans>
             ) : (
               <Trans>Не показан</Trans>
             )
@@ -279,6 +281,8 @@ function ChatScreen({ chatId }: { chatId: number }) {
           hint={
             chat.public_link && !approved ? (
               <Trans>появится после одобрения</Trans>
+            ) : chat.public_link && !listed ? (
+              <Trans>обновите его из Telegram</Trans>
             ) : chat.public_link ? null : (
               <Trans>нужна ссылка t.me</Trans>
             )
@@ -465,9 +469,14 @@ function ChatScreen({ chatId }: { chatId: number }) {
           <Sub>
             <Trans>
               Бот перестанет его модерировать: капча, приветствие и чёрный список там
-              работать не будут. Чат пропадёт с публичной вкладки. Включить можно здесь
-              же.
+              работать не будут. Включить можно здесь же.
             </Trans>
+            {listed ? (
+              <>
+                {' '}
+                <Trans>Чат пропадёт с публичной вкладки.</Trans>
+              </>
+            ) : null}
           </Sub>
           {sheetError ? <Hint>{sheetError}</Hint> : null}
           <div className={ui.actionsStacked}>
