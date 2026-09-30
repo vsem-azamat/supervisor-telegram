@@ -5,6 +5,7 @@ import type {
   AdminCatalog,
   AdminPlacement,
   AdminPlacementIn,
+  AdminPlacementSwitch,
   AdsInfo,
 } from './generated/types.gen';
 import { isApproval } from './join';
@@ -357,7 +358,7 @@ export const api = {
   switchPlacement: (placementId: number, isActive: boolean) =>
     request<AdminPlacement>(`/admin/placements/${placementId}`, {
       method: 'PATCH',
-      body: { is_active: isActive },
+      body: { is_active: isActive } satisfies AdminPlacementSwitch,
     }),
 };
 

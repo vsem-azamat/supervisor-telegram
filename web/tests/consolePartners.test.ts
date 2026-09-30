@@ -30,11 +30,11 @@ test('a link must be https and have nothing blank in it', () => {
 });
 
 test('a monogram is four letters at most', () => {
-  assert.deepEqual(cardProblems({ ...GOOD, logo_text: 'VZPCZ' }), ['logo']);
+  assert.deepEqual(cardProblems({ ...GOOD, logo_text: 'VZPCZ' }), ['logo_text']);
   assert.deepEqual(cardProblems({ ...GOOD, logo_text: 'VZP' }), []);
 });
 
-test('the body is trimmed, and an empty optional field is absent', () => {
+test('the body is trimmed, and an empty optional field is null', () => {
   assert.deepEqual(
     cardBody({ ...GOOD, partner: '  VZP ', subtitle: '  ', logo_text: 'vzp' }),
     {
@@ -47,4 +47,17 @@ test('the body is trimmed, and an empty optional field is absent', () => {
       logo_text: 'VZP',
     },
   );
+});
+
+test("every field keeps to the catalog's length, a pasted one included", () => {
+  assert.deepEqual(cardProblems({ ...GOOD, title: 'x'.repeat(201) }), ['title']);
+  assert.deepEqual(cardProblems({ ...GOOD, url: `https://a.test/${'x'.repeat(1024)}` }), [
+    'url',
+  ]);
+  assert.deepEqual(cardProblems({ ...GOOD, price_text: 'x'.repeat(65) }), ['price_text']);
+  assert.deepEqual(cardProblems({ ...GOOD, context_note: 'x'.repeat(600) }), []);
+});
+
+test('the monogram is measured as it is sent, upper-cased', () => {
+  assert.deepEqual(cardProblems({ ...GOOD, logo_text: 'ßßß' }), ['logo_text']);
 });

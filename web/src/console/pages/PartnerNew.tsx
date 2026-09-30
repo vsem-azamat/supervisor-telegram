@@ -1,20 +1,21 @@
 import { Trans, useLingui } from '@lingui/react/macro';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { type ReactNode, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { type ReactNode, useId, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router';
 
 import { PartnerBlock } from '@/components/PartnerBlock';
 import { Action, Actions, Hint, Label, Sub, Title, ui } from '@/components/Ui';
 import { ConsoleGate } from '@/console/ConsoleGate';
 import {
+  CARD_LIMITS,
   type CardDraft,
-  type CardProblem,
+  type CardField,
   cardBody,
   cardProblems,
   EMPTY_CARD,
 } from '@/console/partners';
 import { adminPartnersQuery } from '@/console/queries';
-import { api } from '@/lib/api';
+import { ApiError, api, UnauthorizedError } from '@/lib/api';
 
 /**
  * A new partner card for the Life screen, drawn as students will see it
@@ -29,7 +30,7 @@ export default function ConsolePartnerNewPage() {
       <div style={{ marginTop: 6 }}>
         <Sub>
           <Trans>
-            Встанет первой на вкладке «Не про учёбу». Там видно три карточки: самая нижняя
+            Встанет первой в разделе «Не про учёбу». Там видно три карточки: самая нижняя
             уйдёт, пока другую не выключат.
           </Trans>
         </Sub>
@@ -39,25 +40,52 @@ export default function ConsolePartnerNewPage() {
   );
 }
 
+/** Why the card did not go out, in terms of what to do next. */
+function SaveFailure({ error }: { error: unknown }) {
+  if (error instanceof UnauthorizedError) {
+    return <Trans>Вход устарел: откройте приложение заново.</Trans>;
+  }
+  if (error instanceof ApiError && error.status === 403) {
+    return <Trans>Этого аккаунта нет среди операторов каталога.</Trans>;
+  }
+  if (error instanceof ApiError && error.status === 422) {
+    return <Trans>Каталог не принял карточку: проверьте ссылку и длину полей.</Trans>;
+  }
+  // The card may have been saved with the answer lost on the way back.
+  return (
+    <Trans>
+      Ответ не дошёл. Прежде чем пробовать снова, проверьте список: карточка могла
+      сохраниться.
+    </Trans>
+  );
+}
+
 function CardForm() {
   const { t } = useLingui();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<CardDraft>(EMPTY_CARD);
   const [tried, setTried] = useState(false);
   const problems = cardProblems(draft);
   const create = useMutation({
     mutationFn: () => api.createPlacement(cardBody(draft)),
-    onSuccess: () => {
+    // Settled, not only succeeded: an answer lost after the save is still a card.
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: adminPartnersQuery.queryKey });
       void queryClient.invalidateQueries({ queryKey: ['placements'] });
-      navigate('/console/partners', { replace: true });
+    },
+    onSuccess: () => {
+      // Back to the list it came from, so Telegram's back button does not land on it twice.
+      if (location.key !== 'default') navigate(-1);
+      else navigate('/console/partners', { replace: true });
     },
   });
-  const set = (key: keyof CardDraft) => (value: string) =>
+  const set = (key: CardField) => (value: string) =>
     setDraft((current) => ({ ...current, [key]: value }));
   // Said once somebody tried to save, not while they are still typing.
-  const wrong = (problem: CardProblem) => tried && problems.includes(problem);
+  const wrong = (field: CardField) => tried && problems.includes(field);
+  const tooLong = <Trans>Слишком длинно для каталога.</Trans>;
 
   return (
     <>
@@ -66,19 +94,30 @@ function CardForm() {
         value={draft.partner}
         onChange={set('partner')}
         placeholder={t`например: Pojišťovna VZP`}
-        maxLength={200}
-        problem={wrong('partner') ? <Trans>Нужно название.</Trans> : null}
+        limit={CARD_LIMITS.partner}
+        problem={
+          wrong('partner') ? (
+            draft.partner.trim() ? (
+              tooLong
+            ) : (
+              <Trans>Нужно название.</Trans>
+            )
+          ) : null
+        }
       />
       <Field
         label={t`Ссылка`}
         value={draft.url}
         onChange={set('url')}
         placeholder="https://…"
-        maxLength={1024}
+        limit={CARD_LIMITS.url}
         inputMode="url"
         problem={
           wrong('url') ? (
-            <Trans>Ссылка должна начинаться с https:// и быть без пробелов.</Trans>
+            <Trans>
+              Ссылка должна начинаться с https://, вести на сайт и быть без пробелов, не
+              длиннее 1024 знаков.
+            </Trans>
           ) : null
         }
       />
@@ -87,38 +126,53 @@ function CardForm() {
         value={draft.title}
         onChange={set('title')}
         placeholder={t`например: Страховка для студентов`}
-        maxLength={200}
-        problem={wrong('title') ? <Trans>Нужен заголовок.</Trans> : null}
+        limit={CARD_LIMITS.title}
+        problem={
+          wrong('title') ? (
+            draft.title.trim() ? (
+              tooLong
+            ) : (
+              <Trans>Нужен заголовок.</Trans>
+            )
+          ) : null
+        }
       />
       <Field
         label={t`Подзаголовок`}
+        optional
         value={draft.subtitle}
         onChange={set('subtitle')}
         placeholder={t`например: подходит для продления визы`}
-        maxLength={240}
+        limit={CARD_LIMITS.subtitle}
+        problem={wrong('subtitle') ? tooLong : null}
       />
       <Field
         label={t`Цена`}
+        optional
         value={draft.price_text}
         onChange={set('price_text')}
         placeholder={t`например: от 8 900 Kč`}
-        maxLength={64}
+        limit={CARD_LIMITS.price_text}
+        problem={wrong('price_text') ? tooLong : null}
       />
       <Field
         label={t`Пояснение над карточкой`}
+        optional
         value={draft.context_note}
         onChange={set('context_note')}
         placeholder={t`например: Без страховки визу не продлят.`}
-        maxLength={600}
+        limit={CARD_LIMITS.context_note}
         multiline
+        problem={wrong('context_note') ? tooLong : null}
       />
       <Field
         label={t`Монограмма`}
+        optional
         value={draft.logo_text}
         onChange={set('logo_text')}
         placeholder={t`например: VZP`}
-        maxLength={4}
-        problem={wrong('logo') ? <Trans>Не больше четырёх букв.</Trans> : null}
+        limit={CARD_LIMITS.logo_text}
+        problem={wrong('logo_text') ? <Trans>Не больше четырёх букв.</Trans> : null}
       />
 
       <Label>
@@ -141,7 +195,7 @@ function CardForm() {
       {create.isError ? (
         <div style={{ marginTop: 12 }}>
           <Hint>
-            <Trans>Не сохранилось. Проверьте поля и попробуйте ещё раз.</Trans>
+            <SaveFailure error={create.error} />
           </Hint>
         </div>
       ) : null}
@@ -155,12 +209,15 @@ function CardForm() {
                 create.mutate();
                 return;
               }
-              // The first thing to fix may be a screen above the button.
-              requestAnimationFrame(() =>
-                document
-                  .querySelector('[data-problem]')
-                  ?.scrollIntoView({ block: 'center', behavior: 'smooth' }),
-              );
+              // The first thing to fix may be a screen above the button: take
+              // the reader there, and a screen reader with them.
+              requestAnimationFrame(() => {
+                const first = document.querySelector<HTMLElement>(
+                  '[aria-invalid="true"]',
+                );
+                first?.focus();
+                first?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+              });
             }}
           >
             <Trans>Опубликовать</Trans>
@@ -176,8 +233,9 @@ function Field({
   value,
   onChange,
   placeholder,
-  maxLength,
+  limit,
   inputMode,
+  optional = false,
   multiline = false,
   problem = null,
 }: {
@@ -185,42 +243,50 @@ function Field({
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
-  maxLength: number;
+  /** The catalog's limit. The input allows more, so a paste is refused, not cut. */
+  limit: number;
   inputMode?: 'url';
+  optional?: boolean;
   multiline?: boolean;
   problem?: ReactNode;
 }) {
+  const id = useId();
+  const hint = `${id}-problem`;
+  const common = {
+    id,
+    value,
+    placeholder,
+    maxLength: limit * 2 + 16,
+    'aria-invalid': problem ? true : undefined,
+    'aria-describedby': problem ? hint : undefined,
+  };
   return (
     <>
-      <Label>{label}</Label>
+      <Label aside={optional ? <Trans>необязательно</Trans> : null}>
+        <label htmlFor={id}>{label}</label>
+      </Label>
       <div
         className={ui.field}
         style={multiline ? { alignItems: 'flex-start' } : undefined}
       >
         {multiline ? (
           <textarea
-            value={value}
+            {...common}
             onChange={(event) => onChange(event.target.value)}
-            placeholder={placeholder}
-            aria-label={label}
             rows={3}
-            maxLength={maxLength}
             style={{ all: 'unset', width: '100%', resize: 'none', lineHeight: 1.5 }}
           />
         ) : (
           <input
-            value={value}
+            {...common}
             onChange={(event) => onChange(event.target.value)}
-            placeholder={placeholder}
-            maxLength={maxLength}
             inputMode={inputMode}
-            aria-label={label}
             style={{ all: 'unset', flex: 1, minWidth: 0 }}
           />
         )}
       </div>
       {problem ? (
-        <div style={{ marginTop: 6 }} data-problem>
+        <div id={hint} style={{ marginTop: 6 }}>
           <Hint>{problem}</Hint>
         </div>
       ) : null}

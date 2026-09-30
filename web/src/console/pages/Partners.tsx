@@ -80,6 +80,7 @@ function Partners() {
     },
   });
   const close = () => {
+    if (toggle.isPending) return;
     toggle.reset();
     setPicked(null);
   };
@@ -141,7 +142,7 @@ function Partners() {
           onClose={close}
         >
           <Sub>
-            {picked.title || picked.partner} · {picked.partner}
+            {picked.title ? `${picked.title} · ${picked.partner}` : picked.partner}
           </Sub>
           <Hint>
             {picked.is_active ? (
@@ -159,7 +160,8 @@ function Partners() {
             <Action disabled={toggle.isPending} onClick={() => toggle.mutate(picked)}>
               {picked.is_active ? <Trans>Выключить</Trans> : <Trans>Включить</Trans>}
             </Action>
-            <Action quiet onClick={close}>
+            {/* Not while the switch is on its way: closing would not stop it. */}
+            <Action quiet disabled={toggle.isPending} onClick={close}>
               <Trans>Отмена</Trans>
             </Action>
           </div>
