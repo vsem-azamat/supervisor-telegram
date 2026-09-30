@@ -1533,6 +1533,108 @@
         }
       }
     },
+    "/api/v1/admin/catalog": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Read Catalog",
+        "operationId": "read_catalog_api_v1_admin_catalog_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCatalog"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/partners": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Read Partners",
+        "operationId": "read_partners_api_v1_admin_partners_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AdminPlacement"
+                  },
+                  "title": "Response Read Partners Api V1 Admin Partners Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/healthz": {
       "get": {
         "tags": [
@@ -1569,6 +1671,194 @@
   },
   "components": {
     "schemas": {
+      "AdminCatalog": {
+        "properties": {
+          "profiles": {
+            "items": {
+              "$ref": "#/components/schemas/AdminProfile"
+            },
+            "type": "array",
+            "title": "Profiles"
+          },
+          "unanswered": {
+            "items": {
+              "$ref": "#/components/schemas/AdminRequest"
+            },
+            "type": "array",
+            "title": "Unanswered"
+          },
+          "failed_searches": {
+            "items": {
+              "$ref": "#/components/schemas/AdminSearch"
+            },
+            "type": "array",
+            "title": "Failed Searches"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/AdminCounts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "profiles",
+          "unanswered",
+          "failed_searches",
+          "counts"
+        ],
+        "title": "AdminCatalog",
+        "description": "The catalog as the operator reads it. See docs/architecture.md."
+      },
+      "AdminCounts": {
+        "properties": {
+          "profiles_week": {
+            "type": "integer",
+            "title": "Profiles Week"
+          },
+          "requests_week": {
+            "type": "integer",
+            "title": "Requests Week"
+          },
+          "unanswered": {
+            "type": "integer",
+            "title": "Unanswered"
+          },
+          "failed_searches": {
+            "type": "integer",
+            "title": "Failed Searches"
+          }
+        },
+        "type": "object",
+        "required": [
+          "profiles_week",
+          "requests_week",
+          "unanswered",
+          "failed_searches"
+        ],
+        "title": "AdminCounts"
+      },
+      "AdminPlacement": {
+        "properties": {
+          "placement_id": {
+            "type": "integer",
+            "title": "Placement Id"
+          },
+          "partner": {
+            "type": "string",
+            "title": "Partner"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "slot": {
+            "type": "string",
+            "title": "Slot"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          },
+          "impressions": {
+            "type": "integer",
+            "title": "Impressions"
+          },
+          "clicks": {
+            "type": "integer",
+            "title": "Clicks"
+          }
+        },
+        "type": "object",
+        "required": [
+          "placement_id",
+          "partner",
+          "title",
+          "slot",
+          "is_active",
+          "impressions",
+          "clicks"
+        ],
+        "title": "AdminPlacement"
+      },
+      "AdminProfile": {
+        "properties": {
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "services": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Services"
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Published At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "name",
+          "services",
+          "published_at"
+        ],
+        "title": "AdminProfile"
+      },
+      "AdminRequest": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "created_at"
+        ],
+        "title": "AdminRequest"
+      },
+      "AdminSearch": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "times": {
+            "type": "integer",
+            "title": "Times"
+          },
+          "last_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "times",
+          "last_at"
+        ],
+        "title": "AdminSearch"
+      },
       "AdsInfo": {
         "properties": {
           "contact_url": {
@@ -2412,6 +2702,10 @@
               }
             ],
             "title": "Helper Status"
+          },
+          "is_admin": {
+            "type": "boolean",
+            "title": "Is Admin"
           }
         },
         "type": "object",
@@ -2422,7 +2716,8 @@
           "avatar",
           "ui_lang",
           "spoken_langs",
-          "is_helper"
+          "is_helper",
+          "is_admin"
         ],
         "title": "MeOut"
       },

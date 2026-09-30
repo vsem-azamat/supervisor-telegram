@@ -14,7 +14,7 @@ import {
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider } from 'react-router';
-
+import { isFinal } from '@/console/session';
 import { paintChrome } from '@/hooks/useTelegram';
 import { activateLocale, i18n, resolveLocale } from '@/i18n';
 import { ApiError } from '@/lib/api';
@@ -224,6 +224,8 @@ const queryClient = new QueryClient({
         if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
           return false;
         }
+        // The console's webapi half says for itself when asking again is futile.
+        if (isFinal(error)) return false;
         return failureCount < 2;
       },
     },

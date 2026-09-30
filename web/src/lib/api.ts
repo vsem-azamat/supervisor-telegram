@@ -1,7 +1,7 @@
 import { retrieveRawInitData } from '@tma.js/sdk-react';
 
 import { type PublicChat, sanitize } from './chats';
-import type { AdsInfo } from './generated/types.gen';
+import type { AdminCatalog, AdminPlacement, AdsInfo } from './generated/types.gen';
 import { isApproval } from './join';
 import { isReach, type Reach } from './reach';
 import type {
@@ -333,6 +333,16 @@ export const api = {
 
   saveHelper: (payload: HelperUpsert) =>
     request<Me>('/helper', { method: 'PUT', body: payload }),
+
+  // ── the console ───────────────────────────────────────────────────────
+
+  /** New profiles, unanswered requests, empty searches. Operators only. */
+  getAdminCatalog: (signal?: AbortSignal) =>
+    request<AdminCatalog>('/admin/catalog', { signal }),
+
+  /** Placements with the last month's impressions and clicks. Operators only. */
+  getAdminPartners: (signal?: AbortSignal) =>
+    request<AdminPlacement[]>('/admin/partners', { signal }),
 };
 
 export type Api = typeof api;
@@ -353,4 +363,14 @@ export const reachQuery = {
   queryKey: ['reach'] as const,
   queryFn: ({ signal }: { signal: AbortSignal }) => api.getReach(signal),
   staleTime: 60 * 60_000,
+};
+
+/**
+ * The account, shared by the shell, the header and every screen that reads it.
+ * One object so every observer agrees on how fresh it has to be.
+ */
+export const meQuery = {
+  queryKey: ['me'] as const,
+  queryFn: ({ signal }: { signal: AbortSignal }) => api.getMe(signal),
+  staleTime: 5 * 60 * 1000,
 };

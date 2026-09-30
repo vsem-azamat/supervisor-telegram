@@ -1,4 +1,7 @@
 import { createBrowserRouter } from 'react-router';
+import ConsoleCatalogPage from '@/console/pages/Catalog';
+import ConsolePartnersPage from '@/console/pages/Partners';
+import ConsoleSummaryPage from '@/console/pages/Summary';
 import AdsPage from '@/pages/Ads';
 import AdsAppPage from '@/pages/AdsApp';
 import AdsChatsPage from '@/pages/AdsChats';
@@ -48,6 +51,9 @@ export const router = createBrowserRouter([
       { path: 'my-helper', element: <MyHelperPage /> },
       { path: 'life', element: <LifePage /> },
       { path: 'profile', element: <ProfilePage /> },
+      { path: 'console', element: <ConsoleSummaryPage /> },
+      { path: 'console/catalog', element: <ConsoleCatalogPage /> },
+      { path: 'console/partners', element: <ConsolePartnersPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

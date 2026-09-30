@@ -25,6 +25,12 @@ ROOT = Path(__file__).resolve().parents[2]
 ROUTES = ROOT / "webui" / "src" / "routes"
 ADMIN = ROUTES / "(admin)"
 APP = ROOT / "web" / "src"
+# The console's screens inside the Mini App, and the only code in it that may
+# use webapi's session. Everything else in the app is the public half.
+CONSOLE = APP / "console"
+# The shell: it mounts the console's routes and reads its retry rule, and
+# does nothing else with it.
+SHELL = {APP / "router.tsx", APP / "main.tsx"}
 
 # `fetch('/api/…')` and friends, also after a template's base: `${BASE}/api/…`.
 # Only literal paths are findable, which is the point: a computed endpoint on a
@@ -39,6 +45,14 @@ ALLOWED = ("/api/public", "/api/v1")
 def _app_sources() -> list[Path]:
     generated = APP / "lib" / "generated"
     return sorted(p for p in [*APP.rglob("*.ts"), *APP.rglob("*.tsx")] if generated not in p.parents)
+
+
+def _public_sources() -> list[Path]:
+    return [p for p in _app_sources() if CONSOLE not in p.parents]
+
+
+def _console_pages() -> list[Path]:
+    return sorted((CONSOLE / "pages").rglob("*.tsx"))
 
 
 def _rel(path: Path) -> str:
@@ -62,18 +76,32 @@ class TestTheHalvesExist:
 
     def test_the_mini_app_is_there(self) -> None:
         assert (APP / "lib" / "api.ts").is_file()
+        assert _console_pages(), "the console's screens live in web/src/console/pages"
 
 
 class TestThePublicHalfAsksNothingOfAnybody:
-    @pytest.mark.parametrize("source", _app_sources(), ids=_rel)
+    @pytest.mark.parametrize("source", _public_sources(), ids=_rel)
     def test_it_only_calls_public_endpoints(self, source: Path) -> None:
         called = API_CALL.findall(source.read_text(encoding="utf-8"))
         private = [path for path in called if not any(path == a or path.startswith(f"{a}/") for a in ALLOWED)]
 
         assert not private, f"{_rel(source)} reaches {private}, which needs a session"
 
+    @pytest.mark.parametrize("source", sorted(set(_public_sources()) - SHELL), ids=_rel)
+    def test_it_does_not_pull_in_the_console(self, source: Path) -> None:
+        """A public screen that imports the console can make its session requests."""
+        text = source.read_text(encoding="utf-8")
+
+        assert "@/console" not in text
+        assert "/console/" not in re.sub(r"navigate\('/console[^']*'\)", "", text)
+
 
 class TestTheConsoleIsGuardedByWhereItSits:
+    @pytest.mark.parametrize("page", _console_pages(), ids=_rel)
+    def test_every_console_screen_is_behind_the_gate(self, page: Path) -> None:
+        """ConsoleGate says who may look before any of the screen's requests run."""
+        assert "<ConsoleGate>" in page.read_text(encoding="utf-8")
+
     def test_the_group_layout_requires_a_session(self) -> None:
         """A guard in the layout is one a new page cannot forget to add.
 

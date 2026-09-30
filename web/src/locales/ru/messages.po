@@ -17,6 +17,10 @@ msgstr ""
 #~ msgid "курсовая по экономике"
 #~ msgstr "курсовая по экономике"
 
+#: src/console/pages/Partners.tsx
+msgid "Карточек партнёров пока нет."
+msgstr "Карточек партнёров пока нет."
+
 #: src/components/Incoming.tsx
 msgid "Заведи в Telegram публичный @username — иначе тебе не ответят"
 msgstr "Заведи в Telegram публичный @username — иначе тебе не ответят"
@@ -24,6 +28,10 @@ msgstr "Заведи в Telegram публичный @username — иначе т�
 #: src/components/Incoming.tsx
 #~ msgid "Здесь появятся заявки по твоим предметам. Чем больше предметов в профиле, тем чаще."
 #~ msgstr "Здесь появятся заявки по твоим предметам. Чем больше предметов в профиле, тем чаще."
+
+#: src/console/pages/Summary.tsx
+msgid "показы и клики"
+msgstr "показы и клики"
 
 #: src/pages/OfferPrices.tsx
 msgid "Пара слов о себе — что делаешь и как быстро"
@@ -74,6 +82,10 @@ msgstr "Онлайн"
 #: src/pages/Request.tsx
 msgid "Такой заявки нет"
 msgstr "Такой заявки нет"
+
+#: src/console/pages/Catalog.tsx
+msgid "{days, plural, one {# дн} few {# дн} many {# дн} other {# дн}}"
+msgstr "{days, plural, one {# дн} few {# дн} many {# дн} other {# дн}}"
 
 #: src/pages/Ask.tsx
 msgid "Добавь предмет — по одному сроку искать нечего."
@@ -194,9 +206,21 @@ msgstr "Всё можно менять когда угодно. Пустые п�
 #~ msgid "Одним куском, как другу. Анкету соберём сами."
 #~ msgstr "Одним куском, как другу. Анкету соберём сами."
 
+#: src/console/pages/Summary.tsx
+msgid "Что происходит в чатах и в каталоге."
+msgstr "Что происходит в чатах и в каталоге."
+
 #: src/pages/Profile.tsx
 msgid "На каких языках тебе удобно"
 msgstr "На каких языках тебе удобно"
+
+#: src/console/pages/Catalog.tsx
+msgid "Искали и не нашли"
+msgstr "Искали и не нашли"
+
+#: src/console/ConsoleGate.tsx
+msgid "Данные входа устарели."
+msgstr "Данные входа устарели."
 
 #: src/components/Phrase.tsx
 msgid "первый год"
@@ -213,6 +237,15 @@ msgstr "Эта проверка открывается кнопкой из за�
 #: src/pages/Results.tsx
 msgid "Оставь заявку — ответят сами"
 msgstr "Оставь заявку — ответят сами"
+
+#: src/console/pages/Summary.tsx
+msgid "{activePlacements, plural, one {# карточка} few {# карточки} many {# карточек} other {# карточки}} · показы и клики"
+msgstr "{activePlacements, plural, one {# карточка} few {# карточки} many {# карточек} other {# карточки}} · показы и клики"
+
+#. placeholder {0}: search.times
+#: src/console/pages/Catalog.tsx
+msgid "{0, plural, one {# раз} few {# раза} many {# раз} other {# раза}}"
+msgstr "{0, plural, one {# раз} few {# раза} many {# раз} other {# раза}}"
 
 #: src/pages/AdsChats.tsx
 msgid "чатов"
@@ -246,6 +279,10 @@ msgstr "Две недели"
 msgid "Не поняли запрос"
 msgstr "Не поняли запрос"
 
+#: src/console/ConsoleGate.tsx
+msgid "Аккаунта нет среди главных администраторов бота."
+msgstr "Аккаунта нет среди главных администраторов бота."
+
 #: src/components/AppHeader.tsx
 msgid "Язык"
 msgstr "Язык"
@@ -253,6 +290,10 @@ msgstr "Язык"
 #: src/lib/turnaround.tsx
 msgid "Месяц"
 msgstr "Месяц"
+
+#: src/console/ConsoleGate.tsx
+msgid "Вход не сохранился"
+msgstr "Вход не сохранился"
 
 #: src/pages/Offer.tsx
 msgid "Людям бесплатно. Компаниям — <0>реклама для студентов</0>."
@@ -298,6 +339,10 @@ msgstr "Пост выходит, вы получаете ссылки на не�
 msgid "Вуз или факультет — ČVUT, VŠE, FEL"
 msgstr "Вуз или факультет — ČVUT, VŠE, FEL"
 
+#: src/console/pages/Summary.tsx
+msgid "сессии, настройки"
+msgstr "сессии, настройки"
+
 #: src/components/InstitutionPicker.tsx
 msgid "Загружаем список вузов…"
 msgstr "Загружаем список вузов…"
@@ -314,9 +359,14 @@ msgstr "расскажи своими словами, анкету соберё�
 msgid "Заявку уже закрыли"
 msgstr "Заявку уже закрыли"
 
+#: src/console/pages/Partners.tsx
 #: src/pages/AdsApp.tsx
 msgid "«Не про учёбу»"
 msgstr "«Не про учёбу»"
+
+#: src/console/pages/Summary.tsx
+msgid "Сейчас ничего не ждёт."
+msgstr "Сейчас ничего не ждёт."
 
 #: src/components/Incoming.tsx
 #: src/pages/Mine.tsx
@@ -361,6 +411,10 @@ msgstr "в разделе «Не про учёбу»"
 msgid "сдали"
 msgstr "сдали"
 
+#: src/console/pages/Summary.tsx
+msgid "анкеты, заявки, поиски без ответа"
+msgstr "анкеты, заявки, поиски без ответа"
+
 #: src/components/PartnerBlock.tsx
 msgid "Партнёр"
 msgstr "Партнёр"
@@ -400,6 +454,10 @@ msgstr "Не сохранилось — попробуй ещё раз."
 msgid "Цена"
 msgstr "Цена"
 
+#: src/console/ConsoleGate.tsx
+msgid "Здесь ведут чаты и смотрят за каталогом."
+msgstr "Здесь ведут чаты и смотрят за каталогом."
+
 #: src/pages/Ads.tsx
 msgid "по вузам и факультетам"
 msgstr "по вузам и факультетам"
@@ -419,7 +477,12 @@ msgstr "Заявку видят все, кто предлагает помощь
 msgid "{0, plural, one {Участники посчитаны по {1} из # чата: Telegram отдаёт данные не по всем, настоящая цифра выше.} other {Участники посчитаны по {2} из # чатов: Telegram отдаёт данные не по всем, настоящая цифра выше.}}"
 msgstr "{0, plural, one {Участники посчитаны по {1} из # чата: Telegram отдаёт данные не по всем, настоящая цифра выше.} other {Участники посчитаны по {2} из # чатов: Telegram отдаёт данные не по всем, настоящая цифра выше.}}"
 
+#: src/console/pages/Catalog.tsx
+msgid "Всё, что искали, нашлось."
+msgstr "Всё, что искали, нашлось."
+
 #: src/components/TabBar.tsx
+#: src/console/pages/Summary.tsx
 msgid "Чаты"
 msgstr "Чаты"
 
@@ -463,6 +526,14 @@ msgstr "Отказать"
 msgid "Пока без откликов"
 msgstr "Пока без откликов"
 
+#: src/console/pages/Summary.tsx
+msgid "Система"
+msgstr "Система"
+
+#: src/console/pages/Partners.tsx
+msgid "после заявки"
+msgstr "после заявки"
+
 #: src/pages/Chats.tsx
 #~ msgid "Разговоры мы не храним"
 #~ msgstr "Разговоры мы не храним"
@@ -502,6 +573,14 @@ msgstr "Пишете, что хотите разместить."
 msgid "Не отправилось — попробуй ещё раз"
 msgstr "Не отправилось — попробуй ещё раз"
 
+#: src/console/pages/Partners.tsx
+msgid "когда поиск пуст"
+msgstr "когда поиск пуст"
+
+#: src/console/pages/Summary.tsx
+msgid "иерархия, защита, модерация"
+msgstr "иерархия, защита, модерация"
+
 #: src/pages/Profile.tsx
 msgid "в каталоге"
 msgstr "в каталоге"
@@ -520,6 +599,10 @@ msgstr "И то, и другое"
 msgid "за час"
 msgstr "за час"
 
+#: src/console/pages/Partners.tsx
+msgid "рядом с языками"
+msgstr "рядом с языками"
+
 #: src/pages/Ask.tsx
 msgid "матан на ČVUT к 14 февраля, до 600 Kč"
 msgstr "матан на ČVUT к 14 февраля, до 600 Kč"
@@ -533,6 +616,10 @@ msgstr "Предлагать услуги"
 msgid "Заявки"
 msgstr "Заявки"
 
+#: src/console/pages/Catalog.tsx
+msgid "На все открытые заявки кто-то откликнулся."
+msgstr "На все открытые заявки кто-то откликнулся."
+
 #: src/pages/Join.tsx
 msgid "Проверка не прошла"
 msgstr "Проверка не прошла"
@@ -544,6 +631,14 @@ msgstr "Выбрать"
 #: src/pages/Mine.tsx
 msgid "Опиши, что нужно, и получай отклики — вместо того чтобы искать самому."
 msgstr "Опиши, что нужно, и получай отклики — вместо того чтобы искать самому."
+
+#: src/console/pages/Catalog.tsx
+msgid "сегодня"
+msgstr "сегодня"
+
+#: src/console/ConsoleGate.tsx
+msgid "Откройте приложение заново"
+msgstr "Откройте приложение заново"
 
 #: src/pages/Join.tsx
 msgid "Готово, ты в чате"
@@ -566,6 +661,15 @@ msgstr "за штуку"
 #: src/pages/MyHelper.tsx
 msgid "В каталоге"
 msgstr "В каталоге"
+
+#: src/console/pages/Partners.tsx
+msgid "Активные"
+msgstr "Активные"
+
+#. placeholder {0}: chats.data.length
+#: src/console/pages/Summary.tsx
+msgid "{0, plural, one {# чат} few {# чата} many {# чатов} other {# чата}} · одобрено {approved}"
+msgstr "{0, plural, one {# чат} few {# чата} many {# чатов} other {# чата}} · одобрено {approved}"
 
 #: src/lib/turnaround.tsx
 msgid "Неделя"
@@ -598,11 +702,19 @@ msgstr "Сколько готов платить"
 msgid "договорная"
 msgstr "договорная"
 
+#: src/console/pages/Summary.tsx
+msgid "Разделы"
+msgstr "Разделы"
+
 #: src/components/Phrase.tsx
 #: src/pages/MyHelper.tsx
 #: src/pages/OfferPrices.tsx
 msgid "за семестр"
 msgstr "за семестр"
+
+#: src/console/pages/Partners.tsx
+msgid "Выключенные"
+msgstr "Выключенные"
 
 #: src/pages/Chats.tsx
 msgid "Остальные"
@@ -633,9 +745,17 @@ msgstr "Мои услуги"
 msgid "опиши задачу — придут отклики"
 msgstr "опиши задачу — придут отклики"
 
+#: src/console/pages/Partners.tsx
+msgid "в профиле"
+msgstr "в профиле"
+
 #: src/pages/Request.tsx
 #~ msgid "Заявку видят те, кто ведёт этот предмет. Обычно отвечают в течение дня."
 #~ msgstr "Заявку видят те, кто ведёт этот предмет. Обычно отвечают в течение дня."
+
+#: src/console/pages/Partners.tsx
+msgid "Показы и клики за 30 дней."
+msgstr "Показы и клики за 30 дней."
 
 #: src/pages/Ask.tsx
 msgid "Кого тут можно найти"
@@ -652,6 +772,10 @@ msgstr "Ведёт предмет, но не привязан к этому ву
 #: src/pages/Chats.tsx
 msgid "Такого чата нет"
 msgstr "Такого чата нет"
+
+#: src/console/ConsoleGate.tsx
+msgid "Откройте консоль в приложении Telegram на телефоне или компьютере."
+msgstr "Откройте консоль в приложении Telegram на телефоне или компьютере."
 
 #: src/pages/AdsChats.tsx
 msgid "Куда попадёт"
@@ -677,6 +801,10 @@ msgstr "Регистрации нет — заходишь своим аккау
 #: src/pages/Profile.tsx
 msgid "Профиль"
 msgstr "Профиль"
+
+#: src/console/pages/Summary.tsx
+msgid "Реклама за сутки"
+msgstr "Реклама за сутки"
 
 #: src/pages/Helper.tsx
 msgid "Возможно, человек скрыл его."
@@ -742,6 +870,10 @@ msgstr "Заявку увидят все, кто предлагает помощ
 #: src/pages/Results.tsx
 msgid "Никто пока не предлагает то, что ты ищешь."
 msgstr "Никто пока не предлагает то, что ты ищешь."
+
+#: src/console/ConsoleGate.tsx
+msgid "Вход в консоль действует час после открытия приложения."
+msgstr "Вход в консоль действует час после открытия приложения."
 
 #: src/pages/AdsChats.tsx
 msgid "чатов · людей"
@@ -828,6 +960,10 @@ msgstr "Показ можно ограничить месяцами и язык�
 msgid "Что нужно"
 msgstr "Что нужно"
 
+#: src/console/pages/Summary.tsx
+msgid "Чаты на проверке"
+msgstr "Чаты на проверке"
+
 #: src/pages/Join.tsx
 msgid "репетиторы, přijímačky, нострификация"
 msgstr "репетиторы, přijímačky, нострификация"
@@ -843,6 +979,10 @@ msgstr "тихий"
 #: src/pages/Results.tsx
 msgid "Дешевле"
 msgstr "Дешевле"
+
+#: src/console/pages/Catalog.tsx
+msgid "30 дней"
+msgstr "30 дней"
 
 #: src/components/RequestSheet.tsx
 msgid "Такая заявка уже открыта — она в разделе «Заявки»"
@@ -943,6 +1083,10 @@ msgstr "до {0}"
 msgid "{days} дн."
 msgstr "{days} дн."
 
+#: src/console/pages/Partners.tsx
+msgid "рядом с нострификацией"
+msgstr "рядом с нострификацией"
+
 #: src/pages/Ads.tsx
 msgid "Займы, ставки, дипломы под ключ. Модерация чистит такое каждый день, и продавать то же самое сверху было бы странно."
 msgstr "Займы, ставки, дипломы под ключ. Модерация чистит такое каждый день, и продавать то же самое сверху было бы странно."
@@ -983,6 +1127,10 @@ msgstr "Разместить"
 msgid "Договоримся"
 msgstr "Договоримся"
 
+#: src/console/ConsoleGate.tsx
+msgid "Нет доступа к чатам"
+msgstr "Нет доступа к чатам"
+
 #: src/pages/OfferPrices.tsx
 msgid "Сколько берёшь?"
 msgstr "Сколько берёшь?"
@@ -1002,6 +1150,14 @@ msgstr "Не получилось связаться. Попробуй ещё р
 #: src/pages/AdsApp.tsx
 msgid "Так она выглядит"
 msgstr "Так она выглядит"
+
+#: src/console/pages/Catalog.tsx
+msgid "Заявки без откликов"
+msgstr "Заявки без откликов"
+
+#: src/console/pages/Catalog.tsx
+msgid "без откликов"
+msgstr "без откликов"
 
 #: src/pages/MyHelper.tsx
 msgid "Район или где удобно встречаться"
@@ -1025,9 +1181,18 @@ msgstr "Например"
 msgid "за занятие"
 msgstr "за занятие"
 
+#: src/console/pages/Summary.tsx
+msgid "Новые анкеты за неделю"
+msgstr "Новые анкеты за неделю"
+
 #: src/pages/Profile.tsx
 msgid "страховка, виза, банк, переводы"
 msgstr "страховка, виза, банк, переводы"
+
+#: src/console/pages/Partners.tsx
+#: src/console/pages/Summary.tsx
+msgid "Партнёры"
+msgstr "Партнёры"
 
 #. placeholder {0}: num(p.deals)
 #: src/components/Phrase.tsx
@@ -1087,6 +1252,11 @@ msgstr "Что не размещаем"
 msgid "страховка, визы, банк, переводы"
 msgstr "страховка, визы, банк, переводы"
 
+#. placeholder {0}: stats.data?.spam_pings.count_7d ?? 0
+#: src/console/pages/Summary.tsx
+msgid "детектор, все чаты · {0} за неделю"
+msgstr "детектор, все чаты · {0} за неделю"
+
 #: src/pages/Helper.tsx
 msgid "У этого человека нет открытого username в Telegram, написать не получится."
 msgstr "У этого человека нет открытого username в Telegram, написать не получится."
@@ -1095,9 +1265,17 @@ msgstr "У этого человека нет открытого username в Tel
 msgid "для компаний: посты в чатах и карточки"
 msgstr "для компаний: посты в чатах и карточки"
 
+#: src/console/pages/Summary.tsx
+msgid "бот в них есть, но они не одобрены"
+msgstr "бот в них есть, но они не одобрены"
+
 #: src/pages/Chats.tsx
 msgid "Поиск чата"
 msgstr "Поиск чата"
+
+#: src/console/pages/Catalog.tsx
+msgid "Новые анкеты"
+msgstr "Новые анкеты"
 
 #: src/pages/Ask.tsx
 msgid "По этому запросу пока никого"
@@ -1137,6 +1315,10 @@ msgstr "Открыть в Telegram"
 msgid "Проверь соединение и попробуй ещё раз."
 msgstr "Проверь соединение и попробуй ещё раз."
 
+#: src/console/ConsoleGate.tsx
+msgid "Консоль только для администраторов"
+msgstr "Консоль только для администраторов"
+
 #: src/components/Phrase.tsx
 msgid "Помощь в день экзамена"
 msgstr "Помощь в день экзамена"
@@ -1175,6 +1357,11 @@ msgstr "Убрать"
 msgid "Сверху — кто ведёт «{0}»"
 msgstr "Сверху — кто ведёт «{0}»"
 
+#: src/components/AppHeader.tsx
+#: src/console/pages/Summary.tsx
+msgid "Консоль"
+msgstr "Консоль"
+
 #: src/pages/Ask.tsx
 msgid "По этому пока не найти"
 msgstr "По этому пока не найти"
@@ -1206,6 +1393,11 @@ msgstr "Дешевле остальных, но этот экзамен не в�
 #: src/components/AppHeader.tsx
 msgid "Язык приложения"
 msgstr "Язык приложения"
+
+#: src/console/pages/Catalog.tsx
+#: src/console/pages/Summary.tsx
+msgid "Каталог"
+msgstr "Каталог"
 
 #. placeholder {0}: num(p.minutes)
 #: src/components/Phrase.tsx
@@ -1258,6 +1450,10 @@ msgstr "Написать"
 #~ msgid "Расскажи своими словами"
 #~ msgstr "Расскажи своими словами"
 
+#: src/console/pages/Catalog.tsx
+msgid "анкет за 7 дней"
+msgstr "анкет за 7 дней"
+
 #. placeholder {0}: parsed.matches
 #: src/pages/Ask.tsx
 #~ msgid "Показать {0}"
@@ -1266,6 +1462,10 @@ msgstr "Написать"
 #: src/pages/MyHelper.tsx
 msgid "Моя анкета"
 msgstr "Моя анкета"
+
+#: src/console/pages/Catalog.tsx
+msgid "За неделю новых анкет не было."
+msgstr "За неделю новых анкет не было."
 
 #: src/components/Incoming.tsx
 msgid "Цена за час, Kč — необязательно"
@@ -1290,6 +1490,10 @@ msgstr "Найди свой чат"
 #: src/components/AdsContact.tsx
 msgid "Написать в Telegram"
 msgstr "Написать в Telegram"
+
+#: src/console/pages/Summary.tsx
+msgid "Требует внимания"
+msgstr "Требует внимания"
 
 #: src/components/RequestSheet.tsx
 msgid "Опубликовать заявку"
@@ -1333,6 +1537,10 @@ msgstr "Пусть найдут тебя"
 msgid "Но без этого не доучишься. Сроки и требования — наши, предложения — партнёрские."
 msgstr "Но без этого не доучишься. Сроки и требования — наши, предложения — партнёрские."
 
+#: src/console/pages/Catalog.tsx
+msgid "заявок за 7 дней"
+msgstr "заявок за 7 дней"
+
 #: src/pages/MyHelper.tsx
 #: src/pages/Offer.tsx
 #: src/pages/OfferPrices.tsx
@@ -1360,6 +1568,10 @@ msgstr "Не удалось загрузить чаты"
 #: src/pages/Landing.tsx
 msgid "Репетиторы"
 msgstr "Репетиторы"
+
+#: src/console/ConsoleGate.tsx
+msgid "Не удалось загрузить"
+msgstr "Не удалось загрузить"
 
 #: src/components/Phrase.tsx
 msgid "лет на площадке"
@@ -1412,6 +1624,7 @@ msgstr "Попробуй название вуза или факультета �
 msgid "Заявка устарела или открыта не тем аккаунтом. Подай её заново."
 msgstr "Заявка устарела или открыта не тем аккаунтом. Подай её заново."
 
+#: src/console/ConsoleGate.tsx
 #: src/pages/Ads.tsx
 #: src/pages/AdsChats.tsx
 msgid "Нажмите, чтобы попробовать ещё раз"

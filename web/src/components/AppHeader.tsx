@@ -13,7 +13,7 @@
  */
 
 import { useLingui } from '@lingui/react/macro';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 
@@ -26,7 +26,7 @@ import {
   type Locale,
   writeLocaleOverride,
 } from '@/i18n';
-import { api } from '@/lib/api';
+import { api, meQuery } from '@/lib/api';
 
 import { GlobeIcon, MoonIcon, SunIcon } from './icons';
 import { Pick, Sheet } from './Sheet';
@@ -42,6 +42,8 @@ export function AppHeader() {
   const queryClient = useQueryClient();
   const theme = useAppTheme();
   const user = useTelegramUser();
+  const me = useQuery(meQuery);
+  const onConsole = pathname === '/console';
 
   const [languageOpen, setLanguageOpen] = useState(false);
 
@@ -137,6 +139,21 @@ export function AppHeader() {
         >
           {theme.theme === 'dark' ? <MoonIcon size={15} /> : <SunIcon size={15} />}
         </button>
+
+        {me.data?.is_admin ? (
+          <button
+            type="button"
+            className={`${css.iconBtn} ${css.consoleBtn}`}
+            aria-current={onConsole ? 'page' : undefined}
+            onClick={() => {
+              if (onConsole) return;
+              hapticSelection();
+              navigate('/console');
+            }}
+          >
+            {t`Консоль`}
+          </button>
+        ) : null}
 
         <button
           type="button"
