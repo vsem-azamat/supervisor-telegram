@@ -24,25 +24,26 @@
 		reverse_proxy webapi:8787
 	}
 
-	# The moderator console, still the Svelte build until it is rebuilt inside
-	# the Mini App. Its assets are under /_app and never fall back to a page;
-	# the hashed ones are cached for good, the page never.
-	handle /_app/* {
-		root * /srv/console
-		@immutable {
-			path /_app/immutable/*
-			file
-		}
-		header @immutable Cache-Control "public, max-age=31536000, immutable"
-		file_server
+	# The old console's addresses, bookmarked or in old messages, lead to the
+	# console inside the Mini App: a chat's page to the same chat, the lists
+	# and the hierarchy (now the chat list grouped by parent) to the chats,
+	# settings to the system screen, anything else to the summary. Permanent,
+	# so browsers remember them: change them knowing that.
+	@oldChat path_regexp oldChat ^/admin/chats/(-?[0-9]+)/?$
+	handle @oldChat {
+		redir * /console/chats/{re.oldChat.1} permanent
 	}
-
-	@console path /admin /admin/*
-	handle @console {
-		root * /srv/console
-		header Cache-Control "no-cache"
-		try_files {path} /index.html
-		file_server
+	@oldChats path /admin/chats /admin/chats/* /admin/hierarchy /admin/hierarchy/* /admin/catalog /admin/catalog/*
+	handle @oldChats {
+		redir * /console/chats permanent
+	}
+	@oldSettings path /admin/settings /admin/settings/
+	handle @oldSettings {
+		redir * /console/system permanent
+	}
+	@oldConsole path /admin /admin/*
+	handle @oldConsole {
+		redir * /console permanent
 	}
 
 	# The Mini App owns every other path, its client-side routes included.

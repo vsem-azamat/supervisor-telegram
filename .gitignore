@@ -23,7 +23,6 @@ downloads/
 eggs/
 .eggs/
 lib/
-!webui/src/lib/
 !web/src/lib/
 !web/scripts/lib/
 lib64/
@@ -195,3 +194,7 @@ scripts/*
 
 # Local credential drops — never tracked.
 .creds/
+
+# The retired Svelte console: a checkout from before it keeps its ignored
+# dependencies there, which must not reappear as untracked files.
+/webui/

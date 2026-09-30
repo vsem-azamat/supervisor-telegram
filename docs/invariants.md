@@ -93,9 +93,9 @@ an operator needs in order to decide on approval.
 
 ## The two halves of the web
 
-The public half is the Mini App in `web/`, less `web/src/console/`; the
-console is that directory, and the Svelte app in `webui/` for the screens not
-moved yet. `docker/Caddyfile` decides which build answers which path.
+The web is one Mini App in `web/`. Its console is `web/src/console/`, for
+super admins; everything else is the public half. The old console's `/admin`
+addresses redirect into it (`docker/Caddyfile`).
 
 **The public half calls nothing of ours but `/api/public/*`, and does not
 import the console.** Only `web/src/console/` may use webapi's session, so a
@@ -107,10 +107,9 @@ delete. A public screen reaching a protected endpoint is the bug; the 401 it
 earns is only the symptom. Its other API, `/api/v1/*`, is the catalog's, a
 different backend that never sees this one's session.
 
-**Authorisation is a layout, not a per-page check.** Everything under
-`(admin)/` is guarded by where it sits, so a new screen cannot forget to ask.
-In the Mini App the same job is `ConsoleGate`, which every screen under
-`web/src/console/pages/` renders around itself.
+**Authorisation is a gate, not a per-page check.** Every screen under
+`web/src/console/pages/` renders `ConsoleGate` around itself, and a test says
+so, so a new screen cannot forget to ask.
 
 **The browser's guard is the second lock, never the only one.** The API refuses
 without a valid super-admin cookie whatever the client believes. What the
@@ -137,18 +136,18 @@ strangers, and a public URL that reaches Telegram on demand is a public URL
 somebody can point at our rate limit. Aggregates are read from stored
 snapshots, which is also why they can be served to anybody at any rate.
 
-**Both halves are written in Russian.** The people who read the catalogue are
-students in Czechia and the people who work the console are the two accounts in
-`ADMIN_SUPER_ADMINS` — the same language either way. A screen half in English is
-not a smaller problem than a screen entirely in it: the mixture is what makes a
-reader stop and translate. Plural endings come from `$lib/format`, never from
-string concatenation, because Russian has three of them and a hand-rolled
-"5 минуты" is the tell.
+**Every word on a screen goes through Lingui, in all four languages.** Russian
+is the source; Czech, English and Ukrainian are filled in before a string
+ships, and CI fails on a missing one. A screen half in one language is not a
+smaller problem than a screen entirely in another: the mixture is what makes a
+reader stop and translate. Plural endings come from `<Plural>`, never from
+string concatenation, because Russian and Czech have more than two and a
+hand-rolled "5 минуты" is the tell.
 
-**One question, one screen.** `/admin/catalog` and `/admin/chats` listed the
-same rows from the same endpoint and differed only in which four columns they
-picked; the second copy is the one nobody remembers to update. When two screens
-start converging, merge them and leave a redirect.
+**One question, one screen.** Two screens that list the same rows from the same
+endpoint differ only in which columns they pick, and the second copy is the one
+nobody remembers to update. When two screens start converging, merge them and
+leave a redirect.
 
 **Every way to publish goes through the console.** A script may fill the
 catalogue in bulk, but it must never be the only way to change it — a feature

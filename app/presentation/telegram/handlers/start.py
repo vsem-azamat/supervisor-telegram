@@ -91,7 +91,7 @@ async def start_private(message: types.Message, admin_repo: AdminRepository) -> 
 
     builder = InlineKeyboardBuilder()
     if shows_console:
-        builder.add(_open_button("⚙️ Открыть консоль", f"{_site()}/admin", private=private))
+        builder.add(_open_button("⚙️ Открыть консоль", f"{_site()}/console", private=private))
     if settings.webapi.public_url:
         builder.add(_open_button("🔎 Найти свой чат", f"{_site()}/chats", private=private))
         # The Mini App's first screen. Its own row, second: finding a chat is
