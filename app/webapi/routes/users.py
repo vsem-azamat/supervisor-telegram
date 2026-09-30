@@ -18,9 +18,32 @@ from app.core.exceptions import ProtectedUserError, UserNotFoundException
 from app.db.models import User
 from app.moderation.blacklist import add_to_blacklist, remove_from_blacklist
 from app.webapi.deps import get_publish_bot, get_session, require_super_admin
-from app.webapi.schemas import UserBlockRequest, UserBlockResponse
+from app.webapi.schemas import BlockedUserRead, UserBlockRequest, UserBlockResponse
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+
+@router.get("/blocked", response_model=list[BlockedUserRead])
+async def list_blocked_users(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _admin_id: Annotated[int, Depends(require_super_admin)],
+) -> list[BlockedUserRead]:
+    """Everybody on the global blacklist, latest first.
+
+    Declared before `/{user_id}`: that route would take «blocked» for an id and
+    refuse it as not a number.
+    """
+    rows = await session.scalars(select(User).where(User.blocked).order_by(User.modified_at.desc()))
+    return [
+        BlockedUserRead(
+            user_id=user.id,
+            username=user.username,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            since=user.modified_at,
+        )
+        for user in rows
+    ]
 
 
 @router.post("/{user_id}/block", response_model=UserBlockResponse)
