@@ -9,20 +9,37 @@ import { test } from 'node:test';
  * Storage keys are not a name anybody reads, and keep theirs.
  */
 
-const OLD_NAME = /Students\s*(<[^>]*>\s*)?CZ/;
+// The two words with anything markup puts between them: spaces, a no-break
+// space as a character or an entity, JSX's {' '} (what the formatter writes
+// when it wraps), and tags. Any case.
+const OLD_NAME = /Students(?:\s|&nbsp;| |\{\s*['"`]\s*['"`]\s*\}|<[^>]*>)*CZ/i;
 
+/** Every text file the build reads under src/. Generated code is not written here. */
 function sources(dir: string): string[] {
   return readdirSync(dir).flatMap((entry) => {
     const path = join(dir, entry);
     if (statSync(path).isDirectory()) return entry === 'generated' ? [] : sources(path);
-    return /\.(tsx?|po)$/.test(entry) ? [path] : [];
+    return /\.(tsx?|jsx?|css|po|json|svg|html)$/.test(entry) ? [path] : [];
   });
 }
 
-test('no screen, catalog or first message says the old name', () => {
-  const found = sources('src').filter((path) =>
-    OLD_NAME.test(readFileSync(path, 'utf8')),
-  );
+test('the pattern catches the old name in the shapes it has had', () => {
+  for (const shape of [
+    'Students CZ',
+    "Students{' '}\n  <span className={css.tail}>\n    CZ\n  </span>",
+    'Students&nbsp;CZ',
+    '<b>Students</b> <i>CZ</i>',
+    'STUDENTS CZ',
+  ]) {
+    assert.match(shape, OLD_NAME, shape);
+  }
+});
+
+test('no screen, stylesheet, catalog or first message says the old name', () => {
+  const files = sources('src');
+  // Reading nothing would pass too, and guard nothing.
+  assert.ok(files.includes(join('src', 'pages', 'Landing.tsx')), 'the walk reads src/');
+  const found = files.filter((path) => OLD_NAME.test(readFileSync(path, 'utf8')));
   assert.deepEqual(found, []);
 });
 
