@@ -102,6 +102,8 @@ async def process_blacklist_confirm(
     # the ban below in this chat comes before the service's own refusal.
     if moderation_services.is_protected(user_id):
         await callback.answer("Главного администратора забанить нельзя.", show_alert=True)
+        if isinstance(callback.message, types.Message):
+            await callback.message.edit_text("Не выполнено: главного администратора забанить нельзя.")
         return
     chat_id = callback_data.chat_id
     message_id = callback_data.message_id

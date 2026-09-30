@@ -101,7 +101,7 @@ export const consoleSystemQuery = {
   retryOnMount: false,
 };
 
-/** The global blacklist, latest first. */
+/** The global blacklist, most recently changed first. */
 export const blockedQuery = {
   queryKey: ['console', 'blocked'] as const,
   queryFn: ({ signal }: { signal: AbortSignal }) =>

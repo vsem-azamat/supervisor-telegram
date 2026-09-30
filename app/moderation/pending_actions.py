@@ -181,7 +181,10 @@ class PendingActionService:
         # A proposal can outlive a change to the admin list; refused here before
         # it is marked done, so the record does not say it happened.
         if pending.action == ModerationAction.BLACKLIST and is_protected(pending.target_user_id):
-            await self._mark(pending, PendingActionStatus.REJECTED, admin_id=admin_id)
+            # Nobody said no: the rule did. The record names no admin, as for
+            # an expired proposal.
+            await self._mark(pending, PendingActionStatus.REJECTED, admin_id=None)
+            logger.warning("pending_action_refused_protected", pending_id=pending_id, admin_id=admin_id)
             raise ProtectedUserError(pending.target_user_id)
 
         await self._mark(pending, PendingActionStatus.CONFIRMED, admin_id=admin_id)

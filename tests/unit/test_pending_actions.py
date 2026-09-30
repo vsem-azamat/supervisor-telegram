@@ -214,3 +214,4 @@ class TestSuperAdmins:
         executor.assert_not_awaited()
         await session.refresh(pending)
         assert pending.status == PendingActionStatus.REJECTED
+        assert pending.resolved_by is None, "the admin who pressed confirm did not say no"

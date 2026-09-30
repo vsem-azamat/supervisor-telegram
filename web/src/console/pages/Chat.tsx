@@ -22,6 +22,7 @@ import {
 import { ConsoleFailure, ConsoleGate } from '@/console/ConsoleGate';
 import { isListed } from '@/console/chats';
 import {
+  blockedQuery,
   chatDetailQuery,
   consoleChanges,
   consoleChatsQuery,
@@ -158,7 +159,7 @@ function ChatScreen({ chatId }: { chatId: number }) {
     onSuccess: () => {
       // A ban is every chat's: every chat's sender list may show it.
       void queryClient.invalidateQueries({ queryKey: ['console', 'chat'] });
-      void queryClient.invalidateQueries({ queryKey: ['console', 'blocked'] });
+      void queryClient.invalidateQueries({ queryKey: blockedQuery.queryKey });
       setSheet((current) =>
         current?.kind === 'ban' || current?.kind === 'unban' ? null : current,
       );

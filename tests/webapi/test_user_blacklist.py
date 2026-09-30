@@ -138,8 +138,8 @@ async def test_a_super_admin_cannot_be_banned(client_factory, db_session_maker, 
         assert u is None or u.blocked is False
 
 
-async def test_the_blacklist_lists_the_blocked_latest_first(client_factory, db_session_maker) -> None:
-    """What /blacklist shows in the bot, for the console: who, and since when."""
+async def test_the_blacklist_lists_the_blocked_most_recently_changed_first(client_factory, db_session_maker) -> None:
+    """What /blacklist shows in the bot, for the console: who, and when the row last changed."""
     import datetime
 
     make, _bot = client_factory

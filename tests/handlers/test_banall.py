@@ -152,6 +152,7 @@ class TestSuperAdmins:
         text = command.answer.call_args[0][0]
         assert "главн" in text.lower()
         assert "reply_markup" not in command.answer.call_args[1]
+        command.delete.assert_awaited()
 
     async def test_the_confirmation_refuses_before_banning_here(self, monkeypatch):
         """The press can come from a dialog older than the admin list.

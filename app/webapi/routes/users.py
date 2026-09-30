@@ -28,7 +28,7 @@ async def list_blocked_users(
     session: Annotated[AsyncSession, Depends(get_session)],
     _admin_id: Annotated[int, Depends(require_super_admin)],
 ) -> list[BlockedUserRead]:
-    """Everybody on the global blacklist, latest first.
+    """Everybody on the global blacklist, most recently changed first.
 
     Declared before `/{user_id}`: that route would take «blocked» for an id and
     refuse it as not a number.
