@@ -91,6 +91,10 @@ msgstr "Онлайн"
 msgid "Такой заявки нет"
 msgstr "Такой заявки нет"
 
+#: src/console/pages/Chat.tsx
+msgid "Отключить чат?"
+msgstr "Отключить чат?"
+
 #: src/console/pages/Catalog.tsx
 msgid "{days, plural, one {# дн} few {# дн} many {# дн} other {# дн}}"
 msgstr "{days, plural, one {# дн} few {# дн} many {# дн} other {# дн}}"
@@ -355,6 +359,7 @@ msgid "Твой предмет — {0}"
 msgstr "Твой предмет — {0}"
 
 #: src/console/pages/Chat.tsx
+#: src/console/pages/Chats.tsx
 msgid "отключён"
 msgstr "отключён"
 
@@ -1330,6 +1335,10 @@ msgstr "Не получилось связаться. Попробуй ещё р
 msgid "Так она выглядит"
 msgstr "Так она выглядит"
 
+#: src/console/pages/Chat.tsx
+msgid "Бот перестанет его модерировать: капча, приветствие и чёрный список там работать не будут. Чат пропадёт с публичной вкладки. Включить можно здесь же."
+msgstr "Бот перестанет его модерировать: капча, приветствие и чёрный список там работать не будут. Чат пропадёт с публичной вкладки. Включить можно здесь же."
+
 #: src/console/pages/Catalog.tsx
 msgid "Заявки без откликов"
 msgstr "Заявки без откликов"
@@ -1443,6 +1452,10 @@ msgstr "На эту заявку ты уже отвечал"
 #: src/pages/Ads.tsx
 msgid "Что не размещаем"
 msgstr "Что не размещаем"
+
+#: src/console/pages/Chat.tsx
+msgid "Работает только в одобренном чате."
+msgstr "Работает только в одобренном чате."
 
 #: src/pages/AdsApp.tsx
 msgid "страховка, визы, банк, переводы"
@@ -1664,6 +1677,7 @@ msgid "Написать"
 msgstr "Написать"
 
 #: src/console/pages/Chat.tsx
+#: src/console/pages/Chats.tsx
 msgid "на проверке"
 msgstr "на проверке"
 

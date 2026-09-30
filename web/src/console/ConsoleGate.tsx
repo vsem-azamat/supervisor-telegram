@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 
 import { AppHeader } from '@/components/AppHeader';
 import { Empty, Row, Rows, Screen, SkeletonRows } from '@/components/Ui';
-import { ConsoleError } from '@/console/session';
+import { ConsoleError, isFinal } from '@/console/session';
 import { meQuery, UnauthorizedError } from '@/lib/api';
 
 /**
@@ -92,6 +92,14 @@ export function ConsoleFailure({ error, retry }: { error: unknown; retry: () => 
             </Trans>
           }
         />
+      </Rows>
+    );
+  }
+  // A request the server understood and refused is not worth repeating.
+  if (isFinal(error)) {
+    return (
+      <Rows>
+        <Row title={<Trans>Не удалось загрузить</Trans>} />
       </Rows>
     );
   }

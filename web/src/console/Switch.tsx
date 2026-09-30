@@ -25,11 +25,7 @@ export function Switch({
       aria-busy={busy}
       disabled={busy}
       className={css.switch}
-      onClick={(event) => {
-        // Inside a row that opens something else when tapped.
-        event.stopPropagation();
-        onChange(!checked);
-      }}
+      onClick={() => onChange(!checked)}
     />
   );
 }

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { consoleSections, statusCounts } from '../src/console/chats.ts';
+import { consoleSections, isListed, statusCounts } from '../src/console/chats.ts';
 import type { ConsoleChat } from '../src/console/session.ts';
 
 function chat(id: number, title: string, over: Partial<ConsoleChat> = {}): ConsoleChat {
@@ -100,4 +100,15 @@ test('each status is counted, and all of them together', () => {
     approved: 3,
     disabled: 1,
   });
+});
+
+test('listed is what the public tab shows: approved, titled and linked', () => {
+  const link = 'https://t.me/x';
+  assert.equal(isListed(chat(1, 'A', { public_link: link })), true);
+  assert.equal(
+    isListed(chat(1, 'A', { public_link: link, resource_status: 'discovered' })),
+    false,
+  );
+  assert.equal(isListed(chat(1, 'A', { public_link: null })), false);
+  assert.equal(isListed(chat(1, '', { public_link: link })), false);
 });

@@ -86,3 +86,15 @@ export function statusCounts(chats: ConsoleChat[]): Record<StatusFilter, number>
     disabled: count('disabled'),
   };
 }
+
+/**
+ * Whether students see the chat on the public tab, by the same rule the
+ * public catalogue applies: approved, with a title and a link.
+ */
+export function isListed(chat: ConsoleChat): boolean {
+  return (
+    chat.resource_status === 'approved' &&
+    Boolean(chat.title) &&
+    Boolean(chat.public_link)
+  );
+}

@@ -20,6 +20,7 @@ import {
   ui,
 } from '@/components/Ui';
 import { ConsoleFailure, ConsoleGate } from '@/console/ConsoleGate';
+import { isListed } from '@/console/chats';
 import {
   chatDetailQuery,
   consoleChanges,
@@ -46,7 +47,12 @@ export default function ConsoleChatPage() {
   const chatId = Number(id);
   return (
     <ConsoleGate>
-      {Number.isInteger(chatId) ? <ChatScreen chatId={chatId} /> : <NoSuchChat />}
+      {/* Keyed: what the screen remembers (a taken-down link) is one chat's. */}
+      {Number.isInteger(chatId) ? (
+        <ChatScreen key={chatId} chatId={chatId} />
+      ) : (
+        <NoSuchChat />
+      )}
     </ConsoleGate>
   );
 }
@@ -64,6 +70,7 @@ function NoSuchChat() {
 type Sheets =
   | { kind: 'publish' }
   | { kind: 'unpublish' }
+  | { kind: 'disable' }
   | { kind: 'welcome'; enable: boolean }
   | { kind: 'ban'; sender: ChatSender }
   | { kind: 'unban'; sender: ChatSender }
@@ -108,6 +115,11 @@ function ChatScreen({ chatId }: { chatId: number }) {
   const open = (next: Sheets) => {
     setError(null);
     setSheet(next);
+  };
+  // A sheet's failure belongs to the sheet: it goes when the sheet does.
+  const close = () => {
+    setError(null);
+    setSheet(null);
   };
   const settle = (changed: Partial<ConsoleChatDetail>) => {
     queryClient.setQueryData<ConsoleChatDetail>(
@@ -182,7 +194,7 @@ function ChatScreen({ chatId }: { chatId: number }) {
   };
   const approved = chat.resource_status === 'approved';
   // What students see: the public tab lists approved chats with a link.
-  const listed = Boolean(chat.public_link) && approved;
+  const listed = isListed(chat);
   const admins = new Set(system.data?.super_admin_ids ?? []);
   const total = chat.recent_senders.reduce((sum, row) => sum + row.message_count, 0);
   const sheetError = sheet && error ? <FailureText error={error} /> : null;
@@ -293,6 +305,14 @@ function ChatScreen({ chatId }: { chatId: number }) {
       <Label>
         <Trans>Защита</Trans>
       </Label>
+      {!approved ? (
+        // The bot ignores chats it is not approved in: nothing below runs there.
+        <div style={{ marginBottom: 8 }}>
+          <Hint>
+            <Trans>Работает только в одобренном чате.</Trans>
+          </Hint>
+        </div>
+      ) : null}
       <Rows>
         <Row
           title={<Trans>Капча при входе</Trans>}
@@ -420,11 +440,7 @@ function ChatScreen({ chatId }: { chatId: number }) {
       {approved ? (
         <div style={{ marginTop: 16 }}>
           <Actions>
-            <Action
-              quiet
-              onClick={() => save({ resource_status: 'disabled' })}
-              disabled={busy}
-            >
+            <Action quiet onClick={() => open({ kind: 'disable' })} disabled={busy}>
               <Trans>Отключить чат</Trans>
             </Action>
           </Actions>
@@ -438,15 +454,40 @@ function ChatScreen({ chatId }: { chatId: number }) {
           placeholder="https://t.me/cvut_fit"
           busy={busy}
           error={sheetError}
-          onClose={() => setSheet(null)}
-          onSave={(link) => save({ public_link: link }, () => setSheet(null))}
+          onClose={close}
+          // Empty is not a link: taking the chat down is the switch's, and asks.
+          canSave={(link) => link.length > 0}
+          onSave={(link) => save({ public_link: link }, close)}
         />
+      ) : null}
+      {sheet?.kind === 'disable' ? (
+        <Sheet title={t`Отключить чат?`} closeLabel={t`Отмена`} onClose={close}>
+          <Sub>
+            <Trans>
+              Бот перестанет его модерировать: капча, приветствие и чёрный список там
+              работать не будут. Чат пропадёт с публичной вкладки. Включить можно здесь
+              же.
+            </Trans>
+          </Sub>
+          {sheetError ? <Hint>{sheetError}</Hint> : null}
+          <div className={ui.actionsStacked}>
+            <Action
+              disabled={busy}
+              onClick={() => save({ resource_status: 'disabled' }, close)}
+            >
+              <Trans>Отключить</Trans>
+            </Action>
+            <Action quiet onClick={close}>
+              <Trans>Отмена</Trans>
+            </Action>
+          </div>
+        </Sheet>
       ) : null}
       {sheet?.kind === 'unpublish' ? (
         <Sheet
           title={t`Снять с публичной вкладки?`}
           closeLabel={t`Отмена`}
-          onClose={() => setSheet(null)}
+          onClose={close}
         >
           <Sub>
             <Trans>Ссылка сотрётся: {chat.public_link}</Trans>
@@ -465,7 +506,7 @@ function ChatScreen({ chatId }: { chatId: number }) {
             >
               <Trans>Снять</Trans>
             </Action>
-            <Action quiet onClick={() => setSheet(null)}>
+            <Action quiet onClick={close}>
               <Trans>Отмена</Trans>
             </Action>
           </div>
@@ -480,23 +521,24 @@ function ChatScreen({ chatId }: { chatId: number }) {
           placeholder={t`правила в закрепе, рекламу не публикуем.`}
           busy={busy}
           error={sheetError}
-          onClose={() => setSheet(null)}
+          onClose={close}
+          // Switching on asks for the text, so it cannot be empty there. Clearing
+          // it otherwise switches the greeting off: on with no text greets nobody.
+          canSave={(text) => !sheet.enable || text.length > 0}
           onSave={(text) =>
             save(
-              sheet.enable && text
+              sheet.enable
                 ? { welcome_message: text, is_welcome_enabled: true }
-                : { welcome_message: text },
-              () => setSheet(null),
+                : text
+                  ? { welcome_message: text }
+                  : { welcome_message: text, is_welcome_enabled: false },
+              close,
             )
           }
         />
       ) : null}
       {sheet?.kind === 'ban' ? (
-        <Sheet
-          title={t`Забанить во всех чатах?`}
-          closeLabel={t`Отмена`}
-          onClose={() => setSheet(null)}
-        >
+        <Sheet title={t`Забанить во всех чатах?`} closeLabel={t`Отмена`} onClose={close}>
           <Sub>
             {senderName(sheet.sender)} ·{' '}
             <Trans>
@@ -526,18 +568,14 @@ function ChatScreen({ chatId }: { chatId: number }) {
             >
               <Trans>Забанить и стереть все его сообщения</Trans>
             </Action>
-            <Action quiet onClick={() => setSheet(null)}>
+            <Action quiet onClick={close}>
               <Trans>Отмена</Trans>
             </Action>
           </div>
         </Sheet>
       ) : null}
       {sheet?.kind === 'unban' ? (
-        <Sheet
-          title={t`Снять бан во всех чатах?`}
-          closeLabel={t`Отмена`}
-          onClose={() => setSheet(null)}
-        >
+        <Sheet title={t`Снять бан во всех чатах?`} closeLabel={t`Отмена`} onClose={close}>
           <Sub>{senderName(sheet.sender)}</Sub>
           {sheetError ? <Hint>{sheetError}</Hint> : null}
           <div className={ui.actionsStacked}>
@@ -547,7 +585,7 @@ function ChatScreen({ chatId }: { chatId: number }) {
             >
               <Trans>Снять бан</Trans>
             </Action>
-            <Action quiet onClick={() => setSheet(null)}>
+            <Action quiet onClick={close}>
               <Trans>Отмена</Trans>
             </Action>
           </div>
@@ -565,6 +603,7 @@ function TextSheet({
   multiline = false,
   busy,
   error,
+  canSave = () => true,
   onClose,
   onSave,
 }: {
@@ -575,6 +614,7 @@ function TextSheet({
   multiline?: boolean;
   busy: boolean;
   error: ReactNode;
+  canSave?: (value: string) => boolean;
   onClose: () => void;
   onSave: (value: string) => void;
 }) {
@@ -609,7 +649,10 @@ function TextSheet({
       </div>
       {error ? <Hint>{error}</Hint> : null}
       <Actions>
-        <Action disabled={busy} onClick={() => onSave(value.trim())}>
+        <Action
+          disabled={busy || !canSave(value.trim())}
+          onClick={() => onSave(value.trim())}
+        >
           <Trans>Сохранить</Trans>
         </Action>
       </Actions>

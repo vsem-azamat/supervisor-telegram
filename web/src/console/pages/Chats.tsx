@@ -19,7 +19,12 @@ import {
   ui,
 } from '@/components/Ui';
 import { ConsoleFailure, ConsoleGate } from '@/console/ConsoleGate';
-import { consoleSections, type StatusFilter, statusCounts } from '@/console/chats';
+import {
+  consoleSections,
+  isListed,
+  type StatusFilter,
+  statusCounts,
+} from '@/console/chats';
 import { consoleChatsQuery } from '@/console/queries';
 import type { ConsoleChat } from '@/console/session';
 import { hapticSelection } from '@/hooks/useTelegram';
@@ -85,7 +90,10 @@ function ChatList() {
           one row of equal segments on a phone. */}
       <div style={{ marginTop: 14 }}>
         <Chips>
-          {FILTERS.filter((key) => key === 'all' || counts[key] > 0).map((key) => (
+          {/* The chosen one stays, even at zero, so the page says what it shows. */}
+          {FILTERS.filter(
+            (key) => key === 'all' || key === filter || counts[key] > 0,
+          ).map((key) => (
             <ChipView
               key={key}
               active={key === filter}
@@ -156,13 +164,19 @@ function ChatLine({ chat, onOpen }: { chat: ConsoleChat; onOpen: () => void }) {
     chat.is_captcha_enabled ? t`капча` : null,
     chat.is_welcome_enabled ? t`приветствие` : null,
   ].filter(Boolean);
-  const facts = [
-    chat.member_count !== null ? i18n.number(chat.member_count) : null,
-    guards.length ? guards.join(', ') : t`без защиты`,
-    chat.public_link && chat.resource_status === 'approved'
-      ? t`на сайте`
-      : t`не на сайте`,
-  ].filter(Boolean);
+  // Protection runs only where the bot is approved; elsewhere the status is
+  // the thing to know.
+  const facts =
+    chat.resource_status === 'approved'
+      ? [
+          chat.member_count !== null ? i18n.number(chat.member_count) : null,
+          guards.length ? guards.join(', ') : t`без защиты`,
+          isListed(chat) ? t`на сайте` : t`не на сайте`,
+        ]
+      : [
+          chat.member_count !== null ? i18n.number(chat.member_count) : null,
+          chat.resource_status === 'discovered' ? t`на проверке` : t`отключён`,
+        ];
   const tone =
     chat.resource_status === 'discovered'
       ? 1
@@ -178,7 +192,7 @@ function ChatLine({ chat, onOpen }: { chat: ConsoleChat; onOpen: () => void }) {
         </Tile>
       }
       title={title}
-      hint={facts.join(' · ')}
+      hint={facts.filter(Boolean).join(' · ')}
       trailing={<Chevron />}
       onClick={onOpen}
     />

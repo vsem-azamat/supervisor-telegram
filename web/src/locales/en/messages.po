@@ -91,6 +91,10 @@ msgstr "Online"
 msgid "Такой заявки нет"
 msgstr "No such request"
 
+#: src/console/pages/Chat.tsx
+msgid "Отключить чат?"
+msgstr "Disable the chat?"
+
 #: src/console/pages/Catalog.tsx
 msgid "{days, plural, one {# дн} few {# дн} many {# дн} other {# дн}}"
 msgstr "{days, plural, one {# d} other {# d}}"
@@ -355,6 +359,7 @@ msgid "Твой предмет — {0}"
 msgstr "Your subject — {0}"
 
 #: src/console/pages/Chat.tsx
+#: src/console/pages/Chats.tsx
 msgid "отключён"
 msgstr "disabled"
 
@@ -1330,6 +1335,10 @@ msgstr "Could not get through. Try again."
 msgid "Так она выглядит"
 msgstr "This is what it looks like"
 
+#: src/console/pages/Chat.tsx
+msgid "Бот перестанет его модерировать: капча, приветствие и чёрный список там работать не будут. Чат пропадёт с публичной вкладки. Включить можно здесь же."
+msgstr "The bot will stop moderating it: captcha, the welcome and the blacklist will not work there. The chat leaves the public tab. It can be enabled again here."
+
 #: src/console/pages/Catalog.tsx
 msgid "Заявки без откликов"
 msgstr "Requests with no answer"
@@ -1443,6 +1452,10 @@ msgstr "You have already answered this request"
 #: src/pages/Ads.tsx
 msgid "Что не размещаем"
 msgstr "What we do not place"
+
+#: src/console/pages/Chat.tsx
+msgid "Работает только в одобренном чате."
+msgstr "Works only in an approved chat."
 
 #: src/pages/AdsApp.tsx
 msgid "страховка, визы, банк, переводы"
@@ -1664,6 +1677,7 @@ msgid "Написать"
 msgstr "Message"
 
 #: src/console/pages/Chat.tsx
+#: src/console/pages/Chats.tsx
 msgid "на проверке"
 msgstr "awaiting review"
 
