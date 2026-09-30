@@ -82,6 +82,52 @@ export type AdminPlacement = {
 };
 
 /**
+ * AdminPlacementIn
+ *
+ * A new partner card on the Life screen. See docs/architecture.md.
+ */
+export type AdminPlacementIn = {
+    /**
+     * Partner
+     */
+    partner: string;
+    /**
+     * Url
+     */
+    url: string;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Subtitle
+     */
+    subtitle?: string | null;
+    /**
+     * Price Text
+     */
+    price_text?: string | null;
+    /**
+     * Context Note
+     */
+    context_note?: string | null;
+    /**
+     * Logo Text
+     */
+    logo_text?: string | null;
+};
+
+/**
+ * AdminPlacementSwitch
+ */
+export type AdminPlacementSwitch = {
+    /**
+     * Is Active
+     */
+    is_active: boolean;
+};
+
+/**
  * AdminProfile
  */
 export type AdminProfile = {
@@ -2239,6 +2285,73 @@ export type ReadPartnersApiV1AdminPartnersGetResponses = {
 };
 
 export type ReadPartnersApiV1AdminPartnersGetResponse = ReadPartnersApiV1AdminPartnersGetResponses[keyof ReadPartnersApiV1AdminPartnersGetResponses];
+
+export type CreatePlacementApiV1AdminPlacementsPostData = {
+    body: AdminPlacementIn;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/placements';
+};
+
+export type CreatePlacementApiV1AdminPlacementsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreatePlacementApiV1AdminPlacementsPostError = CreatePlacementApiV1AdminPlacementsPostErrors[keyof CreatePlacementApiV1AdminPlacementsPostErrors];
+
+export type CreatePlacementApiV1AdminPlacementsPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: AdminPlacement;
+};
+
+export type CreatePlacementApiV1AdminPlacementsPostResponse = CreatePlacementApiV1AdminPlacementsPostResponses[keyof CreatePlacementApiV1AdminPlacementsPostResponses];
+
+export type SwitchPlacementApiV1AdminPlacementsPlacementIdPatchData = {
+    body: AdminPlacementSwitch;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path: {
+        /**
+         * Placement Id
+         */
+        placement_id: number;
+    };
+    query?: never;
+    url: '/api/v1/admin/placements/{placement_id}';
+};
+
+export type SwitchPlacementApiV1AdminPlacementsPlacementIdPatchErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type SwitchPlacementApiV1AdminPlacementsPlacementIdPatchError = SwitchPlacementApiV1AdminPlacementsPlacementIdPatchErrors[keyof SwitchPlacementApiV1AdminPlacementsPlacementIdPatchErrors];
+
+export type SwitchPlacementApiV1AdminPlacementsPlacementIdPatchResponses = {
+    /**
+     * Successful Response
+     */
+    200: AdminPlacement;
+};
+
+export type SwitchPlacementApiV1AdminPlacementsPlacementIdPatchResponse = SwitchPlacementApiV1AdminPlacementsPlacementIdPatchResponses[keyof SwitchPlacementApiV1AdminPlacementsPlacementIdPatchResponses];
 
 export type HealthzHealthzGetData = {
     body?: never;

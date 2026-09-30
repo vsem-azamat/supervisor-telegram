@@ -1,7 +1,13 @@
 import { retrieveRawInitData } from '@tma.js/sdk-react';
 
 import { type PublicChat, sanitize } from './chats';
-import type { AdminCatalog, AdminPlacement, AdsInfo } from './generated/types.gen';
+import type {
+  AdminCatalog,
+  AdminPlacement,
+  AdminPlacementIn,
+  AdminPlacementSwitch,
+  AdsInfo,
+} from './generated/types.gen';
 import { isApproval } from './join';
 import { isReach, type Reach } from './reach';
 import type {
@@ -343,6 +349,17 @@ export const api = {
   /** Placements with the last month's impressions and clicks. Operators only. */
   getAdminPartners: (signal?: AbortSignal) =>
     request<AdminPlacement[]>('/admin/partners', { signal }),
+
+  /** A new card on the Life screen, first in its slot. Operators only. */
+  createPlacement: (card: AdminPlacementIn) =>
+    request<AdminPlacement>('/admin/placements', { method: 'POST', body: card }),
+
+  /** On or off; nothing is deleted. Operators only. */
+  switchPlacement: (placementId: number, isActive: boolean) =>
+    request<AdminPlacement>(`/admin/placements/${placementId}`, {
+      method: 'PATCH',
+      body: { is_active: isActive } satisfies AdminPlacementSwitch,
+    }),
 };
 
 export type Api = typeof api;

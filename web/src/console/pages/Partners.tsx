@@ -1,6 +1,12 @@
 import { Trans, useLingui } from '@lingui/react/macro';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useNavigate } from 'react-router';
+
+import { Sheet } from '@/components/Sheet';
 import {
+  Action,
+  Actions,
   Hint,
   Label,
   Letters,
@@ -15,13 +21,14 @@ import {
 import { ConsoleFailure, ConsoleGate } from '@/console/ConsoleGate';
 import { adminPartnersQuery } from '@/console/queries';
 import { clickRate } from '@/console/session';
+import { hapticSelection } from '@/hooks/useTelegram';
+import { api } from '@/lib/api';
 import type { AdminPlacement, PlacementSlot } from '@/lib/generated/types.gen';
 
 /**
- * Partner placements and how they did over the last month.
- *
- * Read-only: placements are still added in the database; the form for a new
- * one comes later. See teachers-catalog's docs/architecture.md.
+ * Partner placements and how they did over the last month; a new one, and
+ * a tap on one to switch it off or on. Nothing is deleted, so a stopped card
+ * keeps its numbers. See teachers-catalog's docs/architecture.md.
  */
 export default function ConsolePartnersPage() {
   return (
@@ -34,13 +41,49 @@ export default function ConsolePartnersPage() {
           <Trans>Показы и клики за 30 дней.</Trans>
         </Sub>
       </div>
+      <NewCard />
       <Partners />
     </ConsoleGate>
   );
 }
 
+function NewCard() {
+  const navigate = useNavigate();
+  return (
+    <div style={{ marginTop: 14 }}>
+      <Actions>
+        <Action
+          onClick={() => {
+            hapticSelection();
+            navigate('/console/partners/new');
+          }}
+        >
+          <Trans>Добавить карточку</Trans>
+        </Action>
+      </Actions>
+    </div>
+  );
+}
+
 function Partners() {
+  const { t } = useLingui();
+  const queryClient = useQueryClient();
   const { data, isPending, error, refetch } = useQuery(adminPartnersQuery);
+  const [picked, setPicked] = useState<AdminPlacement | null>(null);
+  const toggle = useMutation({
+    mutationFn: (row: AdminPlacement) =>
+      api.switchPlacement(row.placement_id, !row.is_active),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: adminPartnersQuery.queryKey });
+      void queryClient.invalidateQueries({ queryKey: ['placements'] });
+      setPicked(null);
+    },
+  });
+  const close = () => {
+    if (toggle.isPending) return;
+    toggle.reset();
+    setPicked(null);
+  };
 
   if (isPending) {
     return (
@@ -75,7 +118,7 @@ function Partners() {
           </Label>
           <Rows>
             {active.map((row) => (
-              <Placement key={row.placement_id} row={row} />
+              <Placement key={row.placement_id} row={row} onPick={setPicked} />
             ))}
           </Rows>
         </>
@@ -87,20 +130,62 @@ function Partners() {
           </Label>
           <Rows>
             {inactive.map((row) => (
-              <Placement key={row.placement_id} row={row} />
+              <Placement key={row.placement_id} row={row} onPick={setPicked} />
             ))}
           </Rows>
         </>
+      ) : null}
+      {picked ? (
+        <Sheet
+          title={picked.is_active ? t`Выключить карточку?` : t`Включить карточку?`}
+          closeLabel={t`Отмена`}
+          onClose={close}
+        >
+          <Sub>
+            {picked.title ? `${picked.title} · ${picked.partner}` : picked.partner}
+          </Sub>
+          <Hint>
+            {picked.is_active ? (
+              <Trans>Студенты перестанут её видеть. Показы и клики сохранятся.</Trans>
+            ) : (
+              <Trans>Вернётся на своё место по приоритету.</Trans>
+            )}
+          </Hint>
+          {toggle.isError ? (
+            <Hint>
+              <Trans>Не получилось. Попробуйте ещё раз.</Trans>
+            </Hint>
+          ) : null}
+          <div className={ui.actionsStacked}>
+            <Action disabled={toggle.isPending} onClick={() => toggle.mutate(picked)}>
+              {picked.is_active ? <Trans>Выключить</Trans> : <Trans>Включить</Trans>}
+            </Action>
+            {/* Not while the switch is on its way: closing would not stop it. */}
+            <Action quiet disabled={toggle.isPending} onClick={close}>
+              <Trans>Отмена</Trans>
+            </Action>
+          </div>
+        </Sheet>
       ) : null}
     </>
   );
 }
 
-function Placement({ row }: { row: AdminPlacement }) {
+function Placement({
+  row,
+  onPick,
+}: {
+  row: AdminPlacement;
+  onPick: (row: AdminPlacement) => void;
+}) {
   const { i18n } = useLingui();
   const rate = clickRate(row.impressions, row.clicks, i18n.locale);
   return (
     <Row
+      onClick={() => {
+        hapticSelection();
+        onPick(row);
+      }}
       leading={
         <Tile tone={row.is_active ? 2 : 5}>
           <Letters text={row.partner.slice(0, 2).toUpperCase()} />

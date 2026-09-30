@@ -19,8 +19,9 @@ export function PartnerBlock({
   preview = false,
 }: {
   placement: Placement;
-  /** Shown as an example on the ads page: not a button, and never counted
-   *  as a click, which would bill the partner for a business looking at it. */
+  /** Shown as an example — on the ads page, or in the console while a card is
+   *  written: not a button, and never counted as a click, which would bill the
+   *  partner for somebody looking at it. */
   preview?: boolean;
 }) {
   const open = () => {
