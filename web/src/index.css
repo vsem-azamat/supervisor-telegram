@@ -1,0 +1,177 @@
+/*
+ * The bare minimum, on purpose.
+ *
+ * This file is a reset plus the wiring that connects Telegram's runtime CSS
+ * variables to the page. There is no design system here and there should not
+ * be one: component styles belong with their components.
+ *
+ * Variables available at runtime, published by `bindCssVars` in `main.tsx`:
+ *
+ *   --tg-theme-*     colours   (bg-color, text-color, hint-color, link-color,
+ *                               button-color, button-text-color,
+ *                               secondary-bg-color, section-bg-color, ...)
+ *   --tg-viewport-height, --tg-viewport-stable-height, --tg-viewport-width
+ *   --tg-viewport-safe-area-inset-{top,bottom,left,right}
+ *   --tg-viewport-content-safe-area-inset-{top,bottom,left,right}
+ *
+ * They only exist once the SDK has mounted, so every use needs a fallback.
+ */
+
+@import './styles/tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html {
+  /* Telegram clients may hand the page a text-size override. */
+  -webkit-text-size-adjust: 100%;
+
+  /* Overscroll on the root element is the viewport's overscroll, and the
+     viewport is what Telegram drags when the gesture reaches it. Declared here
+     as well as on `body` because whether the body's value propagates is a
+     question with different answers per engine, and the answer we need is
+     "the app does not move". */
+  overscroll-behavior-y: none;
+}
+
+body {
+  /* System font only. A webfont means a network round trip before first paint,
+     and inside Telegram this should look like part of the app. */
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', system-ui,
+    sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+
+  /* Own palette, not Telegram's. See styles/tokens.css for why, and main.tsx
+     for how the surrounding Telegram chrome is told to match it. */
+  color: var(--ink);
+  background-color: var(--bg);
+
+  /* With `html` at `visible`, this is where the viewport takes its overflow
+     from: the document scrolls nowhere, and #root does all of it. No height
+     to go with it — #root already has a definite one, and a second definition
+     of "one screenful" here is a second thing to keep in agreement. */
+  overflow: hidden;
+
+  /* Vertical overscroll would drag the whole Mini App down and close it. */
+  overscroll-behavior-y: none;
+}
+
+/*
+ * The app itself: exactly one screenful, and the only thing that scrolls.
+ *
+ * `height`, not `min-height`. A box that can grow past the viewport hands its
+ * overflow to the document, and the document's scroll is the one nobody asked
+ * for: a screen with a trailing spacer or a notch's worth of padding offered a
+ * few pixels of travel with nothing at the end of them. Bounded here, a screen
+ * that fits cannot scroll at all, and a screen that does not fit scrolls
+ * inside the app box where a list is supposed to.
+ *
+ * `--app-height` is Telegram's own number for what is visible, published by
+ * `bindAppHeight` in main.tsx. It has to be Telegram's: on iOS and Android the
+ * SDK will not trust `window.innerHeight` either — it asks the client and waits
+ * for `viewport_changed` — and 100dvh is precisely that untrusted number. Where
+ * the two disagree, a box sized to the webview puts content below the visible
+ * area with nothing left able to scroll to it, which is a worse bug than the
+ * one this file is fixing.
+ *
+ * 100dvh is the fallback, for the moment before the client answers and for
+ * every browser that is not Telegram. dvh and not vh, because in a plain mobile
+ * browser vh counts the space behind the toolbar, and a page built to fill one
+ * screen would then be exactly one toolbar too tall to fit.
+ *
+ * The insets live here rather than on `body` because `box-sizing: border-box`
+ * then counts them *inside* the screenful instead of adding them to it. With
+ * them on `body`, a page whose content came within a notch of a full screen
+ * scrolled by exactly the height of the notch.
+ *
+ * The bottom inset is deliberately absent: whatever sits at the bottom of a
+ * screen owns it. For a screen with tabs that is the fixed tab bar, which has
+ * to pad itself anyway because it is outside this box; for a screen without
+ * them it is `.screen`. Setting it here as well is what counted it twice.
+ *
+ * A flex column, because `min-height: 100%` on a child of an auto-height parent
+ * resolves to `auto` and does nothing — which is why screens once sat in the
+ * top half of the viewport no matter what they declared.
+ */
+#root {
+  display: flex;
+  flex-direction: column;
+  height: var(--app-height, 100dvh);
+  overflow-y: auto;
+  /* A list that reaches its end should stop there, not hand the gesture on to
+     the viewport. `none` there is what actually stops Telegram; this only
+     keeps a long list from asking it to. */
+  overscroll-behavior-y: contain;
+  padding-top: var(--tg-viewport-safe-area-inset-top, 0px);
+  padding-left: var(--tg-viewport-safe-area-inset-left, 0px);
+  padding-right: var(--tg-viewport-safe-area-inset-right, 0px);
+}
+
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: var(--good);
+}
+
+/* Long subject names and Czech compounds have to break rather than scroll. */
+p,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  overflow-wrap: break-word;
+}
+
+/* The grey flash on tap reads as a rendering glitch on mobile. */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* !important is the point here: an accessibility preference has to win over
+   whatever a component declares locally, which is the one case where reversing
+   the cascade is correct. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    /* biome-ignore lint/complexity/noImportantStyles: accessibility override */
+    animation-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: accessibility override */
+    animation-iteration-count: 1 !important;
+    /* biome-ignore lint/complexity/noImportantStyles: accessibility override */
+    transition-duration: 0.01ms !important;
+    /* biome-ignore lint/complexity/noImportantStyles: accessibility override */
+    scroll-behavior: auto !important;
+  }
+}

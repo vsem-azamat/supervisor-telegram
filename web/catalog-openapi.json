@@ -1,0 +1,3786 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Students CZ",
+    "description": "Student help catalog for the Czech Republic",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/v1/ads": {
+      "get": {
+        "tags": [
+          "public"
+        ],
+        "summary": "Ads",
+        "description": "Where the ads page sends a business: a person in Telegram, or nobody.\n\nUnauthenticated like `/open`, and for the same kind of reason: the answer\nis a public handle that belongs in configuration, not in the bundle.",
+        "operationId": "ads_api_v1_ads_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdsInfo"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me": {
+      "get": {
+        "tags": [
+          "me"
+        ],
+        "summary": "Read Me",
+        "operationId": "read_me_api_v1_me_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "me"
+        ],
+        "summary": "Update Me",
+        "operationId": "update_me_api_v1_me_patch",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MeUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/taxonomy/service-types": {
+      "get": {
+        "tags": [
+          "taxonomy"
+        ],
+        "summary": "Service Types",
+        "operationId": "service_types_api_v1_taxonomy_service_types_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServiceTypeOut"
+                  },
+                  "title": "Response Service Types Api V1 Taxonomy Service Types Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/taxonomy/subjects": {
+      "get": {
+        "tags": [
+          "taxonomy"
+        ],
+        "summary": "Subjects",
+        "description": "Browse the tree, or search it.\n\nWith `q` the answer comes from fuzzy matching, so \"matan\" and \"матан\" both\nwork. Without it, one level of the tree is returned.",
+        "operationId": "subjects_api_v1_taxonomy_subjects_get",
+        "parameters": [
+          {
+            "name": "parent_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Parent Id"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 300,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SubjectOut"
+                  },
+                  "title": "Response Subjects Api V1 Taxonomy Subjects Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/taxonomy/institutions": {
+      "get": {
+        "tags": [
+          "taxonomy"
+        ],
+        "summary": "Institutions",
+        "description": "The whole list, universities with their faculties nested.\n\nA couple of hundred rows — cheaper to send once than to paginate, and the\nclient can then filter without another round trip.",
+        "operationId": "institutions_api_v1_taxonomy_institutions_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/InstitutionOut"
+                  },
+                  "title": "Response Institutions Api V1 Taxonomy Institutions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/taxonomy/languages": {
+      "get": {
+        "tags": [
+          "taxonomy"
+        ],
+        "summary": "Languages",
+        "operationId": "languages_api_v1_taxonomy_languages_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LanguageOut"
+                  },
+                  "title": "Response Languages Api V1 Taxonomy Languages Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/search/parse": {
+      "post": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Parse Query",
+        "description": "Read a sentence and show back what we made of it.\n\nEvery call is logged with its parse and result count. Queries that match\nnothing are the ranked list of what the catalog is missing, and the raw\ntext next to the parse is what a better parser would be trained on.",
+        "operationId": "parse_query_api_v1_search_parse_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ParseRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParseOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/search": {
+      "get": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Search Offers",
+        "operationId": "search_offers_api_v1_search_get",
+        "parameters": [
+          {
+            "name": "subject_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Subject Id"
+            }
+          },
+          {
+            "name": "institution_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Institution Id"
+            }
+          },
+          {
+            "name": "service_type_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Service Type Id"
+            }
+          },
+          {
+            "name": "max_price",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Max Price"
+            }
+          },
+          {
+            "name": "langs",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "title": "Langs"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "relevance",
+                "price",
+                "available"
+              ],
+              "type": "string",
+              "default": "relevance",
+              "title": "Sort"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/home": {
+      "get": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Home",
+        "operationId": "home_api_v1_home_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HomeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/helpers/{user_id}": {
+      "get": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Helper Detail",
+        "operationId": "helper_detail_api_v1_helpers__user_id__get",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HelperDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/helpers/{user_id}/contact": {
+      "post": {
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Start Contact",
+        "description": "Record that someone is about to write, and hand back the link.\n\nThe conversation itself happens in Telegram, where both people already are.\nWhat we keep is that it started — which is the only honest basis for the\nresponse times and deal counts shown on a card. Self-reported numbers would\nbe worth nothing.",
+        "operationId": "start_contact_api_v1_helpers__user_id__contact_post",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/helper": {
+      "get": {
+        "tags": [
+          "helper"
+        ],
+        "summary": "My Helper",
+        "description": "Read back the caller's own profile, whatever state it is in.\n\nAnswers with an empty shell rather than 404 when there is no profile yet:\nthe screen behind this is a form, and a form that has to branch on a\nmissing-resource error to decide whether to render is a form with two\ncode paths where one will do.",
+        "operationId": "my_helper_api_v1_helper_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyHelperOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "helper"
+        ],
+        "summary": "Upsert Helper",
+        "description": "Create or replace the caller's helper profile and its offers.",
+        "operationId": "upsert_helper_api_v1_helper_put",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HelperUpsert"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/requests": {
+      "post": {
+        "tags": [
+          "requests"
+        ],
+        "summary": "Create Request",
+        "description": "Post \"I need help with X\" and let helpers answer.",
+        "operationId": "create_request_api_v1_requests_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "requests"
+        ],
+        "summary": "My Requests",
+        "description": "Your own, newest first.",
+        "operationId": "my_requests_api_v1_requests_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RequestOut"
+                  },
+                  "title": "Response My Requests Api V1 Requests Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/requests/feed": {
+      "get": {
+        "tags": [
+          "requests"
+        ],
+        "summary": "Request Feed",
+        "description": "Open requests, for someone who could answer them.",
+        "operationId": "request_feed_api_v1_requests_feed_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FeedRequestOut"
+                  },
+                  "title": "Response Request Feed Api V1 Requests Feed Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/requests/{request_id}/respond": {
+      "post": {
+        "tags": [
+          "requests"
+        ],
+        "summary": "Respond To Request",
+        "description": "Answer someone's request.",
+        "operationId": "respond_to_request_api_v1_requests__request_id__respond_post",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Request Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResponseCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/requests/{request_id}/responses": {
+      "get": {
+        "tags": [
+          "requests"
+        ],
+        "summary": "Request Responses",
+        "description": "Who answered. The author only — this is not a public bid list.",
+        "operationId": "request_responses_api_v1_requests__request_id__responses_get",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Request Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ResponseOut"
+                  },
+                  "title": "Response Request Responses Api V1 Requests  Request Id  Responses Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/responses/{response_id}/accept": {
+      "post": {
+        "tags": [
+          "requests"
+        ],
+        "summary": "Accept Response",
+        "description": "Pick someone.",
+        "operationId": "accept_response_api_v1_responses__response_id__accept_post",
+        "parameters": [
+          {
+            "name": "response_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Response Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/responses/{response_id}/decline": {
+      "post": {
+        "tags": [
+          "requests"
+        ],
+        "summary": "Decline Response",
+        "description": "Turn one down. Deliberately silent — nobody needs a rejection push.",
+        "operationId": "decline_response_api_v1_responses__response_id__decline_post",
+        "parameters": [
+          {
+            "name": "response_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Response Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResponseOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/requests/{request_id}/close": {
+      "post": {
+        "tags": [
+          "requests"
+        ],
+        "summary": "Close Request",
+        "description": "Stop taking answers.",
+        "operationId": "close_request_api_v1_requests__request_id__close_post",
+        "parameters": [
+          {
+            "name": "request_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Request Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/placements": {
+      "get": {
+        "tags": [
+          "partners"
+        ],
+        "summary": "Placements For Slot",
+        "description": "The partner cards for one slot, each counted as seen unless a preview.\n\n`preview` can only lower the count, so trusting the client with it costs\nnothing. See docs/architecture.md, «The ads page is a showcase».",
+        "operationId": "placements_for_slot_api_v1_placements_get",
+        "parameters": [
+          {
+            "name": "slot",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/PlacementSlot"
+            }
+          },
+          {
+            "name": "service_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Service Type"
+            }
+          },
+          {
+            "name": "subject_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Subject Id"
+            }
+          },
+          {
+            "name": "preview",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Preview"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlacementOut"
+                  },
+                  "title": "Response Placements For Slot Api V1 Placements Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/placements/{placement_id}/click": {
+      "post": {
+        "tags": [
+          "partners"
+        ],
+        "summary": "Register Click",
+        "description": "Record that a partner block was followed.\n\nThe id is checked first: the partner is billed per click, so an unknown one\nmust be a 404 rather than a foreign-key traceback.",
+        "operationId": "register_click_api_v1_placements__placement_id__click_post",
+        "parameters": [
+          {
+            "name": "placement_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Placement Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/healthz": {
+      "get": {
+        "tags": [
+          "ops"
+        ],
+        "summary": "Healthz",
+        "description": "Liveness plus the database.",
+        "operationId": "healthz_healthz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "integer"
+                      }
+                    ]
+                  },
+                  "type": "object",
+                  "title": "Response Healthz Healthz Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AdsInfo": {
+        "properties": {
+          "contact_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "contact_url"
+        ],
+        "title": "AdsInfo",
+        "description": "What the ads page needs from us: who a business writes to, if anyone."
+      },
+      "AlsoSubject": {
+        "properties": {
+          "subject_id": {
+            "type": "integer",
+            "title": "Subject Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "subject_id",
+          "label"
+        ],
+        "title": "AlsoSubject",
+        "description": "A subject the parser guessed at but would not search by."
+      },
+      "Avatar": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "initials": {
+            "type": "string",
+            "title": "Initials"
+          },
+          "tone": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 0.0,
+            "title": "Tone"
+          },
+          "photo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "initials",
+          "tone",
+          "photo_url"
+        ],
+        "title": "Avatar",
+        "description": "Enough to draw the little circle without fetching anything.\n\nTelegram avatar URLs expire, so a monogram is the fallback rather than a\nbroken image. The colour is derived from the user id, which keeps the same\nperson the same colour across screens."
+      },
+      "Chip": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence",
+            "default": 1.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "label"
+        ],
+        "title": "Chip",
+        "description": "One piece of what we understood, shown back for correction."
+      },
+      "Clarify": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/ClarifyOption"
+            },
+            "type": "array",
+            "title": "Options"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "options"
+        ],
+        "title": "Clarify",
+        "description": "One question, asked only when the answer changes the result set.\n\nNever a wall of filters — if we cannot justify asking, we do not ask."
+      },
+      "ClarifyOption": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "tone": {
+            "type": "integer",
+            "title": "Tone",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "ClarifyOption"
+      },
+      "ContactOut": {
+        "properties": {
+          "telegram_url": {
+            "type": "string",
+            "title": "Telegram Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "telegram_url"
+        ],
+        "title": "ContactOut",
+        "description": "Where to continue the conversation."
+      },
+      "FeedRequestOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "institution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution"
+          },
+          "service_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Type"
+          },
+          "deadline_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deadline On"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "author": {
+            "$ref": "#/components/schemas/Avatar"
+          },
+          "author_name": {
+            "type": "string",
+            "title": "Author Name"
+          },
+          "budget": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Price"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "langs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Langs"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Phrase"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "status",
+          "created_at",
+          "author",
+          "author_name"
+        ],
+        "title": "FeedRequestOut",
+        "description": "A request as a helper sees it.\n\nDeliberately not a subclass of RequestOut: how many people have already\nanswered, and who they are, is the competition's business and not this\nreader's. A helper who can see \"3 answers already\" simply skips those,\nwhich is the opposite of what the feed is for — and inheriting the fields\nto blank them would still leave them in the schema."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HelperCardOut": {
+        "properties": {
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "avatar": {
+            "$ref": "#/components/schemas/Avatar"
+          },
+          "affiliation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Affiliation"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Price"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Phrase"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "availability": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Phrase"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          },
+          "deals_count": {
+            "type": "integer",
+            "title": "Deals Count",
+            "default": 0
+          },
+          "langs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Langs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "name",
+          "avatar"
+        ],
+        "title": "HelperCardOut",
+        "description": "One row in the results list."
+      },
+      "HelperDetailOut": {
+        "properties": {
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "avatar": {
+            "$ref": "#/components/schemas/Avatar"
+          },
+          "affiliation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Affiliation"
+          },
+          "about": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "About"
+          },
+          "headline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headline"
+          },
+          "stats": {
+            "items": {
+              "$ref": "#/components/schemas/Stat"
+            },
+            "type": "array",
+            "title": "Stats"
+          },
+          "offers": {
+            "items": {
+              "$ref": "#/components/schemas/OfferOut"
+            },
+            "type": "array",
+            "title": "Offers"
+          },
+          "langs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Langs"
+          },
+          "work_format": {
+            "$ref": "#/components/schemas/WorkFormat"
+          },
+          "place_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place Note"
+          },
+          "free_slots": {
+            "items": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "type": "array",
+            "title": "Free Slots"
+          },
+          "reviews": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewOut"
+            },
+            "type": "array",
+            "title": "Reviews"
+          },
+          "intro_context": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Intro Context"
+          },
+          "telegram_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Telegram Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "name",
+          "avatar",
+          "stats",
+          "offers",
+          "langs",
+          "work_format"
+        ],
+        "title": "HelperDetailOut"
+      },
+      "HelperUpsert": {
+        "properties": {
+          "headline": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 160
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headline"
+          },
+          "about": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "About"
+          },
+          "raw_intro": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raw Intro"
+          },
+          "work_format": {
+            "$ref": "#/components/schemas/WorkFormat",
+            "default": "both"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 96
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "place_note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 240
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place Note"
+          },
+          "offers": {
+            "items": {
+              "$ref": "#/components/schemas/OfferIn"
+            },
+            "type": "array",
+            "maxItems": 60,
+            "title": "Offers"
+          },
+          "publish": {
+            "type": "boolean",
+            "title": "Publish",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "HelperUpsert"
+      },
+      "HomeOut": {
+        "properties": {
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/HomeSection"
+            },
+            "type": "array",
+            "title": "People"
+          },
+          "things": {
+            "items": {
+              "$ref": "#/components/schemas/HomeSection"
+            },
+            "type": "array",
+            "title": "Things"
+          }
+        },
+        "type": "object",
+        "required": [
+          "people",
+          "things"
+        ],
+        "title": "HomeOut"
+      },
+      "HomeSection": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "group": {
+            "$ref": "#/components/schemas/ServiceGroup"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hint"
+          },
+          "tone": {
+            "type": "integer",
+            "title": "Tone"
+          },
+          "count": {
+            "type": "integer",
+            "title": "Count"
+          },
+          "live_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Live Count"
+          },
+          "avatars": {
+            "items": {
+              "$ref": "#/components/schemas/Avatar"
+            },
+            "type": "array",
+            "title": "Avatars"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "code",
+          "group",
+          "name",
+          "tone",
+          "count",
+          "avatars"
+        ],
+        "title": "HomeSection"
+      },
+      "InstitutionOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "short_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Short Name"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "faculties": {
+            "items": {
+              "$ref": "#/components/schemas/InstitutionOut"
+            },
+            "type": "array",
+            "title": "Faculties"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "name"
+        ],
+        "title": "InstitutionOut"
+      },
+      "LanguageOut": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "LanguageOut"
+      },
+      "MeOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "tg_id": {
+            "type": "integer",
+            "title": "Tg Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          },
+          "avatar": {
+            "$ref": "#/components/schemas/Avatar"
+          },
+          "ui_lang": {
+            "$ref": "#/components/schemas/UiLang"
+          },
+          "spoken_langs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Spoken Langs"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "institution": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InstitutionOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "is_helper": {
+            "type": "boolean",
+            "title": "Is Helper"
+          },
+          "helper_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Helper Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "tg_id",
+          "name",
+          "avatar",
+          "ui_lang",
+          "spoken_langs",
+          "is_helper"
+        ],
+        "title": "MeOut"
+      },
+      "MeUpdate": {
+        "properties": {
+          "ui_lang": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/UiLang"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "spoken_langs": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "maxLength": 8,
+                  "minLength": 2
+                },
+                "type": "array",
+                "maxItems": 12
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Spoken Langs"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 96
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "institution_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution Id"
+          }
+        },
+        "type": "object",
+        "title": "MeUpdate"
+      },
+      "MyHelperOut": {
+        "properties": {
+          "exists": {
+            "type": "boolean",
+            "title": "Exists"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "headline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headline"
+          },
+          "about": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "About"
+          },
+          "work_format": {
+            "$ref": "#/components/schemas/WorkFormat",
+            "default": "both"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "place_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Place Note"
+          },
+          "offers": {
+            "items": {
+              "$ref": "#/components/schemas/MyOfferOut"
+            },
+            "type": "array",
+            "title": "Offers"
+          }
+        },
+        "type": "object",
+        "required": [
+          "exists"
+        ],
+        "title": "MyHelperOut",
+        "description": "The caller's own profile, draft or hidden included.\n\n`/helpers/{id}` deliberately refuses anything unpublished, which is\ncorrect for the catalog and leaves someone with a draft unable to read\nback what they wrote. This is the other door."
+      },
+      "MyOfferOut": {
+        "properties": {
+          "service_type_id": {
+            "type": "integer",
+            "title": "Service Type Id"
+          },
+          "service_type": {
+            "type": "string",
+            "title": "Service Type"
+          },
+          "service_type_name": {
+            "type": "string",
+            "title": "Service Type Name"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject Id"
+          },
+          "subject_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject Name"
+          },
+          "institution_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution Id"
+          },
+          "institution_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution Name"
+          },
+          "price_amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Amount"
+          },
+          "price_unit": {
+            "$ref": "#/components/schemas/PriceUnit",
+            "default": "hour"
+          },
+          "langs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Langs"
+          },
+          "option_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Option Ids"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "turnaround_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turnaround Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "service_type_id",
+          "service_type",
+          "service_type_name",
+          "option_ids",
+          "note",
+          "turnaround_days"
+        ],
+        "title": "MyOfferOut",
+        "description": "One row of the caller's own offers, ready to be edited and sent back.\n\nBoth the id and the name of every axis: the id is what `HelperUpsert`\nwants, the name is what the person reads. `OfferOut` carries only the\nnames, which is right for a card and useless for a form."
+      },
+      "OfferIn": {
+        "properties": {
+          "service_type_id": {
+            "type": "integer",
+            "title": "Service Type Id"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject Id"
+          },
+          "institution_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution Id"
+          },
+          "price_amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Amount"
+          },
+          "price_unit": {
+            "$ref": "#/components/schemas/PriceUnit",
+            "default": "hour"
+          },
+          "langs": {
+            "items": {
+              "type": "string",
+              "maxLength": 8,
+              "minLength": 2
+            },
+            "type": "array",
+            "maxItems": 12,
+            "title": "Langs"
+          },
+          "option_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "maxItems": 32,
+            "title": "Option Ids"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 600
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "turnaround_days": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 365.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turnaround Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "service_type_id"
+        ],
+        "title": "OfferIn"
+      },
+      "OfferOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "service_type": {
+            "type": "string",
+            "title": "Service Type"
+          },
+          "service_type_name": {
+            "type": "string",
+            "title": "Service Type Name"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "institution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution"
+          },
+          "price": {
+            "$ref": "#/components/schemas/Price"
+          },
+          "langs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Langs"
+          },
+          "work_format": {
+            "$ref": "#/components/schemas/WorkFormat"
+          },
+          "options": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Options"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "turnaround_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Turnaround Days"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "service_type",
+          "service_type_name",
+          "price",
+          "langs",
+          "work_format",
+          "options",
+          "note",
+          "turnaround_days"
+        ],
+        "title": "OfferOut"
+      },
+      "ParseOut": {
+        "properties": {
+          "chips": {
+            "items": {
+              "$ref": "#/components/schemas/Chip"
+            },
+            "type": "array",
+            "title": "Chips"
+          },
+          "clarify": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Clarify"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "matches": {
+            "type": "integer",
+            "title": "Matches"
+          },
+          "also": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AlsoSubject"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "note": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Phrase"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "chips",
+          "matches",
+          "also"
+        ],
+        "title": "ParseOut"
+      },
+      "ParseRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "ParseRequest"
+      },
+      "Phrase": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "params": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Params"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "Phrase",
+        "description": "A sentence for the client to render, not a sentence.\n\n`{\"code\": \"reason.same_exam\", \"params\": {\"taught\": 40, \"passed\": 38}}`\nbecomes \"Готовил к этому же экзамену 40 человек, сдали 38\" — with correct\nplural agreement, which only the client can produce."
+      },
+      "PlacementOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtitle"
+          },
+          "price_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Text"
+          },
+          "context_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context Note"
+          },
+          "logo_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Text"
+          },
+          "logo_bg": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Bg"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "url"
+        ],
+        "title": "PlacementOut"
+      },
+      "PlacementSlot": {
+        "type": "string",
+        "enum": [
+          "screen_life",
+          "screen_nostrification",
+          "screen_languages",
+          "screen_search_empty",
+          "after_request_created",
+          "profile_footer"
+        ],
+        "title": "PlacementSlot",
+        "description": "Where a partner block may appear. Grows as screens are added."
+      },
+      "Price": {
+        "properties": {
+          "amount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "default": "CZK"
+          },
+          "unit": {
+            "$ref": "#/components/schemas/PriceUnit",
+            "default": "hour"
+          }
+        },
+        "type": "object",
+        "title": "Price"
+      },
+      "PriceUnit": {
+        "type": "string",
+        "enum": [
+          "hour",
+          "lesson",
+          "work",
+          "day",
+          "week",
+          "month",
+          "semester",
+          "item",
+          "negotiable"
+        ],
+        "title": "PriceUnit"
+      },
+      "RequestCreate": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 3,
+            "title": "Text"
+          },
+          "subject_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject Id"
+          },
+          "institution_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution Id"
+          },
+          "service_type_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Type Id"
+          },
+          "deadline_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deadline On"
+          },
+          "budget_max": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Budget Max"
+          },
+          "langs": {
+            "items": {
+              "type": "string",
+              "maxLength": 8,
+              "minLength": 2
+            },
+            "type": "array",
+            "maxItems": 12,
+            "title": "Langs"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "RequestCreate"
+      },
+      "RequestOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject"
+          },
+          "institution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution"
+          },
+          "service_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Type"
+          },
+          "deadline_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deadline On"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "responses_count": {
+            "type": "integer",
+            "title": "Responses Count",
+            "default": 0
+          },
+          "responders": {
+            "items": {
+              "$ref": "#/components/schemas/Avatar"
+            },
+            "type": "array",
+            "title": "Responders"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "status",
+          "created_at"
+        ],
+        "title": "RequestOut",
+        "description": "Your own request. Who answered is the whole point of the screen."
+      },
+      "ResponseCreate": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Message"
+          },
+          "price_amount": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1000000.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Price Amount"
+          },
+          "price_unit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PriceUnit"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "ResponseCreate"
+      },
+      "ResponseOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "request_id": {
+            "type": "integer",
+            "title": "Request Id"
+          },
+          "helper_id": {
+            "type": "integer",
+            "title": "Helper Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "avatar": {
+            "$ref": "#/components/schemas/Avatar"
+          },
+          "username": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Username"
+          },
+          "affiliation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Affiliation"
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rating"
+          },
+          "deals_count": {
+            "type": "integer",
+            "title": "Deals Count",
+            "default": 0
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "price": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Price"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "request_id",
+          "helper_id",
+          "name",
+          "avatar",
+          "message",
+          "status",
+          "created_at"
+        ],
+        "title": "ResponseOut"
+      },
+      "ReviewOut": {
+        "properties": {
+          "author": {
+            "type": "string",
+            "title": "Author"
+          },
+          "created_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Created On"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "author",
+          "created_on",
+          "text"
+        ],
+        "title": "ReviewOut"
+      },
+      "SearchFilters": {
+        "properties": {
+          "subject_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subject Id"
+          },
+          "institution_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Institution Id"
+          },
+          "service_type_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Type Id"
+          },
+          "max_price": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Price"
+          },
+          "langs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Langs"
+          },
+          "work_format": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkFormat"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "title": "SearchFilters"
+      },
+      "SearchOut": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "filters": {
+            "$ref": "#/components/schemas/SearchFilters"
+          },
+          "chips": {
+            "items": {
+              "$ref": "#/components/schemas/Chip"
+            },
+            "type": "array",
+            "title": "Chips"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/HelperCardOut"
+            },
+            "type": "array",
+            "title": "Results"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "filters",
+          "chips",
+          "results"
+        ],
+        "title": "SearchOut"
+      },
+      "ServiceForm": {
+        "type": "string",
+        "enum": [
+          "lesson",
+          "work",
+          "errand"
+        ],
+        "title": "ServiceForm",
+        "description": "The shape of the form that offers a kind of help.\n\nA different question from ``ServiceGroup``, and deliberately a separate\ncolumn. The group is for the student browsing — *what do I need*. The shape\nis for the person offering — *what do we ask you*. They nearly coincide, and\nthe places they do not are the ones that matter: help *during* an exam sits\non the entrance shelf, where a student compares it with exam preparation,\nand its form has nothing to do with teaching.\n\n``work`` is always remote, so its form does not ask how you work. Lessons\nand errands ask the same three answers under different words; see\ndocs/data-model.md."
+      },
+      "ServiceGroup": {
+        "type": "string",
+        "enum": [
+          "study",
+          "entrance",
+          "life"
+        ],
+        "title": "ServiceGroup",
+        "description": "Which shelf a kind of help sits on.\n\nBoth screens that show these tiles — the catalog's front door and the\nscreen where someone offers a service — render the same list grouped by\nthis. ``life`` is the help that has no subject and no institution: the\npaperwork of staying in the country rather than of studying.\n\nClosed on purpose. Group names are translated on the client, the way\n``work_format`` and ``price_unit`` are; see docs/data-model.md."
+      },
+      "ServiceOptionOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "label"
+        ],
+        "title": "ServiceOptionOut",
+        "description": "One line of what a kind of help covers, in the caller's language."
+      },
+      "ServiceTypeOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "group": {
+            "$ref": "#/components/schemas/ServiceGroup"
+          },
+          "form_shape": {
+            "$ref": "#/components/schemas/ServiceForm"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hint"
+          },
+          "requires_subject": {
+            "type": "boolean",
+            "title": "Requires Subject"
+          },
+          "requires_institution": {
+            "type": "boolean",
+            "title": "Requires Institution"
+          },
+          "tone": {
+            "type": "integer",
+            "maximum": 5.0,
+            "minimum": 0.0,
+            "title": "Tone"
+          },
+          "default_price_unit": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PriceUnit"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/ServiceOptionOut"
+            },
+            "type": "array",
+            "title": "Options"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "code",
+          "group",
+          "form_shape",
+          "name",
+          "requires_subject",
+          "requires_institution",
+          "tone",
+          "default_price_unit",
+          "options"
+        ],
+        "title": "ServiceTypeOut"
+      },
+      "Stat": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "value"
+        ],
+        "title": "Stat"
+      },
+      "SubjectOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          },
+          "has_children": {
+            "type": "boolean",
+            "title": "Has Children",
+            "default": false
+          },
+          "external_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Code"
+          },
+          "offers_count": {
+            "type": "integer",
+            "title": "Offers Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "slug",
+          "name"
+        ],
+        "title": "SubjectOut"
+      },
+      "UiLang": {
+        "type": "string",
+        "enum": [
+          "ru",
+          "cs",
+          "en",
+          "uk"
+        ],
+        "title": "UiLang",
+        "description": "Interface languages.\n\nSeparate from the languages people teach in — there can be more of those.\nNote the standard codes: the legacy bot used ``cz``/``ua``, which have to be\nmapped to ``cs``/``uk`` during the data import."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "WorkFormat": {
+        "type": "string",
+        "enum": [
+          "online",
+          "offline",
+          "both"
+        ],
+        "title": "WorkFormat"
+      }
+    }
+  }
+}
