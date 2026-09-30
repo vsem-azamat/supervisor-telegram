@@ -2,8 +2,6 @@ import { Plural, Trans } from '@lingui/react/macro';
 import { useQuery } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router';
-
-import { ConsoleFailure, ConsoleGate } from '@/components/ConsoleGate';
 import {
   BagIcon,
   ChatIcon,
@@ -24,14 +22,15 @@ import {
   Title,
   ui,
 } from '@/components/Ui';
-import { hapticSelection } from '@/hooks/useTelegram';
+import { ConsoleFailure, ConsoleGate } from '@/console/ConsoleGate';
 import {
   adminCatalogQuery,
   adminPartnersQuery,
   consoleChatsQuery,
   consoleStatsQuery,
-} from '@/lib/api';
-import { type AttentionKey, attention } from '@/lib/console';
+} from '@/console/queries';
+import { type AttentionKey, attention } from '@/console/session';
+import { hapticSelection } from '@/hooks/useTelegram';
 
 /**
  * The console's first screen: what needs a look, then its sections.

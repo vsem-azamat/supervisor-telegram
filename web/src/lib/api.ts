@@ -1,7 +1,6 @@
 import { retrieveRawInitData } from '@tma.js/sdk-react';
 
 import { type PublicChat, sanitize } from './chats';
-import { type ConsoleChat, consoleRequester, type HomeStats } from './console';
 import type { AdminCatalog, AdminPlacement, AdsInfo } from './generated/types.gen';
 import { isApproval } from './join';
 import { isReach, type Reach } from './reach';
@@ -348,52 +347,6 @@ export const api = {
 
 export type Api = typeof api;
 
-/** The console's requester for webapi's session endpoints. See lib/console.ts. */
-export const consoleGet = consoleRequester((...args) => fetch(...args), rawInitData);
-
-/**
- * The account, shared by the shell, the header and every screen that reads it.
- * One object so every observer agrees on how fresh it has to be.
- */
-export const meQuery = {
-  queryKey: ['me'] as const,
-  queryFn: ({ signal }: { signal: AbortSignal }) => api.getMe(signal),
-  staleTime: 5 * 60 * 1000,
-};
-
-// The console reads while somebody looks at it; a minute is fresh enough.
-const CONSOLE_STALE = 60_000;
-
-export const adminCatalogQuery = {
-  queryKey: ['console', 'catalog'] as const,
-  queryFn: ({ signal }: { signal: AbortSignal }) => api.getAdminCatalog(signal),
-  staleTime: CONSOLE_STALE,
-};
-
-export const adminPartnersQuery = {
-  queryKey: ['console', 'partners'] as const,
-  queryFn: ({ signal }: { signal: AbortSignal }) => api.getAdminPartners(signal),
-  staleTime: CONSOLE_STALE,
-};
-
-export const consoleStatsQuery = {
-  queryKey: ['console', 'stats'] as const,
-  queryFn: ({ signal }: { signal: AbortSignal }) =>
-    consoleGet<HomeStats>('/api/stats/home', { signal }),
-  staleTime: CONSOLE_STALE,
-  // A refusal or a stale sign-in stays so for this launch; coming back to the
-  // summary must not send the sign-in again.
-  retryOnMount: false,
-};
-
-export const consoleChatsQuery = {
-  queryKey: ['console', 'chats'] as const,
-  queryFn: ({ signal }: { signal: AbortSignal }) =>
-    consoleGet<ConsoleChat[]>('/api/chats', { signal }),
-  staleTime: CONSOLE_STALE,
-  retryOnMount: false,
-};
-
 /**
  * The chat directory's query, shared by the directory and a section's screen
  * so that opening a section costs no request. The directory changes when a
@@ -410,4 +363,14 @@ export const reachQuery = {
   queryKey: ['reach'] as const,
   queryFn: ({ signal }: { signal: AbortSignal }) => api.getReach(signal),
   staleTime: 60 * 60_000,
+};
+
+/**
+ * The account, shared by the shell, the header and every screen that reads it.
+ * One object so every observer agrees on how fresh it has to be.
+ */
+export const meQuery = {
+  queryKey: ['me'] as const,
+  queryFn: ({ signal }: { signal: AbortSignal }) => api.getMe(signal),
+  staleTime: 5 * 60 * 1000,
 };

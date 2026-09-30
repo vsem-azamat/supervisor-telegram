@@ -1,7 +1,5 @@
 import { Trans, useLingui } from '@lingui/react/macro';
 import { useQuery } from '@tanstack/react-query';
-
-import { ConsoleFailure, ConsoleGate } from '@/components/ConsoleGate';
 import {
   Hint,
   Label,
@@ -14,8 +12,9 @@ import {
   Title,
   ui,
 } from '@/components/Ui';
-import { adminPartnersQuery } from '@/lib/api';
-import { clickRate } from '@/lib/console';
+import { ConsoleFailure, ConsoleGate } from '@/console/ConsoleGate';
+import { adminPartnersQuery } from '@/console/queries';
+import { clickRate } from '@/console/session';
 import type { AdminPlacement, PlacementSlot } from '@/lib/generated/types.gen';
 
 /**

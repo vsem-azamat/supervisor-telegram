@@ -17,7 +17,7 @@ msgstr ""
 #~ msgid "курсовая по экономике"
 #~ msgstr "seminárka z ekonomie"
 
-#: src/pages/console/Partners.tsx
+#: src/console/pages/Partners.tsx
 msgid "Карточек партнёров пока нет."
 msgstr "Zatím žádné karty partnerů."
 
@@ -29,7 +29,7 @@ msgstr "Nastav si v Telegramu veřejný @username — jinak ti nikdo neodpoví"
 #~ msgid "Здесь появятся заявки по твоим предметам. Чем больше предметов в профиле, тем чаще."
 #~ msgstr "Tady se objeví poptávky k tvým předmětům. Čím víc předmětů máš v profilu, tím častěji."
 
-#: src/pages/console/Summary.tsx
+#: src/console/pages/Summary.tsx
 msgid "показы и клики"
 msgstr "zobrazení a kliknutí"
 
@@ -83,7 +83,7 @@ msgstr "Online"
 msgid "Такой заявки нет"
 msgstr "Taková poptávka neexistuje"
 
-#: src/pages/console/Catalog.tsx
+#: src/console/pages/Catalog.tsx
 msgid "{days, plural, one {# дн} few {# дн} many {# дн} other {# дн}}"
 msgstr "{days, plural, one {# d.} few {# d.} many {# d.} other {# d.}}"
 
@@ -206,7 +206,7 @@ msgstr "Vše můžeš kdykoli změnit. Prázdná pole prostě neukazujeme."
 #~ msgid "Одним куском, как другу. Анкету соберём сами."
 #~ msgstr "Napiš to naráz, jako kamarádovi. Anketu sestavíme sami."
 
-#: src/pages/console/Summary.tsx
+#: src/console/pages/Summary.tsx
 msgid "Что происходит в чатах и в каталоге."
 msgstr "Co se děje v chatech a v katalogu."
 
@@ -214,11 +214,11 @@ msgstr "Co se děje v chatech a v katalogu."
 msgid "На каких языках тебе удобно"
 msgstr "Ve kterých jazycích se ti mluví dobře"
 
-#: src/pages/console/Catalog.tsx
+#: src/console/pages/Catalog.tsx
 msgid "Искали и не нашли"
 msgstr "Hledali a nenašli"
 
-#: src/components/ConsoleGate.tsx
+#: src/console/ConsoleGate.tsx
 msgid "Данные входа устарели."
 msgstr "Přihlašovací údaje vypršely."
 
@@ -238,12 +238,12 @@ msgstr "Tahle kontrola se otevírá tlačítkem v žádosti o vstup do chatu."
 msgid "Оставь заявку — ответят сами"
 msgstr "Zadej poptávku — ozvou se sami"
 
-#: src/pages/console/Summary.tsx
+#: src/console/pages/Summary.tsx
 msgid "{activePlacements, plural, one {# карточка} few {# карточки} many {# карточек} other {# карточки}} · показы и клики"
 msgstr "{activePlacements, plural, one {# karta} few {# karty} many {# karty} other {# karet}} · zobrazení a kliknutí"
 
 #. placeholder {0}: search.times
-#: src/pages/console/Catalog.tsx
+#: src/console/pages/Catalog.tsx
 msgid "{0, plural, one {# раз} few {# раза} many {# раз} other {# раза}}"
 msgstr "{0, plural, one {#×} few {#×} many {#×} other {#×}}"
 
@@ -279,7 +279,7 @@ msgstr "Dva týdny"
 msgid "Не поняли запрос"
 msgstr "Nerozuměli jsme"
 
-#: src/components/ConsoleGate.tsx
+#: src/console/ConsoleGate.tsx
 msgid "Аккаунта нет среди главных администраторов бота."
 msgstr "Tento účet není mezi hlavními administrátory bota."
 
@@ -291,7 +291,7 @@ msgstr "Jazyk"
 msgid "Месяц"
 msgstr "Měsíc"
 
-#: src/components/ConsoleGate.tsx
+#: src/console/ConsoleGate.tsx
 msgid "Вход не сохранился"
 msgstr "Přihlášení se neuložilo"
 
@@ -339,7 +339,7 @@ msgstr "Příspěvek vyjde a vy dostanete odkazy na něj."
 msgid "Вуз или факультет — ČVUT, VŠE, FEL"
 msgstr "Škola nebo fakulta — ČVUT, VŠE, FEL"
 
-#: src/pages/console/Summary.tsx
+#: src/console/pages/Summary.tsx
 msgid "сессии, настройки"
 msgstr "relace, nastavení"
 
@@ -359,12 +359,12 @@ msgstr "napiš to vlastními slovy, anketu sestavíme sami"
 msgid "Заявку уже закрыли"
 msgstr "Poptávka už je uzavřená"
 
+#: src/console/pages/Partners.tsx
 #: src/pages/AdsApp.tsx
-#: src/pages/console/Partners.tsx
 msgid "«Не про учёбу»"
 msgstr "«Ne o studiu»"
 
-#: src/pages/console/Summary.tsx
+#: src/console/pages/Summary.tsx
 msgid "Сейчас ничего не ждёт."
 msgstr "Teď nic nečeká."
 
@@ -411,7 +411,7 @@ msgstr "v sekci «Ne o studiu»"
 msgid "сдали"
 msgstr "uspěli"
 
-#: src/pages/console/Summary.tsx
+#: src/console/pages/Summary.tsx
 msgid "анкеты, заявки, поиски без ответа"
 msgstr "profily, žádosti, hledání bez výsledku"
 
@@ -454,7 +454,7 @@ msgstr "Neuložilo se — zkus to znovu."
 msgid "Цена"
 msgstr "Cena"
 
-#: src/components/ConsoleGate.tsx
+#: src/console/ConsoleGate.tsx
 msgid "Здесь ведут чаты и смотрят за каталогом."
 msgstr "Tady se spravují chaty a hlídá katalog."
 
@@ -477,12 +477,12 @@ msgstr "Poptávku vidí všichni, kdo nabízejí pomoc. Odpovědi chodí sem."
 msgid "{0, plural, one {Участники посчитаны по {1} из # чата: Telegram отдаёт данные не по всем, настоящая цифра выше.} other {Участники посчитаны по {2} из # чатов: Telegram отдаёт данные не по всем, настоящая цифра выше.}}"
 msgstr "{0, plural, one {Členové spočítáni v {1} z # chatu: Telegram neuvádí údaje u všech, skutečné číslo je vyšší.} few {Členové spočítáni v {2} z # chatů: Telegram neuvádí údaje u všech, skutečné číslo je vyšší.} many {Členové spočítáni v {2} z # chatu: Telegram neuvádí údaje u všech, skutečné číslo je vyšší.} other {Členové spočítáni v {2} z # chatů: Telegram neuvádí údaje u všech, skutečné číslo je vyšší.}}"
 
-#: src/pages/console/Catalog.tsx
+#: src/console/pages/Catalog.tsx
 msgid "Всё, что искали, нашлось."
 msgstr "Všechno, co se hledalo, se našlo."
 
 #: src/components/TabBar.tsx
-#: src/pages/console/Summary.tsx
+#: src/console/pages/Summary.tsx
 msgid "Чаты"
 msgstr "Chaty"
 
@@ -526,11 +526,11 @@ msgstr "Odmítnout"
 msgid "Пока без откликов"
 msgstr "Zatím bez odpovědí"
 
-#: src/pages/console/Summary.tsx
+#: src/console/pages/Summary.tsx
 msgid "Система"
 msgstr "Systém"
 
-#: src/pages/console/Partners.tsx
+#: src/console/pages/Partners.tsx
 msgid "после заявки"
 msgstr "po žádosti"
 
@@ -573,11 +573,11 @@ msgstr "Napíšete, co chcete zveřejnit."
 msgid "Не отправилось — попробуй ещё раз"
 msgstr "Neodeslalo se — zkus to znovu"
 
-#: src/pages/console/Partners.tsx
+#: src/console/pages/Partners.tsx
 msgid "когда поиск пуст"
 msgstr "když hledání nic nenajde"
 
-#: src/pages/console/Summary.tsx
+#: src/console/pages/Summary.tsx
 msgid "иерархия, защита, модерация"
 msgstr "hierarchie, ochrana, moderace"
 
@@ -599,7 +599,7 @@ msgstr "Obojí"
 msgid "за час"
 msgstr "za hodinu"
 
-#: src/pages/console/Partners.tsx
+#: src/console/pages/Partners.tsx
 msgid "рядом с языками"
 msgstr "u jazyků"
 
@@ -616,7 +616,7 @@ msgstr "Nabízet služby"
 msgid "Заявки"
 msgstr "Poptávky"
 
-#: src/pages/console/Catalog.tsx
+#: src/console/pages/Catalog.tsx
 msgid "На все открытые заявки кто-то откликнулся."
 msgstr "Na všechny otevřené žádosti někdo odpověděl."
 
@@ -632,11 +632,11 @@ msgstr "Vybrat"
 msgid "Опиши, что нужно, и получай отклики — вместо того чтобы искать самому."
 msgstr "Popiš, co potřebuješ, a dostávej odpovědi — místo toho, abys hledal sám."
 
-#: src/pages/console/Catalog.tsx
+#: src/console/pages/Catalog.tsx
 msgid "сегодня"
 msgstr "dnes"
 
-#: src/components/ConsoleGate.tsx
+#: src/console/ConsoleGate.tsx
 msgid "Откройте приложение заново"
 msgstr "Otevřete aplikaci znovu"
 
@@ -662,12 +662,12 @@ msgstr "za kus"
 msgid "В каталоге"
 msgstr "V katalogu"
 
-#: src/pages/console/Partners.tsx
+#: src/console/pages/Partners.tsx
 msgid "Активные"
 msgstr "Aktivní"
 
 #. placeholder {0}: chats.data.length
-#: src/pages/console/Summary.tsx
+#: src/console/pages/Summary.tsx
 msgid "{0, plural, one {# чат} few {# чата} many {# чатов} other {# чата}} · одобрено {approved}"
 msgstr "{0, plural, one {# chat} few {# chaty} many {# chatu} other {# chatů}} · schváleno {approved}"
 
@@ -702,7 +702,7 @@ msgstr "Kolik jsi ochoten platit"
 msgid "договорная"
 msgstr "dohodou"
 
-#: src/pages/console/Summary.tsx
+#: src/console/pages/Summary.tsx
 msgid "Разделы"
 msgstr "Sekce"
 
@@ -712,7 +712,7 @@ msgstr "Sekce"
 msgid "за семестр"
 msgstr "za semestr"
 
-#: src/pages/console/Partners.tsx
+#: src/console/pages/Partners.tsx
 msgid "Выключенные"
 msgstr "Vypnuté"
 
@@ -745,7 +745,7 @@ msgstr "Moje služby"
 msgid "опиши задачу — придут отклики"
 msgstr "popiš zadání — přijdou nabídky"
 
-#: src/pages/console/Partners.tsx
+#: src/console/pages/Partners.tsx
 msgid "в профиле"
 msgstr "v profilu"
 
@@ -753,7 +753,7 @@ msgstr "v profilu"
 #~ msgid "Заявку видят те, кто ведёт этот предмет. Обычно отвечают в течение дня."
 #~ msgstr "Poptávku vidí ti, kdo tenhle předmět učí. Obvykle odpovídají do dne."
 
-#: src/pages/console/Partners.tsx
+#: src/console/pages/Partners.tsx
 msgid "Показы и клики за 30 дней."
 msgstr "Zobrazení a kliknutí za 30 dní."
 
@@ -773,7 +773,7 @@ msgstr "Učí ten předmět, ale na tuhle školu není vázaný"
 msgid "Такого чата нет"
 msgstr "Takový chat tu není"
 
-#: src/components/ConsoleGate.tsx
+#: src/console/ConsoleGate.tsx
 msgid "Откройте консоль в приложении Telegram на телефоне или компьютере."
 msgstr "Otevřete konzoli v aplikaci Telegram v telefonu nebo počítači."
 
@@ -802,7 +802,7 @@ msgstr "Žádná registrace — přihlásíš se svým účtem na Telegramu. Pom
 msgid "Профиль"
 msgstr "Profil"
 
-#: src/pages/console/Summary.tsx
+#: src/console/pages/Summary.tsx
 msgid "Реклама за сутки"
 msgstr "Reklama za den"
 
@@ -871,7 +871,7 @@ msgstr "Uvidí ji všichni, kdo nabízejí pomoc. Datum si přečteme z textu."
 msgid "Никто пока не предлагает то, что ты ищешь."
 msgstr "Zatím to, co hledáš, nikdo nenabízí."
 
-#: src/components/ConsoleGate.tsx
+#: src/console/ConsoleGate.tsx
 msgid "Вход в консоль действует час после открытия приложения."
 msgstr "Přihlášení do konzole platí hodinu po otevření aplikace."
 
@@ -960,7 +960,7 @@ msgstr "Zobrazení lze omezit na určité měsíce a jazyk rozhraní."
 msgid "Что нужно"
 msgstr "Co potřebuješ"
 
-#: src/pages/console/Summary.tsx
+#: src/console/pages/Summary.tsx
 msgid "Чаты на проверке"
 msgstr "Chaty ke schválení"
 
@@ -980,7 +980,7 @@ msgstr "tichý"
 msgid "Дешевле"
 msgstr "Levnější"
 
-#: src/pages/console/Catalog.tsx
+#: src/console/pages/Catalog.tsx
 msgid "30 дней"
 msgstr "30 dní"
 
@@ -1083,7 +1083,7 @@ msgstr "do {0}"
 msgid "{days} дн."
 msgstr "{days} dní"
 
-#: src/pages/console/Partners.tsx
+#: src/console/pages/Partners.tsx
 msgid "рядом с нострификацией"
 msgstr "u nostrifikace"
 
@@ -1127,7 +1127,7 @@ msgstr "Přidat"
 msgid "Договоримся"
 msgstr "Domluvíme se"
 
-#: src/components/ConsoleGate.tsx
+#: src/console/ConsoleGate.tsx
 msgid "Нет доступа к чатам"
 msgstr "Bez přístupu k chatům"
 
@@ -1151,11 +1151,11 @@ msgstr "Nepodařilo se spojit. Zkus to znovu."
 msgid "Так она выглядит"
 msgstr "Takhle vypadá"
 
-#: src/pages/console/Catalog.tsx
+#: src/console/pages/Catalog.tsx
 msgid "Заявки без откликов"
 msgstr "Žádosti bez odpovědi"
 
-#: src/pages/console/Catalog.tsx
+#: src/console/pages/Catalog.tsx
 msgid "без откликов"
 msgstr "bez odpovědi"
 
@@ -1181,7 +1181,7 @@ msgstr "Například"
 msgid "за занятие"
 msgstr "za lekci"
 
-#: src/pages/console/Summary.tsx
+#: src/console/pages/Summary.tsx
 msgid "Новые анкеты за неделю"
 msgstr "Nové profily za týden"
 
@@ -1189,8 +1189,8 @@ msgstr "Nové profily za týden"
 msgid "страховка, виза, банк, переводы"
 msgstr "pojištění, vízum, banka, převody"
 
-#: src/pages/console/Partners.tsx
-#: src/pages/console/Summary.tsx
+#: src/console/pages/Partners.tsx
+#: src/console/pages/Summary.tsx
 msgid "Партнёры"
 msgstr "Partneři"
 
@@ -1253,7 +1253,7 @@ msgid "страховка, визы, банк, переводы"
 msgstr "pojištění, víza, banka, překlady"
 
 #. placeholder {0}: stats.data?.spam_pings.count_7d ?? 0
-#: src/pages/console/Summary.tsx
+#: src/console/pages/Summary.tsx
 msgid "детектор, все чаты · {0} за неделю"
 msgstr "detektor, všechny chaty · {0} za týden"
 
@@ -1265,7 +1265,7 @@ msgstr "Tenhle člověk nemá veřejný username v Telegramu, napsat mu nepůjde
 msgid "для компаний: посты в чатах и карточки"
 msgstr "pro firmy: příspěvky v chatech a karty"
 
-#: src/pages/console/Summary.tsx
+#: src/console/pages/Summary.tsx
 msgid "бот в них есть, но они не одобрены"
 msgstr "bot v nich je, ale nejsou schválené"
 
@@ -1273,7 +1273,7 @@ msgstr "bot v nich je, ale nejsou schválené"
 msgid "Поиск чата"
 msgstr "Hledat chat"
 
-#: src/pages/console/Catalog.tsx
+#: src/console/pages/Catalog.tsx
 msgid "Новые анкеты"
 msgstr "Nové profily"
 
@@ -1315,7 +1315,7 @@ msgstr "Otevřít v Telegramu"
 msgid "Проверь соединение и попробуй ещё раз."
 msgstr "Zkontroluj připojení a zkus to znovu."
 
-#: src/components/ConsoleGate.tsx
+#: src/console/ConsoleGate.tsx
 msgid "Консоль только для администраторов"
 msgstr "Konzole je jen pro administrátory"
 
@@ -1358,7 +1358,7 @@ msgid "Сверху — кто ведёт «{0}»"
 msgstr "Nahoře — kdo učí „{0}“"
 
 #: src/components/AppHeader.tsx
-#: src/pages/console/Summary.tsx
+#: src/console/pages/Summary.tsx
 msgid "Консоль"
 msgstr "Konzole"
 
@@ -1394,8 +1394,8 @@ msgstr "Levnější než ostatní, ale tuhle zkoušku nevedl"
 msgid "Язык приложения"
 msgstr "Jazyk aplikace"
 
-#: src/pages/console/Catalog.tsx
-#: src/pages/console/Summary.tsx
+#: src/console/pages/Catalog.tsx
+#: src/console/pages/Summary.tsx
 msgid "Каталог"
 msgstr "Katalog"
 
@@ -1450,7 +1450,7 @@ msgstr "Napsat"
 #~ msgid "Расскажи своими словами"
 #~ msgstr "Napiš vlastními slovy"
 
-#: src/pages/console/Catalog.tsx
+#: src/console/pages/Catalog.tsx
 msgid "анкет за 7 дней"
 msgstr "profilů za 7 dní"
 
@@ -1463,7 +1463,7 @@ msgstr "profilů za 7 dní"
 msgid "Моя анкета"
 msgstr "Moje anketa"
 
-#: src/pages/console/Catalog.tsx
+#: src/console/pages/Catalog.tsx
 msgid "За неделю новых анкет не было."
 msgstr "Za týden žádné nové profily."
 
@@ -1491,7 +1491,7 @@ msgstr "Najdi svůj chat"
 msgid "Написать в Telegram"
 msgstr "Napsat na Telegram"
 
-#: src/pages/console/Summary.tsx
+#: src/console/pages/Summary.tsx
 msgid "Требует внимания"
 msgstr "Vyžaduje pozornost"
 
@@ -1537,7 +1537,7 @@ msgstr "Ať najdou oni tebe"
 msgid "Но без этого не доучишься. Сроки и требования — наши, предложения — партнёрские."
 msgstr "Ale bez tohohle to nedoděláš. Termíny a požadavky jsou naše, nabídky partnerské."
 
-#: src/pages/console/Catalog.tsx
+#: src/console/pages/Catalog.tsx
 msgid "заявок за 7 дней"
 msgstr "žádostí za 7 dní"
 
@@ -1569,7 +1569,7 @@ msgstr "Chaty se nepodařilo načíst"
 msgid "Репетиторы"
 msgstr "Doučování"
 
-#: src/components/ConsoleGate.tsx
+#: src/console/ConsoleGate.tsx
 msgid "Не удалось загрузить"
 msgstr "Nepodařilo se načíst"
 
@@ -1624,7 +1624,7 @@ msgstr "Zkus název školy nebo fakulty latinkou."
 msgid "Заявка устарела или открыта не тем аккаунтом. Подай её заново."
 msgstr "Žádost vypršela nebo byla otevřena z jiného účtu. Pošli ji znovu."
 
-#: src/components/ConsoleGate.tsx
+#: src/console/ConsoleGate.tsx
 #: src/pages/Ads.tsx
 #: src/pages/AdsChats.tsx
 msgid "Нажмите, чтобы попробовать ещё раз"

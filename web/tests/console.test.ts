@@ -8,7 +8,7 @@ import {
   consoleRequester,
   daysSince,
   isFinal,
-} from '../src/lib/console.ts';
+} from '../src/console/session.ts';
 
 type Call = { url: string; method: string; body?: string };
 

@@ -1,8 +1,6 @@
 import { Plural, Trans } from '@lingui/react/macro';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
-
-import { ConsoleFailure, ConsoleGate } from '@/components/ConsoleGate';
 import { SearchIcon, TargetIcon } from '@/components/icons';
 import {
   Chevron,
@@ -17,9 +15,10 @@ import {
   Title,
   ui,
 } from '@/components/Ui';
+import { ConsoleFailure, ConsoleGate } from '@/console/ConsoleGate';
+import { adminCatalogQuery } from '@/console/queries';
+import { daysSince } from '@/console/session';
 import { hapticSelection } from '@/hooks/useTelegram';
-import { adminCatalogQuery } from '@/lib/api';
-import { daysSince } from '@/lib/console';
 
 /**
  * The catalog as the operator reads it: new profiles, requests nobody

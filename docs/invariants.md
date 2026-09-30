@@ -93,11 +93,14 @@ an operator needs in order to decide on approval.
 
 ## The two halves of the web
 
-The public half is the Mini App in `web/`; the console is the Svelte app in
-`webui/`, and only the console. `docker/Caddyfile` decides which build answers
-which path.
+The public half is the Mini App in `web/`, less `web/src/console/`; the
+console is that directory, and the Svelte app in `webui/` for the screens not
+moved yet. `docker/Caddyfile` decides which build answers which path.
 
-**The public half calls nothing of ours but `/api/public/*`.** Those endpoints
+**The public half calls nothing of ours but `/api/public/*`, and does not
+import the console.** Only `web/src/console/` may use webapi's session, so a
+public screen cannot make a console request by accident; the shell mounts
+the console's routes and nothing more. Those endpoints
 return explicit safe projections, so what a stranger may see is decided once,
 at the boundary, rather than by a conditional on a page that somebody can
 delete. A public screen reaching a protected endpoint is the bug; the 401 it
@@ -106,7 +109,8 @@ different backend that never sees this one's session.
 
 **Authorisation is a layout, not a per-page check.** Everything under
 `(admin)/` is guarded by where it sits, so a new screen cannot forget to ask.
-No console page lives outside it.
+In the Mini App the same job is `ConsoleGate`, which every screen under
+`web/src/console/pages/` renders around itself.
 
 **The browser's guard is the second lock, never the only one.** The API refuses
 without a valid super-admin cookie whatever the client believes. What the

@@ -4,8 +4,8 @@ import type { ReactNode } from 'react';
 
 import { AppHeader } from '@/components/AppHeader';
 import { Empty, Row, Rows, Screen, SkeletonRows } from '@/components/Ui';
+import { ConsoleError } from '@/console/session';
 import { meQuery, UnauthorizedError } from '@/lib/api';
-import { ConsoleError } from '@/lib/console';
 
 /**
  * The console's screens, for its operators only.

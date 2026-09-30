@@ -1,13 +1,13 @@
 import { createBrowserRouter } from 'react-router';
+import ConsoleCatalogPage from '@/console/pages/Catalog';
+import ConsolePartnersPage from '@/console/pages/Partners';
+import ConsoleSummaryPage from '@/console/pages/Summary';
 import AdsPage from '@/pages/Ads';
 import AdsAppPage from '@/pages/AdsApp';
 import AdsChatsPage from '@/pages/AdsChats';
 import AskPage from '@/pages/Ask';
 import ChatSectionPage from '@/pages/ChatSection';
 import ChatsPage from '@/pages/Chats';
-import ConsoleCatalogPage from '@/pages/console/Catalog';
-import ConsolePartnersPage from '@/pages/console/Partners';
-import ConsoleSummaryPage from '@/pages/console/Summary';
 import HelperPage from '@/pages/Helper';
 import HomePage from '@/pages/Home';
 import JoinPage from '@/pages/Join';
