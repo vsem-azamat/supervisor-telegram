@@ -215,3 +215,27 @@ def test_the_image_build_gets_every_pnpm_config_the_lockfile_was_written_with() 
 
     if (ROOT / "web" / "pnpm-workspace.yaml").exists():
         assert "web/pnpm-workspace.yaml" in copied.group(1)
+
+
+def test_the_bots_database_is_dumped_daily_off_its_server() -> None:
+    """moderator_prod lives on the shared database server, whose own backup
+    jobs do not cover it. A dump a day lands beside this stack instead, on
+    another machine, with the credentials the bot already runs with."""
+    compose = yaml.safe_load(COMPOSE.read_text())
+    backup = compose["services"]["db-backup"]
+
+    assert backup["volumes"] == ["./db-backups:/backups"]
+    env = backup["environment"]
+    assert (env["PGHOST"], env["PGUSER"], env["PGDATABASE"], env["PGPASSWORD"]) == (
+        "${DB_HOST}",
+        "${DB_USER}",
+        "${DB_NAME}",
+        "${DB_PASSWORD}",
+    )
+    # The file names say whose dump it is; the catalog's predate this service.
+    assert env["BACKUP_PREFIX"] == "moderator"
+    assert compose["services"]["catalog-backup"]["environment"]["BACKUP_PREFIX"] == "catalog"
+    assert backup["command"] == compose["services"]["catalog-backup"]["command"]
+    backups_dirs = re.search(r"install -d -m 700 ([^\n]+)", _deploy_step()["with"]["script"])
+    assert backups_dirs
+    assert "db-backups" in backups_dirs.group(1).split()
