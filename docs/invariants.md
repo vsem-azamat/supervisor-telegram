@@ -58,7 +58,10 @@ moderates real chats. No test can catch this.
 derivation anyone reaches for, `sha256(bot_token)`, belonged to the Login
 Widget and fails every signature here. "Fixing" that by relaxing the check is
 how a Mini App ends up trusting whatever the caller claims. An empty bot token
-must refuse rather than derive a secret from nothing.
+must refuse rather than derive a secret from nothing. The check string is every
+received field except `hash`, `signature` included: only Telegram's third-party
+Ed25519 check leaves `signature` out, and leaving it out here refused every
+real launch.
 
 **The console has one door, and it opens from inside Telegram.** A session is
 issued for a verified `initData` payload and nothing else. What was removed
