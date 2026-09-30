@@ -14,6 +14,7 @@
 	// thing an unauthenticated console does is offer that signature. Outside
 	// Telegram there is nothing to offer, and the panel below explains that case
 	// rather than retrying it.
+	import { afterNavigate } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import Header from '$lib/components/app-shell/Header.svelte';
 	import Sidebar from '$lib/components/app-shell/Sidebar.svelte';
@@ -30,16 +31,27 @@
 	// panel cannot flash in the moment between the two.
 	let settled = $state(false);
 
+	// How many of this console's own pages are behind the current one.
+	let depth = 0;
+	afterNavigate((navigation) => {
+		if (navigation.type === 'enter') return;
+		depth = navigation.type === 'popstate' ? Math.max(0, depth - 1) : depth + 1;
+	});
+
 	onMount(async () => {
 		// This console is entered from the Mini App's /console, a different
-		// build: Telegram's back button would otherwise be gone, and Android's
-		// would close the app. It goes back there, a full load.
+		// build: without this Telegram's back button would be gone, and
+		// Android's would close the app. Back walks this console's own pages
+		// first, then leaves for /console with a full load.
 		const back = (
 			window as unknown as {
 				Telegram?: { WebApp?: { BackButton?: { show(): void; onClick(cb: () => void): void } } };
 			}
 		).Telegram?.WebApp?.BackButton;
-		back?.onClick(() => window.location.assign('/console'));
+		back?.onClick(() => {
+			if (depth > 0) history.back();
+			else window.location.assign('/console');
+		});
 		back?.show();
 
 		await auth.refresh();

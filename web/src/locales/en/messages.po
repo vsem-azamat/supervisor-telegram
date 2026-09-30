@@ -218,6 +218,10 @@ msgstr "Which languages you're comfortable with"
 msgid "Искали и не нашли"
 msgstr "Searched and not found"
 
+#: src/components/ConsoleGate.tsx
+msgid "Данные входа устарели."
+msgstr "The sign-in data has expired."
+
 #: src/components/Phrase.tsx
 msgid "первый год"
 msgstr "first year"

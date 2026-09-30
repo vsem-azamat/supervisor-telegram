@@ -72,11 +72,20 @@ test('a session that is not kept is its own outcome, and signs in once', async (
   // Signed in, and the cookie did not stick: the retry meets the same 401.
   const { calls, fetcher } = scripted({
     '/api/stats/home': [401, 401],
+    '/api/chats': [401],
     '/api/auth/webapp': [200],
   });
   const get = consoleRequester(fetcher, () => 'user=1&hash=x');
 
   await assert.rejects(get('/api/stats/home'), (error: unknown) => {
+    assert.ok(error instanceof ConsoleError);
+    assert.equal(error.reason, 'not-kept');
+    return true;
+  });
+  assert.equal(calls.filter((c) => c.url === '/api/auth/webapp').length, 1);
+
+  // And the next request does not open another session that would not stick.
+  await assert.rejects(get('/api/chats'), (error: unknown) => {
     assert.ok(error instanceof ConsoleError);
     assert.equal(error.reason, 'not-kept');
     return true;

@@ -218,6 +218,10 @@ msgstr "Якими мовами тобі зручно"
 msgid "Искали и не нашли"
 msgstr "Шукали й не знайшли"
 
+#: src/components/ConsoleGate.tsx
+msgid "Данные входа устарели."
+msgstr "Дані входу застаріли."
+
 #: src/components/Phrase.tsx
 msgid "первый год"
 msgstr "перший рік"

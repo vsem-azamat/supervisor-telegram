@@ -218,6 +218,10 @@ msgstr "Ve kterých jazycích se ti mluví dobře"
 msgid "Искали и не нашли"
 msgstr "Hledali a nenašli"
 
+#: src/components/ConsoleGate.tsx
+msgid "Данные входа устарели."
+msgstr "Přihlašovací údaje vypršely."
+
 #: src/components/Phrase.tsx
 msgid "первый год"
 msgstr "první rok"

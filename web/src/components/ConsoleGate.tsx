@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 
 import { AppHeader } from '@/components/AppHeader';
 import { Empty, Row, Rows, Screen, SkeletonRows } from '@/components/Ui';
-import { meQuery } from '@/lib/api';
+import { meQuery, UnauthorizedError } from '@/lib/api';
 import { ConsoleError } from '@/lib/console';
 
 /**
@@ -19,11 +19,30 @@ export function ConsoleGate({ children }: { children: ReactNode }) {
   return (
     <Screen>
       <AppHeader />
-      {me.isPending ? (
+      {/* The account first: a failed background refresh keeps what was
+          known, and must not hide a console already shown. */}
+      {me.data ? (
+        me.data.is_admin ? (
+          children
+        ) : (
+          <Empty
+            title={<Trans>Консоль только для администраторов</Trans>}
+            body={<Trans>Здесь ведут чаты и смотрят за каталогом.</Trans>}
+          />
+        )
+      ) : me.isPending ? (
         <div style={{ marginTop: 16 }}>
           <SkeletonRows count={3} />
         </div>
-      ) : me.isError ? (
+      ) : me.error instanceof UnauthorizedError ? (
+        // The catalog no longer accepts this initData; only a fresh one helps.
+        <Rows>
+          <Row
+            title={<Trans>Откройте приложение заново</Trans>}
+            hint={<Trans>Данные входа устарели.</Trans>}
+          />
+        </Rows>
+      ) : (
         <Rows>
           <Row
             title={<Trans>Не удалось загрузить</Trans>}
@@ -31,13 +50,6 @@ export function ConsoleGate({ children }: { children: ReactNode }) {
             onClick={() => void me.refetch()}
           />
         </Rows>
-      ) : me.data?.is_admin ? (
-        children
-      ) : (
-        <Empty
-          title={<Trans>Консоль только для администраторов</Trans>}
-          body={<Trans>Здесь ведут чаты и смотрят за каталогом.</Trans>}
-        />
       )}
     </Screen>
   );

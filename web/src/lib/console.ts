@@ -74,7 +74,6 @@ export function consoleRequester(
       headers: {
         Accept: 'application/json',
         ...(init.body ? { 'Content-Type': 'application/json' } : {}),
-        ...(init.headers as Record<string, string> | undefined),
       },
     });
 

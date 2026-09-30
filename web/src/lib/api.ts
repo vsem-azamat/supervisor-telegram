@@ -381,6 +381,9 @@ export const consoleStatsQuery = {
   queryFn: ({ signal }: { signal: AbortSignal }) =>
     consoleGet<HomeStats>('/api/stats/home', { signal }),
   staleTime: CONSOLE_STALE,
+  // A refusal or a stale sign-in stays so for this launch; coming back to the
+  // summary must not send the sign-in again.
+  retryOnMount: false,
 };
 
 export const consoleChatsQuery = {
@@ -388,6 +391,7 @@ export const consoleChatsQuery = {
   queryFn: ({ signal }: { signal: AbortSignal }) =>
     consoleGet<ConsoleChat[]>('/api/chats', { signal }),
   staleTime: CONSOLE_STALE,
+  retryOnMount: false,
 };
 
 /**
