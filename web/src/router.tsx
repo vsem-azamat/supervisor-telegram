@@ -1,9 +1,11 @@
 import { createBrowserRouter } from 'react-router';
+import ConsoleBlacklistPage from '@/console/pages/Blacklist';
 import ConsoleCatalogPage from '@/console/pages/Catalog';
 import ConsoleChatPage from '@/console/pages/Chat';
 import ConsoleChatsPage from '@/console/pages/Chats';
 import ConsolePartnersPage from '@/console/pages/Partners';
 import ConsoleSummaryPage from '@/console/pages/Summary';
+import ConsoleSystemPage from '@/console/pages/System';
 import AdsPage from '@/pages/Ads';
 import AdsAppPage from '@/pages/AdsApp';
 import AdsChatsPage from '@/pages/AdsChats';
@@ -58,6 +60,8 @@ export const router = createBrowserRouter([
       { path: 'console/partners', element: <ConsolePartnersPage /> },
       { path: 'console/chats', element: <ConsoleChatsPage /> },
       { path: 'console/chats/:id', element: <ConsoleChatPage /> },
+      { path: 'console/blacklist', element: <ConsoleBlacklistPage /> },
+      { path: 'console/system', element: <ConsoleSystemPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },

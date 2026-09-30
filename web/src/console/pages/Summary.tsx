@@ -26,6 +26,7 @@ import { ConsoleFailure, ConsoleGate } from '@/console/ConsoleGate';
 import {
   adminCatalogQuery,
   adminPartnersQuery,
+  blockedQuery,
   consoleChatsQuery,
   consoleStatsQuery,
 } from '@/console/queries';
@@ -34,9 +35,6 @@ import { hapticSelection } from '@/hooks/useTelegram';
 
 /**
  * The console's first screen: what needs a look, then its sections.
- *
- * The system still opens the old console under /admin, a separate
- * build, until its screen moves here.
  */
 export default function ConsoleSummaryPage() {
   return (
@@ -55,15 +53,11 @@ function Summary() {
   const chats = useQuery(consoleChatsQuery);
   const catalog = useQuery(adminCatalogQuery);
   const partners = useQuery(adminPartnersQuery);
+  const blocked = useQuery(blockedQuery);
 
   const open = (path: string) => {
     hapticSelection();
     navigate(path);
-  };
-  // Another build: a full load, not a route of this router.
-  const leave = (path: string) => {
-    hapticSelection();
-    window.location.assign(path);
   };
 
   // Each backend answers for itself: webapi refusing must not hide what the
@@ -234,14 +228,37 @@ function Summary() {
         />
         <Row
           leading={
+            <Tile tone={4}>
+              <ShieldIcon size={19} />
+            </Tile>
+          }
+          title={<Trans>Чёрный список</Trans>}
+          hint={
+            blocked.data ? (
+              <Plural
+                value={blocked.data.length}
+                one="# человек"
+                few="# человека"
+                many="# человек"
+                other="# человека"
+              />
+            ) : (
+              <Trans>забанены во всех чатах</Trans>
+            )
+          }
+          trailing={<Chevron />}
+          onClick={() => open('/console/blacklist')}
+        />
+        <Row
+          leading={
             <Tile tone={5}>
               <ShieldIcon size={19} />
             </Tile>
           }
           title={<Trans>Система</Trans>}
-          hint={<Trans>сессии, настройки</Trans>}
+          hint={<Trans>где выполнен вход, настройки</Trans>}
           trailing={<Chevron />}
-          onClick={() => leave('/admin/settings')}
+          onClick={() => open('/console/system')}
         />
       </Rows>
     </>

@@ -6,11 +6,14 @@
 import { api, rawInitData } from '@/lib/api';
 
 import {
+  type AdminSession,
+  type BlockedUser,
   type ChatUpdate,
   type ConsoleChat,
   type ConsoleChatDetail,
   consoleRequester,
   type HomeStats,
+  type SystemStatus,
 } from './session';
 
 /** The console's requester for webapi's session endpoints. See session.ts. */
@@ -79,6 +82,12 @@ export const consoleChanges = {
       body: JSON.stringify({ revoke_messages: revokeMessages }),
     }),
 
+  /** Signs that session out; webapi refuses the one making the request. */
+  closeSession: (sessionId: string) =>
+    consoleGet<void>(`/api/admin/sessions/${encodeURIComponent(sessionId)}`, {
+      method: 'DELETE',
+    }),
+
   unblock: (userId: number) =>
     consoleGet<{ blocked: boolean }>(`/api/users/${userId}/block`, { method: 'DELETE' }),
 };
@@ -87,7 +96,25 @@ export const consoleChanges = {
 export const consoleSystemQuery = {
   queryKey: ['console', 'system'] as const,
   queryFn: ({ signal }: { signal: AbortSignal }) =>
-    consoleGet<{ super_admin_ids: number[] }>('/api/admin/system', { signal }),
+    consoleGet<SystemStatus>('/api/admin/system', { signal }),
   staleTime: 10 * CONSOLE_STALE,
+  retryOnMount: false,
+};
+
+/** The global blacklist, latest first. */
+export const blockedQuery = {
+  queryKey: ['console', 'blocked'] as const,
+  queryFn: ({ signal }: { signal: AbortSignal }) =>
+    consoleGet<BlockedUser[]>('/api/users/blocked', { signal }),
+  staleTime: CONSOLE_STALE,
+  retryOnMount: false,
+};
+
+/** The console's open sessions. */
+export const sessionsQuery = {
+  queryKey: ['console', 'sessions'] as const,
+  queryFn: ({ signal }: { signal: AbortSignal }) =>
+    consoleGet<AdminSession[]>('/api/admin/sessions', { signal }),
+  staleTime: CONSOLE_STALE,
   retryOnMount: false,
 };
