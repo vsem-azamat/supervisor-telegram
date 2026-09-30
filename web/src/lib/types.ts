@@ -272,6 +272,8 @@ export interface Me {
   institution: Institution | null;
   is_helper: boolean;
   helper_status: string | null;
+  /** One of the console's operators. */
+  is_admin: boolean;
 }
 
 export interface MeUpdate {

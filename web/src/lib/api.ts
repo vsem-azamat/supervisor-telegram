@@ -1,7 +1,8 @@
 import { retrieveRawInitData } from '@tma.js/sdk-react';
 
 import { type PublicChat, sanitize } from './chats';
-import type { AdsInfo } from './generated/types.gen';
+import { type ConsoleChat, consoleRequester, type HomeStats } from './console';
+import type { AdminCatalog, AdminPlacement, AdsInfo } from './generated/types.gen';
 import { isApproval } from './join';
 import { isReach, type Reach } from './reach';
 import type {
@@ -333,9 +334,51 @@ export const api = {
 
   saveHelper: (payload: HelperUpsert) =>
     request<Me>('/helper', { method: 'PUT', body: payload }),
+
+  // ── the console ───────────────────────────────────────────────────────
+
+  /** New profiles, unanswered requests, empty searches. Operators only. */
+  getAdminCatalog: (signal?: AbortSignal) =>
+    request<AdminCatalog>('/admin/catalog', { signal }),
+
+  /** Placements with the last month's impressions and clicks. Operators only. */
+  getAdminPartners: (signal?: AbortSignal) =>
+    request<AdminPlacement[]>('/admin/partners', { signal }),
 };
 
 export type Api = typeof api;
+
+/** The console's requester for webapi's session endpoints. See lib/console.ts. */
+export const consoleGet = consoleRequester((...args) => fetch(...args), rawInitData);
+
+// The console reads while somebody looks at it; a minute is fresh enough.
+const CONSOLE_STALE = 60_000;
+
+export const adminCatalogQuery = {
+  queryKey: ['console', 'catalog'] as const,
+  queryFn: ({ signal }: { signal: AbortSignal }) => api.getAdminCatalog(signal),
+  staleTime: CONSOLE_STALE,
+};
+
+export const adminPartnersQuery = {
+  queryKey: ['console', 'partners'] as const,
+  queryFn: ({ signal }: { signal: AbortSignal }) => api.getAdminPartners(signal),
+  staleTime: CONSOLE_STALE,
+};
+
+export const consoleStatsQuery = {
+  queryKey: ['console', 'stats'] as const,
+  queryFn: ({ signal }: { signal: AbortSignal }) =>
+    consoleGet<HomeStats>('/api/stats/home', { signal }),
+  staleTime: CONSOLE_STALE,
+};
+
+export const consoleChatsQuery = {
+  queryKey: ['console', 'chats'] as const,
+  queryFn: ({ signal }: { signal: AbortSignal }) =>
+    consoleGet<ConsoleChat[]>('/api/chats', { signal }),
+  staleTime: CONSOLE_STALE,
+};
 
 /**
  * The chat directory's query, shared by the directory and a section's screen

@@ -1,0 +1,126 @@
+/**
+ * The moderator console's plumbing, apart from the screens that draw it.
+ *
+ * The console reads two backends. The catalog's `/api/v1/admin/*` takes the
+ * same initData as every other catalog call. This repository's webapi keeps a
+ * session instead: a cookie opened by `POST /api/auth/webapp` with the signed
+ * initData, for super admins only. `consoleRequester` opens that session when
+ * a request meets its absence, once, and never retries a refusal.
+ */
+
+export class ConsoleError extends Error {
+  readonly status: number;
+
+  constructor(status: number) {
+    super(`console request failed: ${status}`);
+    this.name = 'ConsoleError';
+    this.status = status;
+  }
+}
+
+export type ConsoleGet = <T>(path: string, init?: RequestInit) => Promise<T>;
+
+/**
+ * A requester for webapi's session endpoints. The fetch and the initData are
+ * passed in: `api.ts` builds the real one, the tests a scripted one.
+ */
+export function consoleRequester(
+  fetcher: typeof fetch,
+  initData: () => string | undefined,
+): ConsoleGet {
+  // Shared by whatever requests meet the missing session at the same time:
+  // one sign-in, not one per screen tile.
+  let signingIn: Promise<void> | null = null;
+
+  const signIn = async () => {
+    const raw = initData();
+    if (!raw) throw new ConsoleError(401);
+    const response = await fetcher('/api/auth/webapp', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ init_data: raw }),
+    });
+    if (!response.ok) throw new ConsoleError(response.status);
+  };
+
+  const send = (path: string, init: RequestInit) =>
+    fetcher(path, {
+      ...init,
+      credentials: 'same-origin',
+      headers: {
+        Accept: 'application/json',
+        ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+      },
+    });
+
+  return async <T>(path: string, init: RequestInit = {}): Promise<T> => {
+    let response = await send(path, init);
+    if (response.status === 401) {
+      signingIn ??= signIn().finally(() => {
+        signingIn = null;
+      });
+      await signingIn;
+      response = await send(path, init);
+    }
+    if (!response.ok) throw new ConsoleError(response.status);
+    return (response.status === 204 ? undefined : await response.json()) as T;
+  };
+}
+
+// ── webapi's shapes, as far as the console reads them ─────────────────────
+
+export type ChatStatus = 'discovered' | 'approved' | 'disabled';
+
+export interface ConsoleChat {
+  id: number;
+  title: string | null;
+  resource_status: ChatStatus;
+  member_count: number | null;
+  public_link: string | null;
+}
+
+export interface HomeStats {
+  spam_pings: { count_24h: number; count_7d: number };
+}
+
+// ── what the summary says ─────────────────────────────────────────────────
+
+export type AttentionKey = 'ads' | 'review' | 'profiles';
+
+/** What needs a look, in the order the summary lists it; zero is not news. */
+export function attention(input: {
+  adsToday: number;
+  chats: Pick<ConsoleChat, 'resource_status'>[];
+  profilesWeek: number;
+}): { key: AttentionKey; count: number }[] {
+  const items: { key: AttentionKey; count: number }[] = [
+    { key: 'ads', count: input.adsToday },
+    {
+      key: 'review',
+      count: input.chats.filter((chat) => chat.resource_status === 'discovered').length,
+    },
+    { key: 'profiles', count: input.profilesWeek },
+  ];
+  return items.filter((item) => item.count > 0);
+}
+
+/** Clicks per impression as a percentage, one decimal; nothing without views. */
+export function clickRate(
+  impressions: number,
+  clicks: number,
+  locale = 'ru',
+): string | null {
+  if (impressions <= 0) return null;
+  const rate = (clicks / impressions) * 100;
+  const number = new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(rate);
+  return `${number} %`;
+}
+
+/** Whole days between an ISO time and now; today is zero. */
+export function daysSince(iso: string, now: Date = new Date()): number {
+  return Math.max(0, Math.floor((now.getTime() - new Date(iso).getTime()) / 86_400_000));
+}

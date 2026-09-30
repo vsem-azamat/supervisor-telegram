@@ -79,6 +79,23 @@
   transform: scale(0.94);
 }
 
+/* The console's door, for its operators only: a word, in the ink colour, so
+   it reads as a place to go rather than a setting to change. */
+.consoleBtn {
+  width: auto;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--ink);
+  color: var(--bg);
+}
+
+.consoleBtn:active,
+.consoleBtn[aria-current='page'] {
+  background: var(--ink-soft);
+  color: var(--bg);
+}
+
 /* Wider, because it carries the language code. A globe on its own says
    "language" to a designer and nothing to anyone else; "RU" says which one. */
 .langBtn {

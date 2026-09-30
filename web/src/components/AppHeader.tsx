@@ -13,7 +13,7 @@
  */
 
 import { useLingui } from '@lingui/react/macro';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 
@@ -42,6 +42,9 @@ export function AppHeader() {
   const queryClient = useQueryClient();
   const theme = useAppTheme();
   const user = useTelegramUser();
+  // Root loads it on start; this only reads the cache.
+  const me = useQuery({ queryKey: ['me'], queryFn: ({ signal }) => api.getMe(signal) });
+  const inConsole = pathname.startsWith('/console');
 
   const [languageOpen, setLanguageOpen] = useState(false);
 
@@ -137,6 +140,20 @@ export function AppHeader() {
         >
           {theme.theme === 'dark' ? <MoonIcon size={15} /> : <SunIcon size={15} />}
         </button>
+
+        {me.data?.is_admin ? (
+          <button
+            type="button"
+            className={`${css.iconBtn} ${css.consoleBtn}`}
+            aria-current={inConsole ? 'page' : undefined}
+            onClick={() => {
+              if (!inConsole) hapticSelection();
+              navigate('/console');
+            }}
+          >
+            {t`Консоль`}
+          </button>
+        ) : null}
 
         <button
           type="button"

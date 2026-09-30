@@ -5,6 +5,9 @@ import AdsChatsPage from '@/pages/AdsChats';
 import AskPage from '@/pages/Ask';
 import ChatSectionPage from '@/pages/ChatSection';
 import ChatsPage from '@/pages/Chats';
+import ConsoleCatalogPage from '@/pages/console/Catalog';
+import ConsolePartnersPage from '@/pages/console/Partners';
+import ConsoleSummaryPage from '@/pages/console/Summary';
 import HelperPage from '@/pages/Helper';
 import HomePage from '@/pages/Home';
 import JoinPage from '@/pages/Join';
@@ -48,6 +51,9 @@ export const router = createBrowserRouter([
       { path: 'my-helper', element: <MyHelperPage /> },
       { path: 'life', element: <LifePage /> },
       { path: 'profile', element: <ProfilePage /> },
+      { path: 'console', element: <ConsoleSummaryPage /> },
+      { path: 'console/catalog', element: <ConsoleCatalogPage /> },
+      { path: 'console/partners', element: <ConsolePartnersPage /> },
       { path: '*', element: <NotFoundPage /> },
     ],
   },
