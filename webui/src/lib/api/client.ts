@@ -48,10 +48,8 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<Api
 			// signature again, and explains itself if there is none. Two
 			// families are exempt. `/api/auth` returns 401 as a normal answer
 			// (`/me` on boot says "nobody is signed in"). `/api/public` is read
-			// by people who have no session and are not meant to get one — a
-			// student on the catalog, or an applicant opening the join check
-			// inside Telegram — and bouncing them would answer a question they
-			// did not ask.
+			// by people who have no session and are not meant to get one, and
+			// bouncing them would answer a question they did not ask.
 			const exempt = path.startsWith('/api/auth') || path.startsWith('/api/public');
 			if (res.status === 401 && !exempt) {
 				const { goto } = await import('$app/navigation');

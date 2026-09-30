@@ -26,10 +26,10 @@ ROUTES = ROOT / "webui" / "src" / "routes"
 ADMIN = ROUTES / "(admin)"
 APP = ROOT / "web" / "src"
 
-# `fetch('/api/…')` and friends, template prefixes included. Only literal paths
-# are findable, which is the point: a computed endpoint on a public screen
-# would be unreviewable anyway.
-API_CALL = re.compile(r"""['"`](/api/[^'"`\s$]*)""")
+# `fetch('/api/…')` and friends, also after a template's base: `${BASE}/api/…`.
+# Only literal paths are findable, which is the point: a computed endpoint on a
+# public screen would be unreviewable anyway.
+API_CALL = re.compile(r"""(?:['"`]|\})(/api/[^'"`\s$]*)""")
 
 # What the Mini App may reach under /api: this repository's public endpoints,
 # and the catalog's API, which Caddy sends to another backend altogether.
@@ -68,7 +68,7 @@ class TestThePublicHalfAsksNothingOfAnybody:
     @pytest.mark.parametrize("source", _app_sources(), ids=_rel)
     def test_it_only_calls_public_endpoints(self, source: Path) -> None:
         called = API_CALL.findall(source.read_text(encoding="utf-8"))
-        private = [path for path in called if not path.startswith(ALLOWED)]
+        private = [path for path in called if not any(path == a or path.startswith(f"{a}/") for a in ALLOWED)]
 
         assert not private, f"{_rel(source)} reaches {private}, which needs a session"
 
