@@ -111,6 +111,8 @@ export interface ConsoleChat {
   member_count: number | null;
   public_link: string | null;
   parent_chat_id: number | null;
+  /** The university in the catalog's taxonomy, set on a chat at the top. */
+  institution_code: string | null;
   is_captcha_enabled: boolean;
   is_welcome_enabled: boolean;
   is_service_cleanup_enabled: boolean;
@@ -201,6 +203,7 @@ export type ChatUpdate = Partial<
     | 'is_service_cleanup_enabled'
     | 'welcome_message'
     | 'parent_chat_id'
+    | 'institution_code'
   > & { public_link: string }
 >;
 

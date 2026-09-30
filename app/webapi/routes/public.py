@@ -105,6 +105,8 @@ async def get_public_catalog(
                 Chat.title,
                 Chat.public_link,
                 parent.title.label("group_title"),
+                # The group's university: the parent's, or the chat's own at the top.
+                func.coalesce(parent.institution_code, Chat.institution_code).label("institution"),
                 func.coalesce(recent_messages.c.messages, 0).label("messages"),
             )
             .outerjoin(parent, parent.id == Chat.parent_chat_id)
@@ -119,6 +121,7 @@ async def get_public_catalog(
             title=row.title,
             link=row.public_link,
             group=row.group_title,
+            institution=row.institution,
             activity=_activity(row.messages, grounded=grounded),
         )
         for row in rows

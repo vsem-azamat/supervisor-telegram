@@ -352,6 +352,13 @@ export type Api = typeof api;
  * so that opening a section costs no request. The directory changes when a
  * moderator publishes a chat, not while somebody is looking at it.
  */
+/** Universities with their faculties; they change a few times a year. */
+export const institutionsQuery = {
+  queryKey: ['institutions'] as const,
+  queryFn: ({ signal }: { signal: AbortSignal }) => api.getInstitutions(signal),
+  staleTime: 60 * 60 * 1000,
+};
+
 export const chatsQuery = {
   queryKey: ['chats'] as const,
   queryFn: ({ signal }: { signal: AbortSignal }) => api.getChats(signal),

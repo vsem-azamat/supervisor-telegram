@@ -10,16 +10,21 @@
 /** Supervisor's own words for how much a chat talks. `unknown` is an answer. */
 export type Activity = 'unknown' | 'quiet' | 'active' | 'busy';
 
-/** One chat as supervisor publishes it: four fields, no ids, no counts. */
+/** One chat as supervisor publishes it: five fields, no ids, no counts. */
 export interface PublicChat {
   title: string;
   link: string;
   /** The parent chat's title: supervisor's grouping. No name is written in the app. */
   group: string | null;
+  /** The group's university as the catalog codes it ("cvut"), when set. */
+  institution: string | null;
   activity: Activity;
 }
 
 const ACTIVITIES: readonly Activity[] = ['unknown', 'quiet', 'active', 'busy'];
+
+/** A catalog institution code, the shape supervisor stores. */
+const INSTITUTION_CODE = /^[a-z0-9][a-z0-9_-]{0,31}$/;
 
 /** Where a chat may lead: Telegram's own hosts, which openTelegramLink accepts. */
 const TELEGRAM_LINK = /^https:\/\/(t\.me|telegram\.me|telegram\.dog)\//;
@@ -36,13 +41,17 @@ export function sanitize(payload: unknown[]): PublicChat[] {
   const chats: PublicChat[] = [];
   for (const item of payload) {
     if (!item || typeof item !== 'object') continue;
-    const { title, link, group, activity } = item as Record<string, unknown>;
+    const { title, link, group, institution, activity } = item as Record<string, unknown>;
     if (typeof title !== 'string' || !title.trim()) continue;
     if (typeof link !== 'string' || !TELEGRAM_LINK.test(link)) continue;
     chats.push({
       title,
       link,
       group: typeof group === 'string' && group ? group : null,
+      institution:
+        typeof institution === 'string' && INSTITUTION_CODE.test(institution)
+          ? institution
+          : null,
       activity: ACTIVITIES.includes(activity as Activity)
         ? (activity as Activity)
         : 'unknown',
@@ -63,13 +72,14 @@ export interface Directory {
 }
 
 /**
- * Entries in the order supervisor gave, with one exception each way.
+ * Entries in the order supervisor gave, with three exceptions.
  *
  * A group with a single chat is that chat: a screen with one line behind it
  * is a tap for nothing. A group the server returned in two runs is still one
  * group, since the directory is a list of places, not a transcript of rows.
+ * And the reader's own university comes first; the rest keep their order.
  */
-export function directory(chats: PublicChat[]): Directory {
+export function directory(chats: PublicChat[], mine: string | null = null): Directory {
   const groups = new Map<string, PublicChat[]>();
   const rest: PublicChat[] = [];
   for (const chat of chats) {
@@ -90,6 +100,11 @@ export function directory(chats: PublicChat[]): Directory {
         ? { kind: 'chat', chat: only }
         : { kind: 'section', name, chats: members },
     );
+  }
+  if (mine !== null) {
+    const own = (entry: Entry) =>
+      (entry.kind === 'chat' ? entry.chat : entry.chats[0])?.institution === mine;
+    entries.sort((a, b) => Number(own(b)) - Number(own(a)));
   }
   return { entries, rest };
 }
@@ -167,4 +182,30 @@ export function initials(title: string): string {
   }
   if (second) return (first.charAt(0) + second.charAt(0)).toUpperCase();
   return first.slice(0, 2).toUpperCase();
+}
+
+/** An institution as the catalog's taxonomy lists it, as far as this needs. */
+export interface TaxonomyInstitution {
+  id: number;
+  code: string;
+  parent_id: number | null;
+  faculties: TaxonomyInstitution[];
+}
+
+/**
+ * The university a student chose, by its code: their own when they chose a
+ * university, its parent's when they chose a faculty. Null when there is
+ * nothing to put first.
+ */
+export function ownUniversity(
+  institution: Pick<TaxonomyInstitution, 'id' | 'code' | 'parent_id'> | null | undefined,
+  taxonomy: TaxonomyInstitution[],
+): string | null {
+  if (!institution) return null;
+  if (institution.parent_id === null) return institution.code;
+  return (
+    taxonomy.find((university) =>
+      university.faculties.some((faculty) => faculty.id === institution.id),
+    )?.code ?? null
+  );
 }

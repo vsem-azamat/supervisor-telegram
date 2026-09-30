@@ -43,7 +43,9 @@ import {
   type SpamPing,
 } from '@/console/session';
 import { hapticSelection } from '@/hooks/useTelegram';
+import { institutionsQuery } from '@/lib/api';
 import { initials } from '@/lib/chats';
+import type { Institution } from '@/lib/types';
 
 /**
  * One chat, for the people who run it: whether it is approved and listed, how
@@ -83,6 +85,7 @@ type Sheets =
   | { kind: 'unban'; sender: ChatSender }
   | { kind: 'ping'; ping: SpamPing }
   | { kind: 'parent' }
+  | { kind: 'institution' }
   | null;
 
 function ChatScreen({ chatId }: { chatId: number }) {
@@ -91,6 +94,7 @@ function ChatScreen({ chatId }: { chatId: number }) {
   const navigate = useNavigate();
   const detail = useQuery(chatDetailQuery(chatId));
   const chats = useQuery(consoleChatsQuery);
+  const institutions = useQuery(institutionsQuery);
   const system = useQuery(consoleSystemQuery);
   const [sheet, setSheet] = useState<Sheets>(null);
   const [error, setError] = useState<unknown>(null);
@@ -188,6 +192,10 @@ function ChatScreen({ chatId }: { chatId: number }) {
   const total = chat.recent_senders.reduce((sum, row) => sum + row.message_count, 0);
   const sheetError = sheet && error ? <FailureText error={error} /> : null;
   const parent = chats.data?.find((row) => row.id === chat.parent_chat_id);
+  const universityName = (code: string) => {
+    const university = institutions.data?.find((row) => row.code === code);
+    return university ? (university.short_name ?? university.name) : code;
+  };
   const goTo = (id: number) => {
     hapticSelection();
     navigate(`/console/chats/${id}`);
@@ -376,6 +384,33 @@ function ChatScreen({ chatId }: { chatId: number }) {
             if (!busy) open({ kind: 'parent' });
           }}
         />
+        {chat.parent_chat_id === null ? (
+          <Row
+            title={<Trans>Вуз</Trans>}
+            hint={
+              chat.institution_code ? (
+                universityName(chat.institution_code)
+              ) : (
+                <Trans>не указан: его студентам этот чат не поднимется</Trans>
+              )
+            }
+            trailing={<Chevron />}
+            onClick={() => {
+              if (!busy) open({ kind: 'institution' });
+            }}
+          />
+        ) : (
+          <Row
+            title={<Trans>Вуз</Trans>}
+            hint={
+              parent?.institution_code ? (
+                <Trans>как у родителя: {universityName(parent.institution_code)}</Trans>
+              ) : (
+                <Trans>задаётся у родителя</Trans>
+              )
+            }
+          />
+        )}
         {chat.children.map((child) => (
           <Row
             key={child.id}
@@ -630,6 +665,26 @@ function ChatScreen({ chatId }: { chatId: number }) {
         </Sheet>
       ) : null}
       {sheet?.kind === 'ping' ? <PingSheet ping={sheet.ping} onClose={close} /> : null}
+      {sheet?.kind === 'institution' ? (
+        <InstitutionSheet
+          current={chat.institution_code}
+          institutions={institutions.data}
+          failed={institutions.error}
+          retry={() => void institutions.refetch()}
+          busy={busy}
+          error={sheetError}
+          onPick={(code) =>
+            code === chat.institution_code
+              ? close()
+              : save({ institution_code: code }, () => {
+                  // The public directory orders by it.
+                  void queryClient.invalidateQueries({ queryKey: ['chats'] });
+                  close();
+                })
+          }
+          onClose={close}
+        />
+      ) : null}
       {sheet?.kind === 'parent' ? (
         <ParentSheet
           chat={chat}
@@ -733,6 +788,62 @@ function ParentSheet({
             ))}
           </div>
         </>
+      )}
+    </Sheet>
+  );
+}
+
+/**
+ * Which university a chat at the top belongs to, from the catalog's list, so
+ * the public tab can put a student's own first. Universities only: a
+ * faculty's students are found through their university.
+ */
+function InstitutionSheet({
+  current,
+  institutions,
+  failed,
+  retry,
+  busy,
+  error,
+  onPick,
+  onClose,
+}: {
+  current: string | null;
+  institutions: Institution[] | undefined;
+  failed: unknown;
+  retry: () => void;
+  busy: boolean;
+  error: ReactNode;
+  onPick: (code: string | null) => void;
+  onClose: () => void;
+}) {
+  const { t } = useLingui();
+  return (
+    <Sheet title={t`Вуз`} closeLabel={t`Отмена`} onClose={onClose}>
+      {error ? <Hint>{error}</Hint> : null}
+      {failed ? (
+        <ConsoleFailure error={failed} retry={retry} />
+      ) : !institutions ? (
+        <SkeletonRows count={3} />
+      ) : (
+        <div className={ui.sheetList}>
+          <Pick
+            name={<Trans>Не указан</Trans>}
+            selected={current === null}
+            disabled={busy}
+            onClick={() => onPick(null)}
+          />
+          {institutions.map((university) => (
+            <Pick
+              key={university.code}
+              name={university.short_name ?? university.name}
+              hint={university.short_name ? university.name : undefined}
+              selected={current === university.code}
+              disabled={busy}
+              onClick={() => onPick(university.code)}
+            />
+          ))}
+        </div>
       )}
     </Sheet>
   );

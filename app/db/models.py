@@ -117,6 +117,10 @@ class Chat(Base):
     # to have been on a public page for a month. A chat is in the catalogue when
     # it is approved and this is set; taking it down means clearing it.
     public_link: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    # The university in teachers-catalog's taxonomy, by its code ("cvut"), so
+    # the app can put a student's own university first. Set on the chat at the
+    # top; the chats under it carry it through their parent.
+    institution_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
     photo_file_id: Mapped[str | None] = mapped_column(String, nullable=True)
     last_synced_at: Mapped[datetime.datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utc_now)
@@ -152,6 +156,7 @@ class Chat(Base):
         parent_chat_id: int | None = None,
         relation_notes: str | None = None,
         public_link: str | None = None,
+        institution_code: str | None = None,
     ) -> None:
         self.id = id
         self.title = title
@@ -165,6 +170,7 @@ class Chat(Base):
         self.parent_chat_id = parent_chat_id
         self.relation_notes = relation_notes
         self.public_link = public_link
+        self.institution_code = institution_code
 
     def enable_welcome(self, message: str | None = None) -> None:
         """Enable welcome message for new members"""

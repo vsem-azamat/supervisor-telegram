@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 
 import { SearchIcon } from '@/components/icons';
 import { Hint, Row, Rows, ui } from '@/components/Ui';
-import { api } from '@/lib/api';
+import { institutionsQuery } from '@/lib/api';
 import type { Institution } from '@/lib/types';
 
 /**
@@ -38,11 +38,7 @@ export function InstitutionPicker({
   const { t } = useLingui();
   const [query, setQuery] = useState('');
 
-  const { data, isError, isPending } = useQuery({
-    queryKey: ['institutions'],
-    queryFn: ({ signal }) => api.getInstitutions(signal),
-    staleTime: 60 * 60 * 1000,
-  });
+  const { data, isError, isPending } = useQuery(institutionsQuery);
 
   // Faculties as well as universities: somebody prepares for ČVUT FEL, not for
   // ČVUT in general, and the row says which is which.

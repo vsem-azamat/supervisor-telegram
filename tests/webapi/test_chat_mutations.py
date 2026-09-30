@@ -135,6 +135,32 @@ async def test_a_chat_others_sit_under_stays_at_the_top(client_factory, db_sessi
     assert out.status_code == 200, out.text
 
 
+@pytest.mark.parametrize(
+    ("sent", "stored"),
+    [("cvut", "cvut"), ("  VSE ", "vse"), ("", None), (None, None)],
+)
+async def test_a_chat_is_tied_to_a_university_by_the_catalogs_code(
+    client_factory, db_session_maker, sent, stored
+) -> None:
+    async with db_session_maker() as s:
+        s.add(Chat(id=-2020, title="ČVUT", institution_code="old"))
+        await s.commit()
+    async with client_factory() as client:
+        resp = await client.patch("/api/chats/-2020", json={"institution_code": sent})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["institution_code"] == stored
+
+
+@pytest.mark.parametrize("sent", ["čvut", "cvut fit", "x" * 33, "<b>"])
+async def test_a_code_that_is_not_a_code_is_refused(client_factory, db_session_maker, sent) -> None:
+    async with db_session_maker() as s:
+        s.add(Chat(id=-2021, title="ČVUT"))
+        await s.commit()
+    async with client_factory() as client:
+        resp = await client.patch("/api/chats/-2021", json={"institution_code": sent})
+    assert resp.status_code == 422
+
+
 class TestPublishingAChat:
     """Setting the public link is what puts a chat on the public page.
 
