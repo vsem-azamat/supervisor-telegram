@@ -29,11 +29,13 @@ from app.core.enums import (
     PendingActionOrigin,
     PendingActionStatus,
 )
+from app.core.exceptions import ProtectedUserError
 from app.core.logging import get_logger
 from app.core.text import escape_html
 from app.core.time import utc_now
 from app.db.models import PendingAction
 from app.moderation import audit
+from app.moderation.blacklist import is_protected
 from app.presentation.telegram.utils.callback_data import PendingActionDecision
 
 if TYPE_CHECKING:
@@ -175,6 +177,12 @@ class PendingActionService:
             await self._mark(pending, PendingActionStatus.EXPIRED, admin_id=None)
             logger.info("pending_action_expired_on_press", pending_id=pending_id)
             return None
+
+        # A proposal can outlive a change to the admin list; refused here before
+        # it is marked done, so the record does not say it happened.
+        if pending.action == ModerationAction.BLACKLIST and is_protected(pending.target_user_id):
+            await self._mark(pending, PendingActionStatus.REJECTED, admin_id=admin_id)
+            raise ProtectedUserError(pending.target_user_id)
 
         await self._mark(pending, PendingActionStatus.CONFIRMED, admin_id=admin_id)
         await self._execute(pending, self.bot, self.db)

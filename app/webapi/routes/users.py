@@ -40,7 +40,7 @@ async def list_blocked_users(
             username=user.username,
             first_name=user.first_name,
             last_name=user.last_name,
-            since=user.modified_at,
+            changed_at=user.modified_at,
         )
         for user in rows
     ]

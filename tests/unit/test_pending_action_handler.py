@@ -115,3 +115,16 @@ async def test_unknown_id_says_so_without_raising(session: AsyncSession) -> None
 
     bot.ban_chat_member.assert_not_awaited()
     callback.answer.assert_awaited_with("Запрос уже обработан или истёк")
+
+
+async def test_a_refused_blacklist_says_why(session: AsyncSession, monkeypatch: pytest.MonkeyPatch) -> None:
+    pending = await _seed(session)
+    pending.action = "blacklist"
+    await session.commit()
+    monkeypatch.setattr(settings.admin, "super_admins", [ADMIN_ID, TARGET_ID])
+    callback = _callback()
+
+    await handle_pending_action(callback, PendingActionDecision(pending_id=pending.id, confirm=1), AsyncMock(), session)
+
+    assert "главн" in callback.answer.await_args.args[0].lower()
+    assert "главн" in callback.message.edit_text.await_args.args[0].lower()

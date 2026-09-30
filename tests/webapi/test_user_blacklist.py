@@ -167,7 +167,7 @@ async def test_the_blacklist_lists_the_blocked_latest_first(client_factory, db_s
     newest = rows[ids.index(62)]
     assert newest["username"] == "new_spammer"
     assert newest["first_name"] == "Ivan"
-    assert "since" in newest
+    assert "changed_at" in newest
 
 
 async def test_the_blacklist_is_for_super_admins(db_session_maker) -> None:

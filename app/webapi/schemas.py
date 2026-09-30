@@ -211,9 +211,9 @@ class BlockedUserRead(BaseModel):
     username: str | None
     first_name: str | None
     last_name: str | None
-    # When the row last changed, which for a blocked user is when the block
-    # went on. There is no column of its own for it.
-    since: datetime.datetime
+    # When the row last changed. Not when the block went on: a rename or a
+    # repeated block changes it too, and there is no column for the block.
+    changed_at: datetime.datetime
 
 
 class UserBlockResponse(BaseModel):

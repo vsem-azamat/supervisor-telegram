@@ -131,8 +131,8 @@ export interface BlockedUser {
   username: string | null;
   first_name: string | null;
   last_name: string | null;
-  /** When the block went on, as far as webapi knows. */
-  since: string;
+  /** When webapi's row last changed; a rename changes it too. */
+  changed_at: string;
 }
 
 export interface AdminSession {

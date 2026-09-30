@@ -58,6 +58,7 @@ async def ban_everywhere(message: types.Message, message_repo: MessageRepository
     id_user = target.from_user.id
     if moderation_services.is_protected(id_user):
         await message.answer("Главного администратора забанить во всех чатах нельзя.")
+        await message.delete()
         return
     chats_count = await message_repo.count_user_chats(id_user)
     messages_count = await message_repo.count_user_messages(id_user)

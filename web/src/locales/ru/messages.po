@@ -317,6 +317,11 @@ msgstr "{0, plural, one {# раз} few {# раза} many {# раз} other {# р�
 msgid "чатов"
 msgstr "чатов"
 
+#. placeholder {0}: i18n.date(utc(user.changed_at), { day: 'numeric', month: 'short', year: 'numeric', })
+#: src/console/pages/Blacklist.tsx
+msgid "изменено {0}"
+msgstr "изменено {0}"
+
 #: src/components/AppHeader.tsx
 msgid "Оформление: как в системе. Нажми, чтобы сменить"
 msgstr "Оформление: как в системе. Нажми, чтобы сменить"

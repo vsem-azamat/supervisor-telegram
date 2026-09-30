@@ -6,7 +6,6 @@ import { SearchIcon } from '@/components/icons';
 import { Sheet } from '@/components/Sheet';
 import {
   Action,
-  Count,
   Hint,
   Label,
   Letters,
@@ -23,6 +22,7 @@ import { ConsoleFailure, ConsoleGate } from '@/console/ConsoleGate';
 import { blockedQuery, consoleChanges } from '@/console/queries';
 import { type BlockedUser, utc } from '@/console/session';
 import { hapticSelection } from '@/hooks/useTelegram';
+import { initials } from '@/lib/chats';
 
 /**
  * Everybody banned from every chat, and the way to let somebody back. The
@@ -117,22 +117,31 @@ function Blacklist() {
                 key={user.user_id}
                 leading={
                   <Tile tone={4}>
-                    <Letters text={name.replace('@', '').slice(0, 2).toUpperCase()} />
+                    <Letters text={initials(name.replace('@', ''))} />
                   </Tile>
                 }
                 title={name}
-                hint={[
-                  user.username && name !== `@${user.username}`
-                    ? `@${user.username}`
-                    : null,
-                  user.user_id,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-                trailing={
-                  <Count>
-                    {i18n.date(utc(user.since), { day: 'numeric', month: 'short' })}
-                  </Count>
+                hint={
+                  <>
+                    {[
+                      user.username && name !== `@${user.username}`
+                        ? `@${user.username}`
+                        : null,
+                      user.user_id,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                    {' · '}
+                    {/* Not «since»: the row also changes on a rename. */}
+                    <Trans>
+                      изменено{' '}
+                      {i18n.date(utc(user.changed_at), {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </Trans>
+                  </>
                 }
                 onClick={() => {
                   hapticSelection();

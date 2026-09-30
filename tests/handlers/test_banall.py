@@ -152,3 +152,31 @@ class TestSuperAdmins:
         text = command.answer.call_args[0][0]
         assert "главн" in text.lower()
         assert "reply_markup" not in command.answer.call_args[1]
+
+    async def test_the_confirmation_refuses_before_banning_here(self, monkeypatch):
+        """The press can come from a dialog older than the admin list.
+
+        The ban in this chat runs before the service's own refusal, so the
+        handler has to refuse first.
+        """
+        from types import SimpleNamespace
+
+        from app.core.config import settings
+        from app.presentation.telegram.handlers.moderation.blacklist import process_blacklist_confirm
+
+        monkeypatch.setattr(settings.admin, "super_admins", [555])
+        bot = AsyncMock()
+        callback = AsyncMock()
+        callback.from_user = SimpleNamespace(id=1)
+
+        await process_blacklist_confirm(
+            callback,
+            BlacklistConfirm(user_id=555, chat_id=-1001, message_id=10, revoke=1, mark_spam=1),
+            bot,
+            AsyncMock(),
+            AsyncMock(),
+        )
+
+        bot.ban_chat_member.assert_not_awaited()
+        bot.delete_message.assert_not_awaited()
+        assert "главн" in callback.answer.await_args.args[0].lower()

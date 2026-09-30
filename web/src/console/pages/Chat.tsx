@@ -158,6 +158,7 @@ function ChatScreen({ chatId }: { chatId: number }) {
     onSuccess: () => {
       // A ban is every chat's: every chat's sender list may show it.
       void queryClient.invalidateQueries({ queryKey: ['console', 'chat'] });
+      void queryClient.invalidateQueries({ queryKey: ['console', 'blocked'] });
       setSheet((current) =>
         current?.kind === 'ban' || current?.kind === 'unban' ? null : current,
       );

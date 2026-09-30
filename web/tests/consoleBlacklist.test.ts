@@ -10,7 +10,7 @@ function user(id: number, over: Partial<BlockedUser> = {}): BlockedUser {
     username: null,
     first_name: null,
     last_name: null,
-    since: '2026-09-01T00:00:00',
+    changed_at: '2026-09-01T00:00:00',
     ...over,
   };
 }
