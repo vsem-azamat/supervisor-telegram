@@ -91,6 +91,7 @@ function Summary() {
           </Trans>
         }
         trailing={<Count>{count}</Count>}
+        onClick={() => open('/console/spam')}
       />
     ),
     review: (count) => (
@@ -136,7 +137,7 @@ function Summary() {
       {loading ? (
         <SkeletonRows count={2} />
       ) : (
-        <div className={ui.stack}>
+        <div className={ui.column}>
           {webapiError ? (
             <ConsoleFailure
               error={webapiError}
@@ -225,6 +226,26 @@ function Summary() {
           }
           trailing={<Chevron />}
           onClick={() => open('/console/partners')}
+        />
+        <Row
+          leading={
+            <Tile tone={1}>
+              <ShieldIcon size={19} />
+            </Tile>
+          }
+          title={<Trans>Реклама</Trans>}
+          hint={
+            stats.data ? (
+              <Trans>
+                {stats.data.spam_pings.count_24h} за сутки ·{' '}
+                {stats.data.spam_pings.count_7d} за неделю
+              </Trans>
+            ) : (
+              <Trans>что поймал детектор</Trans>
+            )
+          }
+          trailing={<Chevron />}
+          onClick={() => open('/console/spam')}
         />
         <Row
           leading={

@@ -51,6 +51,10 @@ msgid "Нашлось"
 msgstr "Found"
 
 #: src/console/pages/Chat.tsx
+msgid "Детектор здесь ничего не находил."
+msgstr "The detector has found nothing here."
+
+#: src/console/pages/Chat.tsx
 msgid "На публичной вкладке"
 msgstr "On the public tab"
 
@@ -78,9 +82,17 @@ msgstr "None yet. Add one below — without them search cannot find you."
 #~ msgid "Заявку увидят все, кто предлагает помощь."
 #~ msgstr "Everyone who offers help will see it."
 
+#: src/console/pages/Spam.tsx
+msgid "Детектор ничего не находил."
+msgstr "The detector has found nothing."
+
 #: src/pages/Results.tsx
 msgid "Похоже, речь о"
 msgstr "This looks like"
+
+#: src/console/pages/Chat.tsx
+msgid "Входит в"
+msgstr "Listed under"
 
 #: src/pages/Offer.tsx
 #: src/pages/OfferPrices.tsx
@@ -120,6 +132,10 @@ msgstr "Name a subject — a date on its own is nothing to search for."
 msgid "Přijímačky"
 msgstr "Entrance exams"
 
+#: src/console/Charts.tsx
+msgid "Участников посчитали меньше двух раз: линии пока нет."
+msgstr "Members were counted fewer than twice: no line yet."
+
 #: src/components/TabBar.tsx
 msgid "Помощь"
 msgstr "Help"
@@ -148,6 +164,12 @@ msgstr "Captcha on joining"
 #~ msgid "Предметы и цены"
 #~ msgstr "Subjects and prices"
 
+#. placeholder {0}: stats.data.spam_pings.count_24h
+#. placeholder {1}: stats.data.spam_pings.count_7d
+#: src/console/pages/Summary.tsx
+msgid "{0} за сутки · {1} за неделю"
+msgstr "{0} today · {1} this week"
+
 #: src/components/Incoming.tsx
 msgid "Не сейчас"
 msgstr "Not now"
@@ -169,6 +191,7 @@ msgid "Отключить"
 msgstr "Disable"
 
 #: src/console/pages/Chat.tsx
+#: src/console/Pings.tsx
 msgid "Забанить везде"
 msgstr "Ban everywhere"
 
@@ -235,6 +258,10 @@ msgstr "Where"
 msgid "Добавить услугу"
 msgstr "Add a service"
 
+#: src/console/Charts.tsx
+msgid "Ср"
+msgstr "Wed"
+
 #: src/pages/Life.tsx
 msgid "Это не наши услуги. Мы получаем комиссию с партнёра, со студента — ничего."
 msgstr "These aren't our services. We take a commission from the partner, nothing from the student."
@@ -277,6 +304,10 @@ msgid "Искали и не нашли"
 msgstr "Searched and not found"
 
 #: src/console/pages/Chat.tsx
+msgid "В этот чат входят другие, поэтому он сам стоит отдельно."
+msgstr "Other chats are listed under this one, so it stays at the top itself."
+
+#: src/console/FailureText.tsx
 msgid "Ссылка должна вести на чат в Telegram: https://t.me/…"
 msgstr "The link must lead to a Telegram chat: https://t.me/…"
 
@@ -304,6 +335,10 @@ msgstr "where you are signed in, settings"
 msgid "Оставь заявку — ответят сами"
 msgstr "Post a request — they answer you"
 
+#: src/console/Charts.tsx
+msgid "За неделю бот не видел здесь сообщений."
+msgstr "The bot saw no messages here this week."
+
 #: src/console/pages/Summary.tsx
 msgid "{activePlacements, plural, one {# карточка} few {# карточки} many {# карточек} other {# карточки}} · показы и клики"
 msgstr "{activePlacements, plural, one {# card} other {# cards}} · impressions and clicks"
@@ -312,6 +347,10 @@ msgstr "{activePlacements, plural, one {# card} other {# cards}} · impressions 
 #: src/console/pages/Catalog.tsx
 msgid "{0, plural, one {# раз} few {# раза} many {# раз} other {# раза}}"
 msgstr "{0, plural, one {# time} other {# times}}"
+
+#: src/console/Charts.tsx
+msgid "Пн"
+msgstr "Mon"
 
 #: src/pages/AdsChats.tsx
 msgid "чатов"
@@ -338,6 +377,10 @@ msgstr "Try other words — or post a request and let them find you."
 msgid "Не отправилось — попробуй ещё раз."
 msgstr "It did not go through — try again."
 
+#: src/console/Charts.tsx
+msgid "Сообщения по дням недели и часам"
+msgstr "Messages by weekday and hour"
+
 #: src/pages/Profile.tsx
 #~ msgid "Хочу помогать"
 #~ msgstr "I want to help"
@@ -351,7 +394,7 @@ msgid "Не поняли запрос"
 msgstr "We did not understand"
 
 #: src/console/ConsoleGate.tsx
-#: src/console/pages/Chat.tsx
+#: src/console/FailureText.tsx
 msgid "Аккаунта нет среди главных администраторов бота."
 msgstr "This account is not one of the bot's main administrators."
 
@@ -399,6 +442,11 @@ msgid "На проверке"
 msgstr "Awaiting review"
 
 #: src/console/pages/Chat.tsx
+msgid "Место в списке"
+msgstr "Place in the list"
+
+#: src/console/pages/Chat.tsx
+#: src/console/Pings.tsx
 msgid "заблокирован"
 msgstr "banned"
 
@@ -414,6 +462,10 @@ msgstr "Next · {0}"
 #: src/console/pages/Chat.tsx
 msgid "одобрен"
 msgstr "approved"
+
+#: src/console/pages/Chat.tsx
+msgid "входит в этот чат"
+msgstr "listed under this chat"
 
 #: src/console/pages/Summary.tsx
 msgid "забанены во всех чатах"
@@ -488,6 +540,10 @@ msgstr "Show {total}"
 msgid "Мои заявки"
 msgstr "My requests"
 
+#: src/console/pages/Chat.tsx
+msgid "ни во что: стоит отдельно"
+msgstr "nothing: stands on its own"
+
 #: src/pages/Profile.tsx
 msgid "Их видно на твоей странице."
 msgstr "They show on your page."
@@ -525,6 +581,7 @@ msgstr "Save"
 #: src/console/pages/Blacklist.tsx
 #: src/console/pages/Chat.tsx
 #: src/console/pages/System.tsx
+#: src/console/Pings.tsx
 msgid "Отмена"
 msgstr "Cancel"
 
@@ -603,7 +660,7 @@ msgstr "Chats"
 #~ msgid "Сколько берёшь"
 #~ msgstr "What you charge"
 
-#: src/console/pages/Chat.tsx
+#: src/console/FailureText.tsx
 msgid "Вход не сохранился: откройте консоль в приложении Telegram."
 msgstr "The sign-in was not kept: open the console in the Telegram app."
 
@@ -639,6 +696,12 @@ msgstr "Decline"
 msgid "без защиты"
 msgstr "unprotected"
 
+#. placeholder {0}: i18n.number(trend.first)
+#. placeholder {1}: i18n.number(trend.last)
+#: src/console/Charts.tsx
+msgid "с {since}: {0} → {1}"
+msgstr "since {since}: {0} → {1}"
+
 #: src/pages/Mine.tsx
 msgid "Пока без откликов"
 msgstr "No responses yet"
@@ -665,6 +728,10 @@ msgstr "after a request"
 msgid "За что цена"
 msgstr "What the price is for"
 
+#: src/console/Pings.tsx
+msgid "Уже в чёрном списке."
+msgstr "Already on the blacklist."
+
 #: src/components/Phrase.tsx
 #: src/pages/MyHelper.tsx
 #: src/pages/OfferPrices.tsx
@@ -678,6 +745,10 @@ msgstr "See what is close"
 #: src/pages/MyHelper.tsx
 #~ msgid "Пока ни одного. Найди предмет ниже — без них тебя не найдут по поиску."
 #~ msgstr "None yet. Find a subject below — without them search cannot reach you."
+
+#: src/console/pages/Chat.tsx
+msgid "Ни во что"
+msgstr "Nothing"
 
 #: src/pages/Ads.tsx
 msgid "Форматы"
@@ -712,6 +783,7 @@ msgid "И то, и другое"
 msgstr "Both"
 
 #: src/console/pages/Chat.tsx
+#: src/console/Pings.tsx
 msgid "Забанить и стереть все его сообщения"
 msgstr "Ban and delete all their messages"
 
@@ -941,6 +1013,10 @@ msgstr "Where it goes"
 msgid "ČVUT, FIT, Strahov…"
 msgstr "ČVUT, FIT, Strahov…"
 
+#: src/console/Pings.tsx
+msgid "Открыть чат"
+msgstr "Open the chat"
+
 #: src/pages/AdsChats.tsx
 msgid "Как это работает"
 msgstr "How it works"
@@ -1011,6 +1087,12 @@ msgstr "no deadline"
 #: src/console/pages/Chat.tsx
 msgid "{0, plural, one {# сообщение} few {# сообщения} many {# сообщений} other {# сообщения}}"
 msgstr "{0, plural, one {# message} other {# messages}}"
+
+#. placeholder {0}: trend.first
+#. placeholder {1}: trend.last
+#: src/console/Charts.tsx
+msgid "Участники с {since}: {0} → {1}"
+msgstr "Members since {since}: {0} → {1}"
 
 #: src/pages/Home.tsx
 msgid "матан, čeština B2, přijímačky…"
@@ -1146,7 +1228,7 @@ msgstr "Turnaround: <0/>"
 msgid "Свободные окна"
 msgstr "Open time slots"
 
-#: src/console/pages/Chat.tsx
+#: src/console/FailureText.tsx
 msgid "Вход устарел: откройте приложение заново."
 msgstr "The sign-in has expired: reopen the app."
 
@@ -1182,9 +1264,17 @@ msgstr "What you need"
 msgid "Чаты на проверке"
 msgstr "Chats awaiting review"
 
+#: src/console/Charts.tsx
+msgid "Вс"
+msgstr "Sun"
+
 #: src/pages/Join.tsx
 msgid "репетиторы, přijímačky, нострификация"
 msgstr "tutors, přijímačky, nostrification"
+
+#: src/console/Charts.tsx
+msgid "Чт"
+msgstr "Thu"
 
 #: src/pages/Offer.tsx
 msgid "Отметь всё, что умеешь. Цены спросим на следующем экране."
@@ -1202,7 +1292,11 @@ msgstr "Cheaper"
 msgid "30 дней"
 msgstr "30 days"
 
-#: src/console/pages/Chat.tsx
+#: src/console/Charts.tsx
+msgid "Пт"
+msgstr "Fri"
+
+#: src/console/FailureText.tsx
 msgid "Сервер отказал: главного администратора забанить нельзя."
 msgstr "The server refused: a main administrator cannot be banned."
 
@@ -1287,6 +1381,13 @@ msgstr "refresh it from Telegram"
 msgid "Чем помогает"
 msgstr "What they help with"
 
+#: src/console/pages/Chat.tsx
+#: src/console/pages/Spam.tsx
+#: src/console/pages/Summary.tsx
+#: src/console/Pings.tsx
+msgid "Реклама"
+msgstr "Ads"
+
 #: src/components/AppHeader.tsx
 #: src/components/RequestSheet.tsx
 #: src/components/TabBar.tsx
@@ -1294,9 +1395,17 @@ msgstr "What they help with"
 msgid "Закрыть"
 msgstr "Close"
 
+#: src/console/Charts.tsx
+msgid "Сб"
+msgstr "Sat"
+
 #: src/pages/Profile.tsx
 #~ msgid "Оформление"
 #~ msgstr "Appearance"
+
+#: src/console/Charts.tsx
+msgid "Вт"
+msgstr "Tue"
 
 #. placeholder {0}: system.data.session_ttl_days
 #: src/console/pages/System.tsx
@@ -1514,6 +1623,10 @@ msgstr "+ budget"
 msgid "Нажми кнопку, чтобы подтвердить, что ты не бот. Заявка одобрится сразу."
 msgstr "Tap the button to confirm you are not a bot. The request is approved at once."
 
+#: src/console/pages/Chat.tsx
+msgid "Активность"
+msgstr "Activity"
+
 #: src/pages/OfferPrices.tsx
 msgid "Опубликовать"
 msgstr "Publish"
@@ -1696,6 +1809,10 @@ msgstr "Not enough to search on"
 msgid "Пока никого"
 msgstr "No one yet"
 
+#: src/console/pages/Summary.tsx
+msgid "что поймал детектор"
+msgstr "what the detector caught"
+
 #: src/pages/Offer.tsx
 #~ msgid "Сейчас бесплатно. Когда людей станет больше, размещение таких услуг станет платным."
 #~ msgstr "Free for now. Once there are more people, listing these services will cost."
@@ -1818,6 +1935,10 @@ msgstr "Price per hour, Kč — optional"
 msgid "Откликов пока нет"
 msgstr "No responses yet"
 
+#: src/console/Pings.tsx
+msgid "Это главный администратор."
+msgstr "This is a super admin."
+
 #: src/lib/turnaround.tsx
 msgid "3 дня"
 msgstr "3 days"
@@ -1871,6 +1992,10 @@ msgstr "Responses"
 msgid "Где её видно"
 msgstr "Where it appears"
 
+#: src/console/pages/Spam.tsx
+msgid "Последние"
+msgstr "Latest"
+
 #: src/pages/Ask.tsx
 #: src/pages/Results.tsx
 msgid "Ищем…"
@@ -1888,7 +2013,7 @@ msgstr "Let them find you"
 msgid "Но без этого не доучишься. Сроки и требования — наши, предложения — партнёрские."
 msgstr "But you won't get through school without it. Deadlines and requirements are ours, offers come from partners."
 
-#: src/console/pages/Chat.tsx
+#: src/console/FailureText.tsx
 msgid "Не сохранилось. Попробуйте ещё раз."
 msgstr "Not saved. Try again."
 
@@ -1901,6 +2026,10 @@ msgstr "requests in 7 days"
 #: src/pages/OfferPrices.tsx
 msgid "Не получилось загрузить анкету"
 msgstr "Could not load your profile"
+
+#: src/console/pages/Spam.tsx
+msgid "Ссылки и @упоминания, которых нет в белом списке. Детектор только отмечает: решает модератор."
+msgstr "Links and @mentions that are not whitelisted. The detector only flags them: a moderator decides."
 
 #: src/pages/Results.tsx
 msgid "Никто не подошёл?"

@@ -1,9 +1,9 @@
 import { Plural, Trans, useLingui } from '@lingui/react/macro';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { type ReactNode, useState } from 'react';
-import { useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 
-import { Sheet } from '@/components/Sheet';
+import { Pick, Sheet } from '@/components/Sheet';
 import {
   Action,
   Actions,
@@ -19,8 +19,12 @@ import {
   Title,
   ui,
 } from '@/components/Ui';
+import { parentChoices, personName } from '@/console/activity';
+import { Heatmap, MemberTrend } from '@/console/Charts';
 import { ConsoleFailure, ConsoleGate } from '@/console/ConsoleGate';
 import { isListed } from '@/console/chats';
+import { FailureText } from '@/console/FailureText';
+import { PingRows, PingSheet } from '@/console/Pings';
 import {
   blockedQuery,
   chatDetailQuery,
@@ -35,6 +39,7 @@ import {
   type ConsoleChat,
   type ConsoleChatDetail,
   ConsoleError,
+  type SpamPing,
 } from '@/console/session';
 import { hapticSelection } from '@/hooks/useTelegram';
 import { initials } from '@/lib/chats';
@@ -75,36 +80,16 @@ type Sheets =
   | { kind: 'welcome'; enable: boolean }
   | { kind: 'ban'; sender: ChatSender }
   | { kind: 'unban'; sender: ChatSender }
+  | { kind: 'ping'; ping: SpamPing }
+  | { kind: 'parent' }
   | null;
-
-function senderName(sender: ChatSender): string {
-  const name = [sender.first_name, sender.last_name].filter(Boolean).join(' ');
-  return name || (sender.username ? `@${sender.username}` : String(sender.user_id));
-}
-
-/** What a failed change means for the person who tried it. */
-function FailureText({ error }: { error: unknown }) {
-  const reason = error instanceof ConsoleError ? error.reason : 'failed';
-  if (reason === 'stale') return <Trans>Вход устарел: откройте приложение заново.</Trans>;
-  if (reason === 'not-kept') {
-    return <Trans>Вход не сохранился: откройте консоль в приложении Telegram.</Trans>;
-  }
-  if (reason === 'refused') {
-    return <Trans>Аккаунта нет среди главных администраторов бота.</Trans>;
-  }
-  if (error instanceof ConsoleError && error.status === 422) {
-    return <Trans>Ссылка должна вести на чат в Telegram: https://t.me/…</Trans>;
-  }
-  if (error instanceof ConsoleError && error.status === 400) {
-    return <Trans>Сервер отказал: главного администратора забанить нельзя.</Trans>;
-  }
-  return <Trans>Не сохранилось. Попробуйте ещё раз.</Trans>;
-}
 
 function ChatScreen({ chatId }: { chatId: number }) {
   const { t, i18n } = useLingui();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const detail = useQuery(chatDetailQuery(chatId));
+  const chats = useQuery(consoleChatsQuery);
   const system = useQuery(consoleSystemQuery);
   const [sheet, setSheet] = useState<Sheets>(null);
   const [error, setError] = useState<unknown>(null);
@@ -200,6 +185,11 @@ function ChatScreen({ chatId }: { chatId: number }) {
   const admins = new Set(system.data?.super_admin_ids ?? []);
   const total = chat.recent_senders.reduce((sum, row) => sum + row.message_count, 0);
   const sheetError = sheet && error ? <FailureText error={error} /> : null;
+  const parent = chats.data?.find((row) => row.id === chat.parent_chat_id);
+  const goTo = (id: number) => {
+    hapticSelection();
+    navigate(`/console/chats/${id}`);
+  };
 
   return (
     <>
@@ -366,6 +356,56 @@ function ChatScreen({ chatId }: { chatId: number }) {
         />
       </Rows>
 
+      <Label>
+        <Trans>Место в списке</Trans>
+      </Label>
+      <Rows>
+        <Row
+          title={<Trans>Входит в</Trans>}
+          hint={
+            chat.parent_chat_id === null ? (
+              <Trans>ни во что: стоит отдельно</Trans>
+            ) : (
+              (parent?.title ?? String(chat.parent_chat_id))
+            )
+          }
+          trailing={<Chevron />}
+          onClick={busy ? undefined : () => open({ kind: 'parent' })}
+        />
+        {chat.children.map((child) => (
+          <Row
+            key={child.id}
+            title={child.title ?? String(child.id)}
+            hint={<Trans>входит в этот чат</Trans>}
+            trailing={<Chevron />}
+            onClick={() => goTo(child.id)}
+          />
+        ))}
+      </Rows>
+
+      <Label>
+        <Trans>Активность</Trans>
+      </Label>
+      <div className={ui.column}>
+        <MemberTrend snapshots={chat.member_snapshots} />
+        <Heatmap cells={chat.heatmap} />
+      </div>
+
+      <Label aside={chat.spam_pings.length || null}>
+        <Trans>Реклама</Trans>
+      </Label>
+      {chat.spam_pings.length > 0 ? (
+        <PingRows
+          pings={chat.spam_pings}
+          showChat={false}
+          onPick={(ping) => open({ kind: 'ping', ping })}
+        />
+      ) : (
+        <Hint>
+          <Trans>Детектор здесь ничего не находил.</Trans>
+        </Hint>
+      )}
+
       <Label aside={total > 0 ? <Trans>всего {i18n.number(total)}</Trans> : null}>
         <Trans>Кто писал за неделю</Trans>
       </Label>
@@ -376,7 +416,7 @@ function ChatScreen({ chatId }: { chatId: number }) {
             return (
               <Row
                 key={sender.user_id}
-                title={senderName(sender)}
+                title={personName(sender)}
                 hint={
                   <>
                     <Plural
@@ -551,7 +591,7 @@ function ChatScreen({ chatId }: { chatId: number }) {
       {sheet?.kind === 'ban' ? (
         <Sheet title={t`Забанить во всех чатах?`} closeLabel={t`Отмена`} onClose={close}>
           <Sub>
-            {senderName(sheet.sender)} ·{' '}
+            {personName(sheet.sender)} ·{' '}
             <Trans>
               здесь за неделю{' '}
               <Plural
@@ -585,9 +625,20 @@ function ChatScreen({ chatId }: { chatId: number }) {
           </div>
         </Sheet>
       ) : null}
+      {sheet?.kind === 'ping' ? <PingSheet ping={sheet.ping} onClose={close} /> : null}
+      {sheet?.kind === 'parent' ? (
+        <ParentSheet
+          chat={chat}
+          chats={chats.data}
+          busy={busy}
+          error={sheetError}
+          onPick={(parentId) => save({ parent_chat_id: parentId }, close)}
+          onClose={close}
+        />
+      ) : null}
       {sheet?.kind === 'unban' ? (
         <Sheet title={t`Снять бан во всех чатах?`} closeLabel={t`Отмена`} onClose={close}>
-          <Sub>{senderName(sheet.sender)}</Sub>
+          <Sub>{personName(sheet.sender)}</Sub>
           {sheetError ? <Hint>{sheetError}</Hint> : null}
           <div className={ui.actionsStacked}>
             <Action
@@ -603,6 +654,57 @@ function ChatScreen({ chatId }: { chatId: number }) {
         </Sheet>
       ) : null}
     </>
+  );
+}
+
+/**
+ * Which chat this one is listed under. The console's and the public lists
+ * group one level deep, so only a top-level chat is offered.
+ */
+function ParentSheet({
+  chat,
+  chats,
+  busy,
+  error,
+  onPick,
+  onClose,
+}: {
+  chat: ConsoleChatDetail;
+  chats: ConsoleChat[] | undefined;
+  busy: boolean;
+  error: ReactNode;
+  onPick: (parentId: number | null) => void;
+  onClose: () => void;
+}) {
+  const { t } = useLingui();
+  const choices = chats ? parentChoices(chats, chat.id) : [];
+  return (
+    <Sheet title={t`Входит в`} closeLabel={t`Отмена`} onClose={onClose}>
+      {error ? <Hint>{error}</Hint> : null}
+      {!chats ? (
+        <SkeletonRows count={3} />
+      ) : chat.children.length > 0 ? (
+        <Hint>
+          <Trans>В этот чат входят другие, поэтому он сам стоит отдельно.</Trans>
+        </Hint>
+      ) : (
+        <div className={ui.sheetList}>
+          <Pick
+            name={<Trans>Ни во что</Trans>}
+            selected={chat.parent_chat_id === null}
+            onClick={() => !busy && onPick(null)}
+          />
+          {choices.map((choice) => (
+            <Pick
+              key={choice.id}
+              name={choice.title ?? String(choice.id)}
+              selected={chat.parent_chat_id === choice.id}
+              onClick={() => !busy && onPick(choice.id)}
+            />
+          ))}
+        </div>
+      )}
+    </Sheet>
   );
 }
 
