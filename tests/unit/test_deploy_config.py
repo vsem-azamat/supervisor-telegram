@@ -239,3 +239,12 @@ def test_the_bots_database_is_dumped_daily_off_its_server() -> None:
     backups_dirs = re.search(r"install -d -m 700 ([^\n]+)", _deploy_step()["with"]["script"])
     assert backups_dirs
     assert "db-backups" in backups_dirs.group(1).split()
+
+
+def test_backup_retention_touches_only_its_own_dumps() -> None:
+    """db-backups/ already held a migration's hand-made dumps in subdirectories.
+    Retention reaches only the top level, where the loop writes."""
+    raw = COMPOSE.read_text()
+    (find,) = re.findall(r"^\s*find /backups.*$", raw, re.M)
+
+    assert "-maxdepth 1" in find
