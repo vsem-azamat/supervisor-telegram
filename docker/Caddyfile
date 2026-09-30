@@ -1,12 +1,52 @@
 :80 {
-	root * /srv
 	encode zstd gzip
+
+	# The catalog's API, for the Mini App's help screens: tutors, profiles,
+	# requests. Same origin for the app, a different backend: Telegram only
+	# allows Mini App API calls to the app's own origin. First, so the /api/*
+	# block below never sees it. The Host header is Caddy's default for an
+	# https upstream; it is written out because the upstream's edge routes on
+	# it and this must not depend on a default.
+	@catalog path /api/v1/* /healthz
+	handle @catalog {
+		reverse_proxy {$CATALOG_ORIGIN} {
+			header_up Host {upstream_hostport}
+		}
+	}
 
 	handle /api/* {
 		reverse_proxy webapi:8787
 	}
 
+	# The moderator console, still the Svelte build until it is rebuilt inside
+	# the Mini App. Its assets are under /_app and never fall back to a page.
+	handle /_app/* {
+		root * /srv/console
+		file_server
+	}
+
+	@console path /admin /admin/*
+	handle @console {
+		root * /srv/console
+		try_files {path} /index.html
+		file_server
+	}
+
+	# The Mini App owns every other path, its client-side routes included.
+	# Hashed assets never change contents, so they are cached for good, but only
+	# when they exist: a missing one is a 404, never the page and never cached.
+	handle /assets/* {
+		root * /srv/app
+		@exists file
+		header @exists Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+
+	# index.html is the one file that names the current hashes, so a cached
+	# copy points at bundles the next deploy deleted.
 	handle {
+		root * /srv/app
+		header Cache-Control "no-cache"
 		try_files {path} /index.html
 		file_server
 	}

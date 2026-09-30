@@ -43,6 +43,12 @@ def _compose_passthrough() -> set[str]:
     return set(re.findall(r"^  ([A-Z_]+):\s*$", block.group(1), re.M))
 
 
+def _webui_passthrough() -> set[str]:
+    """Names the webui container inherits: Caddy reads them, the app never does."""
+    webui = yaml.safe_load(COMPOSE.read_text())["services"]["webui"]
+    return {name for name, value in (webui.get("environment") or {}).items() if value is None}
+
+
 def _deploy_step() -> dict:
     workflow = yaml.safe_load(DEPLOY.read_text())
     for step in workflow["jobs"]["deploy"]["steps"]:
@@ -55,7 +61,24 @@ def test_every_forwarded_name_is_declared_in_both_places() -> None:
     step = _deploy_step()
     forwarded = {name.strip() for name in step["with"]["envs"].split(",") if name.strip()}
 
-    assert forwarded - _DEPLOY_ONLY == _compose_passthrough()
+    assert forwarded - _DEPLOY_ONLY == _compose_passthrough() | _webui_passthrough()
+
+
+def test_the_catalog_api_is_where_the_app_says_it_is() -> None:
+    """The app's /api/v1/* is the catalog's API, proxied by webui's Caddy.
+
+    Unset, Caddy has no upstream and every catalog screen fails, so the deploy
+    refuses before anything reaches the host.
+    """
+    assert "CATALOG_ORIGIN" in _webui_passthrough()
+    workflow = yaml.safe_load(DEPLOY.read_text())
+    check = next(
+        step
+        for step in workflow["jobs"]["deploy"]["steps"]
+        if step.get("name") == "Check required configuration is present"
+    )
+    assert "CATALOG_ORIGIN" in check["env"]
+    assert "CATALOG_ORIGIN" in check["run"]
 
 
 def test_every_forwarded_name_has_a_value_to_forward() -> None:
@@ -117,9 +140,10 @@ def test_the_image_build_gets_every_pnpm_config_the_lockfile_was_written_with() 
     the file sitting there either way.
     """
     dockerfile = ROOT.joinpath("Dockerfile").read_text()
-    copied = re.search(r"^COPY (webui/\S+ .*?)\./$", dockerfile, re.M)
-    assert copied, "the webui dependency stage no longer copies files one by one"
+    for app in ("webui", "web"):
+        copied = re.search(rf"^COPY ({app}/\S+ .*?)\./$", dockerfile, re.M)
+        assert copied, f"the {app} dependency stage no longer copies files one by one"
 
-    workspace = ROOT / "webui" / "pnpm-workspace.yaml"
-    if workspace.exists():
-        assert "webui/pnpm-workspace.yaml" in copied.group(1)
+        workspace = ROOT / app / "pnpm-workspace.yaml"
+        if workspace.exists():
+            assert f"{app}/pnpm-workspace.yaml" in copied.group(1)
