@@ -106,7 +106,38 @@ export interface ConsoleChat {
   resource_status: ChatStatus;
   member_count: number | null;
   public_link: string | null;
+  parent_chat_id: number | null;
+  is_captcha_enabled: boolean;
+  is_welcome_enabled: boolean;
+  is_service_cleanup_enabled: boolean;
 }
+
+export interface ChatSender {
+  user_id: number;
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  message_count: number;
+  last_seen: string;
+  blocked: boolean;
+}
+
+export interface ConsoleChatDetail extends ConsoleChat {
+  welcome_message: string | null;
+  recent_senders: ChatSender[];
+}
+
+/** The fields the console changes on a chat; only the ones sent are applied. */
+export type ChatUpdate = Partial<
+  Pick<
+    ConsoleChatDetail,
+    | 'resource_status'
+    | 'is_captcha_enabled'
+    | 'is_welcome_enabled'
+    | 'is_service_cleanup_enabled'
+    | 'welcome_message'
+  > & { public_link: string }
+>;
 
 export interface HomeStats {
   spam_pings: { count_24h: number; count_7d: number };

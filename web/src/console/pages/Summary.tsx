@@ -35,8 +35,8 @@ import { hapticSelection } from '@/hooks/useTelegram';
 /**
  * The console's first screen: what needs a look, then its sections.
  *
- * Chats and the system still open the old console under /admin, a separate
- * build, until their screens move here.
+ * The system still opens the old console under /admin, a separate
+ * build, until its screen moves here.
  */
 export default function ConsoleSummaryPage() {
   return (
@@ -110,7 +110,7 @@ function Summary() {
         title={<Trans>Чаты на проверке</Trans>}
         hint={<Trans>бот в них есть, но они не одобрены</Trans>}
         trailing={<Count>{count}</Count>}
-        onClick={() => leave('/admin/chats')}
+        onClick={() => open('/console/chats?status=discovered')}
       />
     ),
     profiles: (count) => (
@@ -193,7 +193,7 @@ function Summary() {
             )
           }
           trailing={<Chevron />}
-          onClick={() => leave('/admin/chats')}
+          onClick={() => open('/console/chats')}
         />
         <Row
           leading={

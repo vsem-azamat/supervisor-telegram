@@ -5,7 +5,13 @@
 
 import { api, rawInitData } from '@/lib/api';
 
-import { type ConsoleChat, consoleRequester, type HomeStats } from './session';
+import {
+  type ChatUpdate,
+  type ConsoleChat,
+  type ConsoleChatDetail,
+  consoleRequester,
+  type HomeStats,
+} from './session';
 
 /** The console's requester for webapi's session endpoints. See session.ts. */
 export const consoleGet = consoleRequester((...args) => fetch(...args), rawInitData);
@@ -41,4 +47,38 @@ export const consoleChatsQuery = {
     consoleGet<ConsoleChat[]>('/api/chats', { signal }),
   staleTime: CONSOLE_STALE,
   retryOnMount: false,
+};
+
+export const chatDetailQuery = (id: number) => ({
+  queryKey: ['console', 'chat', id] as const,
+  queryFn: ({ signal }: { signal: AbortSignal }) =>
+    consoleGet<ConsoleChatDetail>(`/api/chats/${id}`, { signal }),
+  staleTime: CONSOLE_STALE,
+  retryOnMount: false,
+});
+
+// ── changes ──────────────────────────────────────────────────────────────
+
+export const consoleChanges = {
+  /** Only the fields sent are applied; the answer is the chat as it now is. */
+  updateChat: (id: number, update: ChatUpdate) =>
+    consoleGet<ConsoleChat>(`/api/chats/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(update),
+    }),
+
+  /** Title, photo and member count, read again from Telegram. */
+  refreshChat: (id: number) =>
+    consoleGet<ConsoleChat>(`/api/chats/${id}/refresh`, { method: 'POST' }),
+
+  /** Banned in every chat the bot moderates, as /banall does; optionally
+   *  with every message of theirs the bot recorded. */
+  block: (userId: number, revokeMessages: boolean) =>
+    consoleGet<{ blocked: boolean }>(`/api/users/${userId}/block`, {
+      method: 'POST',
+      body: JSON.stringify({ revoke_messages: revokeMessages }),
+    }),
+
+  unblock: (userId: number) =>
+    consoleGet<{ blocked: boolean }>(`/api/users/${userId}/block`, { method: 'DELETE' }),
 };
