@@ -18,6 +18,7 @@ import { RouterProvider } from 'react-router';
 import { paintChrome } from '@/hooks/useTelegram';
 import { activateLocale, i18n, resolveLocale } from '@/i18n';
 import { ApiError } from '@/lib/api';
+import { isFinal } from '@/lib/console';
 import { subscribeTheme } from '@/lib/theme';
 import LandingPage from '@/pages/Landing';
 import { router } from '@/router';
@@ -224,6 +225,8 @@ const queryClient = new QueryClient({
         if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
           return false;
         }
+        // The console's webapi half says for itself when asking again is futile.
+        if (isFinal(error)) return false;
         return failureCount < 2;
       },
     },

@@ -31,6 +31,17 @@
 	let settled = $state(false);
 
 	onMount(async () => {
+		// This console is entered from the Mini App's /console, a different
+		// build: Telegram's back button would otherwise be gone, and Android's
+		// would close the app. It goes back there, a full load.
+		const back = (
+			window as unknown as {
+				Telegram?: { WebApp?: { BackButton?: { show(): void; onClick(cb: () => void): void } } };
+			}
+		).Telegram?.WebApp?.BackButton;
+		back?.onClick(() => window.location.assign('/console'));
+		back?.show();
+
 		await auth.refresh();
 		if (!auth.me) await auth.signInWithTelegram();
 		settled = true;

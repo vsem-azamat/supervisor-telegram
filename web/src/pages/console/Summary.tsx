@@ -22,6 +22,7 @@ import {
   Sub,
   Tile,
   Title,
+  ui,
 } from '@/components/Ui';
 import { hapticSelection } from '@/hooks/useTelegram';
 import {
@@ -66,16 +67,16 @@ function Summary() {
     window.location.assign(path);
   };
 
-  const loading = stats.isPending || chats.isPending || catalog.isPending;
-  const failed = stats.error ?? chats.error ?? catalog.error;
-  const items =
-    stats.data && chats.data && catalog.data
-      ? attention({
-          adsToday: stats.data.spam_pings.count_24h,
-          chats: chats.data,
-          profilesWeek: catalog.data.counts.profiles_week,
-        })
-      : [];
+  // Each backend answers for itself: webapi refusing must not hide what the
+  // catalog said, and the other way round.
+  const webapiError = stats.error ?? chats.error;
+  const loading =
+    catalog.isPending || (!webapiError && (stats.isPending || chats.isPending));
+  const items = attention({
+    adsToday: stats.data?.spam_pings.count_24h ?? 0,
+    chats: chats.data ?? [],
+    profilesWeek: catalog.data?.counts.profiles_week ?? 0,
+  });
   const approved = chats.data?.filter(
     (chat) => chat.resource_status === 'approved',
   ).length;
@@ -141,21 +142,28 @@ function Summary() {
       </Label>
       {loading ? (
         <SkeletonRows count={2} />
-      ) : failed ? (
-        <ConsoleFailure
-          error={failed}
-          retry={() => {
-            void stats.refetch();
-            void chats.refetch();
-            void catalog.refetch();
-          }}
-        />
-      ) : items.length > 0 ? (
-        <Rows>{items.map((item) => attentionRow[item.key](item.count))}</Rows>
       ) : (
-        <Hint>
-          <Trans>Сейчас ничего не ждёт.</Trans>
-        </Hint>
+        <div className={ui.stack}>
+          {webapiError ? (
+            <ConsoleFailure
+              error={webapiError}
+              retry={() => {
+                void stats.refetch();
+                void chats.refetch();
+              }}
+            />
+          ) : null}
+          {catalog.error ? (
+            <ConsoleFailure error={catalog.error} retry={() => void catalog.refetch()} />
+          ) : null}
+          {items.length > 0 ? (
+            <Rows>{items.map((item) => attentionRow[item.key](item.count))}</Rows>
+          ) : !webapiError && !catalog.error ? (
+            <Hint>
+              <Trans>Сейчас ничего не ждёт.</Trans>
+            </Hint>
+          ) : null}
+        </div>
       )}
 
       <Label>

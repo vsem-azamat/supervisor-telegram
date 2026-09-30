@@ -4,7 +4,7 @@ import { Outlet } from 'react-router';
 
 import { useBackButton } from '@/hooks/useTelegram';
 import { activateLocale, isLocale } from '@/i18n';
-import { api } from '@/lib/api';
+import { meQuery } from '@/lib/api';
 
 /**
  * The shell every route renders inside.
@@ -20,11 +20,7 @@ export default function Root() {
   // the account may have chosen otherwise, and the API localises subject and
   // faculty names by the stored value. Following it here is what stops a
   // Russian interface listing Czech names.
-  const { data: me } = useQuery({
-    queryKey: ['me'],
-    queryFn: ({ signal }) => api.getMe(signal),
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: me } = useQuery(meQuery);
 
   useEffect(() => {
     if (!me || !isLocale(me.ui_lang)) return;

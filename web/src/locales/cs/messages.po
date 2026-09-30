@@ -287,6 +287,10 @@ msgstr "Jazyk"
 msgid "Месяц"
 msgstr "Měsíc"
 
+#: src/components/ConsoleGate.tsx
+msgid "Вход не сохранился"
+msgstr "Přihlášení se neuložilo"
+
 #: src/pages/Offer.tsx
 msgid "Людям бесплатно. Компаниям — <0>реклама для студентов</0>."
 msgstr "Pro lidi zdarma. Pro firmy je tu <0>reklama pro studenty</0>."
@@ -628,6 +632,10 @@ msgstr "Popiš, co potřebuješ, a dostávej odpovědi — místo toho, abys hle
 msgid "сегодня"
 msgstr "dnes"
 
+#: src/components/ConsoleGate.tsx
+msgid "Откройте приложение заново"
+msgstr "Otevřete aplikaci znovu"
+
 #: src/pages/Join.tsx
 msgid "Готово, ты в чате"
 msgstr "Hotovo, jsi v chatu"
@@ -761,6 +769,10 @@ msgstr "Učí ten předmět, ale na tuhle školu není vázaný"
 msgid "Такого чата нет"
 msgstr "Takový chat tu není"
 
+#: src/components/ConsoleGate.tsx
+msgid "Откройте консоль в приложении Telegram на телефоне или компьютере."
+msgstr "Otevřete konzoli v aplikaci Telegram v telefonu nebo počítači."
+
 #: src/pages/AdsChats.tsx
 msgid "Куда попадёт"
 msgstr "Kam se dostane"
@@ -854,6 +866,10 @@ msgstr "Uvidí ji všichni, kdo nabízejí pomoc. Datum si přečteme z textu."
 #: src/pages/Results.tsx
 msgid "Никто пока не предлагает то, что ты ищешь."
 msgstr "Zatím to, co hledáš, nikdo nenabízí."
+
+#: src/components/ConsoleGate.tsx
+msgid "Вход в консоль действует час после открытия приложения."
+msgstr "Přihlášení do konzole platí hodinu po otevření aplikace."
 
 #: src/pages/AdsChats.tsx
 msgid "чатов · людей"

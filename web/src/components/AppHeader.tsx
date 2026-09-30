@@ -26,7 +26,7 @@ import {
   type Locale,
   writeLocaleOverride,
 } from '@/i18n';
-import { api } from '@/lib/api';
+import { api, meQuery } from '@/lib/api';
 
 import { GlobeIcon, MoonIcon, SunIcon } from './icons';
 import { Pick, Sheet } from './Sheet';
@@ -42,9 +42,8 @@ export function AppHeader() {
   const queryClient = useQueryClient();
   const theme = useAppTheme();
   const user = useTelegramUser();
-  // Root loads it on start; this only reads the cache.
-  const me = useQuery({ queryKey: ['me'], queryFn: ({ signal }) => api.getMe(signal) });
-  const inConsole = pathname.startsWith('/console');
+  const me = useQuery(meQuery);
+  const onConsole = pathname === '/console';
 
   const [languageOpen, setLanguageOpen] = useState(false);
 
@@ -145,9 +144,10 @@ export function AppHeader() {
           <button
             type="button"
             className={`${css.iconBtn} ${css.consoleBtn}`}
-            aria-current={inConsole ? 'page' : undefined}
+            aria-current={onConsole ? 'page' : undefined}
             onClick={() => {
-              if (!inConsole) hapticSelection();
+              if (onConsole) return;
+              hapticSelection();
               navigate('/console');
             }}
           >

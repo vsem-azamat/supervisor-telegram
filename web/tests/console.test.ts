@@ -7,6 +7,7 @@ import {
   clickRate,
   consoleRequester,
   daysSince,
+  isFinal,
 } from '../src/lib/console.ts';
 
 type Call = { url: string; method: string; body?: string };
@@ -47,16 +48,64 @@ test('a refused sign-in is the answer, not a loop', async () => {
   await assert.rejects(get('/api/stats/home'), (error: unknown) => {
     assert.ok(error instanceof ConsoleError);
     assert.equal(error.status, 403);
+    assert.equal(error.reason, 'refused');
     return true;
   });
   assert.equal(calls.length, 2);
+});
+
+test('an initData too old to sign in with says so, apart from any other failure', async () => {
+  const { fetcher } = scripted({
+    '/api/stats/home': [401],
+    '/api/auth/webapp': [401],
+  });
+  const get = consoleRequester(fetcher, () => 'user=2&auth_date=1&hash=x');
+
+  await assert.rejects(get('/api/stats/home'), (error: unknown) => {
+    assert.ok(error instanceof ConsoleError);
+    assert.equal(error.reason, 'stale');
+    return true;
+  });
+});
+
+test('a session that is not kept is its own outcome, and signs in once', async () => {
+  // Signed in, and the cookie did not stick: the retry meets the same 401.
+  const { calls, fetcher } = scripted({
+    '/api/stats/home': [401, 401],
+    '/api/auth/webapp': [200],
+  });
+  const get = consoleRequester(fetcher, () => 'user=1&hash=x');
+
+  await assert.rejects(get('/api/stats/home'), (error: unknown) => {
+    assert.ok(error instanceof ConsoleError);
+    assert.equal(error.reason, 'not-kept');
+    return true;
+  });
+  assert.equal(calls.filter((c) => c.url === '/api/auth/webapp').length, 1);
+});
+
+test('a failure that is none of those may be tried again', async () => {
+  const { fetcher } = scripted({ '/api/stats/home': [502] });
+  const get = consoleRequester(fetcher, () => 'user=1&hash=x');
+
+  await assert.rejects(get('/api/stats/home'), (error: unknown) => {
+    assert.ok(error instanceof ConsoleError);
+    assert.equal(error.reason, 'failed');
+    assert.equal(isFinal(error), false);
+    return true;
+  });
+  assert.equal(isFinal(new ConsoleError(403, 'refused')), true);
 });
 
 test('without initData there is nothing to sign in with', async () => {
   const { calls, fetcher } = scripted({ '/api/stats/home': [401] });
   const get = consoleRequester(fetcher, () => undefined);
 
-  await assert.rejects(get('/api/stats/home'), ConsoleError);
+  await assert.rejects(get('/api/stats/home'), (error: unknown) => {
+    assert.ok(error instanceof ConsoleError);
+    assert.equal(error.reason, 'stale');
+    return true;
+  });
   assert.equal(calls.length, 1);
 });
 

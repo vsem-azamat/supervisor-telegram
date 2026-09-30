@@ -351,6 +351,16 @@ export type Api = typeof api;
 /** The console's requester for webapi's session endpoints. See lib/console.ts. */
 export const consoleGet = consoleRequester((...args) => fetch(...args), rawInitData);
 
+/**
+ * The account, shared by the shell, the header and every screen that reads it.
+ * One object so every observer agrees on how fresh it has to be.
+ */
+export const meQuery = {
+  queryKey: ['me'] as const,
+  queryFn: ({ signal }: { signal: AbortSignal }) => api.getMe(signal),
+  staleTime: 5 * 60 * 1000,
+};
+
 // The console reads while somebody looks at it; a minute is fresh enough.
 const CONSOLE_STALE = 60_000;
 

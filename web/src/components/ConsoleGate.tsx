@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 
 import { AppHeader } from '@/components/AppHeader';
 import { Empty, Row, Rows, Screen, SkeletonRows } from '@/components/Ui';
-import { api } from '@/lib/api';
+import { meQuery } from '@/lib/api';
 import { ConsoleError } from '@/lib/console';
 
 /**
@@ -14,7 +14,7 @@ import { ConsoleError } from '@/lib/console';
  * it is refused on the server all the same.
  */
 export function ConsoleGate({ children }: { children: ReactNode }) {
-  const me = useQuery({ queryKey: ['me'], queryFn: ({ signal }) => api.getMe(signal) });
+  const me = useQuery(meQuery);
 
   return (
     <Screen>
@@ -23,6 +23,14 @@ export function ConsoleGate({ children }: { children: ReactNode }) {
         <div style={{ marginTop: 16 }}>
           <SkeletonRows count={3} />
         </div>
+      ) : me.isError ? (
+        <Rows>
+          <Row
+            title={<Trans>Не удалось загрузить</Trans>}
+            hint={<Trans>Нажмите, чтобы попробовать ещё раз</Trans>}
+            onClick={() => void me.refetch()}
+          />
+        </Rows>
       ) : me.data?.is_admin ? (
         children
       ) : (
@@ -35,16 +43,42 @@ export function ConsoleGate({ children }: { children: ReactNode }) {
   );
 }
 
-/** A section that did not load, with a way to try again. */
+/**
+ * A section that did not load: why, and a way to try again only where trying
+ * again can help. See `ConsoleFailureReason`.
+ */
 export function ConsoleFailure({ error, retry }: { error: unknown; retry: () => void }) {
-  // webapi's refusal: this person is an operator of the catalog but not a
-  // super admin of the moderator bot. Trying again would change nothing.
-  if (error instanceof ConsoleError && error.status === 403) {
+  const reason = error instanceof ConsoleError ? error.reason : 'failed';
+  if (reason === 'refused') {
     return (
       <Rows>
         <Row
           title={<Trans>Нет доступа к чатам</Trans>}
           hint={<Trans>Аккаунта нет среди главных администраторов бота.</Trans>}
+        />
+      </Rows>
+    );
+  }
+  if (reason === 'stale') {
+    return (
+      <Rows>
+        <Row
+          title={<Trans>Откройте приложение заново</Trans>}
+          hint={<Trans>Вход в консоль действует час после открытия приложения.</Trans>}
+        />
+      </Rows>
+    );
+  }
+  if (reason === 'not-kept') {
+    return (
+      <Rows>
+        <Row
+          title={<Trans>Вход не сохранился</Trans>}
+          hint={
+            <Trans>
+              Откройте консоль в приложении Telegram на телефоне или компьютере.
+            </Trans>
+          }
         />
       </Rows>
     );

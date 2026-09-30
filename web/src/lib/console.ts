@@ -8,14 +8,33 @@
  * a request meets its absence, once, and never retries a refusal.
  */
 
+/**
+ * Why a console request failed, which decides what the screen says:
+ * - `refused`: signed in, and webapi said this account is not a super admin;
+ * - `stale`: no initData, or one webapi no longer accepts (it takes an hour's
+ *   worth); reopening the app gives a fresh one;
+ * - `not-kept`: signed in, and the next request still had no session, so the
+ *   cookie was not kept (Telegram Web's iframe, for one); signing in again
+ *   would only add sessions;
+ * - `failed`: anything else, which may pass on another try.
+ */
+export type ConsoleFailureReason = 'refused' | 'stale' | 'not-kept' | 'failed';
+
 export class ConsoleError extends Error {
   readonly status: number;
+  readonly reason: ConsoleFailureReason;
 
-  constructor(status: number) {
-    super(`console request failed: ${status}`);
+  constructor(status: number, reason: ConsoleFailureReason = 'failed') {
+    super(`console request failed: ${status} (${reason})`);
     this.name = 'ConsoleError';
     this.status = status;
+    this.reason = reason;
   }
+}
+
+/** Whether trying again can change the answer. */
+export function isFinal(error: unknown): boolean {
+  return error instanceof ConsoleError && error.reason !== 'failed';
 }
 
 export type ConsoleGet = <T>(path: string, init?: RequestInit) => Promise<T>;
@@ -31,16 +50,20 @@ export function consoleRequester(
   // Shared by whatever requests meet the missing session at the same time:
   // one sign-in, not one per screen tile.
   let signingIn: Promise<void> | null = null;
+  // Once a session was opened and not kept, opening more cannot help.
+  let notKept = false;
 
   const signIn = async () => {
     const raw = initData();
-    if (!raw) throw new ConsoleError(401);
+    if (!raw) throw new ConsoleError(401, 'stale');
     const response = await fetcher('/api/auth/webapp', {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ init_data: raw }),
     });
+    if (response.status === 401) throw new ConsoleError(401, 'stale');
+    if (response.status === 403) throw new ConsoleError(403, 'refused');
     if (!response.ok) throw new ConsoleError(response.status);
   };
 
@@ -51,17 +74,23 @@ export function consoleRequester(
       headers: {
         Accept: 'application/json',
         ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(init.headers as Record<string, string> | undefined),
       },
     });
 
   return async <T>(path: string, init: RequestInit = {}): Promise<T> => {
     let response = await send(path, init);
     if (response.status === 401) {
+      if (notKept) throw new ConsoleError(401, 'not-kept');
       signingIn ??= signIn().finally(() => {
         signingIn = null;
       });
       await signingIn;
       response = await send(path, init);
+      if (response.status === 401) {
+        notKept = true;
+        throw new ConsoleError(401, 'not-kept');
+      }
     }
     if (!response.ok) throw new ConsoleError(response.status);
     return (response.status === 204 ? undefined : await response.json()) as T;
