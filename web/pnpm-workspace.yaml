@@ -1,0 +1,10 @@
+# pnpm 11 reads settings from here rather than from package.json.
+
+overrides:
+  # Transitive, through @hey-api/openapi-ts (the client generator), which is
+  # already at its latest release: parser CPU-blowup advisories up to 5.4.0.
+  # Nothing here depends on js-yaml directly, so the version has to be forced.
+  js-yaml: '>=5.4.1'
+  # Transitive, through vite-plugin-mkcert (dev HTTPS), also at its latest:
+  # several advisories below 8.10.2, one of them a TLS validation bypass.
+  undici: '>=8.10.2'

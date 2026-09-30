@@ -34,6 +34,23 @@ FROM webui-dependencies AS webui-build
 COPY webui/ ./
 RUN pnpm run build
 
+# The Mini App. pnpm 11, not the webui's 10: the lockfile was written by 11,
+# and a frozen install refuses a lockfile from another major.
+FROM node:24.15.0-alpine3.23 AS web-dependencies
+
+WORKDIR /app/web
+
+RUN corepack enable && corepack prepare pnpm@11.17.0 --activate
+
+COPY web/package.json web/pnpm-lock.yaml web/pnpm-workspace.yaml ./
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile
+
+FROM web-dependencies AS web-build
+
+COPY web/ ./
+RUN pnpm run build
+
 # Production stage
 FROM python:3.12.13-slim-trixie AS production
 
@@ -73,7 +90,9 @@ CMD ["bot"]
 FROM caddy:2.11.2-alpine AS webui
 
 COPY docker/Caddyfile /etc/caddy/Caddyfile
-COPY --from=webui-build /app/webui/build /srv
+# Two builds, one origin: docker/Caddyfile decides which paths each serves.
+COPY --from=web-build /app/web/dist /srv/app
+COPY --from=webui-build /app/webui/build /srv/console
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD caddy validate --config /etc/caddy/Caddyfile >/dev/null || exit 1

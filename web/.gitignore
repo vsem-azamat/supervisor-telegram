@@ -1,0 +1,26 @@
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Certificates minted by vite-plugin-mkcert
+.vite/
+.mkcert/
+
+# NOT ignored: src/lib/generated/. The types are generated from the API's
+# OpenAPI document, and committing them is what lets a clone type-check with no
+# backend, and what puts a contract change in the diff where a reviewer can see
+# it. `pnpm api:generate` regenerates from catalog-openapi.json and is what CI
+# compares against; see `openapi-ts.config.ts`.
+
+# Catalogs compiled by `pnpm i18n:compile`. The build does not need them —
+# @lingui/vite-plugin compiles the .po files on import — so they are a local
+# convenience only. The .po files are the source of truth and are committed.
+src/locales/*/messages.ts
+
+.env
+.env.*
+!.env.example
+
+*.log
+.DS_Store

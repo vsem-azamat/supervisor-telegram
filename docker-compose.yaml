@@ -69,6 +69,10 @@ services:
   webui:
     image: ghcr.io/vsem-azamat/supervisor-telegram-webui:${IMAGE_TAG:?Set IMAGE_TAG to a published image tag}
     container_name: supervisor-telegram-webui
+    # Where the Mini App's /api/v1/* goes: the catalog's API, an https origin.
+    # Read by Caddy, never by the app, so it is not in the shared block.
+    environment:
+      CATALOG_ORIGIN:
     ports:
       - "127.0.0.1:18083:80"
     depends_on:

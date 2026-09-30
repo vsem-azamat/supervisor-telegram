@@ -114,3 +114,64 @@ jobs:
 
     - name: Build webui
       run: pnpm --dir webui run build
+
+    # The Mini App. Its own working directory, so corepack picks the pnpm its
+    # package.json names (11) rather than the webui's 10 activated above.
+    - name: Install web dependencies
+      working-directory: web
+      run: pnpm install --frozen-lockfile
+
+    - name: Lint web
+      working-directory: web
+      run: pnpm lint
+
+    - name: Type check web
+      working-directory: web
+      run: pnpm typecheck
+
+    - name: Test web
+      working-directory: web
+      run: pnpm test
+
+    # A message used in code but missing from a catalog renders as its Russian
+    # source in the other three languages, silently. compile reads only the
+    # catalogs, so extract first and fail when that changes them. Never
+    # --clean: it drops the obsolete entries the catalogs keep on purpose.
+    - name: Every web message is translated
+      working-directory: web
+      run: |
+        pnpm exec lingui extract
+        changed=$(git status --porcelain -- src/locales)
+        if [ -n "$changed" ]; then
+          echo "$changed"
+          echo "Run \`pnpm i18n:extract\` in web/, translate, and commit." >&2
+          exit 1
+        fi
+        pnpm exec lingui compile --strict
+
+    # The client in web/src/lib/generated is generated from the catalog API's
+    # document, committed beside it as catalog-openapi.json. Regenerating must
+    # change nothing; `catalog-contract.yml` checks the document against the
+    # catalog itself.
+    - name: The web client matches the catalog API's contract
+      working-directory: web
+      run: |
+        pnpm api:generate
+        changed=$(git status --porcelain -- src/lib/generated)
+        if [ -n "$changed" ]; then
+          echo "$changed"
+          echo "Run \`pnpm api:generate\` in web/ and commit src/lib/generated." >&2
+          exit 1
+        fi
+
+    - name: Build web
+      working-directory: web
+      run: pnpm build
+
+    - name: Each path goes to the backend or build that owns it
+      run: |
+        set -euo pipefail
+        docker run --rm -e CATALOG_ORIGIN=https://catalog.invalid \
+          -v "$PWD/docker/Caddyfile:/etc/caddy/Caddyfile:ro" \
+          caddy:2.11.2-alpine caddy adapt --config /etc/caddy/Caddyfile \
+          | python3 docker/check-routes.py catalog.invalid

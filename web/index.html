@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- viewport-fit=cover is what lets the page paint under the notch and the
+         home indicator; without it the Telegram safe-area insets are always 0. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="color-scheme" content="light dark" />
+    <!-- The browser's own chrome, which only anyone visiting the landing in a
+         browser ever sees; inside Telegram the frame is painted by paintChrome
+         instead. Keyed on the system preference rather than on the stored
+         choice, because the alternative is repeating the palette here in
+         hex — see styles/tokens.css for why there is one copy of it. -->
+    <meta name="theme-color" content="#fffefc" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#171614" media="(prefers-color-scheme: dark)" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <title>Students CZ — кто поможет с учёбой в Чехии</title>
+    <meta
+      name="description"
+      content="Репетиторы, подготовка к přijímačky, помощь на экзамене и нострификация — для студентов в Чехии. Открывается в Telegram."
+    />
+    <script>
+      /*
+       * The palette, before the first paint.
+       *
+       * This has to run here and not in the bundle: by the time a module
+       * executes, the page has already been painted once, and a light flash
+       * ahead of a dark app is worse than no theming at all. It is the same
+       * key and the same resolution as src/lib/theme.ts — keep them in step.
+       */
+      (() => {
+        let mode = null;
+        try {
+          // The second key is what this was called before the rename. It is
+          // read here as well as in theme.ts because the migration there runs
+          // after the first paint, which is one dark-to-light flash too late.
+          mode = localStorage.getItem('students-cz.theme');
+          if (mode !== 'light' && mode !== 'dark') {
+            mode = localStorage.getItem('konnekt.theme');
+          }
+        } catch {
+          // Private mode, or storage disabled. Fall through to the system.
+        }
+        if (mode !== 'light' && mode !== 'dark') {
+          mode = window.matchMedia?.('(prefers-color-scheme: dark)').matches
+            ? 'dark'
+            : 'light';
+        }
+        document.documentElement.dataset.theme = mode;
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

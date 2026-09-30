@@ -61,7 +61,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6.0.2
 
-      # Fails before anything reaches the VPS. The five settings below have no
+      # Fails before anything reaches the VPS. The settings below have no
       # defaults, so a deploy missing one starts containers that crash on
       # boot; the rest would come up quietly wrong instead, which is worse.
       - name: Check required configuration is present
@@ -72,15 +72,27 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
           MODERATOR_BOT_TOKEN: ${{ secrets.MODERATOR_BOT_TOKEN }}
           ADMIN_SUPER_ADMINS: ${{ vars.ADMIN_SUPER_ADMINS }}
+          CATALOG_ORIGIN: ${{ vars.CATALOG_ORIGIN }}
         run: |
           missing=""
 
           # No defaults worth having: the database is not part of this stack, so
           # a missing host silently means localhost, and the containers come up
           # pointing at nothing.
-          for name in DB_HOST DB_USER DB_NAME DB_PASSWORD MODERATOR_BOT_TOKEN ADMIN_SUPER_ADMINS; do
+          # CATALOG_ORIGIN: without it Caddy has no upstream for the Mini App's
+          # /api/v1/*, and every help screen fails.
+          for name in DB_HOST DB_USER DB_NAME DB_PASSWORD MODERATOR_BOT_TOKEN ADMIN_SUPER_ADMINS CATALOG_ORIGIN; do
             [ -n "$(printenv "$name")" ] || missing="$missing $name"
           done
+
+          # An origin and nothing else: Caddy refuses an upstream with a path,
+          # even a trailing slash, and webui then restarts in a loop, taking
+          # the console and every webapi route with it. Plain http would carry
+          # initData across the internet unencrypted.
+          if [ -n "$CATALOG_ORIGIN" ] && ! [[ "$CATALOG_ORIGIN" =~ ^https://[^/]+$ ]]; then
+            echo "CATALOG_ORIGIN must be https://host, with no path: $CATALOG_ORIGIN" >&2
+            exit 1
+          fi
 
           if [ -n "$missing" ]; then
             echo "Missing required configuration:$missing" >&2
@@ -118,11 +130,12 @@ jobs:
           WEBAPI_PUBLIC_URL: ${{ vars.WEBAPI_PUBLIC_URL }}
           WEBAPI_HELP_URL: ${{ vars.WEBAPI_HELP_URL }}
           MCP_TOKEN: ${{ secrets.MCP_TOKEN }}
+          CATALOG_ORIGIN: ${{ vars.CATALOG_ORIGIN }}
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          envs: IMAGE_TAG,DB_HOST,DB_PORT,DB_USER,DB_NAME,DB_PASSWORD,MODERATOR_BOT_TOKEN,ADMIN_SUPER_ADMINS,ADMIN_REPORT_CHAT_ID,WEBAPI_PUBLIC_URL,WEBAPI_HELP_URL,MCP_TOKEN
+          envs: IMAGE_TAG,DB_HOST,DB_PORT,DB_USER,DB_NAME,DB_PASSWORD,MODERATOR_BOT_TOKEN,ADMIN_SUPER_ADMINS,ADMIN_REPORT_CHAT_ID,WEBAPI_PUBLIC_URL,WEBAPI_HELP_URL,MCP_TOKEN,CATALOG_ORIGIN
           script: |
             set -e
             cd ~/deploy/supervisor-telegram

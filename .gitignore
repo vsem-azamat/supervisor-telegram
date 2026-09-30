@@ -24,6 +24,8 @@ eggs/
 .eggs/
 lib/
 !webui/src/lib/
+!web/src/lib/
+!web/scripts/lib/
 lib64/
 
 # Superpowers brainstorm session files
