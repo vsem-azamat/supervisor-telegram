@@ -54,3 +54,19 @@ worth doing; nothing in this repository can do it.
 
 If it is ever moved inside the compose network, the data has to move with it —
 `git log` has the import that does this, removed once this route was chosen.
+
+## Backups
+
+The shared database server's own backup jobs do not cover this database. The
+stack's `db-backup` service dumps it daily at 02:00 UTC with `pg_dump
+--format=custom`, using the bot's own connection settings, into
+`~/deploy/supervisor-telegram/db-backups/` (0700) on the application host, and
+keeps 30 days. That is another machine than the database's, so losing either
+one leaves the other. A dump is written to a `.part` file and renamed only on
+success.
+
+To restore, into a scratch database first:
+
+```sh
+pg_restore --no-owner --no-privileges -d <scratch> db-backups/<file>.dump
+```

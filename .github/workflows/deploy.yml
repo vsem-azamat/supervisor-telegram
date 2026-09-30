@@ -196,7 +196,7 @@ jobs:
             [ -z "$others" ] || docker stop -t 60 $others
 
             # Personal data, on a host shared with other projects.
-            install -d -m 700 catalog-backups
+            install -d -m 700 catalog-backups db-backups
 
             # The catalog migrates, then derives its embeddings, before its new
             # API serves: a failed migration stops the deploy here.

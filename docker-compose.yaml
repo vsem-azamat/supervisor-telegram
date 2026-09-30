@@ -36,8 +36,33 @@ x-runtime-env: &runtime-env
   APP_ENVIRONMENT: production
   LOG_LEVEL: INFO
 
-# The catalog's services rotate their logs as its old stack did.
-x-catalog-logging: &catalog-logging
+# A dump a day at BACKUP_HOUR_UTC into /backups, kept BACKUP_RETENTION_DAYS,
+# written to a .part file and renamed only once complete, so a partial file is
+# never taken for a usable one. Credentials are the libpq PG* variables.
+x-pg-backup-loop: &pg-backup-loop
+      - |
+        set -euo pipefail
+        while true; do
+          now=$$(date -u +%s)
+          # Next occurrence of BACKUP_HOUR_UTC:00, today or tomorrow.
+          target=$$(date -u -d "today $${BACKUP_HOUR_UTC}:00" +%s)
+          [ "$$target" -le "$$now" ] && target=$$(date -u -d "tomorrow $${BACKUP_HOUR_UTC}:00" +%s)
+          sleep $$((target - now))
+          stamp=$$(date -u +%Y%m%dT%H%M%SZ)
+          if pg_dump --format=custom --file="/backups/$${BACKUP_PREFIX}-$$stamp.dump.part"; then
+            # Renamed only once complete, so a partial file is never taken for
+            # a usable backup.
+            mv "/backups/$${BACKUP_PREFIX}-$$stamp.dump.part" "/backups/$${BACKUP_PREFIX}-$$stamp.dump"
+            echo "backup ok: $${BACKUP_PREFIX}-$$stamp.dump"
+          else
+            rm -f "/backups/$${BACKUP_PREFIX}-$$stamp.dump.part"
+            echo "backup FAILED at $$stamp" >&2
+          fi
+          find /backups -name '*.dump' -mtime "+$${BACKUP_RETENTION_DAYS}" -delete
+        done
+
+# Logs rotated as the catalog's old stack rotated them.
+x-catalog-logging: &rotated-logs
   driver: json-file
   options: {max-size: "10m", max-file: "3"}
 
@@ -80,6 +105,29 @@ services:
       - catalog-api
     restart: unless-stopped
 
+  # The bot's database, moderator_prod, lives on the shared database server,
+  # whose own backup jobs do not cover it. A dump a day lands here instead, on
+  # another machine, with the credentials the bot runs with.
+  db-backup:
+    image: pgvector/pgvector:0.8.6-pg18-bookworm
+    container_name: supervisor-telegram-db-backup
+    environment:
+      PGHOST: ${DB_HOST}
+      PGPORT: ${DB_PORT:-5432}
+      PGUSER: ${DB_USER}
+      PGDATABASE: ${DB_NAME}
+      PGPASSWORD: ${DB_PASSWORD}
+      BACKUP_PREFIX: moderator
+      BACKUP_HOUR_UTC: 2
+      BACKUP_RETENTION_DAYS: 30
+    volumes:
+      - ./db-backups:/backups
+    entrypoint: ["/bin/bash", "-c"]
+    command: *pg-backup-loop
+    security_opt: [no-new-privileges:true]
+    logging: *rotated-logs
+    restart: unless-stopped
+
   # ── The catalog (catalog/) ─────────────────────────────────────────────
   # Its own database, image and settings: nothing but the bot token and the
   # admin ids is shared with the services above. See catalog/docs/deploy.md.
@@ -109,7 +157,7 @@ services:
       retries: 12
       start_period: 20s
     security_opt: [no-new-privileges:true]
-    logging: *catalog-logging
+    logging: *rotated-logs
     restart: unless-stopped
 
   # Run by the deploy with `compose run --rm` before the API starts, so a
@@ -123,7 +171,7 @@ services:
     depends_on:
       catalog-postgres: {condition: service_healthy}
     security_opt: [no-new-privileges:true]
-    logging: *catalog-logging
+    logging: *rotated-logs
     restart: "no"
 
   # Derived data: costs nothing when the catalog and the model are unchanged.
@@ -136,7 +184,7 @@ services:
     depends_on:
       catalog-postgres: {condition: service_healthy}
     security_opt: [no-new-privileges:true]
-    logging: *catalog-logging
+    logging: *rotated-logs
     restart: "no"
 
   catalog-api:
@@ -167,7 +215,7 @@ services:
       retries: 8
       start_period: 20s
     security_opt: [no-new-privileges:true]
-    logging: *catalog-logging
+    logging: *rotated-logs
     restart: unless-stopped
 
   # A dump a day, kept for two weeks, beside the stack on the host. The
@@ -180,6 +228,7 @@ services:
       PGDATABASE: ${CATALOG_DB_NAME}
       PGUSER: ${CATALOG_DB_USER}
       PGPASSWORD: ${CATALOG_DB_PASSWORD}
+      BACKUP_PREFIX: catalog
       BACKUP_HOUR_UTC: 3
       BACKUP_RETENTION_DAYS: 14
     volumes:
@@ -187,29 +236,9 @@ services:
     depends_on:
       catalog-postgres: {condition: service_healthy}
     entrypoint: ["/bin/bash", "-c"]
-    command:
-      - |
-        set -euo pipefail
-        while true; do
-          now=$$(date -u +%s)
-          # Next occurrence of BACKUP_HOUR_UTC:00, today or tomorrow.
-          target=$$(date -u -d "today $${BACKUP_HOUR_UTC}:00" +%s)
-          [ "$$target" -le "$$now" ] && target=$$(date -u -d "tomorrow $${BACKUP_HOUR_UTC}:00" +%s)
-          sleep $$((target - now))
-          stamp=$$(date -u +%Y%m%dT%H%M%SZ)
-          if pg_dump --format=custom --file="/backups/catalog-$$stamp.dump.part"; then
-            # Renamed only once complete, so a partial file is never taken for
-            # a usable backup.
-            mv "/backups/catalog-$$stamp.dump.part" "/backups/catalog-$$stamp.dump"
-            echo "backup ok: catalog-$$stamp.dump"
-          else
-            rm -f "/backups/catalog-$$stamp.dump.part"
-            echo "backup FAILED at $$stamp" >&2
-          fi
-          find /backups -name '*.dump' -mtime "+$${BACKUP_RETENTION_DAYS}" -delete
-        done
+    command: *pg-backup-loop
     security_opt: [no-new-privileges:true]
-    logging: *catalog-logging
+    logging: *rotated-logs
     restart: unless-stopped
 
 volumes:
