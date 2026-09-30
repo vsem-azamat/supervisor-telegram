@@ -532,7 +532,7 @@ class ModerationEvent(Base):
             "action IN ('ban', 'unban', 'kick', 'mute', 'unmute', 'blacklist', 'unblacklist')",
             name="ck_moderation_events_action",
         ),
-        sa.CheckConstraint("source IN ('command', 'mcp')", name="ck_moderation_events_source"),
+        sa.CheckConstraint("source IN ('command', 'mcp', 'console')", name="ck_moderation_events_source"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)

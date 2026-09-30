@@ -42,6 +42,7 @@ class ModerationEventSource(StrEnum):
 
     COMMAND = "command"
     MCP = "mcp"
+    CONSOLE = "console"
 
 
 class PendingActionOrigin(StrEnum):

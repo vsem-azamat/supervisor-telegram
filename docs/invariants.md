@@ -217,9 +217,15 @@ swallowed, which is the one place in this codebase where losing data is
 preferable to raising.
 
 **The actor is always a person.** The source says how the action was asked for —
-a command in a chat, or the control plane — but a token can never be the answer
+a command in a chat, the console, or the control plane — but a token can never be the answer
 to "who banned this person", so a confirmed proposal is recorded against the
 admin who pressed confirm.
+
+**The blacklist cache may be stale, never wrong about a return.** The bot keeps
+the blacklisted ids for five minutes, and not every path that changes the list
+can reset that cache — the console runs in another process. A cached id is confirmed against
+its row before the bot bans anyone: a stale cache may let a fresh ban wait for
+Telegram's own, but never throws out a person who was let back in.
 
 ## MCP control plane
 

@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from app.core.config import settings
-from app.db.models import User
+from app.db.models import ModerationEvent, User
 from app.webapi.main import app
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
@@ -134,6 +134,8 @@ async def test_a_super_admin_cannot_be_banned(client_factory, db_session_maker, 
     assert resp.status_code == 400, resp.text
     bot.ban_chat_member.assert_not_called()
     async with db_session_maker() as s:
+        assert not (await s.scalars(select(ModerationEvent))).all(), "a refused ban is not on the record"
+    async with db_session_maker() as s:
         u = (await s.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
         assert u is None or u.blocked is False
 
@@ -186,3 +188,22 @@ async def test_the_blacklist_is_for_super_admins(db_session_maker) -> None:
     finally:
         app.dependency_overrides.pop(get_session, None)
     assert resp.status_code == 401
+
+
+async def test_console_bans_and_unbans_are_on_the_record(client_factory, db_session_maker) -> None:
+    """Who did it and from where, like /banall and a confirmed proposal."""
+    make, _bot = client_factory
+    async with make() as client:
+        assert (await client.post("/api/users/45/block", json={})).status_code == 200
+        assert (await client.delete("/api/users/45/block")).status_code == 200
+
+    async with db_session_maker() as s:
+        events = (
+            await s.scalars(
+                select(ModerationEvent).where(ModerationEvent.target_user_id == 45).order_by(ModerationEvent.id)
+            )
+        ).all()
+    assert [(e.action, e.source, e.actor_id, e.chat_id) for e in events] == [
+        ("blacklist", "console", 1, None),
+        ("unblacklist", "console", 1, None),
+    ]
