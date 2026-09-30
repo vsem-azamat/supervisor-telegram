@@ -5,6 +5,141 @@ export type ClientOptions = {
 };
 
 /**
+ * AdminCatalog
+ *
+ * The catalog as the operator reads it. See docs/architecture.md.
+ */
+export type AdminCatalog = {
+    /**
+     * Profiles
+     */
+    profiles: Array<AdminProfile>;
+    /**
+     * Unanswered
+     */
+    unanswered: Array<AdminRequest>;
+    /**
+     * Failed Searches
+     */
+    failed_searches: Array<AdminSearch>;
+    counts: AdminCounts;
+};
+
+/**
+ * AdminCounts
+ */
+export type AdminCounts = {
+    /**
+     * Profiles Week
+     */
+    profiles_week: number;
+    /**
+     * Requests Week
+     */
+    requests_week: number;
+    /**
+     * Unanswered
+     */
+    unanswered: number;
+    /**
+     * Failed Searches
+     */
+    failed_searches: number;
+};
+
+/**
+ * AdminPlacement
+ */
+export type AdminPlacement = {
+    /**
+     * Placement Id
+     */
+    placement_id: number;
+    /**
+     * Partner
+     */
+    partner: string;
+    /**
+     * Title
+     */
+    title: string;
+    /**
+     * Slot
+     */
+    slot: string;
+    /**
+     * Is Active
+     */
+    is_active: boolean;
+    /**
+     * Impressions
+     */
+    impressions: number;
+    /**
+     * Clicks
+     */
+    clicks: number;
+};
+
+/**
+ * AdminProfile
+ */
+export type AdminProfile = {
+    /**
+     * User Id
+     */
+    user_id: number;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Services
+     */
+    services: Array<string>;
+    /**
+     * Published At
+     */
+    published_at: string;
+};
+
+/**
+ * AdminRequest
+ */
+export type AdminRequest = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Text
+     */
+    text: string;
+    /**
+     * Created At
+     */
+    created_at: string;
+};
+
+/**
+ * AdminSearch
+ */
+export type AdminSearch = {
+    /**
+     * Text
+     */
+    text: string;
+    /**
+     * Times
+     */
+    times: number;
+    /**
+     * Last At
+     */
+    last_at: string;
+};
+
+/**
  * AdsInfo
  *
  * What the ads page needs from us: who a business writes to, if anyone.
@@ -468,6 +603,10 @@ export type MeOut = {
      * Helper Status
      */
     helper_status?: string | null;
+    /**
+     * Is Admin
+     */
+    is_admin: boolean;
 };
 
 /**
@@ -2036,6 +2175,70 @@ export type RegisterClickApiV1PlacementsPlacementIdClickPostResponses = {
 };
 
 export type RegisterClickApiV1PlacementsPlacementIdClickPostResponse = RegisterClickApiV1PlacementsPlacementIdClickPostResponses[keyof RegisterClickApiV1PlacementsPlacementIdClickPostResponses];
+
+export type ReadCatalogApiV1AdminCatalogGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/catalog';
+};
+
+export type ReadCatalogApiV1AdminCatalogGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReadCatalogApiV1AdminCatalogGetError = ReadCatalogApiV1AdminCatalogGetErrors[keyof ReadCatalogApiV1AdminCatalogGetErrors];
+
+export type ReadCatalogApiV1AdminCatalogGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: AdminCatalog;
+};
+
+export type ReadCatalogApiV1AdminCatalogGetResponse = ReadCatalogApiV1AdminCatalogGetResponses[keyof ReadCatalogApiV1AdminCatalogGetResponses];
+
+export type ReadPartnersApiV1AdminPartnersGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * Authorization
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/partners';
+};
+
+export type ReadPartnersApiV1AdminPartnersGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReadPartnersApiV1AdminPartnersGetError = ReadPartnersApiV1AdminPartnersGetErrors[keyof ReadPartnersApiV1AdminPartnersGetErrors];
+
+export type ReadPartnersApiV1AdminPartnersGetResponses = {
+    /**
+     * Response Read Partners Api V1 Admin Partners Get
+     *
+     * Successful Response
+     */
+    200: Array<AdminPlacement>;
+};
+
+export type ReadPartnersApiV1AdminPartnersGetResponse = ReadPartnersApiV1AdminPartnersGetResponses[keyof ReadPartnersApiV1AdminPartnersGetResponses];
 
 export type HealthzHealthzGetData = {
     body?: never;
