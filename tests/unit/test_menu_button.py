@@ -35,6 +35,7 @@ class TestMenuButton:
 
         assert isinstance(button, MenuButtonWebApp)
         assert button.web_app.url == SITE
+        assert button.text == "Открыть"
 
     async def test_a_trailing_slash_does_not_reach_telegram(self, monkeypatch) -> None:
         button = await _set_button(monkeypatch, f"{SITE}/")

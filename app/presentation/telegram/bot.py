@@ -30,6 +30,7 @@ from app.presentation.telegram.middlewares import (
     HistoryMiddleware,
     ManagedChatsMiddleware,
 )
+from app.presentation.telegram.profile import publish_profile
 
 setup_logging()
 logger = get_logger("bot")
@@ -54,7 +55,7 @@ async def _publish_menu_button(bot: Bot) -> None:
     # https is Telegram's requirement for a Mini App, not ours; local
     # development runs over http and gets the ordinary command menu.
     if url.startswith("https://"):
-        button: MenuButton = MenuButtonWebApp(text="Каталог", web_app=WebAppInfo(url=url))
+        button: MenuButton = MenuButtonWebApp(text="Открыть", web_app=WebAppInfo(url=url))
     else:
         button = MenuButtonCommands()
 
@@ -77,6 +78,10 @@ async def on_startup(bot: Bot) -> None:
         await _publish_menu_button(bot)
     except Exception as e:
         logger.warning("menu_button_not_set", error=str(e))
+    try:
+        await publish_profile(bot)
+    except Exception as e:
+        logger.warning("profile_not_set", error=str(e))
 
 
 async def on_shutdown(bot: Bot) -> None:
