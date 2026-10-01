@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any
 
 from pydantic import Field, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -94,7 +94,14 @@ class TelegramSettings(Settings):
 class AdminSettings(Settings):
     """Admin configuration."""
 
-    super_admins: list[int] = Field(..., description="List of super admin user IDs")
+    # `NoDecode` is what makes the validator below reachable. Without it
+    # pydantic-settings JSON-decodes a list field at the source, and a
+    # comma-separated `ADMIN_SUPER_ADMINS` raises at startup before anything
+    # gets a chance to split it — the same trap already documented on
+    # `allowed_origins`, which quietly cost that setting its value. Here the
+    # cost would be louder and worse: both processes refuse to boot the first
+    # time a second administrator is added.
+    super_admins: Annotated[list[int], NoDecode] = Field(..., description="List of super admin user IDs")
     report_chat_id: int | None = Field(default=None, description="Chat ID for reports")
 
     model_config = SettingsConfigDict(
@@ -108,14 +115,25 @@ class AdminSettings(Settings):
     @field_validator("super_admins", mode="before")
     @classmethod
     def parse_admin_list(cls, v: Any) -> list[int]:
-        """Parse comma-separated admin IDs."""
+        """Parse comma-separated admin IDs.
+
+        Comma-separated is the spelling the whole stack accepts: the catalog
+        reads the same variable as ADMIN_TG_IDS and splits it on commas only.
+        Brackets are tolerated here so a stray JSON array still boots this
+        process, but do not deploy one. An empty list is refused: with no super
+        admin there is no report chat, and the first /report would raise.
+        """
         if isinstance(v, str):
-            return [int(admin_id.strip()) for admin_id in v.split(",") if admin_id.strip()]
-        if isinstance(v, list):
-            return [int(admin_id) for admin_id in v]
-        if isinstance(v, int):
-            return [v]
-        raise ValueError("super_admins must be a comma-separated string, list, or integer")
+            admins = [int(admin_id.strip()) for admin_id in v.strip().strip("[]").split(",") if admin_id.strip()]
+        elif isinstance(v, list):
+            admins = [int(admin_id) for admin_id in v]
+        elif isinstance(v, int):
+            admins = [v]
+        else:
+            raise ValueError("super_admins must be a comma-separated string, list, or integer")
+        if not admins:
+            raise ValueError("super_admins must name at least one administrator")
+        return admins
 
     @property
     def default_report_chat_id(self) -> int:
