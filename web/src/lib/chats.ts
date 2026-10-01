@@ -14,7 +14,10 @@ export type Activity = 'unknown' | 'quiet' | 'active' | 'busy';
 export interface PublicChat {
   title: string;
   link: string;
-  /** The parent chat's title: supervisor's grouping. No name is written in the app. */
+  /**
+   * The section's title — the parent chat's, or the chat's own when others sit
+   * under it: supervisor's grouping. No name is written in the app.
+   */
   group: string | null;
   /** The group's university as the catalog codes it ("cvut"), when set. */
   institution: string | null;
