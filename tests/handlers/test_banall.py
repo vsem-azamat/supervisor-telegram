@@ -58,7 +58,7 @@ class TestTheDialog:
 
         _, buttons = _dialog(command)
         assert len(buttons) == 3
-        assert buttons[0].text == "Забанить везде"
+        assert buttons[0].text == "Забанить"
         assert "стереть" in buttons[1].text.lower()
         assert buttons[2].text == "Отмена"
 

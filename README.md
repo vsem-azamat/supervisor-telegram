@@ -50,7 +50,7 @@ graph TB
     PG[("PostgreSQL 18")]
 
     Users -->|messages| ModBot
-    Users -->|/report /spam| ModBot
+    Users -->|/report| ModBot
     Users -->|join request → Mini App check| ModBot
     Admins -->|moderation commands| ModBot
     Admins -->|console, signed in from Telegram| WebUI
