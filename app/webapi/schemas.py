@@ -31,8 +31,10 @@ class PublicCatalogItem(BaseModel):
     about who is in the room. A public page cannot leak a field this model does
     not carry, however carelessly it is written.
 
-    ``group`` is the parent chat's title — "ČVUT" above "ČVUT FIT" — so the
-    catalogue can be read by university rather than as forty-five rows.
+    ``group`` is the section's title: the parent chat's for a chat under one
+    ("ČVUT" above "ČVUT FIT"), the chat's own for a chat others sit under, and
+    none for a loose chat — so the catalogue reads by university rather than as
+    forty-five rows.
     """
 
     title: str
