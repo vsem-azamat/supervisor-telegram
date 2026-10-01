@@ -244,6 +244,17 @@ class TestHelp:
         assert "/banall" in text
         assert "/blacklist" in text
 
+    async def test_the_global_reach_stops_at_approval(self, telegram_factory, admin_repo, site):
+        """A blacklist entry acts in approved chats only, so help does not promise every chat."""
+        message = _private(telegram_factory, "help", create_admin_user(id=SUPER_ADMIN_ID))
+
+        await start_handlers.help_command(message, admin_repo)
+
+        text, _ = _answered(message)
+        assert "везде" not in text
+        assert "во всех чатах" not in text
+        assert "во всех одобренных чатах" in text
+
     async def test_the_dead_and_the_debug_commands_are_not_advertised(self, telegram_factory, admin_repo, site):
         """`/adminlink` no longer exists, and `/json` is a debugging dump."""
         message = _private(telegram_factory, "help", create_admin_user(id=SUPER_ADMIN_ID))

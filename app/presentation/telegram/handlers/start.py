@@ -134,7 +134,7 @@ async def help_command(message: types.Message, admin_repo: AdminRepository) -> N
     is_super_admin = message.from_user.id in settings.admin.super_admins
     if is_super_admin or await admin_repo.is_admin(message.from_user.id):
         if is_super_admin:
-            where = "во всех чатах"
+            where = "во всех одобренных чатах"
         else:
             chats = await admin_repo.chats_for(message.from_user.id)
             where = f"в ваших чатах ({len(chats)})"
@@ -151,8 +151,8 @@ async def help_command(message: types.Message, admin_repo: AdminRepository) -> N
 
     if is_super_admin:
         text += (
-            "\n<b>Главному администратору</b> — во всех чатах сразу\n"
-            "/banall — забанить везде, в ответ на сообщение\n"
+            "\n<b>Главному администратору</b> — во всех одобренных чатах сразу\n"
+            "/banall — забанить, в ответ на сообщение\n"
             "/blacklist — чёрный список, поиск по нему\n"
             "/admin, /unadmin — назначить, снять модератора этого чата\n"
         )
