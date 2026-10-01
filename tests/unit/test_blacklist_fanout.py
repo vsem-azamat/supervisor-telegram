@@ -1,4 +1,4 @@
-"""Banning across every chat, counted in Telegram calls.
+"""Banning across every approved chat, counted in Telegram calls.
 
 The ban itself fans out — one call per chat, which is the whole point. Wiping
 the person's messages does not: each message lives in exactly one chat and is
@@ -11,12 +11,14 @@ for a spammer to disappear.
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from app.db.models import Chat
 from app.moderation import blacklist
 
 
 class _Row:
-    def __init__(self, id_: int) -> None:
+    def __init__(self, id_: int, *, approved: bool = True) -> None:
         self.id = id_
+        self.is_approved = approved
 
 
 class _Message:
@@ -88,6 +90,71 @@ class TestRevokingMessages:
         await blacklist.add_to_blacklist(AsyncMock(), bot, 777, revoke_messages=True)
 
         assert bot.delete_message.await_count == 2
+
+
+class TestOnlyApprovedChats:
+    """The bot syncs every group it sits in, including groups other people own.
+
+    A ban or an unban there is a public act in a chat nobody approved: it would
+    overrule the owner's own moderation, so the fan-out stops at approval.
+    """
+
+    @pytest.fixture
+    def mixed(self, monkeypatch):
+        chats = [
+            Chat(id=-100_1, resource_status=Chat.STATUS_APPROVED),
+            Chat(id=-100_2, resource_status=Chat.STATUS_DISCOVERED),
+            Chat(id=-100_3, resource_status=Chat.STATUS_APPROVED),
+            Chat(id=-100_4, resource_status=Chat.STATUS_DISABLED),
+        ]
+        messages = [
+            _Message(-100_1, 11),
+            _Message(-100_2, 22),
+            _Message(-100_4, 44),
+            _Message(-100_9, 99),  # a group with no row
+            _Message(777, 33),
+        ]
+
+        chat_repo = AsyncMock()
+        chat_repo.get_chats.return_value = chats
+        message_repo = AsyncMock()
+        message_repo.get_user_messages.return_value = messages
+
+        monkeypatch.setattr(blacklist, "UserRepository", MagicMock(return_value=AsyncMock()))
+        monkeypatch.setattr(blacklist, "ChatRepository", MagicMock(return_value=chat_repo))
+        monkeypatch.setattr(blacklist, "MessageRepository", MagicMock(return_value=message_repo))
+        return AsyncMock()
+
+    async def test_a_ban_skips_unapproved_chats(self, mixed):
+        bot = mixed
+
+        await blacklist.add_to_blacklist(AsyncMock(), bot, 777)
+
+        assert {call.args[0] for call in bot.ban_chat_member.await_args_list} == {-100_1, -100_3}
+
+    async def test_messages_in_unapproved_chats_stay(self, mixed):
+        """The private chat with the bot is not a synced group and still loses its messages."""
+        bot = mixed
+
+        await blacklist.add_to_blacklist(AsyncMock(), bot, 777, revoke_messages=True)
+
+        targeted = {call.kwargs["chat_id"] for call in bot.delete_message.await_args_list}
+        assert targeted == {-100_1, 777}
+
+    async def test_an_unban_skips_unapproved_chats(self, mixed):
+        bot = mixed
+
+        await blacklist.remove_from_blacklist(AsyncMock(), bot, 777)
+
+        assert {call.args[0] for call in bot.unban_chat_member.await_args_list} == {-100_1, -100_3}
+
+    async def test_an_unban_never_removes_a_member(self, mixed):
+        """Telegram's unban kicks a current member unless told only_if_banned."""
+        bot = mixed
+
+        await blacklist.remove_from_blacklist(AsyncMock(), bot, 777)
+
+        assert all(call.kwargs == {"only_if_banned": True} for call in bot.unban_chat_member.await_args_list)
 
 
 class TestSuperAdmins:

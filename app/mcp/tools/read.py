@@ -167,7 +167,7 @@ def register_read_tools(mcp: FastMCP[None]) -> None:
     @mcp.tool
     @_guarded
     async def get_blacklist(limit: int = 50) -> dict[str, Any]:
-        """List users on the global blacklist — blocked from every managed chat.
+        """List users on the global blacklist — blocked from every approved chat.
 
         limit caps how many entries to return (1-200); compare `returned` with
         `total` to see whether the list was cut short. Ask for a larger page

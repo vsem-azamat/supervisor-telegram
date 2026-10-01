@@ -24,6 +24,15 @@ def is_protected(user_id: int) -> bool:
     return user_id in settings.admin.super_admins
 
 
+async def _approved_chat_ids(db: AsyncSession) -> list[int]:
+    """The chats a blacklist entry acts in.
+
+    The bot records every group it sits in, other people's included; acting in
+    one nobody approved overrules its owner (docs/invariants.md, Approval).
+    """
+    return [chat.id for chat in await ChatRepository(db).get_chats() if chat.is_approved]
+
+
 async def add_to_blacklist(
     db: AsyncSession,
     bot: Bot,
@@ -33,9 +42,9 @@ async def add_to_blacklist(
     if is_protected(id_tg):
         raise ProtectedUserError(id_tg)
     user_repo = UserRepository(db)
-    chat_repo = ChatRepository(db)
     message_repo = MessageRepository(db)
     await user_repo.add_to_blacklist(id_tg)
+    approved = await _approved_chat_ids(db)
 
     async def ban_user(chat_id: int) -> None:
         try:
@@ -47,8 +56,7 @@ async def add_to_blacklist(
                 f"Error: {err}"
             )
 
-    tasks = [ban_user(chat.id) for chat in await chat_repo.get_chats()]
-    await asyncio.gather(*tasks)
+    await asyncio.gather(*(ban_user(chat_id) for chat_id in approved))
 
     if not revoke_messages:
         return
@@ -60,6 +68,10 @@ async def add_to_blacklist(
     # all but a fraction of them doomed, spent while an administrator waits for
     # a spammer to disappear.
     for message in await message_repo.get_user_messages(id_tg):
+        # A group counts only when approved; a message whose group has no row
+        # (older history) stays. The private chat with the bot is not a group.
+        if message.chat_id < 0 and message.chat_id not in approved:
+            continue
         try:
             await bot.delete_message(chat_id=message.chat_id, message_id=message.message_id)
         except Exception as err:
@@ -70,15 +82,15 @@ async def add_to_blacklist(
 
 async def remove_from_blacklist(db: AsyncSession, bot: Bot, id_tg: int) -> None:
     user_repo = UserRepository(db)
-    chat_repo = ChatRepository(db)
 
     await user_repo.remove_from_blacklist(id_tg)
+    approved = await _approved_chat_ids(db)
 
     async def unban_user(chat_id: int) -> None:
         try:
-            await bot.unban_chat_member(chat_id, id_tg)
+            # Without only_if_banned, Telegram removes a current member.
+            await bot.unban_chat_member(chat_id, id_tg, only_if_banned=True)
         except Exception as err:
             logger.warning(f"Failed to unban user {id_tg} in chat {chat_id}.\nError: {err}")
 
-    tasks = [unban_user(chat.id) for chat in await chat_repo.get_chats()]
-    await asyncio.gather(*tasks)
+    await asyncio.gather(*(unban_user(chat_id) for chat_id in approved))

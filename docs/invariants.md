@@ -84,11 +84,19 @@ API, so the two halves have nowhere else to meet.
 
 ## Approval
 
+**Being in a chat is not permission to publish or moderate it.** The bot can
+sync a group it does not own, and legacy `approved` rows are not evidence of
+an agreement with the owner. Until an owner agrees, keep that group's listing
+unpublished and its active moderation disabled. When taking a listing down,
+clear its public link as well as its approval status: restoring approval must
+not silently republish an old link. Future external directory entries need
+consent and a listing lifecycle independent of bot moderation.
+
 **A chat is approved or it is not — that is a property of the chat, not of an
 update type.** The bot records what it observes in unapproved groups but takes
-no public action there: no moderation commands, no blacklist ban, no spam
-prompt, no ad alert. When a new update type starts carrying public action, the
-gate has to learn about it, or the action escapes approval.
+no public action there: no moderation commands, no blacklist ban or unban, no
+spam prompt, no ad alert. When a new update type starts carrying public action,
+the gate has to learn about it, or the action escapes approval.
 
 **The approval gate must run after history capture.** Reversing them silently
 stops passive recording for chats awaiting approval, which is exactly the data
