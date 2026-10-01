@@ -58,3 +58,14 @@ def test_a_second_administrator_does_not_take_the_process_down(monkeypatch) -> N
     monkeypatch.setenv("ADMIN_SUPER_ADMINS", "268388996,7000000")
 
     assert len(_admins()) == 2
+
+
+@pytest.mark.parametrize("raw", [" ", "[]", ","])
+def test_a_blank_list_still_refuses_to_start(monkeypatch, raw: str) -> None:
+    """No super admin means no report chat, and the first /report would raise."""
+    from pydantic import ValidationError
+
+    monkeypatch.setenv("ADMIN_SUPER_ADMINS", raw)
+
+    with pytest.raises(ValidationError):
+        _admins()

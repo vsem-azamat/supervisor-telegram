@@ -117,18 +117,23 @@ class AdminSettings(Settings):
     def parse_admin_list(cls, v: Any) -> list[int]:
         """Parse comma-separated admin IDs.
 
-        Both spellings are accepted because both are already out there: the
-        setting was documented as comma-separated and, since only JSON ever
-        parsed, whatever is deployed may well be a JSON array. Refusing either
-        one means a deploy that will not boot.
+        Comma-separated is the spelling the whole stack accepts: the catalog
+        reads the same variable as ADMIN_TG_IDS and splits it on commas only.
+        Brackets are tolerated here so a stray JSON array still boots this
+        process, but do not deploy one. An empty list is refused: with no super
+        admin there is no report chat, and the first /report would raise.
         """
         if isinstance(v, str):
-            return [int(admin_id.strip()) for admin_id in v.strip().strip("[]").split(",") if admin_id.strip()]
-        if isinstance(v, list):
-            return [int(admin_id) for admin_id in v]
-        if isinstance(v, int):
-            return [v]
-        raise ValueError("super_admins must be a comma-separated string, list, or integer")
+            admins = [int(admin_id.strip()) for admin_id in v.strip().strip("[]").split(",") if admin_id.strip()]
+        elif isinstance(v, list):
+            admins = [int(admin_id) for admin_id in v]
+        elif isinstance(v, int):
+            admins = [v]
+        else:
+            raise ValueError("super_admins must be a comma-separated string, list, or integer")
+        if not admins:
+            raise ValueError("super_admins must name at least one administrator")
+        return admins
 
     @property
     def default_report_chat_id(self) -> int:
