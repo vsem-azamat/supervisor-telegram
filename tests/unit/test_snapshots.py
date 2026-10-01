@@ -187,3 +187,62 @@ class TestMetadata:
         await snapshot_once(session_maker=db_session_maker, bot=_bot(photo=None))
 
         assert (await _chat(db_session_maker, -100)).photo_file_id == "file-old"
+
+
+class TestFloodControl:
+    """Telegram answers a burst with "retry after N", and every call after it fails too.
+
+    A tick asked about forty-six chats back to back, so after each deploy it
+    lost a third of the counts to flood control.
+    """
+
+    async def test_chats_are_asked_about_one_at_a_time_with_a_pause(
+        self, db_session_maker: async_sessionmaker[AsyncSession], monkeypatch
+    ) -> None:
+        from app.chats import snapshots
+
+        pauses: list[float] = []
+
+        async def fake_sleep(seconds: float) -> None:
+            pauses.append(seconds)
+
+        monkeypatch.setattr(snapshots.asyncio, "sleep", fake_sleep)
+        await _seed(db_session_maker, Chat(id=-100, title="A"), Chat(id=-200, title="B"), Chat(id=-300, title="C"))
+
+        await snapshot_once(session_maker=db_session_maker, bot=_bot())
+
+        assert pauses == [snapshots.PAUSE_BETWEEN_CHATS_SECONDS] * 2
+        assert snapshots.PAUSE_BETWEEN_CHATS_SECONDS > 0
+
+    async def test_a_retry_after_is_waited_out_once(self, monkeypatch) -> None:
+        from aiogram.exceptions import TelegramRetryAfter
+        from app.chats import metadata
+
+        waited: list[float] = []
+
+        async def fake_sleep(seconds: float) -> None:
+            waited.append(seconds)
+
+        monkeypatch.setattr(metadata.asyncio, "sleep", fake_sleep)
+        bot = AsyncMock()
+        bot.get_chat_member_count = AsyncMock(
+            side_effect=[TelegramRetryAfter(method=MagicMock(), message="flood", retry_after=27), 120]
+        )
+
+        assert await metadata.fetch_member_count(bot=bot, chat_id=-100) == 120
+        assert waited == [27]
+
+    async def test_a_second_retry_after_gives_up(self, monkeypatch) -> None:
+        from aiogram.exceptions import TelegramRetryAfter
+        from app.chats import metadata
+
+        async def fake_sleep(seconds: float) -> None:
+            return None
+
+        monkeypatch.setattr(metadata.asyncio, "sleep", fake_sleep)
+        flood = TelegramRetryAfter(method=MagicMock(), message="flood", retry_after=27)
+        bot = AsyncMock()
+        bot.get_chat = AsyncMock(side_effect=[flood, flood])
+
+        assert await metadata.fetch_metadata(bot=bot, chat_id=-100) is None
+        assert bot.get_chat.await_count == 2
