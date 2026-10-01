@@ -46,24 +46,26 @@ GROUP_COMMANDS = [
     BotCommand(command="help", description="Команды"),
 ]
 
-# What the bot asks for when somebody adds it as an administrator: exactly what
-# its commands use — deleting, muting and banning, invite links for join
-# checks, and pinning.
+# What the bot asks for when somebody adds it as an administrator: everything a
+# group administrator can hold, by the owner's rule that the bot moderates with
+# full rights. Two stay off: anonymity, and appointing administrators, which
+# would let a leaked token hand anybody the chat. Who may *use* the bot's power
+# is decided by the bot (super admins, admin_chats), never by these rights.
 DEFAULT_ADMIN_RIGHTS = ChatAdministratorRights(
     is_anonymous=False,
     can_manage_chat=True,
     can_delete_messages=True,
-    can_manage_video_chats=False,
+    can_manage_video_chats=True,
     can_restrict_members=True,
     can_promote_members=False,
-    can_change_info=False,
+    can_change_info=True,
     can_invite_users=True,
-    can_post_stories=False,
-    can_edit_stories=False,
-    can_delete_stories=False,
+    can_post_stories=True,
+    can_edit_stories=True,
+    can_delete_stories=True,
     can_pin_messages=True,
-    # Left out, Telegram defaults it to can_pin_messages; nothing here edits tags.
-    can_manage_tags=False,
+    can_manage_topics=True,
+    can_manage_tags=True,
 )
 
 

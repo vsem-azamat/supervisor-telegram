@@ -102,12 +102,14 @@ class TestDefaultAdministratorRights:
         await profile.publish_profile(bot)
 
         rights = bot.set_my_default_administrator_rights.await_args.kwargs["rights"]
-        assert rights.can_delete_messages
-        assert rights.can_restrict_members
-        assert rights.can_invite_users
-        assert rights.can_pin_messages
-        assert not rights.can_promote_members
-        assert rights.can_manage_tags is False
+        granted = {name for name, value in rights.model_dump().items() if value is True}
+        refused = {name for name, value in rights.model_dump().items() if value is False}
+        # Everything an administrator of a group can hold, except the two that
+        # do harm in the wrong hands: anonymity, and appointing administrators,
+        # which would let a leaked token hand anybody the chat.
+        assert refused == {"is_anonymous", "can_promote_members"}
+        assert {"can_delete_messages", "can_restrict_members", "can_invite_users", "can_pin_messages"} <= granted
+        assert {"can_change_info", "can_manage_topics", "can_manage_video_chats"} <= granted
 
 
 class TestOneRefusalDoesNotStopTheRest:
