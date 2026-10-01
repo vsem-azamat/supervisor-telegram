@@ -37,6 +37,10 @@ if TYPE_CHECKING:
 logger = get_logger("chats.snapshots")
 
 SNAPSHOT_INTERVAL_SECONDS = 3600  # 1 hour
+# Asked back to back, forty-six chats tripped flood control after every deploy
+# and lost a third of the counts. A second apart, a tick takes under a minute
+# of an hour.
+PAUSE_BETWEEN_CHATS_SECONDS = 1.0
 METADATA_STALENESS_HOURS = 24
 
 
@@ -72,7 +76,9 @@ async def snapshot_once(
 
     async with session_maker() as session:
         chats = (await session.execute(select(Chat))).scalars().all()
-        for chat in chats:
+        for index, chat in enumerate(chats):
+            if index:
+                await asyncio.sleep(PAUSE_BETWEEN_CHATS_SECONDS)
             members = await fetch_member_count(bot=bot, chat_id=chat.id)
             if members is not None:
                 session.add(ChatMemberSnapshot(chat_id=chat.id, member_count=members))
