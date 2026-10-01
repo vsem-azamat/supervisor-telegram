@@ -96,7 +96,7 @@ class TestText:
 
 class TestDefaultAdministratorRights:
     async def test_a_new_group_is_asked_for_what_the_commands_use(self) -> None:
-        """/pin needs pin rights; without them the button Telegram shows omits it."""
+        """The rights Telegram suggests when somebody adds the bot as an administrator."""
         bot = _bot()
 
         await profile.publish_profile(bot)
@@ -107,6 +107,35 @@ class TestDefaultAdministratorRights:
         assert rights.can_invite_users
         assert rights.can_pin_messages
         assert not rights.can_promote_members
+        assert rights.can_manage_tags is False
+
+
+class TestOneRefusalDoesNotStopTheRest:
+    async def test_a_refused_rename_still_writes_the_menu(self) -> None:
+        bot = _bot(name="old")
+        bot.set_my_name.side_effect = RuntimeError("Flood control exceeded")
+
+        await profile.publish_profile(bot)
+
+        assert bot.set_my_commands.await_count == 2
+        bot.set_my_default_administrator_rights.assert_awaited_once()
+
+    async def test_a_refused_menu_still_writes_the_rest(self) -> None:
+        bot = _bot(description="old")
+        bot.set_my_commands.side_effect = RuntimeError("Telegram said no")
+
+        await profile.publish_profile(bot)
+
+        bot.set_my_description.assert_awaited_once()
+        bot.set_my_default_administrator_rights.assert_awaited_once()
+
+    async def test_narrower_menus_are_cleared(self) -> None:
+        """Set by hand, one would win over ours without anybody noticing."""
+        bot = _bot()
+
+        await profile.publish_profile(bot)
+
+        assert bot.delete_my_commands.await_count == 2
 
 
 class TestStartupIsNotHeldHostage:

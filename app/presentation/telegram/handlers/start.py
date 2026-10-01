@@ -151,8 +151,8 @@ async def help_command(message: types.Message, admin_repo: AdminRepository) -> N
 
     if is_super_admin:
         text += (
-            "\n<b>Главному администратору</b> — во всех одобренных чатах сразу\n"
-            "/banall — забанить, в ответ на сообщение\n"
+            "\n<b>Главному администратору</b>\n"
+            "/banall — забанить во всех одобренных чатах, в ответ на сообщение\n"
             "/blacklist — чёрный список, поиск по нему\n"
             "/admin, /unadmin — назначить, снять модератора этого чата\n"
         )

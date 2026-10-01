@@ -46,7 +46,7 @@ async def ban_everywhere(message: types.Message, message_repo: MessageRepository
     A filter that stayed quiet is as much information as one that fired.
     """
     if not message.reply_to_message:
-        await message.answer(reply_required_error("забанить во всех чатах"))
+        await message.answer(reply_required_error("забанить во всех одобренных чатах"))
         return
 
     target = message.reply_to_message
@@ -57,7 +57,7 @@ async def ban_everywhere(message: types.Message, message_repo: MessageRepository
 
     id_user = target.from_user.id
     if moderation_services.is_protected(id_user):
-        await message.answer("Главного администратора забанить во всех чатах нельзя.")
+        await message.answer("Главного администратора забанить нельзя.")
         await message.delete()
         return
     chats_count = await message_repo.count_user_chats(id_user)
@@ -75,7 +75,7 @@ async def ban_everywhere(message: types.Message, message_repo: MessageRepository
 
     common = {"user_id": id_user, "chat_id": target.chat.id, "message_id": target.message_id}
     builder = InlineKeyboardBuilder()
-    builder.button(text="Забанить везде", callback_data=BlacklistConfirm(**common).pack())
+    builder.button(text="Забанить", callback_data=BlacklistConfirm(**common).pack())
     builder.button(
         # The count comes from our own record of what the person wrote, across
         # every synced group; only the approved ones are touched, and Telegram
