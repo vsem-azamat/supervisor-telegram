@@ -65,7 +65,7 @@ async def ban_everywhere(message: types.Message, message_repo: MessageRepository
     spam_flag = await spam_service.detect_spam(db, target)
 
     info_text = (
-        "<b>Забанить во всех чатах?</b>\n"
+        "<b>Забанить во всех одобренных чатах?</b>\n"
         f"{other.get_user_mention(target.from_user)} · <code>{id_user}</code>\n\n"
         f"Замечен в {chats_count} чатах, {messages_count} сообщений.\n"
         f"Спам-фильтр: <b>{'сработал' if spam_flag else 'не сработал'}</b>.\n\n"
@@ -77,9 +77,9 @@ async def ban_everywhere(message: types.Message, message_repo: MessageRepository
     builder = InlineKeyboardBuilder()
     builder.button(text="Забанить везде", callback_data=BlacklistConfirm(**common).pack())
     builder.button(
-        # The count comes from our own record of what the person wrote, which is
-        # what we would try to delete. Telegram refuses some of them, so this is
-        # the size of the attempt rather than a promise.
+        # The count comes from our own record of what the person wrote, across
+        # every synced group; only the approved ones are touched, and Telegram
+        # refuses some messages there, so this is an upper bound, not a promise.
         text=f"Забанить и стереть сообщения ({messages_count})",
         callback_data=BlacklistConfirm(**common, revoke=1, mark_spam=1).pack(),
     )

@@ -86,9 +86,9 @@ API, so the two halves have nowhere else to meet.
 
 **A chat is approved or it is not — that is a property of the chat, not of an
 update type.** The bot records what it observes in unapproved groups but takes
-no public action there: no moderation commands, no blacklist ban, no spam
-prompt, no ad alert. When a new update type starts carrying public action, the
-gate has to learn about it, or the action escapes approval.
+no public action there: no moderation commands, no blacklist ban or unban, no
+spam prompt, no ad alert. When a new update type starts carrying public action,
+the gate has to learn about it, or the action escapes approval.
 
 **The approval gate must run after history capture.** Reversing them silently
 stops passive recording for chats awaiting approval, which is exactly the data

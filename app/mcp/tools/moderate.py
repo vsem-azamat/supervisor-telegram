@@ -4,7 +4,7 @@ Two tiers, split by how bad the mistake is.
 
 A mute is bounded and self-reversing, an unban restores access, a welcome
 message is text — those run on the call and are recorded. A ban removes a
-person, and a blacklist entry removes them from every chat at once; those are
+person, and a blacklist entry removes them from every approved chat at once; those are
 proposed and wait for a super admin to press confirm in the moderator bot.
 
 So a leaked token can queue noise into an admin's private chat, which is loud
@@ -165,7 +165,7 @@ def register_moderation_tools(mcp: FastMCP[None]) -> None:
     async def unblacklist_user(user_id: int) -> dict[str, Any]:
         """Remove a user from the global blacklist.
 
-        The blacklist spans every managed chat; this lifts it everywhere.
+        The blacklist spans every approved chat; this lifts it in each of them.
         """
         from app.core.exceptions import UserNotFoundException
         from app.moderation.blacklist import remove_from_blacklist
@@ -226,7 +226,7 @@ def register_moderation_tools(mcp: FastMCP[None]) -> None:
 
     @mcp.tool
     async def propose_blacklist(user_id: int, reason: str = "") -> dict[str, Any]:
-        """Ask a super admin to blacklist a user across every managed chat.
+        """Ask a super admin to blacklist a user across every approved chat.
 
         The widest action available here, and the one least worth getting wrong,
         so it waits for a human press and expires unanswered.
